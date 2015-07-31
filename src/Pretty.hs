@@ -1,6 +1,7 @@
 {-# LANGUAGE RecordWildCards #-}
 module Pretty(Pretty(..), putDoc) where
 
+import           Data.Array
 import           Game
 import           Text.PrettyPrint.ANSI.Leijen
 
@@ -14,12 +15,13 @@ instance Pretty HotelChain where
   pretty Worldwide   = dullcyan $ text "Wo"
 
 instance Pretty Cell where
-  pretty (Cell (x,y) Empty)     = char x <> char '-' <> int y
-  pretty (Cell (x,y) Neutral)   = char x <> char '-' <> int y
-  pretty (Cell (x,y) (Chain h)) = pretty h
+  pretty (Cell (Tile (x,y)) Empty)       = char x <> char '-' <> int y
+  pretty (Cell (Tile (x,y)) (Neutral _)) = dullred $ char x <> char '-' <> int y
+  pretty (Cell (Tile (x,y)) (Chain h))   = pretty h
 
 instance Pretty Game where
-  pretty Game{..} = vcat [ format row | row <- gameBoard ]
+  pretty Game{..} = vcat [ format row | row <- rows gameBoard ]
     where
+      rows   board = [ map (\ y -> board ! (x, y)) [ 1 .. 12 ] | x <- ['A' .. 'I'] ]
       format row = hsep $ map pretty row
 
