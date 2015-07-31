@@ -3,31 +3,43 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
+import           Control.Exception
 import           Control.Monad
 import           Control.Monad.Prompt
 import           Game
 import           Pretty
+import           System.Exit
 import           System.IO
+import           System.IO.Error
 
 data Input a where
-  Play :: Input Order
+  DisplayGame :: Game -> Input ()
+  GetOrder :: Input Order
   Quit :: Input ()
 
 main :: IO ()
 main = do
-  hSetBuffering stdin NoBuffering
   let game = newGame
   putStrLn "Initial state:"
 
-  interpretCommand game
+  runPromptM handleInput $ interpretCommand game
 
-interpretCommand :: Game -> IO ()
+handleInput :: Input a -> IO a
+handleInput GetOrder = do r <- tryJust (guard . isEOFError) $ getLine
+                          case r of
+                           Left  e    -> return Cancel
+                           Right line -> return $ read line
+handleInput Quit     = exitSuccess
+handleInput (DisplayGame game) = do putDoc $ pretty game
+                                    putStrLn ""
+
+interpretCommand :: Game -> Prompt Input ()
 interpretCommand game@Game{..} = do
-  putDoc $ pretty game
-  putStrLn ""
---  command <- readLn
---  prompt command
-
+  prompt $ DisplayGame game
+  order <- prompt GetOrder
+  if   order == Cancel
+  then prompt Quit
+  else interpretCommand $ play game order
 
 
 

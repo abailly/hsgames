@@ -20,8 +20,7 @@ instance Pretty Cell where
   pretty (Cell (Tile (x,y)) (Chain h))   = pretty h
 
 instance Pretty Game where
-  pretty Game{..} = vcat [ format row | row <- rows gameBoard ]
+  pretty Game{..} = vcat $ rows gameBoard
     where
-      rows   board = [ map (\ y -> board ! (x, y)) [ 1 .. 12 ] | x <- ['A' .. 'I'] ]
-      format row = hsep $ map pretty row
+      rows   board = [ hsep $ map (\ y -> pretty $ board ! (x, y)) [ 1 .. 12 ] | x <- ['A' .. 'I'] ]
 
