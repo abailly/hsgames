@@ -11,6 +11,7 @@ import           Pretty
 import           System.Exit
 import           System.IO
 import           System.IO.Error
+import           System.Random
 
 data Input a where
   DisplayGame :: Game -> Input ()
@@ -19,7 +20,8 @@ data Input a where
 
 main :: IO ()
 main = do
-  let game = newGame
+  g <- getStdGen
+  let game = newGame g
   putStrLn "Initial state:"
 
   runPromptM handleInput $ interpretCommand game
