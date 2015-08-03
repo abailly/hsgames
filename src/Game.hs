@@ -5,6 +5,7 @@ import           Data.Array
 import           Data.List             (delete, find)
 import qualified Data.Map              as M
 import           Data.Maybe
+import qualified Data.Set              as S
 import           System.Random
 import           System.Random.Shuffle
 
@@ -34,16 +35,24 @@ data Player = Player { playerName :: String
 
 type GameBoard = Array Coord Cell
 
-adjacentCells :: GameBoard -> Coord -> [Cell]
-adjacentCells board (x,y) = let ((lr,lc),(ur,uc)) = bounds board
-                            in map (board !) $ catMaybes [ if x > lr then Just (pred x,y) else Nothing
-                                                          , if x < ur then Just (succ x,y) else Nothing
-                                                          , if y > lc then Just (x,pred y) else Nothing
-                                                          , if y < uc then Just (x,succ y) else Nothing
-                                                          ]
+adjacentCells :: (Cell -> Bool) -> GameBoard -> Coord -> [Cell]
+adjacentCells p board (x,y) = let ((lr,lc),(ur,uc)) = bounds board
+                                 in filter p $ map (board !) $ catMaybes [ if x > lr then Just (pred x,y) else Nothing
+                                                                         , if x < ur then Just (succ x,y) else Nothing
+                                                                         , if y > lc then Just (x,pred y) else Nothing
+                                                                         , if y < uc then Just (x,succ y) else Nothing
+                                                                         ]
 
 linkedCells :: GameBoard -> Coord -> [Cell]
-linkedCells board coord = board ! coord : (filter (isNeutral . cellContent) $ adjacentCells board coord)
+linkedCells board coord = map (board !) $ S.toList $ buildLinked board (S.singleton coord) S.empty
+  where
+    buildLinked :: GameBoard -> S.Set Coord -> S.Set Coord -> S.Set Coord
+    buildLinked board todo done | S.null todo     = done
+                                | S.size todo == 1 = let c = S.findMin todo
+                                                         adj = S.fromList $ map (tileCoords . cellCoord) $ adjacentCells (isNeutral . cellContent) board c
+                                                         next = adj `S.difference` done
+                                                     in buildLinked board next (c `S.insert` adj)
+                                | otherwise       = S.foldl' (\ d c -> buildLinked board (S.singleton c) done `S.union` d) done todo
 
 data Game = Game { gameBoard    :: GameBoard
                  , players      :: M.Map String Player
@@ -83,7 +92,7 @@ hasNeutralChainAt :: GameBoard -> Coord -> Bool
 hasNeutralChainAt board coord = isNeutral (cellContent $ board ! coord) && hasAdjacentNeutralTile board coord
 
 hasAdjacentNeutralTile :: GameBoard -> Coord -> Bool
-hasAdjacentNeutralTile board coord = any (isNeutral . cellContent) (adjacentCells board coord)
+hasAdjacentNeutralTile board coord = not (null (adjacentCells (isNeutral . cellContent) board coord))
 
 createNewChain :: Game -> HotelChain -> Coord -> Game
 createNewChain game@Game{..} chain coord = let linked = linkedCells gameBoard coord

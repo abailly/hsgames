@@ -13,13 +13,13 @@ instance Pretty Player where
   pretty (Player name tiles) = text name <+> list (map pretty tiles)
 
 instance Pretty HotelChain where
-  pretty American    = ondullred   $ fill 4 $ green $ text "Am"
-  pretty Continental = ondullred   $ fill 4 $ blue $ text "Co"
-  pretty Festival    = oncyan      $ fill 4 $ red $ text "Fe"
-  pretty Imperial    = oncyan      $ fill 4 $ magenta $ text "Im"
+  pretty American    = ondullred   $ fill 4 $ green     $ text "Am"
+  pretty Continental = ondullred   $ fill 4 $ blue      $ text "Co"
+  pretty Festival    = oncyan      $ fill 4 $ red       $ text "Fe"
+  pretty Imperial    = oncyan      $ fill 4 $ magenta   $ text "Im"
   pretty Luxor       = oncyan      $ fill 4 $ dullgreen $ text "Lu"
-  pretty Tower       = oncyan      $ fill 4 $ dullblue $ text "To"
-  pretty Worldwide   = ondullgreen $ fill 4 $ dullcyan $ text "Wo"
+  pretty Tower       = oncyan      $ fill 4 $ dullblue  $ text "To"
+  pretty Worldwide   = ondullgreen $ fill 4 $ dullcyan  $ text "Wo"
 
 instance Pretty Cell where
   pretty (Cell t Empty)                = pretty t
