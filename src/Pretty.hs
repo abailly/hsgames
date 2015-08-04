@@ -10,8 +10,8 @@ instance Pretty Tile where
   pretty (Tile (x,y)) = fill 4 $ char x <> char '-' <> int y
 
 instance Pretty Player where
-  pretty (Player name tiles stock) = text name <+> list (map pretty tiles) <+>
-                                     list (map (\ (n,q) -> pretty n <+> text "->" <+> int q) $ M.toList stock)
+  pretty (Player name tiles stock cash) = text name <+> align (list (map pretty tiles) <$$>
+                                                               list (map (\ (n,q) -> pretty n <+> text "->" <+> int q) $ M.toList stock) <+> char '$' <> int cash)
 
 instance Pretty ChainName where
   pretty American    = ondullred   $ fill 4 $ green     $ text "Am"
