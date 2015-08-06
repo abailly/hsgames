@@ -60,9 +60,17 @@ data Content = Empty
              | Chain ChainName
              deriving (Eq, Show, Read)
 
+isEmpty :: Content -> Bool
+isEmpty Empty = True
+isEmpty _     = False
+
 isNeutral :: Content -> Bool
 isNeutral (Neutral _) = True
 isNeutral _           = False
+
+isOwned :: Content -> Maybe ChainName
+isOwned (Chain c) = Just c
+isOwned _         = Nothing
 
 type Coord = (Char,Int)
 
@@ -95,7 +103,7 @@ linkedCells board coord = map (board !) $ S.toList $ buildLinked board (S.single
     buildLinked :: GameBoard -> S.Set Tile -> S.Set Tile -> S.Set Tile
     buildLinked board todo done | S.null todo     = done
                                 | S.size todo == 1 = let c = S.findMin todo
-                                                         adj = S.fromList $ map cellCoord $ adjacentCells (isNeutral . cellContent) board c
+                                                         adj = S.fromList $ map cellCoord $ adjacentCells (not . isEmpty . cellContent) board c
                                                          next = adj `S.difference` done
                                                      in buildLinked board next (c `S.insert` adj)
                                 | otherwise       = S.foldl' (\ d c -> buildLinked board (S.singleton c) done `S.union` d) done todo
@@ -106,12 +114,12 @@ data Game = Game { gameBoard    :: GameBoard
                  , hotelChains  :: M.Map ChainName HotelChain
                  } deriving (Show, Read)
 
-newGame :: StdGen -> Game
-newGame g = Game initialBoard players (drop 6 coords) chains
+newGame :: StdGen -> Int -> Game
+newGame g numTiles = Game initialBoard players (drop numTiles coords) chains
   where
     initialBoard = array (Tile ('A',1),Tile ('I',12)) (map (\ cell@(Cell c _) -> (c, cell)) cells)
     coords       = shuffle' (indices initialBoard)  (9 * 12) g
-    players      = M.fromList [ ("arnaud", Player "arnaud" (take 6 coords) M.empty 6000) ]
+    players      = M.fromList [ ("arnaud", Player "arnaud" (take numTiles coords) M.empty 6000) ]
     cells        = concatMap (\ (cs,n) -> map (\ (r,e) -> Cell (Tile (n,r)) e) cs) rows
     rows         = zip (replicate 9 (take 12 cols)) [ 'A' .. ]
     cols         = zip [ 1 .. ] (repeat Empty)
@@ -135,10 +143,19 @@ play game@Game{..} (Place name coord)  = let played         = find ((== name) . 
                                              removeTile t p = p { tiles = head drawingTiles : delete t (tiles p) }
                                          in case played of
                                              Nothing   -> game
-                                             Just tile -> game { gameBoard = gameBoard // [ (tile, Cell tile (Neutral tile)) ]
-                                                               , drawingTiles = tail drawingTiles
-                                                               , players =  M.adjust (removeTile tile) name players
-                                                               }
+                                             Just tile -> let adj     = linkedCells gameBoard tile
+                                                              owners = catMaybes $ map (isOwned . cellContent) adj
+                                                              expandChain c = c { chainTiles = map  cellCoord adj }
+                                                          in case owners of
+                                                              [] -> game { gameBoard = gameBoard // [ (tile, Cell tile (Neutral tile)) ]
+                                                                         , drawingTiles = tail drawingTiles
+                                                                         , players =  M.adjust (removeTile tile) name players
+                                                                         }
+                                                              (c:_) -> game { gameBoard = gameBoard // map (\ (Cell t _) -> (t, Cell t (Chain c))) adj
+                                                                            , drawingTiles = tail drawingTiles
+                                                                            , hotelChains = M.adjust expandChain c hotelChains
+                                                                            , players =  M.adjust (removeTile tile) name players
+                                                                            }
 
 hasNeutralChainAt :: GameBoard -> Tile -> Bool
 hasNeutralChainAt board coord = isNeutral (cellContent $ board ! coord) && hasAdjacentNeutralTile board coord

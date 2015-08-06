@@ -44,3 +44,8 @@ interpretCommand game@Game{..} = do
   if   order == Cancel
   then prompt Quit
   else interpretCommand $ play game order
+
+
+
+
+
