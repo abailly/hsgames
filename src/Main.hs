@@ -14,10 +14,10 @@ import           System.IO
 import           System.IO.Error
 import           System.Random
 
-data Input a where
-  DisplayGame :: Game -> Input ()
-  GetOrder :: Input Order
-  Quit :: Input ()
+data PlayerInput a where
+  DisplayGame :: Game -> PlayerInput ()
+  GetOrder :: Game -> PlayerInput Order
+  Quit :: PlayerInput ()
 
 main :: IO ()
 main = do
@@ -26,21 +26,21 @@ main = do
   let game = newGame g (read numTiles)
   putStrLn "Initial state:"
 
-  runPromptM handleInput $ interpretCommand game
+  runPromptM handlePlayerInput $ interpretCommand game
 
-handleInput :: Input a -> IO a
-handleInput GetOrder = do r <- tryJust (guard . isEOFError) $ getLine
+handlePlayerInput :: PlayerInput a -> IO a
+handlePlayerInput GetOrder = do r <- tryJust (guard . isEOFError) $ getLine
                           case r of
                            Left  e    -> return Cancel
                            Right line -> return $ read line
-handleInput Quit     = exitSuccess
-handleInput (DisplayGame game) = do putDoc $ pretty game
+handlePlayerInput Quit     = exitSuccess
+handlePlayerInput (DisplayGame game) = do putDoc $ pretty game
                                     putStrLn ""
 
-interpretCommand :: Game -> Prompt Input ()
+interpretCommand :: Game -> Prompt PlayerInput ()
 interpretCommand game@Game{..} = do
   prompt $ DisplayGame game
-  order <- prompt GetOrder
+  order <- prompt $ GetOrder game
   if   order == Cancel
   then prompt Quit
   else interpretCommand $ play game order

@@ -9,9 +9,14 @@ import           Text.PrettyPrint.ANSI.Leijen
 instance Pretty Tile where
   pretty (Tile (x,y)) = fill 4 $ char x <> char '-' <> int y
 
+instance Pretty PlayerType where
+  pretty Human = char 'H'
+  pretty Robot = char 'R'
+
 instance Pretty Player where
-  pretty (Player name tiles stock cash) = text name <+> align (list (map pretty tiles) <$$>
-                                                               list (map (\ (n,q) -> pretty n <+> text "->" <+> int q) $ M.toList stock) <+> char '$' <> int cash)
+  pretty (Player name typ tiles stock cash ) = text name <+> brackets (pretty typ) <+>
+                                               align (list (map pretty tiles) <$$>
+                                                      list (map (\ (n,q) -> pretty n <+> text "->" <+> int q) $ M.toList stock) <+> char '$' <> int cash)
 
 instance Pretty ChainName where
   pretty American    = ondullred   $ fill 4 $ green     $ text "Am"

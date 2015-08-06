@@ -1,11 +1,15 @@
+{-# LANGUAGE ExplicitForAll  #-}
+{-# LANGUAGE GADTs           #-}
+{-# LANGUAGE RankNTypes      #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns    #-}
-module Game(newGame, Game(..), Cell(..), Tile(..), Content(..), ChainName(..), Order(..), Player(..), play) where
+module Game where
 
 import           Data.Array
 import           Data.List             (delete, find)
 import qualified Data.Map              as M
 import           Data.Maybe
+import           Data.Monoid
 import qualified Data.Set              as S
 import           System.Random
 import           System.Random.Shuffle
@@ -80,12 +84,14 @@ data Cell = Cell { cellCoord   :: Tile
                  , cellContent :: Content
                  } deriving (Eq, Show ,Read)
 
+data PlayerType = Human | Robot deriving (Eq, Show, Read)
+
 data Player = Player { playerName :: String
+                     , playerType :: PlayerType
                      , tiles      :: [ Tile ]
                      , ownedStock :: M.Map ChainName Int
                      , ownedCash  :: Int
-                     }
-              deriving (Eq, Show, Read)
+                     } deriving (Eq, Show, Read)
 
 type GameBoard = Array Tile Cell
 
@@ -112,14 +118,32 @@ data Game = Game { gameBoard    :: GameBoard
                  , players      :: M.Map PlayerName Player
                  , drawingTiles :: [ Tile ]
                  , hotelChains  :: M.Map ChainName HotelChain
-                 } deriving (Show, Read)
+                 , turn         :: (PlayerName, Phase)
+                 } deriving (Eq, Show, Read)
+
+currentPlayer :: Game -> Player
+currentPlayer game = let p = fst $ turn game
+                     in players game M.! p
+
+data Phase = PlaceTile
+           | FundChain Tile
+           | BuySomeStock Int
+           deriving (Eq, Show, Read)
+
+possiblePlay :: Game -> [ Order ]
+possiblePlay (Game board plys _ chains (name, PlaceTile))           =  map (Place name) (tiles $ plys M.! name)
+possiblePlay game@(Game board plys _ chains (name, FundChain t))    =  map (\ c -> Fund name c t) (filter (not . hasActiveChain game) $ M.keys chains)
+possiblePlay game@(Game board plys _ chains (name, BuySomeStock 0)) =  []
+possiblePlay game@(Game board plys _ chains (name, BuySomeStock n)) =  map (\ c -> BuyStock name c 1) (filter (hasActiveChain game) $ M.keys chains)
 
 newGame :: StdGen -> Int -> Game
-newGame g numTiles = Game initialBoard players (drop numTiles coords) chains
+newGame g numTiles = Game initialBoard players (drop (2 * numTiles) coords) chains ("arnaud", PlaceTile)
   where
     initialBoard = array (Tile ('A',1),Tile ('I',12)) (map (\ cell@(Cell c _) -> (c, cell)) cells)
     coords       = shuffle' (indices initialBoard)  (9 * 12) g
-    players      = M.fromList [ ("arnaud", Player "arnaud" (take numTiles coords) M.empty 6000) ]
+    players      = M.fromList [ ("arnaud", Player "arnaud" Human (take numTiles coords) M.empty 6000)
+                              , ("bernard", Player "bernard" Human (take numTiles $ drop numTiles coords) M.empty 6000)
+                              ]
     cells        = concatMap (\ (cs,n) -> map (\ (r,e) -> Cell (Tile (n,r)) e) cs) rows
     rows         = zip (replicate 9 (take 12 cols)) [ 'A' .. ]
     cols         = zip [ 1 .. ] (repeat Empty)
@@ -139,23 +163,35 @@ play game@Game{..} (BuyStock player chain qty) = buyStock game player chain qty
 play game@Game{..} (Fund player chain coord) = if   gameBoard `hasNeutralChainAt` coord
                                                then createNewChain game player chain coord
                                                else game
-play game@Game{..} (Place name coord)  = let played         = find ((== name) . playerName) (M.elems players) >>= find (== coord) . tiles
-                                             removeTile t p = p { tiles = head drawingTiles : delete t (tiles p) }
-                                         in case played of
-                                             Nothing   -> game
-                                             Just tile -> let adj     = linkedCells gameBoard tile
-                                                              owners = catMaybes $ map (isOwned . cellContent) adj
-                                                              expandChain c = c { chainTiles = map  cellCoord adj }
-                                                          in case owners of
-                                                              [] -> game { gameBoard = gameBoard // [ (tile, Cell tile (Neutral tile)) ]
+play game (Place name coord)  = placeTile game name coord
+
+nextPlayer :: Game -> PlayerName
+nextPlayer game = let (p,_) = turn game
+                  in case M.lookupGT p (players game) of
+                      Nothing -> fst $ M.findMin (players game)
+                      Just (p',_) -> p'
+
+placeTile :: Game -> PlayerName -> Tile -> Game
+placeTile  game@Game{..} name coord = let playableTile   = find ((== name) . playerName) (M.elems players) >>= find (== coord) . tiles
+                                          removeTile t p = p { tiles = head drawingTiles : delete t (tiles p) }
+                                      in case playableTile of
+                                          Nothing   -> game
+                                          Just tile -> let adj = linkedCells gameBoard tile
+                                                           owners = catMaybes $ map (isOwned . cellContent) adj
+                                                           expandChain c = c { chainTiles = map  cellCoord adj }
+                                                       in case owners of
+                                                           [] -> game { gameBoard = gameBoard // [ (tile, Cell tile (Neutral tile)) ]
+                                                                      , drawingTiles = tail drawingTiles
+                                                                      , players =  M.adjust (removeTile tile) name players
+                                                                      , turn = (nextPlayer game, PlaceTile)
+                                                                      }
+                                                           (c:_) -> game { gameBoard = gameBoard // map (\ (Cell t _) -> (t, Cell t (Chain c))) adj
                                                                          , drawingTiles = tail drawingTiles
+                                                                         , hotelChains = M.adjust expandChain c hotelChains
                                                                          , players =  M.adjust (removeTile tile) name players
+                                                                         , turn = (nextPlayer game, PlaceTile)
                                                                          }
-                                                              (c:_) -> game { gameBoard = gameBoard // map (\ (Cell t _) -> (t, Cell t (Chain c))) adj
-                                                                            , drawingTiles = tail drawingTiles
-                                                                            , hotelChains = M.adjust expandChain c hotelChains
-                                                                            , players =  M.adjust (removeTile tile) name players
-                                                                            }
+
 
 hasNeutralChainAt :: GameBoard -> Tile -> Bool
 hasNeutralChainAt board coord = isNeutral (cellContent $ board ! coord) && hasAdjacentNeutralTile board coord

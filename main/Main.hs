@@ -3,7 +3,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
-import           Control.Exception
+import           Control.Exception    hiding (Handler)
 import           Control.Monad
 import           Control.Monad.Prompt
 import           Game
@@ -14,38 +14,37 @@ import           System.IO
 import           System.IO.Error
 import           System.Random
 
-data Input a where
-  DisplayGame :: Game -> Input ()
-  GetOrder :: Input Order
-  Quit :: Input ()
+
+data PlayerInput a where
+  GetOrder :: Player -> Game -> PlayerInput Order
+  Quit     :: PlayerInput ()
+
+type Handler a = PlayerInput a -> IO a
+
+playerInputHandler :: Handler a
+playerInputHandler (GetOrder Player{..} game) = do putDoc $ pretty game
+                                                   putStrLn ""
+                                                   putStrLn $ "Your move, " ++ playerName ++ " ?"
+                                                   let plays = possiblePlay game
+                                                   forM_ (zip plays [1 .. ]) (\ (p,n :: Int) -> putStrLn $ show n ++ "- " ++ show p)
+                                                   r <- tryJust (guard . isEOFError) $ getLine
+                                                   case r of
+                                                    Left  e    -> return Cancel
+                                                    Right line -> return $ plays !! (read line - 1)
+playerInputHandler Quit     = exitSuccess
+
 
 main :: IO ()
 main = do
   [numTiles] <- getArgs
   g <- getStdGen
   let game = newGame g (read numTiles)
-  putStrLn "Initial state:"
+  runPromptM playerInputHandler $ interpretCommand game
 
-  runPromptM handleInput $ interpretCommand game
-
-handleInput :: Input a -> IO a
-handleInput GetOrder = do r <- tryJust (guard . isEOFError) $ getLine
-                          case r of
-                           Left  e    -> return Cancel
-                           Right line -> return $ read line
-handleInput Quit     = exitSuccess
-handleInput (DisplayGame game) = do putDoc $ pretty game
-                                    putStrLn ""
-
-interpretCommand :: Game -> Prompt Input ()
+interpretCommand :: Game -> Prompt PlayerInput ()
 interpretCommand game@Game{..} = do
-  prompt $ DisplayGame game
-  order <- prompt GetOrder
+  let player = currentPlayer game
+  order <- prompt $ GetOrder player game
   if   order == Cancel
   then prompt Quit
   else interpretCommand $ play game order
-
-
-
-
-
