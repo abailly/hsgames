@@ -11,6 +11,7 @@ import qualified Data.Map              as M
 import           Data.Maybe
 import           Data.Monoid
 import qualified Data.Set              as S
+import           Debug.Trace
 import           System.Random
 import           System.Random.Shuffle
 
@@ -84,6 +85,9 @@ data Cell = Cell { cellCoord   :: Tile
                  , cellContent :: Content
                  } deriving (Eq, Show ,Read)
 
+instance Ord Cell where
+  (Cell t _) `compare` (Cell t' _) = t `compare` t'
+
 data PlayerType = Human | Robot deriving (Eq, Show, Read)
 
 data Player = Player { playerName :: String
@@ -103,16 +107,16 @@ adjacentCells p board (Tile (x,y)) = let (Tile (lr,lc), Tile (ur,uc)) = bounds b
                                                                              , if y < uc then Just (Tile (x,succ y)) else Nothing
                                                                              ]
 
-linkedCells :: GameBoard -> Tile -> [Cell]
-linkedCells board coord = map (board !) $ S.toList $ buildLinked board (S.singleton coord) S.empty
+linkedCells :: GameBoard -> Cell -> [Cell]
+linkedCells board coord = S.toList $ buildLinked board (S.singleton coord) S.empty
   where
-    buildLinked :: GameBoard -> S.Set Tile -> S.Set Tile -> S.Set Tile
+    buildLinked :: GameBoard -> S.Set Cell -> S.Set Cell -> S.Set Cell
     buildLinked board todo done | S.null todo     = done
                                 | S.size todo == 1 = let c = S.findMin todo
-                                                         adj = S.fromList $ map cellCoord $ adjacentCells (not . isEmpty . cellContent) board c
+                                                         adj = S.fromList $ adjacentCells (not . isEmpty . cellContent) board (cellCoord c)
                                                          next = adj `S.difference` done
-                                                     in buildLinked board next (c `S.insert` adj)
-                                | otherwise       = S.foldl' (\ d c -> buildLinked board (S.singleton c) done `S.union` d) done todo
+                                                     in buildLinked board next (c `S.insert` adj `S.union` done)
+                                | otherwise       = S.foldl' (\ d c -> buildLinked board (S.singleton c) S.empty `S.union` d) done todo
 
 data Game = Game { gameBoard    :: GameBoard
                  , players      :: M.Map PlayerName Player
@@ -133,8 +137,7 @@ data Phase = PlaceTile
 possiblePlay :: Game -> [ Order ]
 possiblePlay (Game board plys _ chains (name, PlaceTile))           =  map (Place name) (tiles $ plys M.! name)
 possiblePlay game@(Game board plys _ chains (name, FundChain t))    =  map (\ c -> Fund name c t) (filter (not . hasActiveChain game) $ M.keys chains)
-possiblePlay game@(Game board plys _ chains (name, BuySomeStock 0)) =  []
-possiblePlay game@(Game board plys _ chains (name, BuySomeStock n)) =  map (\ c -> BuyStock name c 1) (filter (hasActiveChain game) $ M.keys chains)
+possiblePlay game@(Game board plys _ chains (name, BuySomeStock n)) =  map (\ c -> BuyStock name c) (filter (hasActiveChain game) $ M.keys chains)
 
 newGame :: StdGen -> Int -> Game
 newGame g numTiles = Game initialBoard players (drop (2 * numTiles) coords) chains ("arnaud", PlaceTile)
@@ -153,13 +156,13 @@ type PlayerName = String
 
 data Order = Place PlayerName Tile
            | Fund PlayerName ChainName Tile
-           | BuyStock PlayerName ChainName Int
+           | BuyStock PlayerName ChainName
            | Cancel
            deriving (Eq, Show, Read)
 
 play :: Game -> Order -> Game
 play game          Cancel             = game
-play game@Game{..} (BuyStock player chain qty) = buyStock game player chain qty
+play game@Game{..} (BuyStock player chain) = buyStock game player chain
 play game@Game{..} (Fund player chain coord) = if   gameBoard `hasNeutralChainAt` coord
                                                then createNewChain game player chain coord
                                                else game
@@ -176,14 +179,17 @@ placeTile  game@Game{..} name coord = let playableTile   = find ((== name) . pla
                                           removeTile t p = p { tiles = head drawingTiles : delete t (tiles p) }
                                       in case playableTile of
                                           Nothing   -> game
-                                          Just tile -> let adj = linkedCells gameBoard tile
-                                                           owners = catMaybes $ map (isOwned . cellContent) adj
-                                                           expandChain c = c { chainTiles = map  cellCoord adj }
+                                          Just tile -> let newCell = Cell tile (Neutral tile)
+                                                           adj = linkedCells gameBoard newCell
+                                                           owners = trace (show adj) $ catMaybes $ map (isOwned . cellContent) adj
+                                                           expandChain c = c { chainTiles = map cellCoord adj }
                                                        in case owners of
-                                                           [] -> game { gameBoard = gameBoard // [ (tile, Cell tile (Neutral tile)) ]
+                                                           [] -> game { gameBoard = gameBoard // [ (tile, newCell) ]
                                                                       , drawingTiles = tail drawingTiles
                                                                       , players =  M.adjust (removeTile tile) name players
-                                                                      , turn = (nextPlayer game, PlaceTile)
+                                                                      , turn = if hasAdjacentNeutralTile gameBoard tile
+                                                                               then (name, FundChain tile)
+                                                                               else (nextPlayer game, PlaceTile)
                                                                       }
                                                            (c:_) -> game { gameBoard = gameBoard // map (\ (Cell t _) -> (t, Cell t (Chain c))) adj
                                                                          , drawingTiles = tail drawingTiles
@@ -203,26 +209,30 @@ hasAdjacentNeutralTile :: GameBoard -> Tile -> Bool
 hasAdjacentNeutralTile board coord = not (null (adjacentCells (isNeutral . cellContent) board coord))
 
 createNewChain :: Game -> String -> ChainName -> Tile -> Game
-createNewChain game@Game{..} player chain coord = let linked = linkedCells gameBoard coord
+createNewChain game@Game{..} player chain coord = let linked = linkedCells gameBoard (Cell coord (Neutral coord))
                                                       fundedChain c = c { chainTiles = map cellCoord linked, chainStock = chainStock c - 1 }
                                                       chainFounder p = p { ownedStock = M.insert chain 1 (ownedStock p) }
                                                   in  game { gameBoard  = gameBoard // map ( \ (Cell t _) -> (t, (Cell t (Chain chain)))) linked
                                                            , hotelChains = M.adjust fundedChain chain hotelChains
                                                            , players = M.adjust chainFounder player players
+                                                           , turn = (player, BuySomeStock 3)
                                                            }
-buyStock :: Game -> PlayerName -> ChainName -> Int -> Game
-buyStock game@Game{..} player chain qty = if   game `hasActiveChain` chain            &&
-                                               chainStock (hotelChains M.! chain) >= qty
-                                          then let price = stockPrice (hotelChains M.! chain) * qty
-                                                   decreaseStock c = c { chainStock = chainStock c - qty }
-                                                   addOwnedStock (Just n) = Just $ n + qty
-                                                   addOwnedStock Nothing  = Just qty
-                                                   buyAndPayStock p = p { ownedCash = ownedCash p - price
-                                                                        , ownedStock = M.alter addOwnedStock chain (ownedStock p)
-                                                                        }
-                                               in  if ownedCash (players M.! player) >= price
-                                                   then game { hotelChains = M.adjust decreaseStock chain hotelChains
-                                                             , players = M.adjust buyAndPayStock player players
-                                                             }
-                                                   else game
-                                            else game
+buyStock :: Game -> PlayerName -> ChainName -> Game
+buyStock game@Game{..} player chain = if   game `hasActiveChain` chain            &&
+                                           chainStock (hotelChains M.! chain) > 0
+                                      then let price = stockPrice (hotelChains M.! chain)
+                                               decreaseStock c = c { chainStock = chainStock c - 1 }
+                                               addOwnedStock (Just n) = Just $ n + 1
+                                               addOwnedStock Nothing  = Just 1
+                                               buyAndPayStock p = p { ownedCash = ownedCash p - price
+                                                                    , ownedStock = M.alter addOwnedStock chain (ownedStock p)
+                                                                    }
+                                           in  if ownedCash (players M.! player) >= price
+                                               then game { hotelChains = M.adjust decreaseStock chain hotelChains
+                                                         , players = M.adjust buyAndPayStock player players
+                                                         , turn = case turn of
+                                                                   (p, BuySomeStock n) | n > 1 -> (player, BuySomeStock (n-1))
+                                                                   _                           -> (nextPlayer game, PlaceTile)
+                                                         }
+                                               else game
+                                      else game
