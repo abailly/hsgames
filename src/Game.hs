@@ -137,7 +137,7 @@ data Phase = PlaceTile
 possiblePlay :: Game -> [ Order ]
 possiblePlay (Game board plys _ chains (name, PlaceTile))           =  map (Place name) (tiles $ plys M.! name)
 possiblePlay game@(Game board plys _ chains (name, FundChain t))    =  map (\ c -> Fund name c t) (filter (not . hasActiveChain game) $ M.keys chains)
-possiblePlay game@(Game board plys _ chains (name, BuySomeStock n)) =  map (\ c -> BuyStock name c) (filter (hasActiveChain game) $ M.keys chains)
+possiblePlay game@(Game board plys _ chains (name, BuySomeStock n)) =  Pass : map (\ c -> BuyStock name c) (filter (hasActiveChain game) $ M.keys chains)
 
 newGame :: StdGen -> Int -> Game
 newGame g numTiles = Game initialBoard players (drop (2 * numTiles) coords) chains ("arnaud", PlaceTile)
@@ -157,11 +157,13 @@ type PlayerName = String
 data Order = Place PlayerName Tile
            | Fund PlayerName ChainName Tile
            | BuyStock PlayerName ChainName
+           | Pass
            | Cancel
            deriving (Eq, Show, Read)
 
 play :: Game -> Order -> Game
-play game          Cancel             = game
+play game          Cancel                  = game
+play game          Pass                    = game { turn = (nextPlayer game, PlaceTile) }
 play game@Game{..} (BuyStock player chain) = buyStock game player chain
 play game@Game{..} (Fund player chain coord) = if   gameBoard `hasNeutralChainAt` coord
                                                then createNewChain game player chain coord
@@ -189,13 +191,17 @@ placeTile  game@Game{..} name coord = let playableTile   = find ((== name) . pla
                                                                       , players =  M.adjust (removeTile tile) name players
                                                                       , turn = if hasAdjacentNeutralTile gameBoard tile
                                                                                then (name, FundChain tile)
-                                                                               else (nextPlayer game, PlaceTile)
+                                                                               else if   any (hasActiveChain game) (M.keys hotelChains)
+                                                                                    then (name, BuySomeStock 3)
+                                                                                    else (nextPlayer game, PlaceTile)
                                                                       }
                                                            (c:_) -> game { gameBoard = gameBoard // map (\ (Cell t _) -> (t, Cell t (Chain c))) adj
                                                                          , drawingTiles = tail drawingTiles
                                                                          , hotelChains = M.adjust expandChain c hotelChains
                                                                          , players =  M.adjust (removeTile tile) name players
-                                                                         , turn = (nextPlayer game, PlaceTile)
+                                                                         , turn = if   any (hasActiveChain game) (M.keys hotelChains)
+                                                                                  then (name, BuySomeStock 3)
+                                                                                  else (nextPlayer game, PlaceTile)
                                                                          }
 
 
