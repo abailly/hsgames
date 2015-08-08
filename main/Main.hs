@@ -18,6 +18,7 @@ import           System.Random
 data PlayerInput a where
   GetOrder :: Player -> Game -> PlayerInput Order
   Quit     :: PlayerInput ()
+  SaveGame :: Game -> PlayerInput ()
 
 type Handler a = PlayerInput a -> IO a
 
@@ -31,6 +32,7 @@ playerInputHandler (GetOrder Player{..} game) = do putDoc $ pretty game
                                                    case r of
                                                     Left  e    -> return Cancel
                                                     Right line -> return $ plays !! (read line - 1)
+playerInputHandler (SaveGame g) = writeFile ".acquire.bak" (show g)
 playerInputHandler Quit     = exitSuccess
 
 
@@ -43,6 +45,7 @@ main = do
 
 interpretCommand :: Game -> Prompt PlayerInput ()
 interpretCommand game@Game{..} = do
+  prompt $ SaveGame game
   let player = currentPlayer game
   order <- prompt $ GetOrder player game
   if   order == Cancel
