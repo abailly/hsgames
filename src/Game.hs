@@ -28,6 +28,9 @@ data HotelChain = HotelChain { chainName  :: ChainName
 isActive :: HotelChain -> Bool
 isActive HotelChain{..} = not (null chainTiles)
 
+isSafe :: HotelChain -> Bool
+isSafe HotelChain{..} = length chainTiles >= 11
+
 maximumStock = 25
 
 stockPrice (HotelChain American    (length -> l) _ ) | l == 2  = 300
@@ -316,10 +319,12 @@ placeTile  game@Game{..} name coord = let playableTile   = find ((== name) . pla
                                                                        , turn = buyStockOrNextPlayer
                                                                        }
                                                            -- Merger between 2 chains
-                                                           [c1,c2] -> game { drawingTiles = tail drawingTiles
-                                                                           , players =  M.adjust (removeTile tile) name players
-                                                                           , turn = (name, ResolveMerger (TakeOver tile [c1,c2]))
-                                                                           }
+                                                           [c1,c2] -> if not (isSafe (hotelChains M.! c1)) || not (isSafe (hotelChains M.! c2))
+                                                                      then game { drawingTiles = tail drawingTiles
+                                                                                , players =  M.adjust (removeTile tile) name players
+                                                                                , turn = (name, ResolveMerger (TakeOver tile [c1,c2]))
+                                                                                }
+                                                                      else game
 
 
 hasNeutralChainAt :: GameBoard -> Tile -> Bool
