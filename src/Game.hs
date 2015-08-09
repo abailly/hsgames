@@ -6,7 +6,9 @@
 module Game where
 
 import           Data.Array
-import           Data.List             (delete, find, nub, sort)
+import           Data.Function
+import           Data.List             (delete, find, groupBy, nub, sort,
+                                        sortBy)
 import qualified Data.Map              as M
 import           Data.Maybe
 import           Data.Monoid
@@ -62,6 +64,39 @@ stockPrice (HotelChain Imperial    (length -> l) _ ) | l == 2  = 400
                                                     | otherwise = 1200
 stockPrice (HotelChain Continental l s) = stockPrice $ HotelChain Imperial l s
 
+mergerBonus (HotelChain American    (length -> l) _ ) | l == 2     = (3000,1500)
+                                                     | l == 3     = (4000,2000)
+                                                     | l == 4     = (5000,2500)
+                                                     | l == 5     = (6000,3000)
+                                                     | l <= 10    = (7000,3500)
+                                                     | l <= 20    = (8000,4000)
+                                                     | l <= 30    = (9000,4500)
+                                                     | l <= 40    = (10000,5000)
+                                                     | otherwise = (11000,5500)
+mergerBonus (HotelChain Worldwide l s) = mergerBonus $ HotelChain American l s
+mergerBonus (HotelChain Festival l s)  = mergerBonus $ HotelChain American l s
+
+mergerBonus (HotelChain Tower    (length -> l) _ ) | l == 2     = (2000,1000)
+                                                  | l == 3     = (3000,1500)
+                                                  | l == 4     = (4000,2000)
+                                                  | l == 5     = (5000,2500)
+                                                  | l <= 10    = (6000,3000)
+                                                  | l <= 20    = (7000,3500)
+                                                  | l <= 30    = (8000,4000)
+                                                  | l <= 40    = (9000,4500)
+                                                  | otherwise = (10000,5000)
+mergerBonus (HotelChain Luxor l s) = mergerBonus $ HotelChain Tower l s
+
+mergerBonus (HotelChain Imperial    (length -> l) _ ) | l == 2     = (4000,2000)
+                                                     | l == 3     = (5000,2500)
+                                                     | l == 4     = (6000,3000)
+                                                     | l == 5     = (7000,3500)
+                                                     | l <= 10    = (8000,4000)
+                                                     | l <= 20    = (9000,4500)
+                                                     | l <= 30    = (10000,5000)
+                                                     | l <= 40    = (11000,5500)
+                                                     | otherwise = (12000,6000)
+mergerBonus (HotelChain Continental l s) = mergerBonus $ HotelChain Imperial l s
 
 data Content = Empty
              | Neutral Tile
@@ -119,7 +154,7 @@ linkedCells board coord = S.toList $ buildLinked board (S.singleton coord) S.emp
                                                          adj = S.fromList $ adjacentCells (not . isEmpty . cellContent) board (cellCoord c)
                                                          next = adj `S.difference` done
                                                      in buildLinked board next (c `S.insert` adj `S.union` done)
-                                | otherwise       = S.foldl' (\ d c -> buildLinked board (S.singleton c) S.empty `S.union` d) done todo
+                                | otherwise       = S.foldl' (\ d c -> buildLinked board (S.singleton c) d) done todo
 
 data Game = Game { gameBoard    :: GameBoard
                  , players      :: M.Map PlayerName Player
@@ -150,15 +185,22 @@ data Phase = PlaceTile
 possiblePlay :: Game -> [ Order ]
 possiblePlay (Game board plys _ chains (name, PlaceTile))           =  map (Place name) (tiles $ plys M.! name)
 possiblePlay (Game board plys _ chains (name, ResolveMerger (TakeOver tile [c1,c2])))
-                                                                    =  if chainTiles (chains M.! c1) > chainTiles (chains M.! c1)
+                                                                    =  trace ("merge "++ show c1 ++ ", " ++ show c2) $
+                                                                       if length (chainTiles (chains M.! c1)) > length (chainTiles (chains M.! c2))
                                                                        then [Merge name tile c1 c2]
-                                                                       else if chainTiles (chains M.! c1) < chainTiles (chains M.! c1)
+                                                                       else if length (chainTiles (chains M.! c1)) < length (chainTiles (chains M.! c2))
                                                                             then [Merge name tile c2 c1]
                                                                             else [Merge name tile c2 c1, Merge name tile c1 c2]
-possiblePlay (Game _ _ _ _ (name, ResolveMerger (DisposeStock player buyer buyee price (next:pys))))
-                                                                    =  [ HoldStock next buyee, SellStock next buyee price, ExchangeStock next buyer buyee]
+possiblePlay (Game _ plys _ _ (name, ResolveMerger (DisposeStock player buyer buyee price (next:pys))))
+                                                                    =  case M.lookup buyee (ownedStock $ plys M.! next) of
+                                                                        Nothing -> [Pass]
+                                                                        Just n  ->
+                                                                          Pass :
+                                                                          [SellStock next buyee price k | k <- [ 1 .. n ] ] ++
+                                                                          [ExchangeStock next buyer buyee k | k <- [ 1 .. n `div` 2 ] ]
 possiblePlay game@(Game board plys _ chains (name, FundChain t))    =  map (\ c -> Fund name c t) (filter (not . hasActiveChain game) $ M.keys chains)
 possiblePlay game@(Game board plys _ chains (name, BuySomeStock n)) =  Pass : map (\ c -> BuyStock name c) (filter (hasActiveChain game) $ M.keys chains)
+
 
 newGame :: StdGen -> Int -> Game
 newGame g numTiles = Game initialBoard players (drop (2 * numTiles) coords) chains ("arnaud", PlaceTile)
@@ -179,40 +221,53 @@ data Order = Place PlayerName Tile
            | Merge PlayerName Tile ChainName ChainName
            | Fund PlayerName ChainName Tile
            | BuyStock PlayerName ChainName
-           | SellStock PlayerName ChainName Int
-           | HoldStock PlayerName ChainName
-           | ExchangeStock PlayerName ChainName ChainName
+           | SellStock PlayerName ChainName Int Int
+           | ExchangeStock PlayerName ChainName ChainName Int
            | Pass
            | Cancel
            deriving (Eq, Show, Read)
 
-nextTurnInMergerSolving :: (PlayerName, Phase) -> (PlayerName, Phase)
-nextTurnInMergerSolving (_, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys))) =
+nextTurnInMergerSolving :: Game -> (PlayerName, Phase) -> (PlayerName, Phase)
+nextTurnInMergerSolving game (_, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys))) =
+  case M.lookup buyee (ownedStock $ (players game) M.! next) of
+   Nothing -> (next, ResolveMerger (DisposeStock player buyer buyee price (next:pys)))
+   Just 0  -> (next, ResolveMerger (DisposeStock player buyer buyee price (next:pys)))
+   Just n  -> (this, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys)))
+nextTurnInMergerSolving game (_, ResolveMerger (DisposeStock player buyer buyee price [this])) =
+  case M.lookup buyee (ownedStock $ (players game) M.! this) of
+   Nothing -> (player, PlaceTile)
+   Just 0  -> (player, PlaceTile)
+   Just n  -> (this, ResolveMerger (DisposeStock player buyer buyee price [this]))
+
+playerPassInMerger :: Game -> (PlayerName, Phase) -> (PlayerName, Phase)
+playerPassInMerger game (_, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys))) =
   (next, ResolveMerger (DisposeStock player buyer buyee price (next:pys)))
-nextTurnInMergerSolving (_, ResolveMerger (DisposeStock player buyer buyee price [this])) =
-  (player, PlaceTile)
+playerPassInMerger game (_, ResolveMerger (DisposeStock player buyer buyee price [this])) =
+   (player, PlaceTile)
 
 play :: Game -> Order -> Game
 play game          Cancel                    = game
-play game          Pass                      = game { turn = (nextPlayer game, PlaceTile) }
+play game          Pass                      = game { turn = case turn game of
+                                                       (_, ResolveMerger (DisposeStock _ _ _  _ _))  -> playerPassInMerger game (turn game)
+                                                       _                                             -> (nextPlayer game, PlaceTile)
+                                                    }
 play game@Game{..} (BuyStock player chain)   = buyStock game player chain
 play game@Game{..} (Merge player tile chain1 chain2)  = merge game player tile chain1 chain2
-play game@Game{..} (HoldStock player chain1) = game { turn = nextTurnInMergerSolving turn }
-play game@Game{..} (SellStock player chain1 price) =
+play game@Game{..} (SellStock player chain1 price qty) =
   case M.lookup chain1 (ownedStock $ players M.! player) of
-   Nothing -> game { turn = nextTurnInMergerSolving turn }
-   Just n  -> let sellStock p = p { ownedStock = M.adjust (const 0) chain1 (ownedStock p)
-                                  , ownedCash = ownedCash p + price * n }
-                  increaseStock c = c { chainStock = chainStock c + n }
+   Nothing -> game { turn = nextTurnInMergerSolving game turn }
+   Just n  -> let sellStock p = p { ownedStock = M.adjust (\ q -> q - qty) chain1 (ownedStock p)
+                                  , ownedCash = ownedCash p + price * qty }
+                  increaseStock c = c { chainStock = chainStock c + qty }
               in game { hotelChains = M.adjust increaseStock chain1 hotelChains
                       , players = M.adjust sellStock player players
-                      , turn = nextTurnInMergerSolving turn
+                      , turn = nextTurnInMergerSolving game turn
                       }
-play game@Game{..} (ExchangeStock player buyer buyee) =
+play game@Game{..} (ExchangeStock player buyer buyee qty) =
   case M.lookup buyee (ownedStock $ players M.! player) of
-   Nothing -> game { turn = nextTurnInMergerSolving turn }
+   Nothing -> game { turn = nextTurnInMergerSolving game turn }
    Just n  -> let buyerRemainingStock = chainStock $ hotelChains M.! buyer
-                  xchgedStock = min buyerRemainingStock ( n `div` 2)
+                  xchgedStock = min buyerRemainingStock qty
                   xchgStock p = p { ownedStock = M.adjust (+ xchgedStock) buyer $
                                                  M.adjust (\ k -> k - (xchgedStock * 2)) buyee (ownedStock p)
                                   }
@@ -220,7 +275,7 @@ play game@Game{..} (ExchangeStock player buyer buyee) =
                   decreaseStock c = c { chainStock = chainStock c - xchgedStock }
               in game { hotelChains = M.adjust decreaseStock buyer $ M.adjust increaseStock buyee hotelChains
                       , players = M.adjust xchgStock player players
-                      , turn = nextTurnInMergerSolving turn
+                      , turn = nextTurnInMergerSolving game turn
                       }
 play game@Game{..} (Fund player chain coord) = if   gameBoard `hasNeutralChainAt` coord
                                                then createNewChain game player chain coord
@@ -279,7 +334,9 @@ hasAdjacentNeutralTile board coord = not (null (adjacentCells (isNeutral . cellC
 createNewChain :: Game -> String -> ChainName -> Tile -> Game
 createNewChain game@Game{..} player chain coord = let linked = linkedCells gameBoard (Cell coord (Neutral coord))
                                                       fundedChain c = c { chainTiles = map cellCoord linked, chainStock = chainStock c - 1 }
-                                                      chainFounder p = p { ownedStock = M.insert chain 1 (ownedStock p) }
+                                                      getFoundersShare Nothing  = Just 1
+                                                      getFoundersShare (Just n) = Just $ n + 1
+                                                      chainFounder p = p { ownedStock = M.alter getFoundersShare chain (ownedStock p) }
                                                   in  game { gameBoard  = gameBoard // map ( \ (Cell t _) -> (t, (Cell t (Chain chain)))) linked
                                                            , hotelChains = M.adjust fundedChain chain hotelChains
                                                            , players = M.adjust chainFounder player players
@@ -311,11 +368,30 @@ merge game@Game{..} name tile buyer buyee = let buyerChain = hotelChains M.! buy
                                                 mergedTiles =  tile : chainTiles buyerChain ++ chainTiles buyeeChain
                                                 mergeIntoBuyer c = c { chainTiles = mergedTiles }
                                                 clearBuyee c = c { chainTiles = [] }
+                                                game' = computeMergerBonus game buyee
                                             in if length (chainTiles buyerChain) >=  length (chainTiles buyeeChain) &&
                                                   isActive buyerChain && isActive buyeeChain
-                                               then game { hotelChains = M.adjust clearBuyee buyee $ M.adjust mergeIntoBuyer buyer hotelChains
-                                                         , gameBoard = gameBoard // map ( \ t -> (t, (Cell t (Chain buyer)))) mergedTiles
-                                                         , turn = (head $ M.keys players,
-                                                                   ResolveMerger $ DisposeStock (nextPlayer game) buyer buyee (stockPrice buyeeChain) (M.keys players)) }
+                                               then game' { hotelChains = M.adjust clearBuyee buyee $ M.adjust mergeIntoBuyer buyer hotelChains
+                                                          , gameBoard = gameBoard // map ( \ t -> (t, (Cell t (Chain buyer)))) mergedTiles
+                                                          , turn = (head $ M.keys players,
+                                                                    ResolveMerger $ DisposeStock (nextPlayer game) buyer buyee (stockPrice buyeeChain) (M.keys players)) }
                                                else game
 
+computeMergerBonus :: Game -> ChainName -> Game
+computeMergerBonus game@Game{..} chain = let buyeeChain = hotelChains M.! chain
+                                             buyeeOwnedStock p = M.findWithDefault 0 chain (ownedStock p)
+                                             plys = M.elems players
+                                             shareHolders = groupBy ((==) `on` snd) $
+                                                            sortBy (compare `on` (negate . snd)) $
+                                                            filter ((/=0) . snd) $
+                                                            zip plys (map buyeeOwnedStock plys)
+                                         in case shareHolders of
+                                             [[]]          -> game
+                                             [fsts]        -> divideAmong (map fst fsts) (uncurry (+) $ mergerBonus buyeeChain) game
+                                             (fsts:snds:_) -> divideAmong (map fst snds) (snd $ mergerBonus buyeeChain) $
+                                                              divideAmong (map fst fsts) (fst $ mergerBonus buyeeChain) game
+
+divideAmong :: [Player] -> Int -> Game -> Game
+divideAmong plys amount game@Game{..} = let bonus = amount `div` length plys
+                                            playersWithBonus = map (\ p -> p { ownedCash = bonus + ownedCash p}) plys
+                                        in game { players = M.fromList (zip (map playerName playersWithBonus) playersWithBonus) `M.union` players }

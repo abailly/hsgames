@@ -36,6 +36,7 @@ executable acq
                    , acquire
                    , MonadPrompt
                    , random
+                   , directory
 
   -- other-modules:       
   -- other-extensions:    
