@@ -192,8 +192,9 @@ data Phase = PlaceTile
            deriving (Eq, Show, Read)
 
 gameCanEnd :: HotelChains -> Bool
-gameCanEnd chains = all isSafe (activeChains chains)     ||
-                      any isOverLimit (activeChains chains)
+gameCanEnd chains = (not $ null $ activeChains chains) &&
+                    (all isSafe (activeChains chains)     ||
+                      any isOverLimit (activeChains chains))
 
 activeChains chains = M.elems $ M.filter isActive chains
 
