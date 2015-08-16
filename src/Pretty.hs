@@ -1,10 +1,14 @@
 {-# LANGUAGE RecordWildCards #-}
 module Pretty(Pretty(..), putDoc) where
 
+import           Cells
 import           Data.Array
 import qualified Data.Map                     as M
 import           Game
+import           Hotels
+import           Player
 import           Text.PrettyPrint.ANSI.Leijen
+import           Tiles
 
 instance Pretty Tile where
   pretty (Tile (x,y)) = fill 4 $ char x <> char '-' <> int y

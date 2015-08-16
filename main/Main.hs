@@ -7,6 +7,7 @@ import           Control.Exception    hiding (Handler)
 import           Control.Monad
 import           Control.Monad.Prompt
 import           Game
+import           Player
 import           Pretty
 import           System.Directory
 import           System.Environment

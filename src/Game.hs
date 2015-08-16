@@ -2,7 +2,6 @@
 {-# LANGUAGE GADTs           #-}
 {-# LANGUAGE RankNTypes      #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ViewPatterns    #-}
 module Game where
 
 import           Data.Array
@@ -17,152 +16,10 @@ import           Debug.Trace
 import           System.Random
 import           System.Random.Shuffle
 
-data ChainName = American | Continental | Festival | Imperial | Luxor | Tower | Worldwide
-                deriving (Eq, Enum, Ord, Show, Read)
-
-data HotelChain = HotelChain { chainName  :: ChainName
-                             , chainTiles :: [ Tile ]
-                             , chainStock :: Int
-                             } deriving (Eq, Show, Read)
-
-type HotelChains = M.Map ChainName HotelChain
-
-isActive :: HotelChain -> Bool
-isActive HotelChain{..} = not (null chainTiles)
-
-isSafe :: HotelChain -> Bool
-isSafe HotelChain{..} = length chainTiles >= 11
-
-isOverLimit :: HotelChain -> Bool
-isOverLimit HotelChain{..} = length chainTiles >= 41
-
-maximumStock = 25
-
-stockPrice (HotelChain American    (length -> l) _ ) | l == 2  = 300
-                                                    | l == 3  = 400
-                                                    | l == 4  = 500
-                                                    | l == 5  = 600
-                                                    | l <= 10 = 700
-                                                    | l <= 20 = 800
-                                                    | l <= 30 = 900
-                                                    | l <= 40 = 1000
-                                                    | otherwise = 1100
-stockPrice (HotelChain Worldwide l s) = stockPrice $ HotelChain American l s
-stockPrice (HotelChain Festival l s)  = stockPrice $ HotelChain American l s
-
-stockPrice (HotelChain Tower    (length -> l) _ ) | l == 2  = 200
-                                                 | l == 3  = 300
-                                                 | l == 4  = 400
-                                                 | l == 5  = 500
-                                                 | l <= 10 = 600
-                                                 | l <= 20 = 700
-                                                 | l <= 30 = 800
-                                                 | l <= 40 = 900
-                                                 | otherwise = 1000
-stockPrice (HotelChain Luxor l s) = stockPrice $ HotelChain Tower l s
-
-stockPrice (HotelChain Imperial    (length -> l) _ ) | l == 2  = 400
-                                                    | l == 3  = 500
-                                                    | l == 4  = 600
-                                                    | l == 5  = 700
-                                                    | l <= 10 = 800
-                                                    | l <= 20 = 900
-                                                    | l <= 30 = 1000
-                                                    | l <= 40 = 1100
-                                                    | otherwise = 1200
-stockPrice (HotelChain Continental l s) = stockPrice $ HotelChain Imperial l s
-
-mergerBonus (HotelChain American    (length -> l) _ ) | l == 2     = (3000,1500)
-                                                     | l == 3     = (4000,2000)
-                                                     | l == 4     = (5000,2500)
-                                                     | l == 5     = (6000,3000)
-                                                     | l <= 10    = (7000,3500)
-                                                     | l <= 20    = (8000,4000)
-                                                     | l <= 30    = (9000,4500)
-                                                     | l <= 40    = (10000,5000)
-                                                     | otherwise = (11000,5500)
-mergerBonus (HotelChain Worldwide l s) = mergerBonus $ HotelChain American l s
-mergerBonus (HotelChain Festival l s)  = mergerBonus $ HotelChain American l s
-
-mergerBonus (HotelChain Tower    (length -> l) _ ) | l == 2     = (2000,1000)
-                                                  | l == 3     = (3000,1500)
-                                                  | l == 4     = (4000,2000)
-                                                  | l == 5     = (5000,2500)
-                                                  | l <= 10    = (6000,3000)
-                                                  | l <= 20    = (7000,3500)
-                                                  | l <= 30    = (8000,4000)
-                                                  | l <= 40    = (9000,4500)
-                                                  | otherwise = (10000,5000)
-mergerBonus (HotelChain Luxor l s) = mergerBonus $ HotelChain Tower l s
-
-mergerBonus (HotelChain Imperial    (length -> l) _ ) | l == 2     = (4000,2000)
-                                                     | l == 3     = (5000,2500)
-                                                     | l == 4     = (6000,3000)
-                                                     | l == 5     = (7000,3500)
-                                                     | l <= 10    = (8000,4000)
-                                                     | l <= 20    = (9000,4500)
-                                                     | l <= 30    = (10000,5000)
-                                                     | l <= 40    = (11000,5500)
-                                                     | otherwise = (12000,6000)
-mergerBonus (HotelChain Continental l s) = mergerBonus $ HotelChain Imperial l s
-
-data Content = Empty
-             | Neutral Tile
-             | Chain ChainName
-             deriving (Eq, Show, Read)
-
-isEmpty :: Content -> Bool
-isEmpty Empty = True
-isEmpty _     = False
-
-isNeutral :: Content -> Bool
-isNeutral (Neutral _) = True
-isNeutral _           = False
-
-isOwned :: Content -> Maybe ChainName
-isOwned (Chain c) = Just c
-isOwned _         = Nothing
-
-type Coord = (Char,Int)
-
-newtype Tile = Tile { tileCoords :: Coord } deriving (Eq, Show, Read, Ix, Ord)
-
-data Cell = Cell { cellCoord   :: Tile
-                 , cellContent :: Content
-                 } deriving (Eq, Show ,Read)
-
-instance Ord Cell where
-  (Cell t _) `compare` (Cell t' _) = t `compare` t'
-
-data PlayerType = Human | Robot deriving (Eq, Show, Read)
-
-data Player = Player { playerName :: String
-                     , playerType :: PlayerType
-                     , tiles      :: [ Tile ]
-                     , ownedStock :: M.Map ChainName Int
-                     , ownedCash  :: Int
-                     } deriving (Eq, Show, Read)
-
-type GameBoard = Array Tile Cell
-
-adjacentCells :: (Cell -> Bool) -> GameBoard -> Tile -> [Cell]
-adjacentCells p board (Tile (x,y)) = let (Tile (lr,lc), Tile (ur,uc)) = bounds board
-                                     in filter p $ map (board !) $ catMaybes [ if x > lr then Just (Tile (pred x,y)) else Nothing
-                                                                             , if x < ur then Just (Tile (succ x,y)) else Nothing
-                                                                             , if y > lc then Just (Tile (x,pred y)) else Nothing
-                                                                             , if y < uc then Just (Tile (x,succ y)) else Nothing
-                                                                             ]
-
-linkedCells :: GameBoard -> Cell -> [Cell]
-linkedCells board coord = S.toList $ buildLinked board (S.singleton coord) S.empty
-  where
-    buildLinked :: GameBoard -> S.Set Cell -> S.Set Cell -> S.Set Cell
-    buildLinked board todo done | S.null todo     = done
-                                | S.size todo == 1 = let c = S.findMin todo
-                                                         adj = S.fromList $ adjacentCells (not . isEmpty . cellContent) board (cellCoord c)
-                                                         next = adj `S.difference` done
-                                                     in buildLinked board next (c `S.insert` adj `S.union` done)
-                                | otherwise       = S.foldl' (\ d c -> buildLinked board (S.singleton c) d) done todo
+import           Cells
+import           Hotels
+import           Player
+import           Tiles
 
 data Game = Game { gameBoard    :: GameBoard
                  , players      :: M.Map PlayerName Player
@@ -192,13 +49,6 @@ data Phase = PlaceTile
            deriving (Eq, Show, Read)
 
 type Turn = (PlayerName, Phase)
-
-gameCanEnd :: HotelChains -> Bool
-gameCanEnd chains = (not $ null $ activeChains chains) &&
-                    (all isSafe (activeChains chains)     ||
-                      any isOverLimit (activeChains chains))
-
-activeChains chains = M.elems $ M.filter isActive chains
 
 completeWithEndGame :: HotelChains -> [Order] -> [Order]
 completeWithEndGame chains orders = if gameCanEnd chains
@@ -230,14 +80,26 @@ possiblePlay game@(Game board plys _ chains (name, FundChain t))    =  let avail
 
 possiblePlay game@(Game board plys _ chains (name, BuySomeStock n)) =  completeWithEndGame chains $
                                                                        Pass : (map (\ c -> BuyStock name c)                 $
-                                                                               filter (hasEnoughMoneyToBuyStock name game) $
+                                                                               filter (\ c -> hasEnoughMoneyToBuyStock (plys M.! name) (chains M.! c)) $
                                                                                filter (hasActiveChain game)                $
                                                                                M.keys chains)
 
+nextTurnInMergerSolving :: Game -> Turn -> Turn
+nextTurnInMergerSolving game (_, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys)) cont) =
+  case M.lookup buyee (ownedStock $ (players game) M.! next) of
+   Nothing -> (next, ResolveMerger (DisposeStock player buyer buyee price (next:pys)) cont)
+   Just 0  -> (next, ResolveMerger (DisposeStock player buyer buyee price (next:pys)) cont)
+   Just n  -> (this, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys)) cont)
+nextTurnInMergerSolving game (_, ResolveMerger (DisposeStock player buyer buyee price [this]) cont) =
+  case M.lookup buyee (ownedStock $ (players game) M.! this) of
+   Nothing -> cont
+   Just 0  -> cont
+   Just n  -> (this, ResolveMerger (DisposeStock player buyer buyee price [this]) cont)
 
-hasEnoughMoneyToBuyStock :: PlayerName -> Game -> ChainName -> Bool
-hasEnoughMoneyToBuyStock player game@Game{..} chain = let price = stockPrice (hotelChains M.! chain)
-                                                      in ownedCash (players M.! player) >= price
+buyStockOrNextPlayer name game@Game{..} = if   any (hasActiveChain game) (M.keys hotelChains)
+                                          then (name, BuySomeStock 3)
+                                          else (nextPlayer game, PlaceTile)
+
 
 newGame :: StdGen -> Int -> Game
 newGame g numTiles = Game initialBoard players (drop (2 * numTiles) coords) chains ("arnaud", PlaceTile)
@@ -252,8 +114,6 @@ newGame g numTiles = Game initialBoard players (drop (2 * numTiles) coords) chai
     cols         = zip [ 1 .. ] (repeat Empty)
     chains       = M.fromList $ map (\ n -> (n, HotelChain n [] maximumStock)) (enumFrom American)
 
-type PlayerName = String
-
 data Order = Place PlayerName Tile
            | Merge PlayerName Tile ChainName ChainName
            | Fund PlayerName ChainName Tile
@@ -265,17 +125,6 @@ data Order = Place PlayerName Tile
            | Cancel
            deriving (Eq, Show, Read)
 
-nextTurnInMergerSolving :: Game -> Turn -> Turn
-nextTurnInMergerSolving game (_, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys)) cont) =
-  case M.lookup buyee (ownedStock $ (players game) M.! next) of
-   Nothing -> (next, ResolveMerger (DisposeStock player buyer buyee price (next:pys)) cont)
-   Just 0  -> (next, ResolveMerger (DisposeStock player buyer buyee price (next:pys)) cont)
-   Just n  -> (this, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys)) cont)
-nextTurnInMergerSolving game (_, ResolveMerger (DisposeStock player buyer buyee price [this]) cont) =
-  case M.lookup buyee (ownedStock $ (players game) M.! this) of
-   Nothing -> cont
-   Just 0  -> cont
-   Just n  -> (this, ResolveMerger (DisposeStock player buyer buyee price [this]) cont)
 
 play :: Game -> Order -> Game
 play game          Cancel                    = game
@@ -334,10 +183,6 @@ drawTile name (Just tile) game@Game{..} = let removeTile t p = p { tiles = head 
                                           in game { drawingTiles = tail drawingTiles
                                                   , players      = M.adjust (removeTile tile) name players
                                                   }
-
-buyStockOrNextPlayer name game@Game{..} = if   any (hasActiveChain game) (M.keys hotelChains)
-                                          then (name, BuySomeStock 3)
-                                          else (nextPlayer game, PlaceTile)
 
 doPlayTile :: PlayerName -> Maybe Tile -> Game -> Game
 doPlayTile _    Nothing     game@Game{..} = game
@@ -409,7 +254,7 @@ buyStock game@Game{..} player chain = if   game `hasActiveChain` chain          
                                                buyAndPayStock p = p { ownedCash = ownedCash p - price
                                                                     , ownedStock = M.alter addOwnedStock chain (ownedStock p)
                                                                     }
-                                           in  if hasEnoughMoneyToBuyStock player game chain
+                                           in  if hasEnoughMoneyToBuyStock (players M.! player) (hotelChains M.! chain)
                                                then game { hotelChains = M.adjust decreaseStock chain hotelChains
                                                          , players = M.adjust buyAndPayStock player players
                                                          , turn = case turn of

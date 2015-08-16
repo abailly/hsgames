@@ -27,6 +27,10 @@ library
   default-language:    Haskell2010
   exposed-modules: Game
                  , Pretty
+                 , Player
+  other-modules: Hotels
+               , Tiles
+               , Cells
 
 executable acq
   default-language:    Haskell2010
