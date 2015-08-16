@@ -187,9 +187,11 @@ data MergerPhase = TakeOver Tile [ChainName]
 data Phase = PlaceTile
            | FundChain Tile
            | BuySomeStock Int
-           | ResolveMerger MergerPhase Phase
+           | ResolveMerger MergerPhase Turn
            | GameEnds
            deriving (Eq, Show, Read)
+
+type Turn = (PlayerName, Phase)
 
 gameCanEnd :: HotelChains -> Bool
 gameCanEnd chains = (not $ null $ activeChains chains) &&
@@ -250,7 +252,7 @@ data Order = Place PlayerName Tile
            | Cancel
            deriving (Eq, Show, Read)
 
-nextTurnInMergerSolving :: Game -> (PlayerName, Phase) -> (PlayerName, Phase)
+nextTurnInMergerSolving :: Game -> Turn -> Turn
 nextTurnInMergerSolving game (_, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys)) cont) =
   case M.lookup buyee (ownedStock $ (players game) M.! next) of
    Nothing -> (next, ResolveMerger (DisposeStock player buyer buyee price (next:pys)) cont)
@@ -258,8 +260,8 @@ nextTurnInMergerSolving game (_, ResolveMerger (DisposeStock player buyer buyee 
    Just n  -> (this, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys)) cont)
 nextTurnInMergerSolving game (_, ResolveMerger (DisposeStock player buyer buyee price [this]) cont) =
   case M.lookup buyee (ownedStock $ (players game) M.! this) of
-   Nothing -> (player, cont)
-   Just 0  -> (player, cont)
+   Nothing -> cont
+   Just 0  -> cont
    Just n  -> (this, ResolveMerger (DisposeStock player buyer buyee price [this]) cont)
 
 play :: Game -> Order -> Game
@@ -310,53 +312,55 @@ nextPlayer game = let (p,_) = turn game
                       Just (p',_) -> p'
 
 placeTile :: Game -> PlayerName -> Tile -> Game
-placeTile  game@Game{..} name coord = let playableTile   = find ((== name) . playerName) (M.elems players) >>= find (== coord) . tiles
-                                          removeTile t p = p { tiles = head drawingTiles : delete t (tiles p) }
-                                          buyStockOrNextPlayer = if   any (hasActiveChain game) (M.keys hotelChains)
-                                                                 then (name, BuySomeStock 3)
-                                                                 else (nextPlayer game, PlaceTile)
-                                      in case playableTile of
-                                          Nothing   -> game
-                                          Just tile -> let newCell = Cell tile (Neutral tile)
-                                                           adj = linkedCells gameBoard newCell
-                                                           owners = nub $ sort $ catMaybes $ map (isOwned . cellContent) adj
-                                                           expandChain c = c { chainTiles = map cellCoord adj }
-                                                       in case owners of
-                                                           [] -> game { gameBoard = gameBoard // [ (tile, newCell) ]
-                                                                      , drawingTiles = tail drawingTiles
-                                                                      , players =  M.adjust (removeTile tile) name players
-                                                                      , turn = if hasAdjacentNeutralTile gameBoard tile
-                                                                               then (name, FundChain tile)
-                                                                               else buyStockOrNextPlayer
-                                                                      }
-                                                           -- Place a tile next to an existing chain
-                                                           [c] -> game { gameBoard = gameBoard // map (\ (Cell t _) -> (t, Cell t (Chain c))) adj
-                                                                       , drawingTiles = tail drawingTiles
-                                                                       , hotelChains = M.adjust expandChain c hotelChains
-                                                                       , players =  M.adjust (removeTile tile) name players
-                                                                       , turn = buyStockOrNextPlayer
-                                                                       }
-                                                           -- Merger between 2 chains
-                                                           [c1,c2] -> if not (isSafe (hotelChains M.! c1)) || not (isSafe (hotelChains M.! c2))
-                                                                      then game { drawingTiles = tail drawingTiles
-                                                                                , players =  M.adjust (removeTile tile) name players
-                                                                                , turn = (name, ResolveMerger (TakeOver tile [c1,c2]) PlaceTile)
-                                                                                }
-                                                                      else game
-                                                           -- Merger between 3 chains
-                                                           [c1,c2,c3] -> let mergedChainsBySize = sortBy (compare `on` (negate . length . chainTiles)) $ map (hotelChains M.!) [c1,c2,c3]
-                                                                             largestChain = chainName $ head mergedChainsBySize
-                                                                             secondChain = chainName $ head $ tail mergedChainsBySize
-                                                                             smallestChain = chainName $ head $ tail $ tail mergedChainsBySize
-                                                                         in if any (not . isSafe) mergedChainsBySize
-                                                                            then game { drawingTiles = tail drawingTiles
-                                                                                      , players =  M.adjust (removeTile tile) name players
-                                                                                      , turn = (name,
-                                                                                                ResolveMerger (TakeOver tile [largestChain,secondChain])
-                                                                                                (ResolveMerger (TakeOver tile [largestChain,smallestChain]) PlaceTile)
-                                                                                               )
-                                                                                      }
-                                                                            else game
+placeTile  game@Game{..} name coord = let isTilePlayable   = find ((== name) . playerName) (M.elems players) >>= find (== coord) . tiles
+                                      in drawTile name isTilePlayable $ doPlayTile name isTilePlayable game
+
+drawTile :: PlayerName -> Maybe Tile -> Game -> Game
+drawTile name     Nothing game = game
+drawTile name (Just tile) game@Game{..} = let removeTile t p = p { tiles = head drawingTiles : delete t (tiles p) }
+                                          in game { drawingTiles = tail drawingTiles
+                                                  , players      = M.adjust (removeTile tile) name players
+                                                  }
+
+buyStockOrNextPlayer name game@Game{..} = if   any (hasActiveChain game) (M.keys hotelChains)
+                                          then (name, BuySomeStock 3)
+                                          else (nextPlayer game, PlaceTile)
+
+doPlayTile :: PlayerName -> Maybe Tile -> Game -> Game
+doPlayTile _    Nothing     game@Game{..} = game
+doPlayTile name (Just tile) game@Game{..} = let newCell = Cell tile (Neutral tile)
+                                                adj = linkedCells gameBoard newCell
+                                                owners = nub $ sort $ catMaybes $ map (isOwned . cellContent) adj
+                                            in case owners of
+                                                [] -> game { gameBoard = gameBoard // [ (tile, newCell) ]
+                                                           , turn = if hasAdjacentNeutralTile gameBoard tile
+                                                                    then (name, FundChain tile)
+                                                                    else buyStockOrNextPlayer name game
+                                                           }
+                                                [c] -> tileExpandsExistingChain c adj name game
+                                                -- Merger between 2 chains
+                                                [c1,c2] -> if not (isSafe (hotelChains M.! c1)) || not (isSafe (hotelChains M.! c2))
+                                                           then game { turn = (name, ResolveMerger (TakeOver tile [c1,c2]) ((nextPlayer game), PlaceTile)) }
+                                                           else game
+                                                -- Merger between 3 chains
+                                                [c1,c2,c3] -> let mergedChainsBySize = sortBy (compare `on` (negate . length . chainTiles)) $ map (hotelChains M.!) [c1,c2,c3]
+                                                                  largestChain = chainName $ head mergedChainsBySize
+                                                                  secondChain = chainName $ head $ tail mergedChainsBySize
+                                                                  smallestChain = chainName $ head $ tail $ tail mergedChainsBySize
+                                                              in if any (not . isSafe) mergedChainsBySize
+                                                                 then game { turn = (name,
+                                                                                     ResolveMerger (TakeOver tile [largestChain,secondChain])
+                                                                                     (name, ResolveMerger (TakeOver tile [largestChain,smallestChain]) (nextPlayer game, PlaceTile)))
+                                                                           }
+                                                                 else game
+
+tileExpandsExistingChain :: ChainName -> [Cell] -> PlayerName -> Game -> Game
+tileExpandsExistingChain c adj name game@Game{..} = game { gameBoard = gameBoard // map (\ (Cell t _) -> (t, Cell t (Chain c))) adj
+                                                         , hotelChains  = M.adjust expandChain c hotelChains
+                                                         , turn         = buyStockOrNextPlayer name game
+                                                         }
+  where
+    expandChain c = c { chainTiles = map cellCoord adj }
 
 
 hasNeutralChainAt :: GameBoard -> Tile -> Bool
@@ -404,7 +408,7 @@ playerPass game = game { turn = case turn game of
                                  (_, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys)) cont)  ->
                                    (next, ResolveMerger (DisposeStock player buyer buyee price (next:pys)) cont)
                                  (_, ResolveMerger (DisposeStock player buyer buyee price [this]) cont)           ->
-                                   (player, cont)
+                                   cont
                                  _                                             -> (nextPlayer game, PlaceTile)
                        }
 
