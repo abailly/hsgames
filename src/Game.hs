@@ -222,9 +222,22 @@ possiblePlay (Game _ plys _ _ (name, ResolveMerger (DisposeStock player buyer bu
                                                                           Pass :
                                                                           [SellStock next buyee price k | k <- [ 1 .. n ] ] ++
                                                                           [ExchangeStock next buyer buyee k | k <- [ 1 .. n `div` 2 ] ]
-possiblePlay game@(Game board plys _ chains (name, FundChain t))    =  completeWithEndGame chains $ map (\ c -> Fund name c t) (filter (not . hasActiveChain game) $ M.keys chains)
-possiblePlay game@(Game board plys _ chains (name, BuySomeStock n)) =  completeWithEndGame chains $ Pass : map (\ c -> BuyStock name c) (filter (hasActiveChain game) $ M.keys chains)
+possiblePlay game@(Game board plys _ chains (name, FundChain t))    =  let availableChainsForFounding = (filter (not . hasActiveChain game) $ M.keys chains)
+                                                                       in if not (null availableChainsForFounding)
+                                                                          then completeWithEndGame chains $
+                                                                               map (\ c -> Fund name c t) availableChainsForFounding
+                                                                          else [Pass]
 
+possiblePlay game@(Game board plys _ chains (name, BuySomeStock n)) =  completeWithEndGame chains $
+                                                                       Pass : (map (\ c -> BuyStock name c)                 $
+                                                                               filter (hasEnoughMoneyToBuyStock name game) $
+                                                                               filter (hasActiveChain game)                $
+                                                                               M.keys chains)
+
+
+hasEnoughMoneyToBuyStock :: PlayerName -> Game -> ChainName -> Bool
+hasEnoughMoneyToBuyStock player game@Game{..} chain = let price = stockPrice (hotelChains M.! chain)
+                                                      in ownedCash (players M.! player) >= price
 
 newGame :: StdGen -> Int -> Game
 newGame g numTiles = Game initialBoard players (drop (2 * numTiles) coords) chains ("arnaud", PlaceTile)
@@ -396,7 +409,7 @@ buyStock game@Game{..} player chain = if   game `hasActiveChain` chain          
                                                buyAndPayStock p = p { ownedCash = ownedCash p - price
                                                                     , ownedStock = M.alter addOwnedStock chain (ownedStock p)
                                                                     }
-                                           in  if ownedCash (players M.! player) >= price
+                                           in  if hasEnoughMoneyToBuyStock player game chain
                                                then game { hotelChains = M.adjust decreaseStock chain hotelChains
                                                          , players = M.adjust buyAndPayStock player players
                                                          , turn = case turn of
