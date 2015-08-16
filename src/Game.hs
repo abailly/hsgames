@@ -337,22 +337,9 @@ doPlayTile name (Just tile) game@Game{..} = let newCell = Cell tile (Neutral til
                                                                     then (name, FundChain tile)
                                                                     else buyStockOrNextPlayer name game
                                                            }
-                                                [c] -> tileExpandsExistingChain c adj name game
-                                                -- Merger between 2 chains
-                                                [c1,c2] -> if not (isSafe (hotelChains M.! c1)) || not (isSafe (hotelChains M.! c2))
-                                                           then game { turn = (name, ResolveMerger (TakeOver tile [c1,c2]) ((nextPlayer game), PlaceTile)) }
-                                                           else game
-                                                -- Merger between 3 chains
-                                                [c1,c2,c3] -> let mergedChainsBySize = sortBy (compare `on` (negate . length . chainTiles)) $ map (hotelChains M.!) [c1,c2,c3]
-                                                                  largestChain = chainName $ head mergedChainsBySize
-                                                                  secondChain = chainName $ head $ tail mergedChainsBySize
-                                                                  smallestChain = chainName $ head $ tail $ tail mergedChainsBySize
-                                                              in if any (not . isSafe) mergedChainsBySize
-                                                                 then game { turn = (name,
-                                                                                     ResolveMerger (TakeOver tile [largestChain,secondChain])
-                                                                                     (name, ResolveMerger (TakeOver tile [largestChain,smallestChain]) (nextPlayer game, PlaceTile)))
-                                                                           }
-                                                                 else game
+                                                [c]     -> tileExpandsExistingChain c adj name game
+                                                [c1,c2] -> twoChainsMerger c1 c2 tile name game
+                                                chains  -> threeChainsMerger chains tile name game
 
 tileExpandsExistingChain :: ChainName -> [Cell] -> PlayerName -> Game -> Game
 tileExpandsExistingChain c adj name game@Game{..} = game { gameBoard = gameBoard // map (\ (Cell t _) -> (t, Cell t (Chain c))) adj
@@ -362,6 +349,22 @@ tileExpandsExistingChain c adj name game@Game{..} = game { gameBoard = gameBoard
   where
     expandChain c = c { chainTiles = map cellCoord adj }
 
+twoChainsMerger :: ChainName -> ChainName -> Tile -> PlayerName -> Game -> Game
+twoChainsMerger c1 c2 tile name game@Game{..} = if not (isSafe (hotelChains M.! c1)) || not (isSafe (hotelChains M.! c2))
+                                                then game { turn = (name, ResolveMerger (TakeOver tile [c1,c2]) ((nextPlayer game), PlaceTile)) }
+                                                else game
+
+threeChainsMerger :: [ChainName] -> Tile -> PlayerName -> Game -> Game
+threeChainsMerger mergedChains tile name game@Game{..} = let mergedChainsBySize = sortBy (compare `on` (negate . length . chainTiles)) $ map (hotelChains M.!) mergedChains
+                                                             largestChain = chainName $ head mergedChainsBySize
+                                                             secondChain = chainName $ head $ tail mergedChainsBySize
+                                                             smallestChain = chainName $ head $ tail $ tail mergedChainsBySize
+                                                         in if any (not . isSafe) mergedChainsBySize
+                                                            then game { turn = (name,
+                                                                                ResolveMerger (TakeOver tile [largestChain,secondChain])
+                                                                                (name, ResolveMerger (TakeOver tile [largestChain,smallestChain]) (nextPlayer game, PlaceTile)))
+                                                                      }
+                                                            else game
 
 hasNeutralChainAt :: GameBoard -> Tile -> Bool
 hasNeutralChainAt board coord = isNeutral (cellContent $ board ! coord) && hasAdjacentNeutralTile board coord
