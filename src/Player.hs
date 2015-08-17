@@ -14,6 +14,7 @@ data Player = Player { playerName :: String
                      , ownedCash  :: Int
                      } deriving (Eq, Show, Read)
 
+type Players = M.Map PlayerName Player
 type PlayerName = String
 
 hasEnoughMoneyToBuyStock :: Player -> HotelChain -> Bool

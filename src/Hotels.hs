@@ -29,12 +29,14 @@ gameCanEnd chains = (not $ null $ activeChains chains) &&
                     (all isSafe (activeChains chains)     ||
                       any isOverLimit (activeChains chains))
 
+activeChains :: HotelChains -> [ HotelChain ]
 activeChains chains = M.elems $ M.filter isActive chains
 
 
 maximumStock :: Int
 maximumStock = 25
 
+stockPrice :: HotelChain -> Int
 stockPrice (HotelChain American    (length -> l) _ ) | l == 2  = 300
                                                     | l == 3  = 400
                                                     | l == 4  = 500
@@ -69,6 +71,7 @@ stockPrice (HotelChain Imperial    (length -> l) _ ) | l == 2  = 400
                                                     | otherwise = 1200
 stockPrice (HotelChain Continental l s) = stockPrice $ HotelChain Imperial l s
 
+mergerBonus :: HotelChain -> (Int, Int)
 mergerBonus (HotelChain American    (length -> l) _ ) | l == 2     = (3000,1500)
                                                      | l == 3     = (4000,2000)
                                                      | l == 4     = (5000,2500)

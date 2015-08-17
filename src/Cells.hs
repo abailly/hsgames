@@ -42,7 +42,7 @@ adjacentCells p board (Tile (x,y)) = let (Tile (lr,lc), Tile (ur,uc)) = bounds b
                                                                              ]
 
 linkedCells :: GameBoard -> Cell -> [Cell]
-linkedCells board coord = S.toList $ buildLinked board (S.singleton coord) S.empty
+linkedCells gameBoard coord = S.toList $ buildLinked gameBoard (S.singleton coord) S.empty
   where
     buildLinked :: GameBoard -> S.Set Cell -> S.Set Cell -> S.Set Cell
     buildLinked board todo done | S.null todo     = done
