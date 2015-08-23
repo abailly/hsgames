@@ -1,4 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TupleSections       #-}
 module Main where
 
 import           Control.Monad.Prompt
@@ -15,5 +16,5 @@ main = do
   playersDescription <- getArgs
   let players = map read playersDescription
   g <- getStdGen
-  let connections = M.fromList [ ("Console", Cnx stdin stdout) ]
+  let connections = M.fromList $ ("Console", Cnx stdin stdout) : map ((,Cnx stdin stdout) . fst) (filter ((== Human) . snd) players)
   runReaderT (runPromptM playerInputHandler $ initialisedGame g players >>= interpretCommand) connections
