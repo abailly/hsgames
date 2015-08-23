@@ -15,7 +15,5 @@ main = do
   playersDescription <- getArgs
   let players = map read playersDescription
   g <- getStdGen
-  let connections = M.fromList [ ("arnaud", Cnx stdin stdout)
-                               , ("bernard", Cnx stdin stdout)
-                               ]
+  let connections = M.fromList [ ("Console", Cnx stdin stdout) ]
   runReaderT (runPromptM playerInputHandler $ initialisedGame g players >>= interpretCommand) connections
