@@ -13,7 +13,8 @@ completeWithEndGame chains orders = if gameCanEnd chains
                                     else orders
 
 possiblePlay :: Game -> [ Order ]
-possiblePlay (Game _ _  _ _ (_, GameEnds))            =  [Cancel]
+possiblePlay (Game _ _ [] _ (_, _))                             =  [Cancel]
+possiblePlay (Game _ _  _ _ (_, GameEnds))                      =  [Cancel]
 possiblePlay (Game _ plys _ chains (name, PlaceTile))           =  completeWithEndGame chains $ map (Place name) (tiles $ plys M.! name)
 possiblePlay (Game _ _ _ chains (name, ResolveMerger (TakeOver tile [c1,c2]) _))
                                                                     | length (chainTiles (chains M.! c1)) > length (chainTiles (chains M.! c2))
@@ -30,10 +31,10 @@ possiblePlay (Game _ plys _ _ (_, ResolveMerger (DisposeStock _ buyer buyee pric
                                                                           [SellStock next buyee price k | k <- [ 1 .. n ] ] ++
                                                                           [ExchangeStock next buyer buyee k | k <- [ 1 .. n `div` 2 ] ]
 possiblePlay game@(Game _ _ _ chains (name, FundChain t))    =  let availableChainsForFounding = (filter (not . hasActiveChain game) $ M.keys chains)
-                                                                       in if not (null availableChainsForFounding)
-                                                                          then completeWithEndGame chains $
-                                                                               map (\ c -> Fund name c t) availableChainsForFounding
-                                                                          else [Pass]
+                                                                in if not (null availableChainsForFounding)
+                                                                   then completeWithEndGame chains $
+                                                                        map (\ c -> Fund name c t) availableChainsForFounding
+                                                                   else [Pass]
 
 possiblePlay game@(Game _ plys _ chains (name, BuySomeStock _)) =  completeWithEndGame chains $
                                                                        Pass : (map (\ c -> BuyStock name c)                 $

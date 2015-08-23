@@ -62,10 +62,11 @@ placeTile  game@Game{..} name coord = let isTilePlayable   = find ((== name) . p
 
 drawTile :: PlayerName -> Maybe Tile -> Game -> Game
 drawTile _     Nothing game = game
-drawTile name (Just tile) game@Game{..} = let removeTile t p = p { tiles = head drawingTiles : delete t (tiles p) }
-                                          in game { drawingTiles = tail drawingTiles
-                                                  , players      = M.adjust (removeTile tile) name players
-                                                  }
+drawTile name (Just tile) game@Game{..} | null drawingTiles = game
+                                        | otherwise         = let removeTile t p = p { tiles = head drawingTiles : delete t (tiles p) }
+                                                              in game { drawingTiles = tail drawingTiles
+                                                                      , players      = M.adjust (removeTile tile) name players
+                                                                      }
 
 doPlayTile :: PlayerName -> Maybe Tile -> Game -> Game
 doPlayTile _    Nothing     game@Game{..} = game
