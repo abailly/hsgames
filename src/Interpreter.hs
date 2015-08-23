@@ -25,10 +25,11 @@ data Connection = Cnx { hIn  :: Handle
 type Connections = M.Map PlayerName Connection
 
 data PlayerInput a where
-  GetOrder :: Player -> Game -> PlayerInput Order
-  Quit     :: PlayerInput ()
-  SaveGame :: Game -> PlayerInput ()
-  LoadGame :: PlayerInput (Maybe Game)
+  GetOrder  :: Player -> Game -> PlayerInput Order
+  Broadcast :: Player -> Game -> Order -> PlayerInput ()
+  Quit      :: PlayerInput ()
+  SaveGame  :: Game -> PlayerInput ()
+  LoadGame  :: PlayerInput (Maybe Game)
 
 type Handler m a = PlayerInput a -> m a
 
@@ -39,6 +40,9 @@ playerInputHandler (GetOrder p@(Player name Human _ _ _) g) = do
 playerInputHandler (GetOrder p@(Player _ Robot _ _ _) g) = do
   liftIO $ playRobot p g
 playerInputHandler (SaveGame g) = liftIO $ writeFile ".acquire.bak" (show g)
+playerInputHandler (Broadcast p g o) = do
+  cnxs <- ask
+  forM_ (M.assocs cnxs) (\ (n, Cnx _ hout) -> when (n /= playerName p && playerType ((players g) M.! n) /= Robot) (liftIO $ hPutStrLn hout $ playerName p ++ " played " ++ show o))
 playerInputHandler LoadGame = do
   e <- liftIO $ doesFileExist ".acquire.bak"
   if e
@@ -57,7 +61,7 @@ playHuman Player{..} game hin hout = do hPutDoc hout $ pretty game
                                          Left  _    -> return Cancel
                                          Right line -> return $ plays !! (read line - 1)
 
-initialisedGame :: StdGen -> Int -> Prompt PlayerInput Game
+initialisedGame :: StdGen -> [(PlayerName,PlayerType)] -> Prompt PlayerInput Game
 initialisedGame g num = do
   loaded <- prompt $ LoadGame
   case loaded of
@@ -69,6 +73,7 @@ interpretCommand game@Game{..} = do
   prompt $ SaveGame game
   let player = currentPlayer game
   order <- prompt $ GetOrder player game
+  prompt $ Broadcast player game order
   if   order == Cancel
   then prompt Quit
   else interpretCommand $ play game order

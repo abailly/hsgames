@@ -48,19 +48,24 @@ data Game = Game { gameBoard    :: GameBoard
                  , turn         :: Turn
                  } deriving (Eq, Show, Read)
 
-newGame :: StdGen -> Int -> Game
-newGame g numTiles = Game initialBoard players (drop (2 * numTiles) coords) chains ("arnaud", PlaceTile)
+numberOfTilesPerPlayer :: Int
+numberOfTilesPerPlayer = 6
+
+newGame :: StdGen -> [(PlayerName,PlayerType)] -> Game
+newGame g playersDescription = Game initialBoard (M.fromList players) draw chains (firstPlayerName, PlaceTile)
   where
     initialBoard = array (Tile ('A',1),Tile ('I',12)) (map (\ cell@(Cell c _) -> (c, cell)) cells)
     coords       = shuffle' (indices initialBoard)  (9 * 12) g
-    players      = M.fromList [ ("arnaud", Player "arnaud" Human (take numTiles coords) M.empty 6000)
-                              , ("bernard", Player "bernard" Human (take numTiles $ drop numTiles coords) M.empty 6000)
-                              ]
+    (players, draw) = makePlayers playersDescription ([],coords)
+    firstPlayerName = fst $ head playersDescription
     cells        = concatMap (\ (cs,n) -> map (\ (r,e) -> Cell (Tile (n,r)) e) cs) rows
     rows         = zip (replicate 9 (take 12 cols)) [ 'A' .. ]
     cols         = zip [ 1 .. ] (repeat Empty)
     chains       = M.fromList $ map (\ n -> (n, HotelChain n [] maximumStock)) (enumFrom American)
 
+makePlayers :: [(PlayerName,PlayerType)] -> ([(PlayerName, Player)],[Tile]) -> ([(PlayerName, Player)],[Tile])
+makePlayers ((pname,ptype):rest) (ps,coords) = makePlayers rest ((pname, Player pname ptype (take numberOfTilesPerPlayer coords) M.empty 6000):ps, drop numberOfTilesPerPlayer coords)
+makePlayers [] res = res
 
 currentPlayer :: Game -> Player
 currentPlayer game = let p = fst $ turn game

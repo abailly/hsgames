@@ -6,7 +6,7 @@ import           Tiles
 
 data PlayerType = Human | Robot deriving (Eq, Show, Read)
 
-data Player = Player { playerName :: String
+data Player = Player { playerName :: PlayerName
                      , playerType :: PlayerType
                      , tiles      :: [ Tile ]
                      , ownedStock :: M.Map ChainName Int
