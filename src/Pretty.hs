@@ -1,5 +1,5 @@
 {-# LANGUAGE RecordWildCards #-}
-module Pretty(Pretty(..), putDoc) where
+module Pretty(Pretty(..), putDoc, hPutDoc) where
 
 import           Cells
 import           Data.Array

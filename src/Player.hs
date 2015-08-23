@@ -1,7 +1,6 @@
 module Player where
 
 import qualified Data.Map as M
-
 import           Hotels
 import           Tiles
 

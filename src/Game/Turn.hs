@@ -16,11 +16,12 @@ possiblePlay :: Game -> [ Order ]
 possiblePlay (Game _ _  _ _ (_, GameEnds))            =  [Cancel]
 possiblePlay (Game _ plys _ chains (name, PlaceTile))           =  completeWithEndGame chains $ map (Place name) (tiles $ plys M.! name)
 possiblePlay (Game _ _ _ chains (name, ResolveMerger (TakeOver tile [c1,c2]) _))
-                                                                    =  if length (chainTiles (chains M.! c1)) > length (chainTiles (chains M.! c2))
-                                                                       then [Merge name tile c1 c2]
-                                                                       else if length (chainTiles (chains M.! c1)) < length (chainTiles (chains M.! c2))
-                                                                            then [Merge name tile c2 c1]
-                                                                            else [Merge name tile c2 c1, Merge name tile c1 c2]
+                                                                    | length (chainTiles (chains M.! c1)) > length (chainTiles (chains M.! c2))
+                                                                       = [Merge name tile c1 c2]
+                                                                    | length (chainTiles (chains M.! c1)) < length (chainTiles (chains M.! c2))
+                                                                       = [Merge name tile c2 c1]
+                                                                    | otherwise
+                                                                       = [Merge name tile c2 c1, Merge name tile c1 c2]
 possiblePlay (Game _ plys _ _ (_, ResolveMerger (DisposeStock _ buyer buyee price (next:_)) _))
                                                                     =  case M.lookup buyee (ownedStock $ plys M.! next) of
                                                                         Nothing -> [Pass]
