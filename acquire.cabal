@@ -49,6 +49,8 @@ executable acq
                    , MonadPrompt
                    , mtl
                    , containers
+                   , optparse-applicative
+                   , network
 
   -- other-modules:       
   -- other-extensions:    

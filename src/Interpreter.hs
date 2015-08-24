@@ -42,7 +42,10 @@ playerInputHandler (GetOrder p@(Player _ Robot _ _ _) g) = do
 playerInputHandler (SaveGame g) = liftIO $ writeFile ".acquire.bak" (show g)
 playerInputHandler (Broadcast p g o) = do
   cnxs <- ask
-  forM_ (M.assocs cnxs) (\ (n, Cnx _ hout) -> when (n == "Console" || n /= playerName p && playerType ((players g) M.! n) /= Robot) (liftIO $ hPutStrLn hout $ playerName p ++ " played " ++ show o))
+  forM_ (M.assocs cnxs) (\ (n, Cnx _ hout) -> when (n == "Console" ||
+                                                    n /= playerName p &&
+                                                    playerType ((players g) M.! n) /= Robot)
+                                              (liftIO $ hPutStrLn hout $ playerName p ++ " played " ++ show o))
 playerInputHandler LoadGame = do
   e <- liftIO $ doesFileExist ".acquire.bak"
   if e
