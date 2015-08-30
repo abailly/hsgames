@@ -7,6 +7,7 @@ import           Control.Concurrent
 import           Control.Concurrent.MVar
 import           Control.Monad.Prompt
 import           Control.Monad.Reader
+import           Data.List               (isPrefixOf)
 import qualified Data.Map                as M
 import           Interpreter
 import           Network.Socket
@@ -88,21 +89,22 @@ waitForClients sock n clients = do
 runClient :: String -> PortNumber -> PlayerName -> IO ()
 runClient host port player = do
   sock <- socket AF_INET Stream defaultProtocol
-  server:_ <- getAddrInfo Nothing (Just host) (Just $ show port)
+  let hints = defaultHints { addrFamily = AF_INET, addrSocketType = Stream }
+  server:rest <- getAddrInfo (Just hints) (Just host) (Just $ show port)
+  print server
+  print rest
   connect sock  (addrAddress server)
   len <- send sock player
   putStrLn $ "registering " ++ player ++ " with server at address " ++ show (addrAddress server)
-  playClient sock
+  playClient player sock
 
-playClient :: Socket -> IO ()
-playClient sock = do
-  void $ forkIO $ receiveData
-  sendData
+playClient :: PlayerName -> Socket -> IO ()
+playClient player sock = do
+  (dat, _, _) <- recvFrom sock 8192
+  putStrLn dat
+  when (("Your move, "++ player) `isPrefixOf` dat) $ sendData
+  playClient player sock
     where
-      receiveData = do
-        (game, _, _) <- recvFrom sock 4096
-        putStrLn game
-        receiveData
       sendData = do
         line <- getLine
         void $ send sock (line ++ "\n")
