@@ -114,6 +114,7 @@ playClient player handle = do
 handleMessage :: Message -> IO (Maybe String)
 handleMessage (GameState player board plays) = do
   putDoc (pretty board)
+  putStrLn ""
   putDoc (pretty player)
   putStrLn ""
   putStrLn $ "Your move, " ++ (Player.playerName player) ++ " ?"
