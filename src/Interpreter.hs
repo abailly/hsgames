@@ -10,7 +10,6 @@ import           Control.Monad.Reader
 import qualified Data.Map             as M
 import           Game
 import           Player
-import           Pretty
 import           Robot
 import           System.Directory
 import           System.Exit
@@ -25,13 +24,17 @@ data Connection = Cnx { hIn  :: Handle
 type Connections = M.Map PlayerName Connection
 
 data PlayerInput a where
-  GetOrder  :: Player -> Game -> PlayerInput Order
-  Broadcast :: Player -> Game -> Order -> PlayerInput ()
-  Quit      :: PlayerInput ()
-  SaveGame  :: Game -> PlayerInput ()
-  LoadGame  :: PlayerInput (Maybe Game)
+  GetOrder    :: Player -> Game -> PlayerInput Order
+  PlayedOrder :: Player -> Game -> Order -> PlayerInput ()
+  Quit        :: PlayerInput ()
+  SaveGame    :: Game -> PlayerInput ()
+  LoadGame    :: PlayerInput (Maybe Game)
 
 type Handler m a = PlayerInput a -> m a
+
+data Message = GameState Player GameBoard [Order]
+             | Played PlayerName GameBoard Order
+             deriving (Eq, Show, Read)
 
 playerInputHandler :: Handler (ReaderT Connections IO) a
 playerInputHandler (GetOrder p@(Player name Human _ _ _) g) = do
@@ -40,12 +43,12 @@ playerInputHandler (GetOrder p@(Player name Human _ _ _) g) = do
 playerInputHandler (GetOrder p@(Player _ Robot _ _ _) g) = do
   liftIO $ playRobot p g
 playerInputHandler (SaveGame g) = liftIO $ writeFile ".acquire.bak" (show g)
-playerInputHandler (Broadcast p g o) = do
+playerInputHandler (PlayedOrder p g o) = do
   cnxs <- ask
   forM_ (M.assocs cnxs) (\ (n, Cnx _ hout) -> when (n == "Console" ||
                                                     n /= playerName p &&
                                                     playerType ((players g) M.! n) /= Robot)
-                                              (liftIO $ hPutStrLn hout $ playerName p ++ " played " ++ show o))
+                                              (liftIO $ (hPutStrLn hout $ show $ Played (playerName p) (gameBoard g) o) >> hFlush hout))
 playerInputHandler LoadGame = do
   e <- liftIO $ doesFileExist ".acquire.bak"
   if e
@@ -54,15 +57,13 @@ playerInputHandler LoadGame = do
 playerInputHandler Quit     = liftIO exitSuccess
 
 playHuman :: Player -> Game -> Handle -> Handle -> IO Order
-playHuman Player{..} game hin hout = do hPutDoc hout $ pretty game
-                                        hPutStrLn hout ""
-                                        hPutStrLn hout $ "Your move, " ++ playerName ++ " ?"
-                                        let plays = possiblePlay game
-                                        forM_ (zip plays [1 .. ]) (\ (p,n :: Int) -> hPutStrLn hout $ show n ++ "- " ++ show p)
-                                        r <- tryJust (guard . isEOFError) $ hGetLine hin
-                                        case r of
-                                         Left  _    -> return Cancel
-                                         Right line -> return $ plays !! (read line - 1)
+playHuman p@Player{..} game hin hout = do let plays = (possiblePlay game)
+                                          hPutStrLn hout $ show $ GameState p (gameBoard game) plays
+                                          hFlush hout
+                                          r <- tryJust (guard . isEOFError) $ hGetLine hin
+                                          case r of
+                                           Left  _    -> return Cancel
+                                           Right line -> return $ plays !! (read line - 1)
 
 initialisedGame :: StdGen -> [(PlayerName,PlayerType)] -> Prompt PlayerInput Game
 initialisedGame g num = do
@@ -76,7 +77,7 @@ interpretCommand game@Game{..} = do
   prompt $ SaveGame game
   let player = currentPlayer game
   order <- prompt $ GetOrder player game
-  prompt $ Broadcast player game order
+  prompt $ PlayedOrder player game order
   if   order == Cancel
   then prompt Quit
   else interpretCommand $ play game order

@@ -1,5 +1,7 @@
-{-# LANGUAGE RecordWildCards #-}
-module Pretty(Pretty(..), putDoc, hPutDoc) where
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE RecordWildCards      #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+module Pretty(Pretty(..), putDoc, hPutDoc, render) where
 
 import           Cells
 import           Data.Array
@@ -36,9 +38,15 @@ instance Pretty Cell where
   pretty (Cell t (Neutral _))          = dullred $ pretty t
   pretty (Cell (Tile (_,_)) (Chain h)) = pretty h
 
-instance Pretty Game where
-  pretty Game{..} = (vcat $ rows gameBoard) <$$>
-                    (vcat $ map pretty (M.elems players))
+instance Pretty GameBoard where
+  pretty gameBoard = vcat $ rows gameBoard
     where
       rows   board = [ hsep $ map (\ y -> pretty $ board ! Tile (x, y)) [ 1 .. 12 ] | x <- ['A' .. 'I'] ]
 
+instance Pretty Game where
+  pretty Game{..} = pretty gameBoard <$$>
+                    (vcat $ map pretty (M.elems players))
+
+
+render :: Doc -> String
+render = flip displayS "" . renderPretty 0.5 132

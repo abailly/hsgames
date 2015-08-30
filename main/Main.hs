@@ -13,6 +13,7 @@ import           Interpreter
 import           Network.Socket
 import           Options.Applicative
 import           Player
+import           Pretty
 import           System.Environment
 import           System.IO
 import           System.Random
@@ -60,11 +61,11 @@ clientOptions = Client
                                   <> help "Player type: Human or Robot" )
 
 start :: Configuration -> IO ()
-start Server{..} = startServer serverPort
+start Server{..} = runServer serverPort
 start Client{..} = runClient serverHost serverPort playerName
 
-startServer :: PortNumber -> IO ()
-startServer port = do
+runServer :: PortNumber -> IO ()
+runServer port = do
   sock <- socket AF_INET Stream defaultProtocol
   bind sock (SockAddrInet port iNADDR_ANY)
   listen sock 5
@@ -74,7 +75,10 @@ startServer port = do
   let connections = M.fromList $ ("Console", Cnx stdin stdout) : map (\ (p,h) -> (p, Cnx h h)) clients
   runReaderT (runPromptM playerInputHandler $ initialisedGame g (map (\ (p,_) -> (p,Human)) clients) >>= interpretCommand) connections
     where
-      getHandle (player,sock) = socketToHandle sock ReadWriteMode >>= return . (player,)
+      getHandle (player,sock) = do
+        h <- socketToHandle sock ReadWriteMode
+        hSetBuffering h NoBuffering
+        return (player,h)
 
 
 waitForClients :: Socket -> Int -> [(PlayerName, Socket)] -> IO [(PlayerName, Socket)]
@@ -91,24 +95,34 @@ runClient host port player = do
   sock <- socket AF_INET Stream defaultProtocol
   let hints = defaultHints { addrFamily = AF_INET, addrSocketType = Stream }
   server:rest <- getAddrInfo (Just hints) (Just host) (Just $ show port)
-  print server
-  print rest
   connect sock  (addrAddress server)
   len <- send sock player
   putStrLn $ "registering " ++ player ++ " with server at address " ++ show (addrAddress server)
-  playClient player sock
+  h <- socketToHandle sock ReadWriteMode
+  hSetBuffering h NoBuffering
+  playClient player h
 
-playClient :: PlayerName -> Socket -> IO ()
-playClient player sock = do
-  (dat, _, _) <- recvFrom sock 8192
-  putStrLn dat
-  when (("Your move, "++ player) `isPrefixOf` dat) $ sendData
-  playClient player sock
-    where
-      sendData = do
-        line <- getLine
-        void $ send sock (line ++ "\n")
-        sendData
+playClient :: PlayerName -> Handle -> IO ()
+playClient player handle = do
+  dat <- hGetLine handle
+  m <- handleMessage (read dat)
+  case m of
+   Just response -> void $ hPutStrLn handle response
+   Nothing       -> return ()
+  playClient player handle
+
+handleMessage :: Message -> IO (Maybe String)
+handleMessage (GameState player board plays) = do
+  putDoc (pretty board)
+  putDoc (pretty player)
+  putStrLn ""
+  putStrLn $ "Your move, " ++ (Player.playerName player) ++ " ?"
+  mapM (\ (p,n :: Int) -> putStrLn $ show n ++ "- " ++ show p) (zip plays [1 .. ])
+  line <- getLine
+  return $ Just line
+handleMessage (Played player board order) = do
+  putStrLn $ "player "++ player ++ " played " ++ show order
+  return Nothing
 
 main :: IO ()
 main = execParser opts >>= start
@@ -117,5 +131,3 @@ main = execParser opts >>= start
       ( fullDesc
         <> progDesc "Run an Acquire game in client or server mode"
         <> header "Acquire - A Game on Investment" )
-
-  -- let players = map read playersDescription
