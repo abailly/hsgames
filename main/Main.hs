@@ -19,7 +19,10 @@ import           System.Environment
 import           System.IO
 import           System.Random
 
-data Configuration = Server { serverPort :: PortNumber }
+data Configuration = Server { serverPort           :: PortNumber
+                            , numberOfHumanPlayers :: Int
+                            , numberOfRobotPlayers :: Int
+                            }
                    | Client { serverHost :: String
                             , serverPort :: PortNumber
                             , playerName :: PlayerName
@@ -42,6 +45,16 @@ portOption hlp = option (str >>= return . fromIntegral . read)
 
 serverOptions :: Parser Configuration
 serverOptions = Server <$> portOption "Port to listen for client connections"
+                <*> option auto ( long "num-humans"
+                                <> short 'h'
+                                <> metavar "NUMBER"
+                                <> value 1
+                                <> help "Number of human players")
+                <*> option auto ( long "num-robots"
+                                <> short 'r'
+                                <> metavar "NUMBER"
+                                <> value 5
+                                <> help "Number of robot players")
 
 clientOptions :: Parser Configuration
 clientOptions = Client
@@ -62,7 +75,7 @@ clientOptions = Client
                                   <> help "Player type: Human or Robot" )
 
 start :: Configuration -> IO ()
-start Server{..} = runServer serverPort
+start Server{..} = runServer serverPort numberOfHumanPlayers numberOfRobotPlayers
 start Client{..} = runClient serverHost serverPort playerName
 
 

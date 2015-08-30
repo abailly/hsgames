@@ -26,7 +26,7 @@ type Connections = M.Map PlayerName Connection
 data PlayerInput a where
   GetOrder    :: Player -> Game -> PlayerInput Order
   PlayedOrder :: Player -> Game -> Order -> PlayerInput ()
-  Quit        :: PlayerInput ()
+  Quit        :: Game -> PlayerInput ()
   SaveGame    :: Game -> PlayerInput ()
   LoadGame    :: PlayerInput (Maybe Game)
 
@@ -34,6 +34,7 @@ type Handler m a = PlayerInput a -> m a
 
 data Message = GameState Player GameBoard [Order]
              | Played PlayerName GameBoard Order
+             | GameEnds Game
              deriving (Eq, Show, Read)
 
 playerInputHandler :: Handler (ReaderT Connections IO) a
@@ -43,18 +44,25 @@ playerInputHandler (GetOrder p@(Player name Human _ _ _) g) = do
 playerInputHandler (GetOrder p@(Player _ Robot _ _ _) g) = do
   liftIO $ playRobot p g
 playerInputHandler (SaveGame g) = liftIO $ writeFile ".acquire.bak" (show g)
-playerInputHandler (PlayedOrder p g o) = do
-  cnxs <- ask
-  forM_ (M.assocs cnxs) (\ (n, Cnx _ hout) -> when (n == "Console" ||
-                                                    n /= playerName p &&
-                                                    playerType ((players g) M.! n) /= Robot)
-                                              (liftIO $ (hPutStrLn hout $ show $ Played (playerName p) (gameBoard g) o) >> hFlush hout))
+playerInputHandler (PlayedOrder p g o) = broadcast (\ n (Cnx _ hout) -> when (n == "Console" ||
+                                                                              n /= playerName p &&
+                                                                              playerType ((players g) M.! n) /= Robot)
+                                                                        (liftIO $ (hPutStrLn hout $ show $ Played (playerName p) (gameBoard g) o) >> hFlush hout))
 playerInputHandler LoadGame = do
   e <- liftIO $ doesFileExist ".acquire.bak"
   if e
   then liftIO (readFile ".acquire.bak")  >>= return . Just . read
   else return Nothing
-playerInputHandler Quit     = liftIO exitSuccess
+playerInputHandler (Quit game) = do
+  broadcast (\ n (Cnx _ hout) -> when (n == "Console" ||
+                                       playerType ((players game) M.! n) /= Robot)
+                                 (liftIO $ (hPutStrLn hout $ show $ GameEnds game) >> hFlush hout))
+  liftIO exitSuccess
+
+broadcast :: (Monad m) => (PlayerName -> Connection -> m ()) -> ReaderT Connections m ()
+broadcast f = do
+  cnxs <- ask
+  forM_ (M.assocs cnxs) (lift . uncurry f)
 
 playHuman :: Player -> Game -> Handle -> Handle -> IO Order
 playHuman p@Player{..} game hin hout = do let plays = (possiblePlay game)
@@ -79,5 +87,5 @@ interpretCommand game@Game{..} = do
   order <- prompt $ GetOrder player game
   prompt $ PlayedOrder player game order
   if   order == Cancel
-  then prompt Quit
+  then prompt (Quit game)
   else interpretCommand $ play game order
