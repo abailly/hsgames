@@ -35,12 +35,12 @@ library
                  , Player
                  , Interpreter
                  , Net
-  other-modules: Hotels
-               , Tiles
-               , Cells
-               , Robot
-               , Game.Core, Game.Turn, Game.Play
-               , Net.Client, Net.Server
+                 , Hotels
+                 , Tiles
+                 , Cells
+                 , Robot
+                 , Game.Core, Game.Turn, Game.Play
+                 , Net.Client, Net.Server
 
 executable acq
   default-language:    Haskell2010

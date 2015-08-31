@@ -60,9 +60,7 @@ playerInputHandler (Quit game) = do
   liftIO exitSuccess
 
 broadcast :: (Monad m) => (PlayerName -> Connection -> m ()) -> ReaderT Connections m ()
-broadcast f = do
-  cnxs <- ask
-  forM_ (M.assocs cnxs) (lift . uncurry f)
+broadcast f = ask >>= mapM_ (lift . uncurry f) . M.assocs
 
 playHuman :: Player -> Game -> Handle -> Handle -> IO Order
 playHuman p@Player{..} game hin hout = do let plays = (possiblePlay game)
