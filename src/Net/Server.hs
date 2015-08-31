@@ -7,7 +7,7 @@ import           Control.Monad.Prompt
 import           Control.Monad.Reader
 import qualified Data.Map             as M
 import           Interpreter
-import           Net.Client
+import           Net.Player
 import           Network.Socket
 import           Player
 import           System.IO
@@ -19,7 +19,7 @@ runServer port numHumans numRobots = do
   setSocketOption sock ReuseAddr 1
   bind sock (SockAddrInet port iNADDR_ANY)
   listen sock 5
-  clients <- waitForClients sock numHumans [] >>= mapM getHandle
+  clients <- waitForPlayers sock numHumans [] >>= mapM getHandle
   close sock
   g <- getStdGen
   let connections = M.fromList $ ("Console", Cnx stdin stdout) : map (\ (p,h) -> (p, Cnx h h)) clients

@@ -23,18 +23,18 @@ data Configuration = Server { serverPort           :: PortNumber
                             , numberOfHumanPlayers :: Int
                             , numberOfRobotPlayers :: Int
                             }
-                   | Client { serverHost :: String
-                            , serverPort :: PortNumber
-                            , playerName :: PlayerName
-                            , playerType :: PlayerType
+                   | ClientPlayer { serverHost :: String
+                            , serverPort       :: PortNumber
+                            , playerName       :: PlayerName
+                            , playerType       :: PlayerType
                             } deriving (Show)
 
 configOptions :: Parser Configuration
 configOptions = subparser
                 ( command "server" (info serverOptions
                                     (progDesc "run an Acquire server instance listening for clients on a given port. Game starts when 6 players are connected."))
-                  <> ( command "client" (info clientOptions
-                                         (progDesc "run an Acquire client to connect to a given server and play as Human or Robot"))))
+                  <> ( command "player" (info clientPlayerOptions
+                                         (progDesc "run an Acquire client to connect to a given server and play as Human"))))
 
 portOption hlp = option (str >>= return . fromIntegral . read)
                  ( long "port"
@@ -56,8 +56,8 @@ serverOptions = Server <$> portOption "Port to listen for client connections"
                                 <> value 5
                                 <> help "Number of robot players")
 
-clientOptions :: Parser Configuration
-clientOptions = Client
+clientPlayerOptions :: Parser Configuration
+clientPlayerOptions = ClientPlayer
                 <$> strOption ( long "host"
                                 <> short 'h'
                                 <> value "localhost"
@@ -75,8 +75,8 @@ clientOptions = Client
                                   <> help "Player type: Human or Robot" )
 
 start :: Configuration -> IO ()
-start Server{..} = runServer serverPort numberOfHumanPlayers numberOfRobotPlayers
-start Client{..} = runClient serverHost serverPort playerName
+start Server{..}       = runServer serverPort numberOfHumanPlayers numberOfRobotPlayers
+start ClientPlayer{..} = runPlayer serverHost serverPort playerName
 
 
 main :: IO ()

@@ -1,9 +1,9 @@
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
-module Net (PortNumber, runServer, runClient) where
+module Net (PortNumber, runServer, runPlayer) where
 
-import           Net.Client
+import           Net.Player
 import           Net.Server
 
 
