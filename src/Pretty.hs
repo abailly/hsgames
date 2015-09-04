@@ -35,6 +35,7 @@ instance Pretty ChainName where
 
 instance Pretty Cell where
   pretty (Cell t Empty)                = pretty t
+  pretty (Cell t Playable)             = onyellow $ dullred $ pretty t
   pretty (Cell t (Neutral _))          = dullred $ pretty t
   pretty (Cell (Tile (_,_)) (Chain h)) = pretty h
 

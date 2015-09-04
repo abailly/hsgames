@@ -3,6 +3,7 @@
 module Net.Player where
 
 import           Control.Monad.Reader
+import           Game                 (highlightPlayableTiles)
 import           Interpreter
 import           Network.Socket
 import           Player
@@ -42,7 +43,8 @@ play player handle = do
 
 handleMessage :: Message -> IO (Maybe String)
 handleMessage (GameState player board plays) = do
-  putDoc (pretty board)
+  let board' = highlightPlayableTiles board plays
+  putDoc (pretty board')
   putStrLn ""
   putDoc (pretty player)
   putStrLn ""

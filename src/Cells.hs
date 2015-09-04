@@ -8,6 +8,7 @@ import           Hotels
 import           Tiles
 
 data Content = Empty
+             | Playable  -- ^Used for highlighting purpose
              | Neutral Tile
              | Chain ChainName
              deriving (Eq, Show, Read)
