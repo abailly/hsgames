@@ -11,15 +11,6 @@ import           Pretty
 import           System.IO
 
 
-waitForPlayers :: Socket -> Int -> [(PlayerName, Socket)] -> IO [(PlayerName, Socket)]
-waitForPlayers _    0 clients = return clients
-waitForPlayers sock n clients = do
-  (clientSock, clientAddr) <- accept sock
-  putStrLn $ "client connection from " ++ show clientAddr
-  (name, _, _) <- recvFrom clientSock 64
-  putStrLn $ "connecting player " ++ show name
-  waitForPlayers sock (n-1) ((name,clientSock):clients)
-
 runPlayer :: String -> PortNumber -> PlayerName -> IO ()
 runPlayer host port player = do
   sock <- socket AF_INET Stream defaultProtocol

@@ -75,7 +75,7 @@ clientPlayerOptions = ClientPlayer
                                   <> help "Player type: Human or Robot" )
 
 start :: Configuration -> IO ()
-start Server{..}       = runServer serverPort numberOfHumanPlayers numberOfRobotPlayers
+start Server{..}       = runServer serverPort
 start ClientPlayer{..} = runPlayer serverHost serverPort playerName
 
 
