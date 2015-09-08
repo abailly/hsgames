@@ -19,22 +19,28 @@ import           System.Environment
 import           System.IO
 import           System.Random
 
-data Configuration = Server { serverPort           :: PortNumber
-                            , numberOfHumanPlayers :: Int
-                            , numberOfRobotPlayers :: Int
+data Configuration = Server { serverPort :: PortNumber
                             }
                    | ClientPlayer { serverHost :: String
-                            , serverPort       :: PortNumber
-                            , playerName       :: PlayerName
-                            , playerType       :: PlayerType
-                            } deriving (Show)
+                                  , serverPort :: PortNumber
+                                  , playerName :: PlayerName
+                                  , playGameId :: GameId
+                                  , playerType :: PlayerType
+                                  }
+                   | ClientNewGame { serverHost           :: String
+                                   , serverPort           :: PortNumber
+                                   , numberOfHumanPlayers :: Int
+                                   , numberOfRobotPlayers :: Int
+                                   } deriving (Show)
 
 configOptions :: Parser Configuration
 configOptions = subparser
                 ( command "server" (info serverOptions
                                     (progDesc "run an Acquire server instance listening for clients on a given port. Game starts when 6 players are connected."))
                   <> ( command "player" (info clientPlayerOptions
-                                         (progDesc "run an Acquire client to connect to a given server and play as Human"))))
+                                         (progDesc "run an Acquire client to connect to a given server and play as Human")))
+                  <> ( command "newGame" (info newGameOptions
+                                          (progDesc "connect to a server and request to start a fresh new game, returns id of the game"))))
 
 portOption hlp = option (str >>= return . fromIntegral . read)
                  ( long "port"
@@ -45,16 +51,6 @@ portOption hlp = option (str >>= return . fromIntegral . read)
 
 serverOptions :: Parser Configuration
 serverOptions = Server <$> portOption "Port to listen for client connections"
-                <*> option auto ( long "num-humans"
-                                <> short 'h'
-                                <> metavar "NUMBER"
-                                <> value 1
-                                <> help "Number of human players")
-                <*> option auto ( long "num-robots"
-                                <> short 'r'
-                                <> metavar "NUMBER"
-                                <> value 5
-                                <> help "Number of robot players")
 
 clientPlayerOptions :: Parser Configuration
 clientPlayerOptions = ClientPlayer
@@ -68,15 +64,39 @@ clientPlayerOptions = ClientPlayer
                                 <> short 'n'
                                 <> metavar "NAME"
                                 <> help "Player name (must be unique for a game)" )
+                <*> strOption ( long "game"
+                                <> short 'g'
+                                <> metavar "GAME ID"
+                                <> help "Game id to connect to (set with 'newGame')" )
                 <*> option auto ( long "player-type"
                                   <> short 't'
                                   <> value Human
                                   <> metavar "PLAYER-TYPE"
                                   <> help "Player type: Human or Robot" )
 
+newGameOptions :: Parser Configuration
+newGameOptions = ClientNewGame
+                <$> strOption ( long "host"
+                                <> short 'h'
+                                <> value "localhost"
+                                <> metavar "HOST"
+                                <> help "Server host to connect to" )
+                <*> portOption "Server port to connect to"
+                <*> option auto ( long "num-humans"
+                                <> short 'H'
+                                <> metavar "NUMBER"
+                                <> value 1
+                                <> help "Number of human players")
+                <*> option auto ( long "num-robots"
+                                <> short 'R'
+                                <> metavar "NUMBER"
+                                <> value 5
+                                <> help "Number of robot players")
+
 start :: Configuration -> IO ()
-start Server{..}       = runServer serverPort
-start ClientPlayer{..} = runPlayer serverHost serverPort playerName
+start Server{..}        = runServer serverPort
+start ClientPlayer{..}  = runPlayer serverHost serverPort playerName playGameId
+start ClientNewGame{..} = runNewGame serverHost serverPort numberOfHumanPlayers numberOfRobotPlayers
 
 
 main :: IO ()

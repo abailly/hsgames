@@ -5,22 +5,24 @@ module Net.Player where
 import           Control.Monad.Reader
 import           Game                 (highlightPlayableTiles)
 import           Interpreter
+import           Net.Types
 import           Network.Socket
 import           Player
 import           Pretty
 import           System.IO
 
 
-runPlayer :: String -> PortNumber -> PlayerName -> IO ()
-runPlayer host port player = do
+runPlayer :: String -> PortNumber -> PlayerName -> GameId -> IO ()
+runPlayer host port player game = do
   sock <- socket AF_INET Stream defaultProtocol
   let hints = defaultHints { addrFamily = AF_INET, addrSocketType = Stream }
   server:_ <- getAddrInfo (Just hints) (Just host) (Just $ show port)
   connect sock  (addrAddress server)
-  _ <- send sock player
-  putStrLn $ "registering " ++ player ++ " with server at address " ++ show (addrAddress server)
   h <- socketToHandle sock ReadWriteMode
   hSetBuffering h NoBuffering
+  hPutStrLn h (show $ JoinGame player game)
+  putStrLn $ "registering " ++ player ++ " with server at address " ++ show (addrAddress server)
+  putStrLn $ "joining " ++ game
   play player h
 
 play :: PlayerName -> Handle -> IO ()
