@@ -13,7 +13,7 @@
 -- hotel chains, shrewdly buying the right stock at the right time, merging chains to obtain capital and adding
 -- hotels to the chains in which you have controlling interest to increase their value.
 module Game(Game(..), GameBoard, Order(Cancel), currentPlayer, newGame, play, possiblePlay
-           ,highlightPlayableTiles) where
+           ,highlightPlayableTiles, GameId) where
 
 import           Cells
 import           Data.Array ((//))

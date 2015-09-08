@@ -95,16 +95,15 @@ addPlayerToActiveGame h player game activeGames = do
 
 runFilledGame :: ActiveGame -> ReaderT Server IO String
 runFilledGame ActiveGame{..} = do
-  tid <- liftIO $ forkIO (runGameServer numberOfRobots registeredHumans)
+  tid <- liftIO $ forkIO (runGameServer gameId numberOfRobots registeredHumans)
   s <- ask
   liftIO $ atomically $ modifyTVar' (activeGames s) (M.adjust (\ g -> g { gameThread = Just tid}) gameId)
   return $ "game " ++ gameId
 
-runGameServer :: Int -> Connections -> IO ()
-runGameServer numRobots clients  = do
-  print $ "Clients " ++ show (M.keys clients)
+runGameServer :: GameId -> Int -> Connections -> IO ()
+runGameServer gid numRobots clients  = do
   g <- getStdGen
   let connections = M.insert "Console" (Cnx stdin stdout) clients
   let robots = map ((,Robot) . ("robot " ++) . show) [ 1 .. numRobots ]
-  runReaderT (runPromptM playerInputHandler $ initialisedGame g (map (\ (p,_) -> (p,Human)) (M.toList clients) ++ robots) >>= interpretCommand) connections
+  runReaderT (runPromptM playerInputHandler $ initialisedGame gid g (map (\ (p,_) -> (p,Human)) (M.toList clients) ++ robots) >>= interpretCommand) connections
 

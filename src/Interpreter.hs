@@ -28,7 +28,7 @@ data PlayerInput a where
   PlayedOrder :: Player -> Game -> Order -> PlayerInput ()
   Quit        :: Game -> PlayerInput ()
   SaveGame    :: Game -> PlayerInput ()
-  LoadGame    :: PlayerInput (Maybe Game)
+  LoadGame    :: GameId -> PlayerInput (Maybe Game)
 
 type Handler m a = PlayerInput a -> m a
 
@@ -43,15 +43,16 @@ playerInputHandler (GetOrder p@(Player name Human _ _ _) g) = do
   liftIO $ playHuman p g hin hout
 playerInputHandler (GetOrder p@(Player _ Robot _ _ _) g) = do
   liftIO $ playRobot p g
-playerInputHandler (SaveGame g) = liftIO $ writeFile ".acquire.bak" (show g)
+playerInputHandler (SaveGame g) = liftIO $ writeFile (".acquire." ++ gameId g ++ ".bak") (show g)
 playerInputHandler (PlayedOrder p g o) = broadcast (\ n (Cnx _ hout) -> when (n == "Console" ||
                                                                               n /= playerName p &&
                                                                               playerType ((players g) M.! n) /= Robot)
                                                                         (liftIO $ (hPutStrLn hout $ show $ Played (playerName p) (gameBoard g) o) >> hFlush hout))
-playerInputHandler LoadGame = do
-  e <- liftIO $ doesFileExist ".acquire.bak"
+playerInputHandler (LoadGame gid) = do
+  let gameFile = ".acquire." ++ gid ++ ".bak"
+  e <- liftIO $ doesFileExist gameFile
   if e
-  then liftIO (readFile ".acquire.bak")  >>= return . Just . read
+  then liftIO (readFile gameFile)  >>= return . Just . read
   else return Nothing
 playerInputHandler (Quit game) = do
   broadcast (\ n (Cnx _ hout) -> when (n == "Console" ||
@@ -71,11 +72,11 @@ playHuman p@Player{..} game hin hout = do let plays = (possiblePlay game)
                                            Left  _    -> return Cancel
                                            Right line -> return $ plays !! (read line - 1)
 
-initialisedGame :: StdGen -> [(PlayerName,PlayerType)] -> Prompt PlayerInput Game
-initialisedGame g num = do
-  loaded <- prompt $ LoadGame
+initialisedGame :: GameId -> StdGen -> [(PlayerName,PlayerType)] -> Prompt PlayerInput Game
+initialisedGame gid g num = do
+  loaded <- prompt $ LoadGame gid
   case loaded of
-   Nothing -> return $ newGame g num
+   Nothing -> return $ newGame gid g num
    Just  game -> return game
 
 interpretCommand :: Game -> Prompt PlayerInput ()

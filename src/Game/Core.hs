@@ -41,7 +41,11 @@ data Order = Place PlayerName Tile
            | Cancel
            deriving (Eq, Show, Read)
 
-data Game = Game { gameBoard    :: GameBoard
+
+type GameId = String
+
+data Game = Game { gameId       :: GameId
+                 , gameBoard    :: GameBoard
                  , players      :: Players
                  , drawingTiles :: [ Tile ]
                  , hotelChains  :: HotelChains
@@ -51,8 +55,8 @@ data Game = Game { gameBoard    :: GameBoard
 numberOfTilesPerPlayer :: Int
 numberOfTilesPerPlayer = 6
 
-newGame :: StdGen -> [(PlayerName,PlayerType)] -> Game
-newGame g playersDescription = Game initialBoard (M.fromList players) draw chains (firstPlayerName, PlaceTile)
+newGame :: GameId -> StdGen -> [(PlayerName,PlayerType)] -> Game
+newGame gid g playersDescription = Game gid initialBoard (M.fromList players) draw chains (firstPlayerName, PlaceTile)
   where
     initialBoard = array (Tile ('A',1),Tile ('I',12)) (map (\ cell@(Cell c _) -> (c, cell)) cells)
     coords       = shuffle' (indices initialBoard)  (9 * 12) g
