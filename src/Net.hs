@@ -1,7 +1,7 @@
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
-module Net (PortNumber, runServer, runPlayer, runNewGame, module Net.Types) where
+module Net (PortNumber, runServer, runPlayer, runNewGame, listGames, module Net.Types) where
 
 import           Net.Game
 import           Net.Player

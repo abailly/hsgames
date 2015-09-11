@@ -43,8 +43,8 @@ handleMessage (GameState player board plays) = do
   putStrLn ""
   putStrLn $ "Your move, " ++ Player.playerName player ++ " ?"
   mapM_ (\ (p,n :: Int) -> putStrLn $ show n ++ "- " ++ show p) (zip plays [1 .. ])
-  line <- getLine
-  return $ Just line
+  ln <- getLine
+  return $ Just ln
 handleMessage (Played player _ order) = do
   putStrLn $ "player "++ player ++ " played " ++ show order
   return Nothing

@@ -1,7 +1,7 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE RecordWildCards      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-module Pretty(Pretty(..), putDoc, hPutDoc, render) where
+module Pretty(Pretty(..), module Text.PrettyPrint.ANSI.Leijen, render) where
 
 import           Cells
 import           Data.Array

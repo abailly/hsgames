@@ -1,3 +1,4 @@
+{-# LANGUAGE FlexibleInstances   #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
@@ -21,7 +22,7 @@ runServer port = do
   setSocketOption sock ReuseAddr 1
   bind sock (SockAddrInet port iNADDR_ANY)
   listen sock 5
-  server <- Server <$> newTVarIO M.empty
+  server <- newTVarIO M.empty
   forever $ do
     (clientSock, _) <- accept sock
     h <- socketToHandle clientSock ReadWriteMode
@@ -33,45 +34,43 @@ interpretCommands handle = do
   res <- interpretClientCommand handle
   case res of
    Nothing -> return ()
-   Just s  -> liftIO (hPrint handle s) >> interpretCommands handle
+   Just s  -> liftIO (hPutStrLn handle s) >> interpretCommands handle
 
 interpretClientCommand :: Handle -> ReaderT Server IO (Maybe String)
 interpretClientCommand handle = do
-  line <- liftIO $ readClientCommand handle
-  case line of
+  ln <- liftIO $ readClientCommand handle
+  case ln of
    Left _ -> return Nothing
    Right dat ->  handleCommand handle (read dat)
   where
     readClientCommand :: Handle -> IO (Either IOError String)
     readClientCommand = try . hGetLine
 
-data Server = Server { activeGames :: TVar (M.Map GameId ActiveGame) }
-
-data ActiveGame = ActiveGame { gameId           :: GameId
-                             , numberOfHumans   :: Int
-                             , numberOfRobots   :: Int
-                             , registeredHumans :: Connections
-                             , gameThread       :: Maybe ThreadId
-                             }
+type Server = TVar (M.Map GameId ActiveGame)
 
 handleCommand :: Handle -> Command -> ReaderT Server IO (Maybe String)
 handleCommand _ (NewGame numHumans numRobots) = startNewGame numHumans numRobots
 handleCommand h (JoinGame player game)        = joinGame h player game
+handleCommand h ListGames                     = do
+  activeGames <- ask
+  games <- liftIO $ atomically $ readTVar activeGames
+  liftIO (hPutStrLn h $ show $ map gamesList (M.elems games))
+  return Nothing
 
 startNewGame :: Int -> Int -> ReaderT Server IO (Maybe String)
 startNewGame numh numr = do
-  Server{..} <- ask
+  activeGames <- ask
   newId <- liftIO randomGameId
   let newGame = ActiveGame newId numh numr M.empty Nothing
   liftIO $ atomically $ modifyTVar' activeGames  (M.insert newId newGame)
   return $ Just newId
 
 randomGameId :: IO GameId
-randomGameId = getStdGen >>= return . take 8 . randomRs ('A','Z')
+randomGameId = newStdGen >>= return . take 8 . randomRs ('A','Z')
 
 joinGame :: Handle -> PlayerName -> GameId -> ReaderT Server IO (Maybe String)
 joinGame h player game = do
-  Server{..} <- ask
+  activeGames <- ask
   res <- liftIO $ atomically $ addPlayerToActiveGame h player game activeGames
   case res of
    Left msg -> return $ Just msg
@@ -80,7 +79,7 @@ joinGame h player game = do
      then runFilledGame g >> return Nothing
      else return $ Just $ "player " ++ player ++ " registered for game "++ game
 
-addPlayerToActiveGame :: Handle -> PlayerName -> GameId -> TVar (M.Map GameId ActiveGame) -> STM (Either String ActiveGame)
+addPlayerToActiveGame :: Handle -> PlayerName -> GameId -> Server -> STM (Either String ActiveGame)
 addPlayerToActiveGame h player game activeGames = do
   games <- readTVar activeGames
   case M.lookup game games of
@@ -96,8 +95,8 @@ addPlayerToActiveGame h player game activeGames = do
 runFilledGame :: ActiveGame -> ReaderT Server IO String
 runFilledGame ActiveGame{..} = do
   tid <- liftIO $ forkIO (runGameServer gameId numberOfRobots registeredHumans)
-  s <- ask
-  liftIO $ atomically $ modifyTVar' (activeGames s) (M.adjust (\ g -> g { gameThread = Just tid}) gameId)
+  activeGames <- ask
+  liftIO $ atomically $ modifyTVar' activeGames (M.adjust (\ g -> g { gameThread = Just tid}) gameId)
   return $ "game " ++ gameId
 
 runGameServer :: GameId -> Int -> Connections -> IO ()

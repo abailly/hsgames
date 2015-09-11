@@ -14,7 +14,7 @@ import           Interpreter
 import           Net
 import           Options.Applicative
 import           Player
-import           Pretty
+import           Pretty                  hiding ((<$>), (<>))
 import           System.Environment
 import           System.IO
 import           System.Random
@@ -31,7 +31,10 @@ data Configuration = Server { serverPort :: PortNumber
                                    , serverPort           :: PortNumber
                                    , numberOfHumanPlayers :: Int
                                    , numberOfRobotPlayers :: Int
-                                   } deriving (Show)
+                                   }
+                   | ClientListGames { serverHost :: String
+                                     , serverPort :: PortNumber
+                                     } deriving (Show)
 
 configOptions :: Parser Configuration
 configOptions = subparser
@@ -40,7 +43,9 @@ configOptions = subparser
                   <> ( command "player" (info clientPlayerOptions
                                          (progDesc "run an Acquire client to connect to a given server and play as Human")))
                   <> ( command "newGame" (info newGameOptions
-                                          (progDesc "connect to a server and request to start a fresh new game, returns id of the game"))))
+                                          (progDesc "connect to a server and request to start a fresh new game, returns id of the game")))
+                  <> ( command "list" (info listGamesOptions
+                                          (progDesc "connect to a server and list all active games"))))
 
 portOption hlp = option (str >>= return . fromIntegral . read)
                  ( long "port"
@@ -93,10 +98,21 @@ newGameOptions = ClientNewGame
                                 <> value 5
                                 <> help "Number of robot players")
 
+
+listGamesOptions :: Parser Configuration
+listGamesOptions = ClientListGames
+                <$> strOption ( long "host"
+                                <> short 'h'
+                                <> value "localhost"
+                                <> metavar "HOST"
+                                <> help "Server host to connect to" )
+                <*> portOption "Server port to connect to"
+
 start :: Configuration -> IO ()
 start Server{..}        = runServer serverPort
 start ClientPlayer{..}  = runPlayer serverHost serverPort playerName playGameId
 start ClientNewGame{..} = runNewGame serverHost serverPort numberOfHumanPlayers numberOfRobotPlayers
+start ClientListGames{..} = listGames serverHost serverPort
 
 
 main :: IO ()
