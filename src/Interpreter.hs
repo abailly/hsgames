@@ -70,7 +70,7 @@ playHuman p@Player{..} game hin hout = do let plays = (possiblePlay game)
                                           r <- tryJust (guard . isEOFError) $ hGetLine hin
                                           case r of
                                            Left  _    -> return Cancel
-                                           Right line -> return $ plays !! (read line - 1)
+                                           Right line -> putStrLn (playerName ++  " played " ++ line) >> return (plays !! (read line - 1))
 
 initialisedGame :: GameId -> StdGen -> [(PlayerName,PlayerType)] -> Prompt PlayerInput Game
 initialisedGame gid g num = do

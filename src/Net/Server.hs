@@ -16,6 +16,8 @@ import           Network.Socket
 import           System.IO
 import           System.Random
 
+type Server = TVar (M.Map GameId ActiveGame)
+
 runServer :: PortNumber -> IO ()
 runServer port = do
   sock <- socket AF_INET Stream defaultProtocol
@@ -32,52 +34,51 @@ runServer port = do
 interpretCommands :: Handle -> ReaderT Server IO ()
 interpretCommands handle = do
   res <- interpretClientCommand handle
+  liftIO $ putStrLn $ "result of client command from " ++ show handle ++ " is " ++ show res
   case res of
    Nothing -> return ()
-   Just s  -> liftIO (hPutStrLn handle s) >> interpretCommands handle
+   Just s  -> liftIO (hPutStrLn handle $ show s) >> interpretCommands handle
 
-interpretClientCommand :: Handle -> ReaderT Server IO (Maybe String)
+interpretClientCommand :: Handle -> ReaderT Server IO (Maybe Result)
 interpretClientCommand handle = do
   ln <- liftIO $ readClientCommand handle
-  case ln of
-   Left _ -> return Nothing
-   Right dat ->  handleCommand handle (read dat)
+  liftIO $ putStrLn $ "received command: " ++ show ln
+  either (const $ return Nothing) (handleCommand handle . read) ln
   where
     readClientCommand :: Handle -> IO (Either IOError String)
     readClientCommand = try . hGetLine
 
-type Server = TVar (M.Map GameId ActiveGame)
-
-handleCommand :: Handle -> Command -> ReaderT Server IO (Maybe String)
+handleCommand :: Handle -> Command -> ReaderT Server IO (Maybe Result)
 handleCommand _ (NewGame numHumans numRobots) = startNewGame numHumans numRobots
 handleCommand h (JoinGame player game)        = joinGame h player game
-handleCommand h ListGames                     = do
+handleCommand _ (StartingGame _)              = return Nothing
+handleCommand _ ListGames                     = do
   activeGames <- ask
   games <- liftIO $ atomically $ readTVar activeGames
-  liftIO (hPutStrLn h $ show $ map gamesList (M.elems games))
-  return Nothing
+  return $ Just $ GamesList $ map gamesList (M.elems games)
 
-startNewGame :: Int -> Int -> ReaderT Server IO (Maybe String)
+startNewGame :: Int -> Int -> ReaderT Server IO (Maybe Result)
 startNewGame numh numr = do
   activeGames <- ask
   newId <- liftIO randomGameId
   let newGame = ActiveGame newId numh numr M.empty Nothing
   liftIO $ atomically $ modifyTVar' activeGames  (M.insert newId newGame)
-  return $ Just newId
+  return $ Just $ NewGameStarted newId
 
 randomGameId :: IO GameId
 randomGameId = newStdGen >>= return . take 8 . randomRs ('A','Z')
 
-joinGame :: Handle -> PlayerName -> GameId -> ReaderT Server IO (Maybe String)
+joinGame :: Handle -> PlayerName -> GameId -> ReaderT Server IO (Maybe Result)
 joinGame h player game = do
   activeGames <- ask
   res <- liftIO $ atomically $ addPlayerToActiveGame h player game activeGames
-  case res of
-   Left msg -> return $ Just msg
-   Right g ->
-     if M.size (registeredHumans g) == numberOfHumans g
-     then runFilledGame g >> return Nothing
-     else return $ Just $ "player " ++ player ++ " registered for game "++ game
+  either (return . Just . ErrorMessage)
+    startGameIfAllHumansRegistered
+    res
+   where
+     startGameIfAllHumansRegistered g = if M.size (registeredHumans g) == numberOfHumans g
+                                        then runFilledGame g
+                                        else return $ Just $ PlayerRegistered player game
 
 addPlayerToActiveGame :: Handle -> PlayerName -> GameId -> Server -> STM (Either String ActiveGame)
 addPlayerToActiveGame h player game activeGames = do
@@ -92,17 +93,20 @@ addPlayerToActiveGame h player game activeGames = do
                                modifyTVar' activeGames (M.insert gameId g')
                                return $ Right g'
 
-runFilledGame :: ActiveGame -> ReaderT Server IO String
+runFilledGame :: ActiveGame -> ReaderT Server IO (Maybe Result)
 runFilledGame ActiveGame{..} = do
   tid <- liftIO $ forkIO (runGameServer gameId numberOfRobots registeredHumans)
   activeGames <- ask
   liftIO $ atomically $ modifyTVar' activeGames (M.adjust (\ g -> g { gameThread = Just tid}) gameId)
-  return $ "game " ++ gameId
+  return Nothing
 
 runGameServer :: GameId -> Int -> Connections -> IO ()
 runGameServer gid numRobots clients  = do
   g <- getStdGen
   let connections = M.insert "Console" (Cnx stdin stdout) clients
-  let robots = map ((,Robot) . ("robot " ++) . show) [ 1 .. numRobots ]
+      robots      = map ((,Robot) . ("robot " ++) . show) [ 1 .. numRobots ]
+  notifyStartup gid connections
   runReaderT (runPromptM playerInputHandler $ initialisedGame gid g (map (\ (p,_) -> (p,Human)) (M.toList clients) ++ robots) >>= interpretCommand) connections
 
+notifyStartup :: GameId -> Connections -> IO ()
+notifyStartup gid cnx = forM_ (M.elems cnx) (\ (Cnx _ hout) -> hPutStrLn hout $ show (GameStarts gid))

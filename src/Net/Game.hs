@@ -21,17 +21,17 @@ runNewGame :: String -> PortNumber -> Int -> Int -> IO ()
 runNewGame host port numHumans numRobots = do
   h <- connectTo host port
   let command = NewGame numHumans numRobots
-  print $ "Sending " ++ show command
   hPrint h command
-  res <- hGetLine h
-  putStrLn $ "starting new game " ++ res
+  res :: Result <- read `fmap` hGetLine h
+  putDoc $ pretty res
+  putStrLn ""
   hClose h
 
 listGames :: String -> PortNumber -> IO ()
 listGames host port = do
   h <- connectTo host port
   hPrint h ListGames
-  res :: [ GameDescription ] <- read `fmap` hGetLine h
+  res :: Result <- read `fmap` hGetLine h
   putDoc $ pretty res
   putStrLn ""
   hClose h

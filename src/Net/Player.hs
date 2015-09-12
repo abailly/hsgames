@@ -22,8 +22,15 @@ runPlayer host port player game = do
   hSetBuffering h NoBuffering
   hPutStrLn h (show $ JoinGame player game)
   putStrLn $ "registering " ++ player ++ " with server at address " ++ show (addrAddress server)
-  putStrLn $ "joining " ++ game
-  play player h
+  readResult h player
+
+readResult :: Handle -> PlayerName -> IO ()
+readResult h player = do
+  res :: Result <- read `fmap` hGetLine h
+  putDoc (pretty res) >> putStrLn ""
+  case res of
+   GameStarts _ -> hPutStrLn h (show $ StartingGame player) >> play player h
+   _            -> readResult h player
 
 play :: PlayerName -> Handle -> IO ()
 play player handle = do
