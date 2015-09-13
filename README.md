@@ -3,18 +3,49 @@
 This is a rough implementation of [Acquire](http://www.webnoir.com/bob/sid/acquire.htm) boardgame as a client-server online game in
 Haskell. It's an early-stage implementation but is already playable, even in solitaire mode against randomly playing robots.
 
+## Overview
+
+The game is played in client-server mode:
+
+* The server can sport several games concurrently,
+* Client players can create a new game or list existing games,
+* Client players can join an existing non-started game.
+
+Server uses TCP over port 7890 by default for all operations.
+
 ## Getting Started
 
 To play in solo mode against robots, run the following commands in the source tree, assuming you are using
 [stack](https://github.com/commercialhaskell/stack) to build code (works equally well with cabal with more incantations):
 
+### To Start server
+
     $ stack init
     $ stack build
-    $ <PATH TO BIN>/acq server -h 1 -r 6
+    $ <PATH TO BIN>/acq server
 
-Open another terminal to run the (human) client:
+### To Create Game
 
-    $ <PATH TO BIN>/acq client -n johndoe
+Open another terminal and run:
+
+    $ <PATH TO BIN>/acq newGame -H 1 -R 5
+    created new game DBEGXBIZ
+
+This creates a new game with one human and five robot players.
+
+You can check game is available by running:
+
+    $ <PATH TO BIN>/acq list
+    DBEGXBIZ 3 humans, 3 robots, []
+
+### To Start Playing
+
+Connect as a player:
+
+    $ <PATH TO BIN>/acq player -g DBEGXBIZ -n arnaud
+    registering arnaud with server at address 127.0.0.1:7890
+    registered player arnaud with game DBEGXBIZ
+    starting game DBEGXBIZ
 
 You should see something like the following:
 
