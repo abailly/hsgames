@@ -15,6 +15,7 @@ import           Net.Types
 import           Network.Socket
 import           System.IO
 import           System.Random
+import           Trace
 
 type Server = TVar (M.Map GameId ActiveGame)
 
@@ -34,15 +35,14 @@ runServer port = do
 interpretCommands :: Handle -> ReaderT Server IO ()
 interpretCommands handle = do
   res <- interpretClientCommand handle
-  liftIO $ putStrLn $ "result of client command from " ++ show handle ++ " is " ++ show res
   case res of
-   Nothing -> liftIO (putStrLn ("terminating commands loop for "  ++ show handle))
-   Just s  -> liftIO (putStrLn ("sending " ++ show s) >> hPutStrLn handle (show s)) >> interpretCommands handle
+   Nothing -> trace ("terminating commands loop for "  ++ show handle)
+   Just s  -> liftIO (trace ("sending " ++ show s) >> hPutStrLn handle (show s)) >> interpretCommands handle
 
 interpretClientCommand :: Handle -> ReaderT Server IO (Maybe Result)
 interpretClientCommand handle = do
   ln <- liftIO $ readClientCommand handle
-  liftIO $ putStrLn $ "received command from: " ++ show handle ++ ", " ++ show ln
+  trace ("received command from: " ++ show handle ++ ", " ++ show ln)
   either (const $ return Nothing) (handleCommand handle . read) ln
   where
     readClientCommand :: Handle -> IO (Either IOError String)
@@ -98,6 +98,7 @@ runFilledGame :: ActiveGame -> ReaderT Server IO (Maybe Result)
 runFilledGame ActiveGame{..} = do
   liftIO $ notifyStartup gameId registeredHumans connectionThreads
   tid <- liftIO $ forkIO (runGameServer gameId numberOfRobots registeredHumans)
+  trace ("started game " ++ gameId)
   activeGames <- ask
   liftIO $ atomically $ modifyTVar' activeGames (M.adjust (\ g -> g { gameThread = Just tid}) gameId)
   return Nothing
@@ -114,4 +115,5 @@ notifyStartup :: GameId -> Connections -> [ ThreadId ]  -> IO ()
 notifyStartup gid cnx threads = do
   mytid <- myThreadId
   forM_ (M.elems cnx) (\ (Cnx _ hout) -> hPutStrLn hout $ show (GameStarts gid))
-  forM_ threads (\ tid -> when (tid /= mytid) $ putStrLn ("killing thread " ++ show tid ++ " for game " ++ gid) >> killThread tid)
+  forM_ threads (\ tid -> when (tid /= mytid) $  -- we don't kill the thread we are running in...
+                          trace ("killing thread " ++ show tid ++ " for game " ++ gid) >> killThread tid)
