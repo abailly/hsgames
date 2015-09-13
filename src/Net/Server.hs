@@ -36,13 +36,13 @@ interpretCommands handle = do
   res <- interpretClientCommand handle
   liftIO $ putStrLn $ "result of client command from " ++ show handle ++ " is " ++ show res
   case res of
-   Nothing -> return ()
-   Just s  -> liftIO (hPutStrLn handle $ show s) >> interpretCommands handle
+   Nothing -> liftIO (putStrLn ("terminating commands loop for "  ++ show handle))
+   Just s  -> liftIO (putStrLn ("sending " ++ show s) >> hPutStrLn handle (show s)) >> interpretCommands handle
 
 interpretClientCommand :: Handle -> ReaderT Server IO (Maybe Result)
 interpretClientCommand handle = do
   ln <- liftIO $ readClientCommand handle
-  liftIO $ putStrLn $ "received command: " ++ show ln
+  liftIO $ putStrLn $ "received command from: " ++ show handle ++ ", " ++ show ln
   either (const $ return Nothing) (handleCommand handle . read) ln
   where
     readClientCommand :: Handle -> IO (Either IOError String)
@@ -61,7 +61,7 @@ startNewGame :: Int -> Int -> ReaderT Server IO (Maybe Result)
 startNewGame numh numr = do
   activeGames <- ask
   newId <- liftIO randomGameId
-  let newGame = ActiveGame newId numh numr M.empty Nothing
+  let newGame = ActiveGame newId numh numr M.empty [] Nothing
   liftIO $ atomically $ modifyTVar' activeGames  (M.insert newId newGame)
   return $ Just $ NewGameStarted newId
 
@@ -71,7 +71,8 @@ randomGameId = newStdGen >>= return . take 8 . randomRs ('A','Z')
 joinGame :: Handle -> PlayerName -> GameId -> ReaderT Server IO (Maybe Result)
 joinGame h player game = do
   activeGames <- ask
-  res <- liftIO $ atomically $ addPlayerToActiveGame h player game activeGames
+  tid <- liftIO $ myThreadId
+  res <- liftIO $ atomically $ addPlayerToActiveGame h tid player game activeGames
   either (return . Just . ErrorMessage)
     startGameIfAllHumansRegistered
     res
@@ -80,8 +81,8 @@ joinGame h player game = do
                                         then runFilledGame g
                                         else return $ Just $ PlayerRegistered player game
 
-addPlayerToActiveGame :: Handle -> PlayerName -> GameId -> Server -> STM (Either String ActiveGame)
-addPlayerToActiveGame h player game activeGames = do
+addPlayerToActiveGame :: Handle -> ThreadId -> PlayerName -> GameId -> Server -> STM (Either String ActiveGame)
+addPlayerToActiveGame h tid player game activeGames = do
   games <- readTVar activeGames
   case M.lookup game games of
    Nothing               -> return $ Left $ "no active game "++ game
@@ -89,12 +90,13 @@ addPlayerToActiveGame h player game activeGames = do
                              Just _  -> return $ Left $ "game "++ game ++ " already started"
                              Nothing -> do
                                let players = M.insert player (Cnx h h) registeredHumans
-                                   g'      = g { registeredHumans = players }
+                                   g'      = g { registeredHumans = players, connectionThreads = tid : connectionThreads }
                                modifyTVar' activeGames (M.insert gameId g')
                                return $ Right g'
 
 runFilledGame :: ActiveGame -> ReaderT Server IO (Maybe Result)
 runFilledGame ActiveGame{..} = do
+  liftIO $ notifyStartup gameId registeredHumans connectionThreads
   tid <- liftIO $ forkIO (runGameServer gameId numberOfRobots registeredHumans)
   activeGames <- ask
   liftIO $ atomically $ modifyTVar' activeGames (M.adjust (\ g -> g { gameThread = Just tid}) gameId)
@@ -105,8 +107,11 @@ runGameServer gid numRobots clients  = do
   g <- getStdGen
   let connections = M.insert "Console" (Cnx stdin stdout) clients
       robots      = map ((,Robot) . ("robot " ++) . show) [ 1 .. numRobots ]
-  notifyStartup gid connections
+  forM_ (M.elems connections) (\ (Cnx _ hout) -> hFlush hout)
   runReaderT (runPromptM playerInputHandler $ initialisedGame gid g (map (\ (p,_) -> (p,Human)) (M.toList clients) ++ robots) >>= interpretCommand) connections
 
-notifyStartup :: GameId -> Connections -> IO ()
-notifyStartup gid cnx = forM_ (M.elems cnx) (\ (Cnx _ hout) -> hPutStrLn hout $ show (GameStarts gid))
+notifyStartup :: GameId -> Connections -> [ ThreadId ]  -> IO ()
+notifyStartup gid cnx threads = do
+  mytid <- myThreadId
+  forM_ (M.elems cnx) (\ (Cnx _ hout) -> hPutStrLn hout $ show (GameStarts gid))
+  forM_ threads (\ tid -> when (tid /= mytid) $ putStrLn ("killing thread " ++ show tid ++ " for game " ++ gid) >> killThread tid)

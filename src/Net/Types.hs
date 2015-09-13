@@ -25,11 +25,12 @@ data Result = PlayerRegistered PlayerName GameId
             | ErrorMessage String
             deriving (Show, Read)
 
-data ActiveGame = ActiveGame { gameId           :: GameId
-                             , numberOfHumans   :: Int
-                             , numberOfRobots   :: Int
-                             , registeredHumans :: Connections
-                             , gameThread       :: Maybe ThreadId
+data ActiveGame = ActiveGame { gameId            :: GameId
+                             , numberOfHumans    :: Int
+                             , numberOfRobots    :: Int
+                             , registeredHumans  :: Connections
+                             , connectionThreads :: [ ThreadId ]
+                             , gameThread        :: Maybe ThreadId
                              }
 
 data GameDescription = GameDescription { gameDescId           :: GameId

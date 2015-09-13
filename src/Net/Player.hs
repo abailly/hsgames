@@ -26,15 +26,18 @@ runPlayer host port player game = do
 
 readResult :: Handle -> PlayerName -> IO ()
 readResult h player = do
-  res :: Result <- read `fmap` hGetLine h
+  ln <- hGetLine h
+  print $  "command result: " ++ ln
+  let res :: Result = read  ln
   putDoc (pretty res) >> putStrLn ""
   case res of
-   GameStarts _ -> hPutStrLn h (show $ StartingGame player) >> play player h
+   GameStarts _ -> hFlush h >> putStrLn "starting play " >> play player h
    _            -> readResult h player
 
 play :: PlayerName -> Handle -> IO ()
 play player handle = do
   dat <- hGetLine handle
+  print $ "message : " ++ dat
   m <- handleMessage (read dat)
   case m of
    Just response -> void $ hPutStrLn handle response
