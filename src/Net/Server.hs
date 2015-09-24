@@ -5,11 +5,12 @@
 module Net.Server(runServer, PortNumber) where
 
 import           Control.Concurrent
+import           Control.Concurrent.Async
 import           Control.Concurrent.STM
-import           Control.Exception      (try)
+import           Control.Exception        (try)
 import           Control.Monad.Prompt
 import           Control.Monad.Reader
-import qualified Data.Map               as M
+import qualified Data.Map                 as M
 import           Interpreter
 import           Net.Types
 import           Network.Socket
@@ -26,11 +27,48 @@ runServer port = do
   bind sock (SockAddrInet port iNADDR_ANY)
   listen sock 5
   server <- newTVarIO M.empty
+  void $ async (garbageCollector server)
   forever $ do
     (clientSock, _) <- accept sock
     h <- socketToHandle clientSock ReadWriteMode
     hSetBuffering h NoBuffering
     forkIO $ runReaderT (interpretCommands h) server
+
+-- | Periodically checks existing games to see if they are still running
+-- If a game is found to be stopped, its state is cleaned:
+--
+--  * all player's threads are sent a @ThreadKilled@ signal
+--  * game thread is set to nothing
+garbageCollector :: Server -> IO ()
+garbageCollector server = forever $ do
+  tids <- liftIO $ atomically $ do
+    gamesMap <- readTVar server
+    cleanedGames <- mapM cleanupStoppedGames (M.elems gamesMap)
+    writeTVar server (M.fromList $ map ((\ g -> (gameId g, g)) . x1) cleanedGames)
+    return cleanedGames
+  forM_ tids doCleanupGame
+  threadDelay $ 10 * 1000 * 1000
+    where
+
+      x1 (a,_,_) = a
+
+      doCleanupGame :: (ActiveGame, [ThreadId], [Connection]) -> IO ()
+      doCleanupGame (_, [], _) = return ()
+      doCleanupGame (g, tids, cnxs) = do
+        trace $ "cleaning up game : " ++ gameId g
+        trace $ "closing connections : " ++ show cnxs
+        mapM_ closeConnection cnxs
+        trace $ "stopping threads : " ++ show tids
+        mapM_ killThread tids
+
+      cleanupStoppedGames :: ActiveGame -> STM (ActiveGame, [ThreadId], [Connection])
+      cleanupStoppedGames g@ActiveGame{..} =
+        case gameThread of
+         Nothing -> return (g,[],[])
+         Just as -> do
+           res <- pollSTM as
+           maybe (return (g,[],[])) (const $ return (g { gameThread = Nothing, connectionThreads = [], registeredHumans = M.empty }, connectionThreads, M.elems registeredHumans)) res
+
 
 interpretCommands :: Handle -> ReaderT Server IO ()
 interpretCommands handle = do
@@ -97,13 +135,13 @@ addPlayerToActiveGame h tid player game activeGames = do
 runFilledGame :: ActiveGame -> ReaderT Server IO (Maybe Result)
 runFilledGame ActiveGame{..} = do
   liftIO $ notifyStartup gameId registeredHumans connectionThreads
-  tid <- liftIO $ forkIO (runGameServer gameId numberOfRobots registeredHumans)
+  asyncGame <- liftIO $ async (runGameServer gameId numberOfRobots registeredHumans)
   trace ("started game " ++ gameId)
   activeGames <- ask
-  liftIO $ atomically $ modifyTVar' activeGames (M.adjust (\ g -> g { gameThread = Just tid}) gameId)
+  liftIO $ atomically $ modifyTVar' activeGames (M.adjust (\ g -> g { gameThread = Just asyncGame}) gameId)
   return Nothing
 
-runGameServer :: GameId -> Int -> Connections -> IO ()
+runGameServer :: GameId -> Int -> Connections -> IO Game
 runGameServer gid numRobots clients  = do
   g <- getStdGen
   let connections = M.insert "Console" (Cnx stdin stdout) clients

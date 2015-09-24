@@ -27,7 +27,6 @@ runPlayer host port player game = do
 readResult :: Handle -> PlayerName -> IO ()
 readResult h player = do
   ln <- hGetLine h
-  print $  "command result: " ++ ln
   let res :: Result = read  ln
   putDoc (pretty res) >> putStrLn ""
   case res of
@@ -37,7 +36,6 @@ readResult h player = do
 play :: PlayerName -> Handle -> IO ()
 play player handle = do
   dat <- hGetLine handle
-  print $ "message : " ++ dat
   m <- handleMessage (read dat)
   case m of
    Just response -> void $ hPutStrLn handle response

@@ -19,7 +19,10 @@ import           System.Random
 
 data Connection = Cnx { hIn  :: Handle
                       , hOut :: Handle
-                      }
+                      } deriving (Show)
+
+closeConnection :: Connection -> IO ()
+closeConnection (Cnx hin hout) = hClose hin >> hClose hout
 
 type Connections = M.Map PlayerName Connection
 
@@ -70,7 +73,7 @@ playHuman p@Player{..} game hin hout = do let plays = (possiblePlay game)
                                           r <- tryJust (guard . isEOFError) $ hGetLine hin
                                           case r of
                                            Left  _    -> return Cancel
-                                           Right line -> putStrLn (playerName ++  " played " ++ line) >> return (plays !! (read line - 1))
+                                           Right line -> return (plays !! (read line - 1))
 
 initialisedGame :: GameId -> StdGen -> [(PlayerName,PlayerType)] -> Prompt PlayerInput Game
 initialisedGame gid g num = do
@@ -79,12 +82,12 @@ initialisedGame gid g num = do
    Nothing -> return $ newGame gid g num
    Just  game -> return game
 
-interpretCommand :: Game -> Prompt PlayerInput ()
+interpretCommand :: Game -> Prompt PlayerInput Game
 interpretCommand game@Game{..} = do
   prompt $ SaveGame game
   let player = currentPlayer game
   order <- prompt $ GetOrder player game
   prompt $ PlayedOrder player game order
   if   order == Cancel
-  then prompt (Quit game)
+  then prompt (Quit game) >> return game
   else interpretCommand $ play game order

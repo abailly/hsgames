@@ -1,15 +1,17 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards   #-}
-module Net.Types(module Player,
+module Net.Types(module Player, Game,
                  Command(..), GameId, Connection(..), Connections, ActiveGame(..), GameDescription(..), Result(..),
                  gamesList) where
 
 import           Control.Concurrent
-import qualified Data.Map           as M
-import           Game               (GameId)
-import           Interpreter        (Connection (..), Connections)
+import           Control.Concurrent.Async
+import qualified Data.Map                 as M
+import           Data.Maybe               (isJust)
+import           Game                     (Game, GameId)
+import           Interpreter              (Connection (..), Connections)
 import           Player
-import           Pretty             hiding ((<$>))
+import           Pretty                   hiding ((<$>))
 
 data Command = NewGame Int Int             -- ^Starts a game with given number of human players and robots
              | StartingGame PlayerName     -- ^Notification from player he is joining runnable game
@@ -30,7 +32,7 @@ data ActiveGame = ActiveGame { gameId            :: GameId
                              , numberOfRobots    :: Int
                              , registeredHumans  :: Connections
                              , connectionThreads :: [ ThreadId ]
-                             , gameThread        :: Maybe ThreadId
+                             , gameThread        :: Maybe (Async Game)
                              }
 
 data GameDescription = GameDescription { gameDescId           :: GameId
@@ -41,7 +43,7 @@ data GameDescription = GameDescription { gameDescId           :: GameId
                                        } deriving (Show,Read,Eq)
 
 gamesList :: ActiveGame -> GameDescription
-gamesList ActiveGame{..} = GameDescription gameId numberOfHumans numberOfRobots (M.keys registeredHumans) (gameThread /= Nothing)
+gamesList ActiveGame{..} = GameDescription gameId numberOfHumans numberOfRobots (M.keys registeredHumans) (isJust gameThread)
 
 instance Pretty GameDescription where
   pretty GameDescription{..} = text gameDescId <+> int descNumberOfHumans <+> text "humans" <> char ','
