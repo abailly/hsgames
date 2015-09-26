@@ -10,10 +10,14 @@ import           Control.Concurrent.STM
 import           Control.Exception        (try)
 import           Control.Monad.Prompt
 import           Control.Monad.Reader
+import           Data.List
 import qualified Data.Map                 as M
+import qualified Game                     as G
+import           Game.Core                (players)
 import           Interpreter
 import           Net.Types
 import           Network.Socket
+import           System.Directory
 import           System.IO
 import           System.Random
 import           Trace
@@ -26,13 +30,29 @@ runServer port = do
   setSocketOption sock ReuseAddr 1
   bind sock (SockAddrInet port iNADDR_ANY)
   listen sock 5
-  server <- newTVarIO M.empty
+  existingGames <- readSavedGames
+  server <- newTVarIO existingGames
   void $ async (garbageCollector server)
   forever $ do
     (clientSock, _) <- accept sock
     h <- socketToHandle clientSock ReadWriteMode
     hSetBuffering h NoBuffering
     forkIO $ runReaderT (interpretCommands h) server
+
+readSavedGames :: IO (M.Map GameId ActiveGame)
+readSavedGames = do
+  saved <- filter isSaveFile <$> getDirectoryContents "."
+  M.fromList <$> mapM loadSaved saved
+
+  where
+    isSaveFile f = ".acquire" `isPrefixOf` f && ".bak" `isSuffixOf` f
+    loadSaved f = do
+      g <- read <$> readFile f
+      let gid = G.gameId g
+          nh = length $ filter isHuman (M.elems $ players g)
+          nr = length $ filter isRobot (M.elems $ players g)
+      return $ (gid, ActiveGame gid nh nr M.empty [] Nothing)
+
 
 -- | Periodically checks existing games to see if they are still running
 -- If a game is found to be stopped, its state is cleaned:

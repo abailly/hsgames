@@ -1,41 +1,41 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards   #-}
-module Net.Types(module Player, Game,
-                 Command(..), GameId, Connection(..), Connections, ActiveGame(..), GameDescription(..), Result(..),
+module Net.Types(module Player, G.Game,
+                 Command(..), G.GameId, Connection(..), Connections, ActiveGame(..), GameDescription(..), Result(..),
                  gamesList) where
 
 import           Control.Concurrent
 import           Control.Concurrent.Async
 import qualified Data.Map                 as M
 import           Data.Maybe               (isJust)
-import           Game                     (Game, GameId)
+import qualified Game                     as G
 import           Interpreter              (Connection (..), Connections)
 import           Player
 import           Pretty                   hiding ((<$>))
 
 data Command = NewGame Int Int             -- ^Starts a game with given number of human players and robots
              | StartingGame PlayerName     -- ^Notification from player he is joining runnable game
-             | JoinGame PlayerName GameId  -- ^Player joins an existing game
+             | JoinGame PlayerName G.GameId  -- ^Player joins an existing game
              | ListGames
              deriving (Show, Read)
 
 
-data Result = PlayerRegistered PlayerName GameId
-            | NewGameStarted GameId
-            | GameStarts GameId
+data Result = PlayerRegistered PlayerName G.GameId
+            | NewGameStarted G.GameId
+            | GameStarts G.GameId
             | GamesList [GameDescription]
             | ErrorMessage String
             deriving (Show, Read)
 
-data ActiveGame = ActiveGame { gameId            :: GameId
+data ActiveGame = ActiveGame { gameId            :: G.GameId
                              , numberOfHumans    :: Int
                              , numberOfRobots    :: Int
                              , registeredHumans  :: Connections
                              , connectionThreads :: [ ThreadId ]
-                             , gameThread        :: Maybe (Async Game)
+                             , gameThread        :: Maybe (Async G.Game)
                              }
 
-data GameDescription = GameDescription { gameDescId           :: GameId
+data GameDescription = GameDescription { gameDescId           :: G.GameId
                                        , descNumberOfHumans   :: Int
                                        , descNumberOfRobots   :: Int
                                        , descRegisteredHumans :: [ PlayerName ]

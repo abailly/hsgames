@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 module Player where
 
 import qualified Data.Map as M
@@ -15,6 +16,14 @@ data Player = Player { playerName :: PlayerName
 
 type Players = M.Map PlayerName Player
 type PlayerName = String
+
+isHuman :: Player -> Bool
+isHuman (playerType -> Human) = True
+isHuman _                    = False
+
+isRobot :: Player -> Bool
+isRobot (playerType -> Robot) = True
+isRobot _                    = False
 
 hasEnoughMoneyToBuyStock :: Player -> HotelChain -> Bool
 hasEnoughMoneyToBuyStock player chain = let price = stockPrice chain
