@@ -1,8 +1,8 @@
 -- | A robot player
-module Robot where
+module Acquire.Robot where
 
-import           Game
-import           Player
+import           Acquire.Game
+import           Acquire.Player
 import           System.Random
 
 playRobot :: Player -> Game -> IO Order

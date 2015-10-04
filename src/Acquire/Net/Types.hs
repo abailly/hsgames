@@ -1,17 +1,17 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards   #-}
-module Net.Types(module Player, G.Game,
-                 Command(..), G.GameId, Connection(..), Connections, ActiveGame(..), GameDescription(..), Result(..),
-                 gamesList) where
+module Acquire.Net.Types(module Acquire.Player, G.Game,
+                         Command(..), G.GameId, Connection(..), Connections, ActiveGame(..), GameDescription(..), Result(..),
+                         gamesList) where
 
+import qualified Acquire.Game             as G
+import           Acquire.Interpreter      (Connection (..), Connections)
+import           Acquire.Player
+import           Acquire.Pretty           hiding ((<$>))
 import           Control.Concurrent
 import           Control.Concurrent.Async
 import qualified Data.Map                 as M
 import           Data.Maybe               (isJust)
-import qualified Game                     as G
-import           Interpreter              (Connection (..), Connections)
-import           Player
-import           Pretty                   hiding ((<$>))
 
 data Command = NewGame Int Int             -- ^Starts a game with given number of human players and robots
              | StartingGame PlayerName     -- ^Notification from player he is joining runnable game

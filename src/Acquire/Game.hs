@@ -12,14 +12,14 @@
 -- The main object of Acquire is to become the wealthiest player by the end of the game.  This is done by forming
 -- hotel chains, shrewdly buying the right stock at the right time, merging chains to obtain capital and adding
 -- hotels to the chains in which you have controlling interest to increase their value.
-module Game(Game(..), GameBoard, Order(Cancel), currentPlayer, newGame, play, possiblePlay
-           ,highlightPlayableTiles, GameId) where
+module Acquire.Game(Game(..), GameBoard, Order(Cancel), currentPlayer, newGame, play, possiblePlay
+                   ,highlightPlayableTiles, GameId) where
 
-import           Cells
-import           Data.Array ((//))
-import           Game.Core
-import           Game.Play
-import           Game.Turn
+import           Acquire.Cells
+import           Acquire.Game.Core
+import           Acquire.Game.Play
+import           Acquire.Game.Turn
+import           Data.Array        ((//))
 
 highlightPlayableTiles :: GameBoard -> [ Order ] -> GameBoard
 highlightPlayableTiles board []                      = board

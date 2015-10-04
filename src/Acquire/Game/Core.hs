@@ -1,15 +1,15 @@
 {-# LANGUAGE RecordWildCards #-}
-module Game.Core where
+module Acquire.Game.Core where
 
 import           Data.Array
 import qualified Data.Map              as M
 import           System.Random
 import           System.Random.Shuffle
 
-import           Cells
-import           Hotels
-import           Player
-import           Tiles
+import           Acquire.Cells
+import           Acquire.Hotels
+import           Acquire.Player
+import           Acquire.Tiles
 
 
 data MergerPhase = TakeOver Tile [ChainName]

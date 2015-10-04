@@ -1,9 +1,9 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns    #-}
-module Hotels where
+module Acquire.Hotels where
 
-import qualified Data.Map as M
-import           Tiles
+import           Acquire.Tiles
+import qualified Data.Map      as M
 
 data ChainName = American | Continental | Festival | Imperial | Luxor | Tower | Worldwide
                 deriving (Eq, Enum, Ord, Show, Read)

@@ -2,8 +2,13 @@
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
-module Net.Server(runServer, PortNumber) where
+module Acquire.Net.Server(runServer, PortNumber) where
 
+import qualified Acquire.Game             as G
+import           Acquire.Game.Core        (players)
+import           Acquire.Interpreter
+import           Acquire.Net.Types
+import           Acquire.Trace
 import           Control.Concurrent
 import           Control.Concurrent.Async
 import           Control.Concurrent.STM
@@ -12,15 +17,10 @@ import           Control.Monad.Prompt
 import           Control.Monad.Reader
 import           Data.List
 import qualified Data.Map                 as M
-import qualified Game                     as G
-import           Game.Core                (players)
-import           Interpreter
-import           Net.Types
 import           Network.Socket
 import           System.Directory
 import           System.IO
 import           System.Random
-import           Trace
 
 type Server = TVar (M.Map GameId ActiveGame)
 

@@ -1,16 +1,16 @@
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE RecordWildCards      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-module Pretty(Pretty(..), module Text.PrettyPrint.ANSI.Leijen, render) where
+module Acquire.Pretty(Pretty(..), module Text.PrettyPrint.ANSI.Leijen, render) where
 
-import           Cells
+import           Acquire.Cells
+import           Acquire.Game
+import           Acquire.Hotels
+import           Acquire.Player
+import           Acquire.Tiles
 import           Data.Array
 import qualified Data.Map                     as M
-import           Game
-import           Hotels
-import           Player
 import           Text.PrettyPrint.ANSI.Leijen
-import           Tiles
 
 instance Pretty Tile where
   pretty (Tile (x,y)) = fill 4 $ char x <> char '-' <> int y

@@ -1,10 +1,10 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
-module Net.Game where
+module Acquire.Net.Game where
 
-import           Net.Types
+import           Acquire.Net.Types
+import           Acquire.Pretty
 import           Network.Socket
-import           Pretty
 import           System.IO
 
 connectTo :: String -> PortNumber -> IO Handle

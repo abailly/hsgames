@@ -1,11 +1,11 @@
-module Cells where
+module Acquire.Cells where
 
 import           Data.Array
 import           Data.Maybe
-import qualified Data.Set   as S
+import qualified Data.Set       as S
 
-import           Hotels
-import           Tiles
+import           Acquire.Hotels
+import           Acquire.Tiles
 
 data Content = Empty
              | Playable  -- ^Used for highlighting purpose

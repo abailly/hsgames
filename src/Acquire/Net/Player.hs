@@ -1,14 +1,14 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
-module Net.Player where
+module Acquire.Net.Player where
 
+import           Acquire.Game         (highlightPlayableTiles)
+import           Acquire.Interpreter
+import           Acquire.Net.Types
+import           Acquire.Player       as P
+import           Acquire.Pretty
 import           Control.Monad.Reader
-import           Game                 (highlightPlayableTiles)
-import           Interpreter
-import           Net.Types
 import           Network.Socket
-import           Player
-import           Pretty
 import           System.IO
 
 
@@ -49,7 +49,7 @@ handleMessage (GameState player board plays) = do
   putStrLn ""
   putDoc (pretty player)
   putStrLn ""
-  putStrLn $ "Your move, " ++ Player.playerName player ++ " ?"
+  putStrLn $ "Your move, " ++ P.playerName player ++ " ?"
   mapM_ (\ (p,n :: Int) -> putStrLn $ show n ++ "- " ++ show p) (zip plays [1 .. ])
   ln <- getLine
   return $ Just ln

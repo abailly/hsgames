@@ -1,4 +1,4 @@
-module Tiles where
+module Acquire.Tiles where
 
 import           Data.Array
 

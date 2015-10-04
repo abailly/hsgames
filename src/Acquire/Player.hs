@@ -1,9 +1,9 @@
 {-# LANGUAGE ViewPatterns #-}
-module Player where
+module Acquire.Player where
 
-import qualified Data.Map as M
-import           Hotels
-import           Tiles
+import           Acquire.Hotels
+import           Acquire.Tiles
+import qualified Data.Map       as M
 
 data PlayerType = Human | Robot deriving (Eq, Show, Read)
 

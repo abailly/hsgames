@@ -1,16 +1,16 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Interpreter where
+module Acquire.Interpreter where
 
+import           Acquire.Game
+import           Acquire.Player
+import           Acquire.Robot
 import           Control.Exception    hiding (Handler)
 import           Control.Monad
 import           Control.Monad.Prompt
 import           Control.Monad.Reader
 import qualified Data.Map             as M
-import           Game
-import           Player
-import           Robot
 import           System.Directory
 import           System.Exit
 import           System.IO

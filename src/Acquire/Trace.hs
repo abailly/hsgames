@@ -1,4 +1,4 @@
-module Trace(trace) where
+module Acquire.Trace(trace) where
 
 import           Control.Monad.Trans
 import           Data.Time.Clock

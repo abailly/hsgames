@@ -1,7 +1,7 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-module Interpreter where
+module Acquire.Interpreter where
 
 import           Control.Monad.Prompt
 import           Game

@@ -4,17 +4,17 @@
 
 module Main where
 
+import           Acquire.Interpreter
+import           Acquire.Net
+import           Acquire.Player
+import           Acquire.Pretty          hiding ((<$>), (<>))
 import           Control.Concurrent
 import           Control.Concurrent.MVar
 import           Control.Monad.Prompt
 import           Control.Monad.Reader
 import           Data.List               (isPrefixOf)
 import qualified Data.Map                as M
-import           Interpreter
-import           Net
 import           Options.Applicative
-import           Player
-import           Pretty                  hiding ((<$>), (<>))
 import           System.Environment
 import           System.IO
 import           System.Random
