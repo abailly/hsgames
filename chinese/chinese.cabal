@@ -1,0 +1,47 @@
+name:                chinese
+version:             0.1.0.0
+-- synopsis:            
+-- description:         
+license:             Apache-2.0
+license-file:        LICENSE
+author:              Arnaud Bailly
+maintainer:          arnaud.oqube@gmail.com
+-- copyright:           
+category:            Game
+build-type:          Simple
+-- extra-source-files:  
+cabal-version:       >=1.20
+
+library 
+  build-depends:       base >=4.8 && <4.9
+                     , ansi-wl-pprint
+                     , array
+                     , containers
+                     , random
+                     , random-shuffle
+                     , directory
+                     , MonadPrompt
+                     , mtl
+                     , network
+                     , stm
+                     , time
+                     , old-locale
+                     , async
+
+  hs-source-dirs:      src
+  default-language:    Haskell2010
+  ghc-options:       -threaded -Wall -Werror -fno-warn-orphans -rtsopts
+  exposed-modules: Chinese.Game, Chinese.Interpreter, Chinese.Player
+                 , Chinese.Message, Chinese.Dictionary, Chinese.Pretty
+
+
+executable test
+  default-language:    Haskell2010
+  main-is:             Main.hs
+  hs-source-dirs:      main
+  build-depends:     base
+                   , chinese
+                   , random
+                   , MonadPrompt
+                   , mtl
+                   , containers
