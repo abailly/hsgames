@@ -3,7 +3,7 @@
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Chinese.Interpreter(newGame,Connection(..),playerInputHandler
-                          ,interpretCommand, readDictionary) where
+                          ,runGame, readDictionary) where
 
 import           Chinese.Dictionary
 import           Chinese.Game
@@ -20,15 +20,26 @@ import           System.IO
 import           System.IO.Error
 
 data PlayerInput a where
-  GetAnswer :: Game -> PlayerInput Answer
-  Quit      :: Game -> PlayerInput ()
+  CorrectAnswer :: Result -> Game -> PlayerInput Game
+  SelectGame    :: Game -> PlayerInput Answer
+  GetAnswer     :: Game -> PlayerInput Answer
+  Quit          :: Game -> PlayerInput ()
 
 type Handler m a = PlayerInput a -> m a
 
 playerInputHandler :: Handler (ReaderT Connections IO) a
+playerInputHandler (SelectGame Game{..}) = do
+  Cnx hin hout <- (M.! (playerName playerState)) <$> ask
+  liftIO $ selectGame hin hout
 playerInputHandler (GetAnswer g@Game{..}) = do
   Cnx hin hout <- (M.! (playerName playerState)) <$> ask
   liftIO $ getAnswer g hin hout
+playerInputHandler (CorrectAnswer w  g@Game{..}) = do
+  Cnx _ hout <- (M.! (playerName playerState)) <$> ask
+  liftIO $ hPutStrLn hout $ render $ pretty w
+  return $ case w of
+            Correct -> correctAnswer g
+            _       -> wrongAnswer g
 playerInputHandler (Quit _) = do
   broadcast (\ _ (Cnx _ hout) -> (liftIO $ (hPutStrLn hout $ show GameEnds) >> hFlush hout))
   liftIO exitSuccess
@@ -36,23 +47,38 @@ playerInputHandler (Quit _) = do
 broadcast :: (Monad m) => (PlayerName -> Connection -> m ()) -> ReaderT Connections m ()
 broadcast f = ask >>= mapM_ (lift . uncurry f) . M.assocs
 
+readOrCancel :: Handle -> (String -> Answer) -> IO Answer
+readOrCancel hin f = do
+  r <- tryJust (guard . isEOFError) $ hGetLine hin
+  case r of
+   Left  _    -> return Cancel
+   Right line -> return (f line)
+
+selectGame :: Handle -> Handle -> IO Answer
+selectGame hin hout = do
+  hPutStrLn hout "Which type of game do you want to play?"
+  mapM_ (\ (i,t) -> hPutStrLn hout $ " " ++ show i ++ "- " ++ show t) (zip ([1 .. ] :: [Int]) [Sound, Version,Theme])
+  readOrCancel hin (Selected . toEnum . pred . read)
+
 getAnswer :: Game -> Handle -> Handle -> IO Answer
 getAnswer game hin hout = do let q = nextQuestion game
                              hPutStrLn hout $ render $ pretty $ GameState game q
                              hFlush hout
-                             r <- tryJust (guard . isEOFError) $ hGetLine hin
-                             case r of
-                              Left  _    -> return Cancel
-                              Right line -> return (interpretAnswer q line)
+                             readOrCancel hin (interpretAnswer q)
 
 interpretAnswer :: Question -> String -> Answer
-interpretAnswer (CharToPinyin _) reply = Pinyin reply
+interpretAnswer (CharToPinyin _)    reply = Pinyin reply
+interpretAnswer (FrenchToChinese _) reply = Chinese reply
 
+runGame :: Game -> Prompt PlayerInput Game
+runGame game = do
+  Selected typ <- prompt $ SelectGame game
+  interpretCommand (game { gameType = typ })
 
 interpretCommand :: Game -> Prompt PlayerInput Game
 interpretCommand game@Game{..} = do
   answer <- prompt $ GetAnswer game
   if answer == Cancel
     then prompt (Quit game) >> return game
-    else interpretCommand $ checkAnswer game answer
+    else prompt (CorrectAnswer (checkAnswer game answer) game) >>= interpretCommand
 

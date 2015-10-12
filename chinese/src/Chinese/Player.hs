@@ -21,6 +21,7 @@ successAnswer Player{..} = Player playerName (numberOfAnswers + 1) numberOfError
 failureAnswer :: Player -> Player
 failureAnswer Player{..} = Player playerName (numberOfAnswers + 1) (numberOfErrors + 1)
 
-successPercent :: Player -> Double
-successPercent Player{..} | numberOfAnswers == 0 = 0
-                          | otherwise           = 100 * (1.0 - (fromIntegral numberOfErrors / fromIntegral numberOfAnswers))
+-- | Success rate
+successRate :: Player -> Double
+successRate Player{..} | numberOfAnswers == 0 = 0
+                       | otherwise           = 1.0 - (fromIntegral numberOfErrors / fromIntegral numberOfAnswers)

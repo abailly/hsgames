@@ -44,4 +44,5 @@ executable test
                    , random
                    , MonadPrompt
                    , mtl
+                   , time
                    , containers

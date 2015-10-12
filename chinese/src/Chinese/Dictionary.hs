@@ -4,9 +4,12 @@ module Chinese.Dictionary where
 
 import           Control.Exception
 import           Data.Array
-import           Prelude           hiding (Word)
+import           Data.Char
+import           Data.Maybe
+import           Prelude                      hiding (Word)
 import           System.IO
 import           System.Random
+import           Text.ParserCombinators.ReadP
 
 -- | A dictionary entry for a chinese word
 data Word = Word { chinese :: String
@@ -17,18 +20,28 @@ data Word = Word { chinese :: String
 
 type Dictionary = Array Int Word
 
+-- TODO use parsec
 readDictionary :: FilePath -> IO Dictionary
 readDictionary fname = withFile fname ReadMode $ \ h -> do
   hSetBuffering h NoBuffering
   lns <- readLines h
-  return $ dictionary $ map readWord lns
+  return $ dictionary $ catMaybes $ map tryReadWord lns
     where
-      readWord   ln = let (c:p:f) = words ln
-                    in Word c p (splitCommas $ concat f)
-      splitCommas w = let (b,e) = span (/= ',') w
-                      in case e of
-                          [] -> []
-                          _  -> b : splitCommas (tail e)
+      tryReadWord s =
+        case readP_to_S readWord s of
+         (r,_):_ -> Just r
+         _       -> Nothing
+
+      notSpace = not . isSpace
+      notComma = (/= ',')
+      comma = satisfy (== ',')
+      readWord = do
+        zh <- munch1 notSpace
+        skipSpaces
+        py <- munch1 notSpace
+        skipSpaces
+        frs <- sepBy1 (munch1 notComma) comma
+        return $ Word zh py frs
       readLines h = do
         ln <- try (hGetLine h)
         case ln of
