@@ -107,7 +107,7 @@
 眼睛 yǎnjing lunettes
 身体 shēntǐ santé
 公共汽车 gōnggòngqìchē bus
-报纸 bàozhǐ  journal,magazine
+报纸 bàozhǐ  journal
 人 rén personne
 名字 míngzi prénom
 书 shū livre
@@ -134,12 +134,12 @@
 欢迎 huānyíng bienvenu
 shì 是 être
 yǒu 有 avoir
-看 kàn voir
+看 kàn regarder
 听 tīng entendre
 说话 shuōhuà parler
 读 dú lire
 写 xiě écrire
-看见 kànjiàn regarder
+看见 kànjiàn voir
 叫 jiào appeler
 来 lái venir
 回 huí revenir
@@ -168,7 +168,7 @@ yǒu 有 avoir
 给 gěi donner
 找 zhǎo chercher
 懂 dǒng comprendre
-笑 xiào rire
+笑 xiào rire,sourire
 回答 huídá répondre
 告诉 gàosu dire
 准备 zhǔnbèi préparer
@@ -176,9 +176,9 @@ yǒu 有 avoir
 介绍 jièshào présenter,introduire
 帮助 bāngzhù aider
 玩 wán jouer
-送 sòng apporter
+送 sòng envoyer,offrir
 等 děng attendre
-让 ràng laisser,offrir
+让 ràng laisser
 起床 qǐchuáng se lever
 唱歌 chànggē chanter
 跳舞 tiàowǔ danser
@@ -195,7 +195,7 @@ yǒu 有 avoir
 喜欢 xǐhuan apprécier
 想 xiǎng désirer
 认识 rènshi connaître
-觉得 juéde sentir
+觉得 juéde sentir,penser
 知道 zhīdào savoir
 希望 xīwàng souhaiter,espérer
 会 huì savoir faire
@@ -227,27 +227,27 @@ yǒu 有 avoir
 新 xīn nouveau
 贵 guì cher,coûteux
 便宜 piányi bon marché
-晴  qíng clair,fin
-阴  yīn couvert
+晴  qíng temps clair,ensoleillé
+阴  yīn temps couvert
 错  cuò erroné,incorrect
 快乐  kuàilè heureux,joyeux
-这 zhè
-这儿 zhèr
-那 nà
-那儿 nàr
-哪 nǎ
-哪儿 nǎr
-谁 shéi
-什么 shénme
-多少 duōshao
-几 jǐ
-怎么 zěnme
-怎么样 zěnmeyàng
-您 nín
-它 tā
-大家 dàjiā
-每 měi
-为 wèi
+这 zhè ceci
+这儿 zhèr ici
+那 nà celle-là,cela
+那儿 nàr là-bas
+哪 nǎ lequel,laquelle
+哪儿 nǎr où
+谁 shéi qui
+什么 shénme quoi
+多少 duōshao combien 
+几 jǐ combien 
+怎么 zěnme comment
+怎么样 zěnmeyàng comment?
+您 nín vous (poli)
+它 tā il (neutre)
+大家 dàjiā tout le monde
+每 měi chaque 
+为什么 wèishénme pourquoi
 一 yī 1,un
 二 èr 2,deux
 三 sān 3,trois 
@@ -274,7 +274,7 @@ yǒu 有 avoir
 件 jiàn un vêtement
 张 zhāng une feuille
 不 bù non
-没 méi non (passé)
+没 méi négation passé,négation avoir
 很 hěn très
 太 tài trop
 都 dōu  tous
@@ -288,14 +288,14 @@ yǒu 有 avoir
 已经 yǐjīng déjà
 一起 yìqǐ ensemble
 再 zài de nouveau
-就 jiù
+就 jiù justement
 和 hé et
 因为 yīnwèi parce que
 所以 suǒyǐ et alors
 但是 dànshì mais
 在 zài être là,être à un endroit
 从 cóng venir de,être de 
-对 duì à,vrai
+对 duì pour,vers,à
 比 bǐ comparaison,le plus
 向 xiàng direction
 离 lí distant de
@@ -305,6 +305,6 @@ yǒu 有 avoir
 呢 ne et toi?
 得 de degré d'un verbe
 着 zhe avec
-过 guo
+过 guo expérience vécue
 吧 ba impératif doux
 喂 wèi allo
