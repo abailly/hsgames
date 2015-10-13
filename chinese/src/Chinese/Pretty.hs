@@ -11,7 +11,7 @@ import           Text.PrettyPrint.ANSI.Leijen hiding (line, (<$>))
 
 
 instance Pretty Question where
-  pretty (CharToPinyin (Word c _ _)) = text "Pinying for " <> text c <> text " ?"
+  pretty (CharToPinyin (Word c _ _)) = text "Pinyin for " <> text c <> text " ?"
   pretty (FrenchToChinese f)         = text "Chinese for " <> text f <> text " ?"
 
 instance Pretty Result where
