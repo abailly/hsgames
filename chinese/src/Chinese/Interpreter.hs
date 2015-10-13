@@ -40,8 +40,8 @@ playerInputHandler (CorrectAnswer w  g@Game{..}) = do
   return $ case w of
             Correct -> correctAnswer g
             _       -> wrongAnswer g
-playerInputHandler (Quit _) = do
-  broadcast (\ _ (Cnx _ hout) -> (liftIO $ (hPutStrLn hout $ show GameEnds) >> hFlush hout))
+playerInputHandler (Quit g) = do
+  broadcast (\ _ (Cnx _ hout) -> (liftIO $ (hPutStrLn hout $ render $ pretty $ GameEnds g) >> hFlush hout))
   liftIO exitSuccess
 
 broadcast :: (Monad m) => (PlayerName -> Connection -> m ()) -> ReaderT Connections m ()
@@ -50,9 +50,9 @@ broadcast f = ask >>= mapM_ (lift . uncurry f) . M.assocs
 readOrCancel :: Handle -> (String -> Answer) -> IO Answer
 readOrCancel hin f = do
   r <- tryJust (guard . isEOFError) $ hGetLine hin
-  case r of
-   Left  _    -> return Cancel
-   Right line -> return (f line)
+  return $ either (const Cancel) (\ line -> if line == "\\q"
+                                            then Cancel
+                                            else f line) r
 
 selectGame :: Handle -> Handle -> IO Answer
 selectGame hin hout = do

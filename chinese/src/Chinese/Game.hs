@@ -20,6 +20,7 @@ data Question = CharToPinyin Word
 
 data Answer = Pinyin String
             | Chinese String
+            | French String
             | Selected GameType
             | Skip
             | Cancel
@@ -68,10 +69,10 @@ nextQuestion Game{..} | gameType == Sound = CharToPinyin $ head wordsList
                       | otherwise        = undefined
 
 checkAnswer :: Game -> Answer -> Result
-checkAnswer (Game _ qs _ Sound _) (Pinyin s) = let (Word _ p _) = head qs
+checkAnswer (Game _ qs _ Sound _) (Pinyin s) = let (Word _ p fr) = head qs
                                                  in  if p == s
                                                      then Correct
-                                                     else Wrong  [Pinyin p]
+                                                     else Wrong $ Pinyin p:(map French fr)
 checkAnswer (Game _ qs _ Theme _) (Chinese s) = let (Word s' p _) = head qs
                                                   in  if s' == s
                                                       then Correct

@@ -9,7 +9,7 @@ data Connection = Cnx { hIn  :: Handle
                       , hOut :: Handle
                       } deriving (Show)
 
-data Message = GameEnds
+data Message = GameEnds Game
              | GameState Game Question
                deriving (Show)
 
