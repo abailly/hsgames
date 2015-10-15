@@ -15,6 +15,7 @@ import           Control.Monad
 import           Control.Monad.Prompt
 import           Control.Monad.Reader
 import qualified Data.Map             as M
+import           Data.Time
 import           System.Exit
 import           System.IO
 import           System.IO.Error
@@ -42,7 +43,13 @@ playerInputHandler (CorrectAnswer w  g@Game{..}) = do
             _       -> wrongAnswer g
 playerInputHandler (Quit g) = do
   broadcast (\ _ (Cnx _ hout) -> (liftIO $ (hPutStrLn hout $ render $ pretty $ GameEnds g) >> hFlush hout))
+  liftIO $ withFile ".chinese.stats" AppendMode $ saveGame g
   liftIO exitSuccess
+
+saveGame :: Game -> Handle -> IO ()
+saveGame g h = do
+  dt <- getCurrentTime
+  hPutStrLn h (show $ g { gameEndedAt = Just dt }) >> hFlush h
 
 broadcast :: (Monad m) => (PlayerName -> Connection -> m ()) -> ReaderT Connections m ()
 broadcast f = ask >>= mapM_ (lift . uncurry f) . M.assocs

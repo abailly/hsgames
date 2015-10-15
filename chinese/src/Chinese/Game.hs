@@ -40,6 +40,7 @@ data Game = Game { gameDictionary :: Dictionary
                  , playerState    :: Player
                  , gameType       :: GameType
                  , gameStartedAt  :: UTCTime
+                 , gameEndedAt    :: Maybe UTCTime
                  }
 
 -- | Defines the type of questions that are asked
@@ -50,13 +51,16 @@ data GameType = Sound -- ^ Get pinyin for given word
 
 instance Show Game where
   show Game{..} = "Game " ++ show (length gameDictionary) ++
-                  " wordsList, type: "  ++ show gameType ++
-                  ", next question: " ++ show (head wordsList)
+                  " words, type: "  ++ show gameType ++
+                  ", player: " ++ show playerState ++
+                  ", started: " ++ show gameStartedAt ++
+                  ", ended: " ++ show gameEndedAt
+
 
 newGame :: StdGen -> PlayerName -> Dictionary -> UTCTime -> Game
 newGame rand name dict start = let qs g = let (re, g')  = randomWord g dict
                                           in  re : qs g'
-                               in Game dict (qs rand) (newPlayer name) Sound start
+                               in Game dict (qs rand) (newPlayer name) Sound start Nothing
 
 randomElement :: (Show a) => [ a ] -> a
 randomElement as = let g = unsafePerformIO $ randomRIO (0,length as -1)
@@ -69,18 +73,18 @@ nextQuestion Game{..} | gameType == Sound = CharToPinyin $ head wordsList
                       | otherwise        = undefined
 
 checkAnswer :: Game -> Answer -> Result
-checkAnswer (Game _ qs _ Sound _) (Pinyin s) = let (Word _ p fr) = head qs
+checkAnswer (Game _ qs _ Sound _ _) (Pinyin s) = let (Word _ p fr) = head qs
                                                  in  if p == s
                                                      then Correct
                                                      else Wrong $ Pinyin p:(map French fr)
-checkAnswer (Game _ qs _ Theme _) (Chinese s) = let (Word s' p _) = head qs
+checkAnswer (Game _ qs _ Theme _ _) (Chinese s) = let (Word s' p _) = head qs
                                                   in  if s' == s
                                                       then Correct
                                                       else Wrong [Chinese s', Pinyin p]
 checkAnswer Game{..} Cancel     = Correct
-checkAnswer (Game _ qs _ Sound _)  _          = let (Word _ p _) = head qs
+checkAnswer (Game _ qs _ Sound _ _)  _          = let (Word _ p _) = head qs
                                                 in Wrong [Pinyin p]
-checkAnswer (Game _ qs _ Theme _)  _          = let (Word zh p _) = head qs
+checkAnswer (Game _ qs _ Theme _ _)  _          = let (Word zh p _) = head qs
                                                 in Wrong [Chinese zh, Pinyin p]
 checkAnswer Game{..} _     = undefined -- TODO
 
