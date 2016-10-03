@@ -21,6 +21,7 @@ executable hsg
   hs-source-dirs:      main
   build-depends:     base
                    , acquire
+                   , async
                    , random
                    , MonadPrompt
                    , mtl

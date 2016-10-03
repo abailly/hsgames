@@ -2,7 +2,9 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
-import           Acquire.Net                    (listGames, runServer)
+import           Acquire.Net                    (InOut (..), listGames,
+                                                 runNewGame, runPlayer,
+                                                 runServer)
 import           Control.Concurrent             (forkIO)
 import           Control.Concurrent.Async       (async)
 import           Control.Exception              (SomeException, catch)
@@ -38,13 +40,23 @@ handleClient p connection = do
       Text message <- receiveDataMessage connection
       case read (unpack $ decodeUtf8 message) of
         List -> do
-          putStrLn "sending list"
           r <- listGames "localhost" p
           sendTextData connection (pack $ show r)
+        NewGame numHumans numRobots -> do
+          r <- runNewGame "localhost" p numHumans numRobots
+          sendTextData connection (pack $ show r)
+        JoinGame playerName gameId ->
+          runPlayer "localhost" p playerName gameId io
         Bye  -> sendClose connection ("Bye!" :: Text)
         _    -> pure ()
       handleClient p connection)
     `catch` (\ (e :: ConnectionException) -> putStrLn (show e))
+    where
+      input = do
+        Text message <- receiveDataMessage connection
+        return $ unpack $ decodeUtf8 message
+      output = sendTextData connection . pack . show
+      io = InOut input output
 
 main :: IO ()
 main = do

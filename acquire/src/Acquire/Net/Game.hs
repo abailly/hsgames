@@ -3,7 +3,6 @@
 module Acquire.Net.Game where
 
 import           Acquire.Net.Types
-import           Acquire.Pretty
 import           Network.Socket
 import           System.IO
 
@@ -17,15 +16,14 @@ connectTo host port = do
   hSetBuffering h NoBuffering
   return h
 
-runNewGame :: String -> PortNumber -> Int -> Int -> IO ()
+runNewGame :: String -> PortNumber -> Int -> Int -> IO Result
 runNewGame host port numHumans numRobots = do
   h <- connectTo host port
   let command = NewGame numHumans numRobots
   hPrint h command
   res :: Result <- read `fmap` hGetLine h
-  putDoc $ pretty res
-  putStrLn ""
   hClose h
+  return res
 
 listGames :: String -> PortNumber -> IO Result
 listGames host port = do

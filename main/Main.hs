@@ -7,14 +7,15 @@ module Main where
 import           Acquire.Interpreter
 import           Acquire.Net
 import           Acquire.Player
-import           Acquire.Pretty          hiding ((<$>), (<>))
+import           Acquire.Pretty           hiding ((<$>), (<>))
 import           Control.Concurrent
+import           Control.Concurrent.Async (wait)
 import           Control.Concurrent.MVar
 import           Control.Monad.Prompt
 import           Control.Monad.Reader
-import           Data.List               (isPrefixOf)
-import qualified Data.Map                as M
-import           Network.Socket          (socketPort)
+import           Data.List                (isPrefixOf)
+import qualified Data.Map                 as M
+import           Network.Socket           (socketPort)
 import           Options.Applicative
 import           System.Environment
 import           System.IO
@@ -109,11 +110,15 @@ listGamesOptions = ClientListGames
                 <*> portOption "Server port to connect to"
 
 start :: Configuration -> IO ()
-start Server{..}          = runServer serverPort >>=
-                            socketPort . fst     >>=
-                            putStrLn . ("Server started on port " ++) . show
-start ClientPlayer{..}    = runPlayer  serverHost serverPort playerName playGameId
-start ClientNewGame{..}   = runNewGame serverHost serverPort numberOfHumanPlayers numberOfRobotPlayers
+start Server{..}          = do
+  (p, t) <- runServer serverPort
+  socketPort p >>= putStrLn . ("Server started on port " ++) . show
+  wait t
+start ClientPlayer{..}    = runPlayer  serverHost serverPort playerName playGameId consoleIO
+start ClientNewGame{..}   = do
+  res <- runNewGame serverHost serverPort numberOfHumanPlayers numberOfRobotPlayers
+  putDoc $ pretty res
+  putStrLn ""
 start ClientListGames{..} = do
   r <- listGames  serverHost serverPort
   putDoc $ pretty r
