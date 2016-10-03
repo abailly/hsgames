@@ -14,13 +14,13 @@ import           Control.Monad.Prompt
 import           Control.Monad.Reader
 import           Data.List               (isPrefixOf)
 import qualified Data.Map                as M
+import           Network.Socket          (socketPort)
 import           Options.Applicative
 import           System.Environment
 import           System.IO
 import           System.Random
 
-data Configuration = Server { serverPort :: PortNumber
-                            }
+data Configuration = Server { serverPort :: PortNumber }
                    | ClientPlayer { serverHost :: String
                                   , serverPort :: PortNumber
                                   , playerName :: PlayerName
@@ -109,10 +109,16 @@ listGamesOptions = ClientListGames
                 <*> portOption "Server port to connect to"
 
 start :: Configuration -> IO ()
-start Server{..}        = runServer serverPort
-start ClientPlayer{..}  = runPlayer serverHost serverPort playerName playGameId
-start ClientNewGame{..} = runNewGame serverHost serverPort numberOfHumanPlayers numberOfRobotPlayers
-start ClientListGames{..} = listGames serverHost serverPort
+start Server{..}          = runServer serverPort >>=
+                            socketPort . fst     >>=
+                            putStrLn . ("Server started on port " ++) . show
+start ClientPlayer{..}    = runPlayer  serverHost serverPort playerName playGameId
+start ClientNewGame{..}   = runNewGame serverHost serverPort numberOfHumanPlayers numberOfRobotPlayers
+start ClientListGames{..} = do
+  r <- listGames  serverHost serverPort
+  putDoc $ pretty r
+  putStrLn ""
+
 
 
 main :: IO ()

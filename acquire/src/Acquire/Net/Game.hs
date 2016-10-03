@@ -27,12 +27,10 @@ runNewGame host port numHumans numRobots = do
   putStrLn ""
   hClose h
 
-listGames :: String -> PortNumber -> IO ()
+listGames :: String -> PortNumber -> IO Result
 listGames host port = do
   h <- connectTo host port
   hPrint h ListGames
   res :: Result <- read `fmap` hGetLine h
-  putDoc $ pretty res
-  putStrLn ""
   hClose h
-
+  return res

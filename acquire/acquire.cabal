@@ -16,7 +16,7 @@ build-type:          Simple
 cabal-version:       >=1.20
 
 library 
-  build-depends:       base >=4.8 && <4.9
+  build-depends:       base
                      , ansi-wl-pprint
                      , array
                      , containers

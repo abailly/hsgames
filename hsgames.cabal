@@ -24,5 +24,6 @@ executable hsg
                    , random
                    , MonadPrompt
                    , mtl
+                   , network
                    , containers
                    , optparse-applicative

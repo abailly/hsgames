@@ -62,7 +62,8 @@ newGame rand name dict start = let qs g = let (re, g')  = randomWord g dict
                                           in  re : qs g'
                                in Game dict (qs rand) (newPlayer name) Sound start Nothing
 
-randomElement :: (Show a) => [ a ] -> a
+{-# NOINLINE randomElement #-}
+randomElement :: [ a ] -> a
 randomElement as = let g = unsafePerformIO $ randomRIO (0,length as -1)
                    in as !! g
 

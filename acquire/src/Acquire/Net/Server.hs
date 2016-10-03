@@ -24,7 +24,11 @@ import           System.Random
 
 type Server = TVar (M.Map GameId ActiveGame)
 
-runServer :: PortNumber -> IO ()
+-- | Starts a server
+--  A single `Server` can handle any number of games.
+-- Returns the port number the server is actually listening on, which may be different if
+-- `port` is 0 and a free socket is assigned by the system.
+runServer :: PortNumber -> IO (Socket, Async ())
 runServer port = do
   sock <- socket AF_INET Stream defaultProtocol
   setSocketOption sock ReuseAddr 1
@@ -33,11 +37,12 @@ runServer port = do
   existingGames <- readSavedGames
   server <- newTVarIO existingGames
   void $ async (garbageCollector server)
-  forever $ do
+  srvThread <- async $ forever $ do
     (clientSock, _) <- accept sock
     h <- socketToHandle clientSock ReadWriteMode
     hSetBuffering h NoBuffering
     forkIO $ runReaderT (interpretCommands h) server
+  return (sock, srvThread)
 
 readSavedGames :: IO (M.Map GameId ActiveGame)
 readSavedGames = do
