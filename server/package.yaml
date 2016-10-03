@@ -12,11 +12,14 @@ executables:
       - async
       - base
       - bytestring
+      - http-types
       - network
       - text
       - unagi-chan
-      - websockets
+      - wai
+      - wai-middleware-static
       - wai-websockets
+      - websockets
       - warp
     default-extensions:
       - OverloadedStrings
