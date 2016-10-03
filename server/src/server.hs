@@ -1,12 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Main where
 
-import           Control.Concurrent             (forkIO)
-import           Control.Concurrent.Chan.Unagi  (InChan, dupChan, newChan,
-                                                 readChan, writeChan)
-import           Control.Monad                  (forever)
-import           Data.ByteString.Lazy           (ByteString)
+import           Acquire.Net                    (listGames, runServer)
 import           Data.Functor
+import           Data.Text.Lazy                 (pack, unpack)
+import           Data.Text.Lazy.Encoding        (decodeUtf8)
+import           Messages
+import           Network.Socket
 import           Network.Wai.Handler.Warp       (run)
 import           Network.Wai.Handler.WebSockets as WaiWS
 import           Network.WebSockets             (DataMessage (..),
@@ -16,25 +16,21 @@ import           Network.WebSockets             (DataMessage (..),
                                                  receiveDataMessage,
                                                  sendTextData)
 
+handleWS :: Socket -> PendingConnection -> IO ()
+handleWS serverSocket pending = do
+  p <- socketPort serverSocket
+  connection <- acceptRequest pending
 
-handleWS :: InChan ByteString -> PendingConnection -> IO ()
-handleWS bcast pending = do
-    localChan <- dupChan bcast
-    connection <- acceptRequest pending
+  Text message <- receiveDataMessage connection
 
-    void $ forkIO $ forever $ do
-        message <- readChan localChan
-        sendTextData connection message
-
-    -- loop forever
-    let loop = do
-            Text message <- receiveDataMessage connection
-            writeChan bcast message
-            loop
-    loop
+  case read (unpack $ decodeUtf8 message) of
+    List -> do
+      r <- listGames "localhost" p
+      sendTextData connection (pack $ show r)
+    _    -> return ()
 
 
 main :: IO ()
 main = do
-    (bcast, _) <- newChan
-    void $ run 9090 (WaiWS.websocketsOr defaultConnectionOptions (handleWS bcast) undefined)
+  (s,_) <- runServer 0
+  void $ run 9090 (WaiWS.websocketsOr defaultConnectionOptions (handleWS s) undefined)

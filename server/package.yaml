@@ -11,6 +11,8 @@ executables:
       - acquire
       - base
       - bytestring
+      - network
+      - text
       - unagi-chan
       - websockets
       - wai-websockets

@@ -28,8 +28,8 @@ app conn = do
 
     -- Read from stdin and write to WS
     let loop = do
-            line <- T.getLine
-            unless (T.null line) $ WS.sendTextData conn line >> loop
+          line <- T.getLine
+          unless (T.null line) $ WS.sendTextData conn line >> loop
 
     loop
     WS.sendClose conn ("Bye!" :: Text)
