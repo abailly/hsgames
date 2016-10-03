@@ -34,8 +34,7 @@ handleWS serverSocket pending = do
   handleClient p connection
 
 handleClient :: PortNumber -> Connection ->  IO ()
-handleClient p connection = do
-  putStrLn "waiting for client data"
+handleClient p connection =
   (do
       Text message <- receiveDataMessage connection
       case read (unpack $ decodeUtf8 message) of
@@ -56,7 +55,7 @@ handleClient p connection = do
         Text message <- receiveDataMessage connection
         return $ unpack $ decodeUtf8 message
       output = sendTextData connection . pack . show
-      io = InOut input output
+      io = InOut input output False
 
 main :: IO ()
 main = do

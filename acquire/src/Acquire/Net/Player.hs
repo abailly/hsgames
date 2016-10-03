@@ -13,12 +13,13 @@ import           Network.Socket
 import           System.IO
 
 -- | High-level encapsulation of I/O exchanges with player
-data InOut = InOut { input  :: IO String
-                   , output :: String -> IO ()
+data InOut = InOut { input       :: IO String
+                   , output      :: String -> IO ()
+                   , prettyPrint :: Bool
                    }
 
 consoleIO :: InOut
-consoleIO = InOut getLine putStrLn
+consoleIO = InOut getLine putStrLn True
 
 runPlayer :: String -> PortNumber -> PlayerName -> GameId
           -> InOut
@@ -38,9 +39,11 @@ readResult :: Handle -> PlayerName -> InOut -> IO ()
 readResult h player io@InOut{..} = do
   ln <- hGetLine h
   let res :: Result = read  ln
-  output (render $ pretty res) >> output ""
+  if prettyPrint
+    then output (render $ pretty res) >> output ""
+    else output $ show res
   case res of
-   GameStarts _ -> hFlush h >> output "starting play " >> play player h io
+   GameStarts _ -> hFlush h >> putStrLn "starting play " >> play player h io
    _            -> readResult h player io
 
 play :: PlayerName -> Handle -> InOut -> IO ()
@@ -55,19 +58,29 @@ play player handle io = do
 handleMessage :: Message -> InOut -> IO (Maybe String)
 handleMessage (GameState player board plays) InOut{..} = do
   let board' = highlightPlayableTiles board plays
-  output (render $ pretty board')
-  output ""
-  output (render $ pretty player)
-  output ""
-  output $ "Your move, " ++ P.playerName player ++ " ?"
-  mapM_ (\ (p,n :: Int) -> output $ show n ++ "- " ++ show p) (zip plays [1 .. ])
+  if prettyPrint
+    then do
+    output (render $ pretty board')
+    output ""
+    output (render $ pretty player)
+    output ""
+    output $ "Your move, " ++ P.playerName player ++ " ?"
+    mapM_ (\ (p,n :: Int) -> output $ show n ++ "- " ++ show p) (zip plays [1 .. ])
+    else do
+    output (show board')
+    output (show player)
+    mapM_ (output . show ) plays
   ln <- input
   return $ Just ln
-handleMessage (Played player _ order) (InOut _ output) = do
-  output $ "player "++ player ++ " played " ++ show order
+handleMessage (Played player _ order) (InOut _ output prettyPrint) = do
+  when prettyPrint $ output $ "player "++ player ++ " played " ++ show order
   return Nothing
-handleMessage (GameEnds game) (InOut _ output) = do
-  output "game ends"
-  output (render $ pretty game)
-  output ""
+handleMessage (GameEnds game) (InOut _ output prettyPrint) = do
+  if prettyPrint
+    then do
+    output "game ends"
+    output (render $ pretty game)
+    output ""
+    else
+    output (show game)
   return Nothing

@@ -1,6 +1,6 @@
 name: server
 synopsis:  Game Server for Acquire
-ghc-options: -Wall -Werror -fno-warn-orphans
+ghc-options: -Wall -fno-warn-orphans
 
 executables:
   server:
