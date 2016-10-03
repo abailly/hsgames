@@ -1,0 +1,37 @@
+name: server
+synopsis:  Game Server for Acquire
+ghc-options: -Wall -Werror -fno-warn-orphans
+
+executables:
+  server:
+    source-dirs:
+      - src
+    main: server.hs
+    dependencies:
+      - acquire
+      - base
+      - bytestring
+      - unagi-chan
+      - websockets
+      - wai-websockets
+      - warp
+    default-extensions:
+      - OverloadedStrings
+      - RecordWildCards
+      - ScopedTypeVariables
+  client:
+    source-dirs:
+      - src
+    main: client.hs
+    dependencies:
+      - acquire
+      - base
+      - bytestring
+      - mtl
+      - network
+      - text
+      - websockets
+    default-extensions:
+      - OverloadedStrings
+      - RecordWildCards
+      - ScopedTypeVariables
