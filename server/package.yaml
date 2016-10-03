@@ -9,6 +9,7 @@ executables:
     main: server.hs
     dependencies:
       - acquire
+      - async
       - base
       - bytestring
       - network

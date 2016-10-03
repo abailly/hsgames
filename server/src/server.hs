@@ -1,34 +1,50 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
 import           Acquire.Net                    (listGames, runServer)
+import           Control.Concurrent             (forkIO)
+import           Control.Concurrent.Async       (async)
+import           Control.Exception              (SomeException, catch)
+import qualified Data.ByteString.Lazy           as BS
 import           Data.Functor
-import           Data.Text.Lazy                 (pack, unpack)
+import           Data.Monoid
+import           Data.Text.Lazy                 (Text, pack, unpack)
 import           Data.Text.Lazy.Encoding        (decodeUtf8)
 import           Messages
 import           Network.Socket
 import           Network.Wai.Handler.Warp       (run)
 import           Network.Wai.Handler.WebSockets as WaiWS
-import           Network.WebSockets             (DataMessage (..),
+import           Network.WebSockets             (Connection,
+                                                 ConnectionException,
+                                                 DataMessage (..),
                                                  PendingConnection,
                                                  acceptRequest,
                                                  defaultConnectionOptions,
-                                                 receiveDataMessage,
-                                                 sendTextData)
+                                                 receive, receiveDataMessage,
+                                                 sendClose, sendTextData)
 
 handleWS :: Socket -> PendingConnection -> IO ()
 handleWS serverSocket pending = do
   p <- socketPort serverSocket
   connection <- acceptRequest pending
 
-  Text message <- receiveDataMessage connection
+  handleClient p connection
 
-  case read (unpack $ decodeUtf8 message) of
-    List -> do
-      r <- listGames "localhost" p
-      sendTextData connection (pack $ show r)
-    _    -> return ()
-
+handleClient :: PortNumber -> Connection ->  IO ()
+handleClient p connection = do
+  putStrLn "waiting for client data"
+  (do
+      Text message <- receiveDataMessage connection
+      case read (unpack $ decodeUtf8 message) of
+        List -> do
+          putStrLn "sending list"
+          r <- listGames "localhost" p
+          sendTextData connection (pack $ show r)
+        Bye  -> sendClose connection ("Bye!" :: Text)
+        _    -> pure ()
+      handleClient p connection)
+    `catch` (\ (e :: ConnectionException) -> putStrLn (show e))
 
 main :: IO ()
 main = do
