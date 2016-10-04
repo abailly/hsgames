@@ -15,6 +15,7 @@ import Html.Events exposing (..)
 import Html.App as App
 import WebSocket exposing (..)
 import Messages exposing (..)
+import Dict
 
 {-| Main -}
 main : Program Never
@@ -29,6 +30,7 @@ main =
 type alias Model = { command : String, strings : List String
                    , games : List GameDescription
                    , numPlayers : Int, numRobots : Int  -- for creating new games
+                   , board : GameBoard, possiblePlays : List Messages.Order
                    }
 
 type Msg = Output String -- from server
@@ -44,14 +46,16 @@ subscriptions model =
   listen "ws://localhost:9090" Output
            
 init : (Model, Cmd Msg)
-init = (Model "" [] [] 1 5, Cmd.none)
+init = (Model "" [] [] 1 5 Dict.empty [], Cmd.none)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        Output s  -> case Json.decodeString decodeResult s of
-                         Ok (GamesList l) ->
+        Output s  -> case Json.decodeString decodeServerMessages s of
+                         Ok (R (GamesList l)) ->
                              ({model | games = l}, Cmd.none)
+                         Ok (M (GameState gs)) ->
+                             ({model | board = gs.gsBoard, possiblePlays = gs.gsPlayables}, Cmd.none)
                          _                ->
                              ({model | command = "", strings = s :: model.strings}, Cmd.none)
         Input s   -> ({model | command = s},Cmd.none)
