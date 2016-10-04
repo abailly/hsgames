@@ -85,8 +85,16 @@ view model = div []
 gameBoard : Model -> Html Msg
 gameBoard model = div [ id "game-board" ]
                   [ div [ class "board" ] (List.map displayCell (Dict.toList model.board))
+                  , div [ class "plays" ] (List.map displayPlay model.possiblePlays)
                   ]
 
+displayPlay : Messages.Order -> Html Msg
+displayPlay order =
+    case order of
+        Place _ t -> div [ class "play place-tile" ]
+                         [ displayCell (t, Cell t Empty) ]
+        _         -> text ""
+                             
 displayCell : (Tile,Cell) -> Html Msg
 displayCell ((r,c), cell) =
     case cell.cellContent of
