@@ -17,6 +17,7 @@ cabal-version:       >=1.20
 
 library 
   build-depends:       base
+                     , aeson
                      , ansi-wl-pprint
                      , array
                      , containers

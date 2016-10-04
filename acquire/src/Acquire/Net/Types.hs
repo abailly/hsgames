@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards   #-}
 module Acquire.Net.Types(module Acquire.Player, G.Game,
@@ -10,22 +11,25 @@ import           Acquire.Player
 import           Acquire.Pretty           hiding ((<$>))
 import           Control.Concurrent
 import           Control.Concurrent.Async
+import           Data.Aeson               (ToJSON)
 import qualified Data.Map                 as M
 import           Data.Maybe               (isJust)
+import           GHC.Generics
 
 data Command = NewGame Int Int             -- ^Starts a game with given number of human players and robots
              | StartingGame PlayerName     -- ^Notification from player he is joining runnable game
              | JoinGame PlayerName G.GameId  -- ^Player joins an existing game
              | ListGames
-             deriving (Show, Read)
-
+             deriving (Show, Read, Generic)
 
 data Result = PlayerRegistered PlayerName G.GameId
             | NewGameStarted G.GameId
             | GameStarts G.GameId
             | GamesList [GameDescription]
             | ErrorMessage String
-            deriving (Show, Read)
+            deriving (Show, Read, Generic)
+
+instance ToJSON Result
 
 data ActiveGame = ActiveGame { gameId            :: G.GameId
                              , numberOfHumans    :: Int
@@ -40,7 +44,9 @@ data GameDescription = GameDescription { gameDescId           :: G.GameId
                                        , descNumberOfRobots   :: Int
                                        , descRegisteredHumans :: [ PlayerName ]
                                        , descLive             :: Bool
-                                       } deriving (Show,Read,Eq)
+                                       } deriving (Show,Read,Eq, Generic)
+
+instance ToJSON GameDescription
 
 gamesList :: ActiveGame -> GameDescription
 gamesList ActiveGame{..} = GameDescription gameId numberOfHumans numberOfRobots (M.keys registeredHumans) (isJust gameThread)

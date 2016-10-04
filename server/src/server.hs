@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
@@ -8,11 +9,13 @@ import           Acquire.Net                    (InOut (..), listGames,
 import           Control.Concurrent             (forkIO)
 import           Control.Concurrent.Async       (async)
 import           Control.Exception              (SomeException, catch)
+import           Data.Aeson
 import qualified Data.ByteString.Lazy           as BS
 import           Data.Functor
 import           Data.Monoid
 import           Data.Text.Lazy                 (Text, pack, unpack)
 import           Data.Text.Lazy.Encoding        (decodeUtf8)
+import           GHC.Generics
 import           Messages
 import           Network.HTTP.Types.Status
 import           Network.Socket
@@ -27,7 +30,13 @@ import           Network.WebSockets             (Connection,
                                                  acceptRequest,
                                                  defaultConnectionOptions,
                                                  receive, receiveDataMessage,
-                                                 sendClose, sendTextData)
+                                                 sendBinaryData, sendClose,
+                                                 sendTextData)
+
+newtype CommandError = CommandError { reason :: String }
+  deriving (Generic)
+
+instance ToJSON CommandError
 
 handleWS :: Socket -> PendingConnection -> IO ()
 handleWS serverSocket pending = do
@@ -40,17 +49,9 @@ handleClient :: PortNumber -> Connection ->  IO ()
 handleClient p connection =
   (do
       Text message <- receiveDataMessage connection
-      case read (unpack $ decodeUtf8 message) of
-        List -> do
-          r <- listGames "localhost" p
-          sendTextData connection (pack $ show r)
-        NewGame numHumans numRobots -> do
-          r <- runNewGame "localhost" p numHumans numRobots
-          sendTextData connection (pack $ show r)
-        JoinGame playerName gameId ->
-          runPlayer "localhost" p playerName gameId io
-        Bye  -> sendClose connection ("Bye!" :: Text)
-        _    -> pure ()
+      case eitherDecode message of
+        Left e  -> sendTextData connection (encode $ CommandError e)
+        Right c -> handleCommand c
       handleClient p connection)
     `catch` (\ (e :: ConnectionException) -> putStrLn (show e))
     where
@@ -59,6 +60,16 @@ handleClient p connection =
         return $ unpack $ decodeUtf8 message
       output = sendTextData connection . pack . show
       io = InOut input output False
+
+      handleCommand List = do
+          r <- listGames "localhost" p
+          sendTextData connection (encode r)
+      handleCommand (NewGame numHumans numRobots) = do
+          r <- runNewGame "localhost" p numHumans numRobots
+          sendTextData connection (encode r)
+      handleCommand (JoinGame playerName gameId) =
+          runPlayer "localhost" p playerName gameId io
+      handleCommand Bye = sendClose connection ("Bye!" :: Text)
 
 main :: IO ()
 main = do
