@@ -67,8 +67,7 @@ update msg model =
                                 _    -> (model,Cmd.none)
         ListGames -> (model, sendCommand List)
         Join g    -> (model, sendCommand (JoinGame { playerName = "arnaud", gameId =  g}))
-        CreateGame -> (model, send "ws://localhost:9090" "{\"tag\": \"NewGame\", \"numHumans\":1, \"numRobots\": 5}")
-                           -- sendCommand (NewGame { numHumans = model.numPlayers, numRobots = model.numRobots}))
+        CreateGame -> (model, sendCommand (NewGame { numHumans = model.numPlayers, numRobots = model.numRobots}))
         Submit    -> ({model | command = ""}, send "ws://localhost:9090" model.command)
 
 sendCommand : Message -> Cmd Msg
@@ -78,10 +77,28 @@ sendCommand m = Debug.log ("sending: "++ toString m) <|
 view : Model -> Html Msg
 view model = div []
              [ gamesList model
+             , gameBoard model
              , div [ id "messages" ]
                  [ ol [] <| List.map showMessage model.strings ]
              ]
 
+gameBoard : Model -> Html Msg
+gameBoard model = div [ id "game-board" ]
+                  [ div [ class "board" ] (List.map displayCell (Dict.toList model.board))
+                  ]
+
+displayCell : (Tile,Cell) -> Html Msg
+displayCell ((r,c), cell) =
+    case cell.cellContent of
+        Empty   -> span [ class "cell empty" ] [
+                    span [ class "cell-content"]
+                        [ span [] [ text <| String.fromChar r ++ "-" ++ toString c ]]
+                   ]
+        Chain n -> span [ class <| "cell " ++ n ] [ text n ]
+        _       -> text "" -- TODO
+                  
+                        
+                      
 gamesList : Model -> Html Msg
 gamesList model = div [ id "games-list" ]
                   [ button [onClick ListGames] [ text "List Games" ]
