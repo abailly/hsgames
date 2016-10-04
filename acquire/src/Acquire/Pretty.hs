@@ -22,7 +22,7 @@ instance Pretty PlayerType where
 instance Pretty Player where
   pretty (Player name typ tiles stock cash ) = text name <+> brackets (pretty typ) <+>
                                                align (list (map pretty tiles) <$$>
-                                                      list (map (\ (n,q) -> pretty n <+> text "->" <+> int q) $ M.toList stock) <+> char '$' <> int cash)
+                                                      list (map (\ (n,q) -> pretty n <+> text "->" <+> int q) $ listStock stock) <+> char '$' <> int cash)
 
 instance Pretty ChainName where
   pretty American    = ondullred   $ fill 4 $ green     $ text "Am"

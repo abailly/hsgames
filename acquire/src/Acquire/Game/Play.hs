@@ -93,7 +93,7 @@ createNewChain game@Game{..} player chain coord = let linked = linkedCells gameB
                                                       fundedChain c = c { chainTiles = map cellCoord linked, chainStock = chainStock c - 1 }
                                                       getFoundersShare Nothing  = Just 1
                                                       getFoundersShare (Just n) = Just $ n + 1
-                                                      chainFounder p = p { ownedStock = M.alter getFoundersShare chain (ownedStock p) }
+                                                      chainFounder p = p { ownedStock = alterStock getFoundersShare chain (ownedStock p) }
                                                   in  game { gameBoard  = gameBoard // map ( \ (Cell t _) -> (t, (Cell t (Chain chain)))) linked
                                                            , hotelChains = M.adjust fundedChain chain hotelChains
                                                            , players = M.adjust chainFounder player players
@@ -118,7 +118,7 @@ buyStock game@Game{..} player chain = if   game `hasActiveChain` chain          
                                                addOwnedStock (Just n) = Just $ n + 1
                                                addOwnedStock Nothing  = Just 1
                                                buyAndPayStock p = p { ownedCash = ownedCash p - price
-                                                                    , ownedStock = M.alter addOwnedStock chain (ownedStock p)
+                                                                    , ownedStock = alterStock addOwnedStock chain (ownedStock p)
                                                                     }
                                            in  if hasEnoughMoneyToBuyStock (players M.! player) (hotelChains M.! chain)
                                                then game { hotelChains = M.adjust decreaseStock chain hotelChains
@@ -186,7 +186,7 @@ threeChainsMerger mergedChains tile name game@Game{..} = let mergedChainsBySize 
 -- tying players.  If only one player holds stock in the defunct chain, he receives both bonuses.
 computeMergerBonus :: Game -> ChainName -> Game
 computeMergerBonus game@Game{..} chain = let buyeeChain = hotelChains M.! chain
-                                             buyeeOwnedStock p = M.findWithDefault 0 chain (ownedStock p)
+                                             buyeeOwnedStock p = findOr0 chain (ownedStock p)
                                              plys = M.elems players
                                              shareHolders = groupBy ((==) `on` snd) $
                                                             sortBy (compare `on` (negate . snd)) $
@@ -230,9 +230,9 @@ merge game@Game{..} _    tile buyer buyee = let buyerChain = hotelChains M.! buy
 --  2. __Sell__:  Stock may be sold to Stock Market at a price determined by the number of hotels in the defunct chain before the merger.
 sellStock :: Game -> PlayerName -> ChainName -> Int -> Int -> Game
 sellStock game@Game{..} player chain1 price qty =
-  case M.lookup chain1 (ownedStock $ players M.! player) of
+  case stockLookup chain1 (ownedStock $ players M.! player) of
    Nothing -> game { turn = nextTurnInMergerSolving game turn }
-   Just{}  -> let soldStock p = p { ownedStock = M.adjust (\ q -> q - qty) chain1 (ownedStock p)
+   Just{}  -> let soldStock p = p { ownedStock = adjustStock (\ q -> q - qty) chain1 (ownedStock p)
                                   , ownedCash = ownedCash p + price * qty }
                   increaseStock c = c { chainStock = chainStock c + qty }
               in game { hotelChains = M.adjust increaseStock chain1 hotelChains
@@ -244,12 +244,12 @@ sellStock game@Game{..} player chain1 price qty =
 -- (If the Stock Market has no remaining blocks of controlling chain stock, players may not trade).
 exchangeStock :: Game  -> PlayerName -> ChainName -> ChainName -> Int -> Game
 exchangeStock game@Game{..} player buyer buyee qty =
-  case M.lookup buyee (ownedStock $ players M.! player) of
+  case stockLookup buyee (ownedStock $ players M.! player) of
    Nothing -> game { turn = nextTurnInMergerSolving game turn }
    Just{}  -> let buyerRemainingStock = chainStock $ hotelChains M.! buyer
                   xchgedStock = min buyerRemainingStock qty
-                  xchgStock p = p { ownedStock = M.adjust (+ xchgedStock) buyer $
-                                                 M.adjust (\ k -> k - (xchgedStock * 2)) buyee (ownedStock p)
+                  xchgStock p = p { ownedStock = adjustStock (+ xchgedStock) buyer $
+                                                 adjustStock (\ k -> k - (xchgedStock * 2)) buyee (ownedStock p)
                                   }
                   increaseStock c = c { chainStock = chainStock c + (2 * xchgedStock) }
                   decreaseStock c = c { chainStock = chainStock c - xchgedStock }
@@ -271,8 +271,8 @@ exchangeStock game@Game{..} player buyer buyee qty =
 endGame :: Game -> Game
 endGame game@Game{..} = let game' = foldl computeMergerBonus game (map chainName $ activeChains hotelChains)
                             sellEverything p = p { ownedCash  = ownedCash p +
-                                                                (sum $ M.elems $ M.mapWithKey (\ k a -> stockPrice (hotelChains M.! k) * a) (ownedStock p))
-                                                 , ownedStock = M.empty
+                                                                (sum $ M.elems $ mapStock (\ k a -> stockPrice (hotelChains M.! k) * a) (ownedStock p))
+                                                 , ownedStock = emptyStock
                                                  }
                         in game' { players = M.map sellEverything players
                                  , turn = (fst turn, GameEnds) }

@@ -1,17 +1,26 @@
+{-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ViewPatterns    #-}
 module Acquire.Hotels where
 
 import           Acquire.Tiles
+import           Data.Aeson    (FromJSON, ToJSON)
 import qualified Data.Map      as M
+import           GHC.Generics
 
 data ChainName = American | Continental | Festival | Imperial | Luxor | Tower | Worldwide
-                deriving (Eq, Enum, Ord, Show, Read)
+                deriving (Eq, Enum, Ord, Show, Read, Generic)
+
+instance ToJSON ChainName
+instance FromJSON ChainName
 
 data HotelChain = HotelChain { chainName  :: ChainName
                              , chainTiles :: [ Tile ]
                              , chainStock :: Int
-                             } deriving (Eq, Show, Read)
+                             } deriving (Eq, Show, Read, Generic)
+
+instance ToJSON HotelChain
+instance FromJSON HotelChain
 
 type HotelChains = M.Map ChainName HotelChain
 

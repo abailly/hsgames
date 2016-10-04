@@ -24,7 +24,7 @@ possiblePlay (Game _ _ _ _ chains (name, ResolveMerger (TakeOver tile [c1,c2]) _
                                                                     | otherwise
                                                                        = [Merge name tile c2 c1, Merge name tile c1 c2]
 possiblePlay (Game _ _ plys _ _ (_, ResolveMerger (DisposeStock _ buyer buyee price (next:_)) _))
-                                                                    =  case M.lookup buyee (ownedStock $ plys M.! next) of
+                                                                    =  case stockLookup buyee (ownedStock $ plys M.! next) of
                                                                         Nothing -> [Pass]
                                                                         Just n  ->
                                                                           Pass :
@@ -45,12 +45,12 @@ possiblePlay _ = [Cancel]
 
 nextTurnInMergerSolving :: Game -> Turn -> Turn
 nextTurnInMergerSolving game (_, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys)) cont) =
-  case M.lookup buyee (ownedStock $ (players game) M.! next) of
+  case stockLookup buyee (ownedStock $ (players game) M.! next) of
    Nothing -> (next, ResolveMerger (DisposeStock player buyer buyee price (next:pys)) cont)
    Just 0  -> (next, ResolveMerger (DisposeStock player buyer buyee price (next:pys)) cont)
    Just _  -> (this, ResolveMerger (DisposeStock player buyer buyee price (this:next:pys)) cont)
 nextTurnInMergerSolving game (_, ResolveMerger (DisposeStock player buyer buyee price [this]) cont) =
-  case M.lookup buyee (ownedStock $ (players game) M.! this) of
+  case stockLookup buyee (ownedStock $ (players game) M.! this) of
    Nothing -> cont
    Just 0  -> cont
    Just _  -> (this, ResolveMerger (DisposeStock player buyer buyee price [this]) cont)

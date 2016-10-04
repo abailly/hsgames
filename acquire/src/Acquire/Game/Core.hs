@@ -68,7 +68,8 @@ newGame gid g playersDescription = Game gid initialBoard (M.fromList players) dr
     chains       = M.fromList $ map (\ n -> (n, HotelChain n [] maximumStock)) (enumFrom American)
 
 makePlayers :: [(PlayerName,PlayerType)] -> ([(PlayerName, Player)],[Tile]) -> ([(PlayerName, Player)],[Tile])
-makePlayers ((pname,ptype):rest) (ps,coords) = makePlayers rest ((pname, Player pname ptype (take numberOfTilesPerPlayer coords) M.empty 6000):ps, drop numberOfTilesPerPlayer coords)
+makePlayers ((pname,ptype):rest) (ps,coords) =
+  makePlayers rest ((pname, Player pname ptype (take numberOfTilesPerPlayer coords) emptyStock 6000):ps, drop numberOfTilesPerPlayer coords)
 makePlayers [] res = res
 
 currentPlayer :: Game -> Player
