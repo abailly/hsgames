@@ -8,7 +8,9 @@ import           Acquire.Net                    (InOut (..), listGames,
                                                  runServer)
 import           Control.Concurrent             (forkIO)
 import           Control.Concurrent.Async       (async)
+import           Control.Concurrent.Chan.Unagi  (newChan, readChan, writeChan)
 import           Control.Exception              (SomeException, catch)
+import           Control.Monad                  (forever)
 import           Data.Aeson
 import qualified Data.ByteString.Lazy           as BS
 import           Data.Functor
@@ -56,11 +58,19 @@ handleClient p connection =
       handleClient p connection)
     `catch` (\ (e :: ConnectionException) -> putStrLn $ "error: " ++ (show e))
     where
-      input = do
-        Text message <- receiveDataMessage connection
-        return $ unpack $ decodeUtf8 message
-      output = sendTextData connection . pack . show
-      io = InOut input output False
+      input             = readChan
+      output       chan = writeChan chan . encode
+      outputResult chan = writeChan chan . encode
+
+      io (w,r) = InOut (input r) (output w) (outputResult w)
+
+      startGame p playerName gameId = do
+        (w,r)   <- newChan
+        (w',r') <- newChan
+        void $ async $ runPlayer "localhost" p playerName gameId (io (w,r'))
+        void $ async $ forever $ do
+          v <- readChan r
+          sendTextData connection v
 
       handleCommand List = do
           r <- listGames "localhost" p
@@ -70,7 +80,7 @@ handleClient p connection =
           r <- runNewGame "localhost" p numHumans numRobots
           sendTextData connection (encode r)
       handleCommand (JoinGame playerName gameId) =
-          runPlayer "localhost" p playerName gameId io
+          startGame p playerName gameId
       handleCommand Bye = sendClose connection ("Bye!" :: Text)
 
 main :: IO ()
@@ -80,5 +90,6 @@ main = do
     where
       serveUI :: Application
       serveUI = staticPolicy (noDots >-> addBase "ui") $ defaultResponse
+
       defaultResponse :: Application
       defaultResponse _ respond = respond $ responseLBS status404 [] ""
