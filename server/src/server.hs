@@ -49,11 +49,12 @@ handleClient :: PortNumber -> Connection ->  IO ()
 handleClient p connection =
   (do
       Text message <- receiveDataMessage connection
+      putStrLn $ "message: " ++ show message
       case eitherDecode message of
         Left e  -> sendTextData connection (encode $ CommandError e)
         Right c -> handleCommand c
       handleClient p connection)
-    `catch` (\ (e :: ConnectionException) -> putStrLn (show e))
+    `catch` (\ (e :: ConnectionException) -> putStrLn $ "error: " ++ (show e))
     where
       input = do
         Text message <- receiveDataMessage connection
@@ -63,6 +64,7 @@ handleClient p connection =
 
       handleCommand List = do
           r <- listGames "localhost" p
+          putStrLn $ "result:  " ++ show r
           sendTextData connection (encode r)
       handleCommand (NewGame numHumans numRobots) = do
           r <- runNewGame "localhost" p numHumans numRobots
