@@ -105,9 +105,9 @@ type alias Game = { gameId       : GameId
 type alias Stock = Dict.Dict ChainName Int
 
 decodeStock : Json.Decoder Stock
-decodeStock = Json.map Dict.fromList <|
-              Json.list              <|
-              Json.tuple2 (,) Json.string Json.int
+decodeStock = "stock" := (Json.map Dict.fromList <|
+                          Json.list              <|
+                          Json.tuple2 (,) Json.string Json.int)
 -- Player
 
 type PlayerType = Human | Robot

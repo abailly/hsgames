@@ -86,7 +86,7 @@ gamesList : Model -> Html Msg
 gamesList model = div [ id "games-list" ]
                   [ button [onClick ListGames] [ text "List Games" ]
                   , createGame model
-                  , ul [] (List.map displayGame model.games)
+                  , ul [] (List.map displayPossibleGames model.games)
                   ]
 
 createGame : Model -> Html Msg
@@ -96,20 +96,21 @@ createGame model = div [ id "create-game" ]
                    , button [ onClick CreateGame ] [ text "New Game" ]
                    ]
 
-displayGame : GameDescription -> Html Msg
-displayGame desc = let isLive = if desc.descLive then "live" else ""
-                   in li []
-                       [ div [ class <| "game-description " ++ isLive ]
-                             [ span [ class "game-id" ] [ text desc.gameDescId ]
-                             , span [ class "numPlayers humans" ] [ text <| toString desc.descNumberOfHumans ]
-                             , span [ class "numPlayers robots" ] [ text <| toString desc.descNumberOfRobots ]
-                             , ul [ class "players-list" ]
-                                 (List.map displayPlayer desc.descRegisteredHumans)
-                             , if   desc.descLive
-                               then text ""
-                               else button [ onClick <| Join desc.gameDescId ] [ text "Join" ]
-                             ]
-                       ]
+displayPossibleGames : GameDescription -> Html Msg
+displayPossibleGames desc =
+    let isLive = if desc.descLive then "live" else ""
+    in li []
+        [ div [ class <| "game-description " ++ isLive ]
+              [ span [ class "game-id" ] [ text desc.gameDescId ]
+              , span [ class "numPlayers humans" ] [ text <| toString desc.descNumberOfHumans ]
+              , span [ class "numPlayers robots" ] [ text <| toString desc.descNumberOfRobots ]
+              , ul [ class "players-list" ]
+                  (List.map displayPlayer desc.descRegisteredHumans)
+              , if   desc.descLive
+                then text ""
+                else button [ onClick <| Join desc.gameDescId ] [ text "Join" ]
+              ]
+        ]
                        
 displayPlayer : PlayerName -> Html Msg
 displayPlayer p = li [] [ text p ]
