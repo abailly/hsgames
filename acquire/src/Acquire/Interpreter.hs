@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric       #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -10,7 +11,9 @@ import           Control.Exception    hiding (Handler)
 import           Control.Monad
 import           Control.Monad.Prompt
 import           Control.Monad.Reader
+import           Data.Aeson           (ToJSON)
 import qualified Data.Map             as M
+import           GHC.Generics
 import           System.Directory
 import           System.Exit
 import           System.IO
@@ -35,10 +38,12 @@ data PlayerInput a where
 
 type Handler m a = PlayerInput a -> m a
 
-data Message = GameState Player GameBoard [Order]
-             | Played PlayerName GameBoard Order
-             | GameEnds Game
-             deriving (Eq, Show, Read)
+data Message = GameState { gsPlayer :: Player, gsBoard :: GameBoard, gsPlayables ::  [Order] }
+             | Played { gsPlayerName :: PlayerName, gsBoard ::  GameBoard, gsPlayed :: Order }
+             | GameEnds { gsEndGame :: Game }
+             deriving (Eq, Show, Read, Generic)
+
+instance ToJSON Message
 
 playerInputHandler :: Handler (ReaderT Connections IO) a
 playerInputHandler (GetOrder p@(Player name Human _ _ _) g) = do

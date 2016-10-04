@@ -1,10 +1,12 @@
-{-# LANGUAGE DeriveGeneric   #-}
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ViewPatterns    #-}
+{-# LANGUAGE DeriveGeneric        #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE RecordWildCards      #-}
+{-# LANGUAGE TypeSynonymInstances #-}
+{-# LANGUAGE ViewPatterns         #-}
 module Acquire.Hotels where
 
 import           Acquire.Tiles
-import           Data.Aeson    (FromJSON, ToJSON)
+import           Data.Aeson    (FromJSON, ToJSON (..))
 import qualified Data.Map      as M
 import           GHC.Generics
 
@@ -23,6 +25,9 @@ instance ToJSON HotelChain
 instance FromJSON HotelChain
 
 type HotelChains = M.Map ChainName HotelChain
+
+instance ToJSON HotelChains where
+  toJSON = toJSON . M.toList
 
 isActive :: HotelChain -> Bool
 isActive HotelChain{..} = not (null chainTiles)

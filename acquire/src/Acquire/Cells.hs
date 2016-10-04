@@ -1,17 +1,23 @@
+{-# LANGUAGE DeriveGeneric        #-}
+{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE TypeSynonymInstances #-}
 module Acquire.Cells where
-
-import           Data.Array
-import           Data.Maybe
-import qualified Data.Set       as S
 
 import           Acquire.Hotels
 import           Acquire.Tiles
+import           Data.Aeson     (ToJSON (..))
+import           Data.Array
+import           Data.Maybe
+import qualified Data.Set       as S
+import           GHC.Generics
 
 data Content = Empty
              | Playable  -- ^Used for highlighting purpose
              | Neutral Tile
              | Chain ChainName
-             deriving (Eq, Show, Read)
+             deriving (Eq, Show, Read, Generic)
+
+instance ToJSON Content
 
 isEmpty :: Content -> Bool
 isEmpty Empty = True
@@ -27,12 +33,17 @@ isOwned _         = Nothing
 
 data Cell = Cell { cellCoord   :: Tile
                  , cellContent :: Content
-                 } deriving (Eq, Show ,Read)
+                 } deriving (Eq, Show ,Read, Generic)
+
+instance ToJSON Cell
 
 instance Ord Cell where
   (Cell t _) `compare` (Cell t' _) = t `compare` t'
 
 type GameBoard = Array Tile Cell
+
+instance ToJSON GameBoard where
+  toJSON board = toJSON $ assocs board
 
 adjacentCells :: (Cell -> Bool) -> GameBoard -> Tile -> [Cell]
 adjacentCells p board (Tile (x,y)) = let (Tile (lr,lc), Tile (ur,uc)) = bounds board

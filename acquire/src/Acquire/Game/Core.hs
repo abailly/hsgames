@@ -1,8 +1,11 @@
+{-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE RecordWildCards #-}
 module Acquire.Game.Core where
 
+import           Data.Aeson            (ToJSON)
 import           Data.Array
 import qualified Data.Map              as M
+import           GHC.Generics
 import           System.Random
 import           System.Random.Shuffle
 
@@ -19,14 +22,18 @@ data MergerPhase = TakeOver Tile [ChainName]
                                 , buyeePrice      :: Int
                                 , playersToDecide :: [PlayerName]
                                 }
-                 deriving (Eq,Show,Read)
+                 deriving (Eq,Show,Read,Generic)
+
+instance ToJSON MergerPhase
 
 data Phase = PlaceTile
            | FundChain Tile
            | BuySomeStock Int
            | ResolveMerger MergerPhase Turn
            | GameEnds
-           deriving (Eq, Show, Read)
+           deriving (Eq, Show, Read, Generic)
+
+instance ToJSON Phase
 
 type Turn = (PlayerName, Phase)
 
@@ -39,8 +46,9 @@ data Order = Place PlayerName Tile
            | Pass
            | EndGame
            | Cancel
-           deriving (Eq, Show, Read)
+           deriving (Eq, Show, Read, Generic)
 
+instance ToJSON Order
 
 type GameId = String
 
@@ -50,7 +58,9 @@ data Game = Game { gameId       :: GameId
                  , drawingTiles :: [ Tile ]
                  , hotelChains  :: HotelChains
                  , turn         :: Turn
-                 } deriving (Eq, Show, Read)
+                 } deriving (Eq, Show, Read, Generic)
+
+instance ToJSON Game
 
 numberOfTilesPerPlayer :: Int
 numberOfTilesPerPlayer = 6

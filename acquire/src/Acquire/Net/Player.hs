@@ -13,13 +13,32 @@ import           Network.Socket
 import           System.IO
 
 -- | High-level encapsulation of I/O exchanges with player
-data InOut = InOut { input       :: IO String
-                   , output      :: String -> IO ()
-                   , prettyPrint :: Bool
+data InOut = InOut { input        :: IO String
+                   , output       :: Message -> IO ()
+                   , outputResult :: Result -> IO ()
                    }
 
 consoleIO :: InOut
-consoleIO = InOut getLine putStrLn True
+consoleIO = InOut getLine printMessage printResult
+  where
+    printResult :: Result -> IO ()
+    printResult res = putStrLn (render $ pretty res) >> putStrLn ""
+
+    printMessage :: Message -> IO ()
+    printMessage (GameState player board plays) = do
+      let board' = highlightPlayableTiles board plays
+      putStrLn (render $ pretty board')
+      putStrLn ""
+      putStrLn (render $ pretty player)
+      putStrLn ""
+      putStrLn $ "Your move, " ++ P.playerName player ++ " ?"
+      mapM_ (\ (p,n :: Int) -> putStrLn $ show n ++ "- " ++ show p) (zip plays [1 .. ])
+    printMessage (Played player _ order) = do
+      putStrLn $ "player "++ player ++ " played " ++ show order
+    printMessage (GameEnds game)  = do
+      putStrLn "game ends"
+      putStrLn (render $ pretty game)
+      putStrLn ""
 
 runPlayer :: String -> PortNumber -> PlayerName -> GameId
           -> InOut
@@ -39,9 +58,7 @@ readResult :: Handle -> PlayerName -> InOut -> IO ()
 readResult h player io@InOut{..} = do
   ln <- hGetLine h
   let res :: Result = read  ln
-  if prettyPrint
-    then output (render $ pretty res) >> output ""
-    else output $ show res
+  outputResult res
   case res of
    GameStarts _ -> hFlush h >> putStrLn "starting play " >> play player h io
    _            -> readResult h player io
@@ -56,31 +73,10 @@ play player handle io = do
   play player handle io
 
 handleMessage :: Message -> InOut -> IO (Maybe String)
-handleMessage (GameState player board plays) InOut{..} = do
-  let board' = highlightPlayableTiles board plays
-  if prettyPrint
-    then do
-    output (render $ pretty board')
-    output ""
-    output (render $ pretty player)
-    output ""
-    output $ "Your move, " ++ P.playerName player ++ " ?"
-    mapM_ (\ (p,n :: Int) -> output $ show n ++ "- " ++ show p) (zip plays [1 .. ])
-    else do
-    output (show board')
-    output (show player)
-    mapM_ (output . show ) plays
+handleMessage g@(GameState _ _ _) InOut{..} = do
+  output g
   ln <- input
   return $ Just ln
-handleMessage (Played player _ order) (InOut _ output prettyPrint) = do
-  when prettyPrint $ output $ "player "++ player ++ " played " ++ show order
-  return Nothing
-handleMessage (GameEnds game) (InOut _ output prettyPrint) = do
-  if prettyPrint
-    then do
-    output "game ends"
-    output (render $ pretty game)
-    output ""
-    else
-    output (show game)
+handleMessage m (InOut _ output _) = do
+  output m
   return Nothing
