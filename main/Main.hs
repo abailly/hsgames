@@ -8,6 +8,7 @@ import           Acquire.Interpreter
 import           Acquire.Net
 import           Acquire.Player
 import           Acquire.Pretty           hiding ((<$>), (<>))
+import           Acquire.Trace
 import           Control.Concurrent
 import           Control.Concurrent.Async (wait)
 import           Control.Concurrent.MVar
@@ -112,7 +113,7 @@ listGamesOptions = ClientListGames
 start :: Configuration -> IO ()
 start Server{..}          = do
   (p, t) <- runServer serverPort
-  socketPort p >>= putStrLn . ("Server started on port " ++) . show
+  socketPort p >>= trace . ("Server started on port " ++) . show
   wait t
 start ClientPlayer{..}    = runPlayer  serverHost serverPort playerName playGameId consoleIO
 start ClientNewGame{..}   = do

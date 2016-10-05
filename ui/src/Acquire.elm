@@ -27,7 +27,7 @@ main =
     , subscriptions = subscriptions
     }
 
-type alias Model = { command : String, strings : List String
+type alias Model = { command : String, strings : List String, showMessages: Bool
                    , games : List GameDescription
                    , numPlayers : Int, numRobots : Int  -- for creating new games
                    , board : GameBoard, possiblePlays : List Messages.Order, player : Player
@@ -43,6 +43,7 @@ type Msg = Output String -- from server
          | Play Int
          | SetNumPlayers String
          | SetNumRobots String
+         | ShowMessages Bool
          | Submit
          | Reset
 
@@ -50,13 +51,14 @@ subscriptions model =
   listen "ws://localhost:9090" Output
            
 init : (Model, Cmd Msg)
-init = (Model "" [] [] 1 5 Dict.empty [] (player "") [] Nothing, Cmd.none)
+init = (Model "" [] True [] 1 5 Dict.empty [] (player "") [] Nothing, Cmd.none)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         Output s  -> handleServerMessages model s
         SetName s   -> ({model | player = player s},Cmd.none)
+        ShowMessages b   -> ({model | showMessages = b },Cmd.none)
         SetNumPlayers s  -> case String.toInt s of
                                 Ok i -> ({model | numPlayers = i},Cmd.none)
                                 _    -> (model,Cmd.none)
@@ -109,10 +111,27 @@ view model = div []
              , gamesList model
              , gameBoard model
              , gameResult model
-             , div [ id "messages" ]
-                 [ ol [] <| List.map showMessage model.strings ]
+             , messages model
              ]
 
+messages: Model -> Html Msg
+messages model =
+    let toggle = if model.showMessages
+                 then span [ class "fa fa-toggle-down", onClick <| ShowMessages False ] []
+                 else span [ class "fa fa-toggle-right", onClick <| ShowMessages True ] []
+        doDisplayList = if   model.showMessages
+                       then []
+                       else [ A.style [("display", "none")]]
+    in div [ id "messages" ]
+        [ div [ id "messages-header" ]
+                    [ h1 []  [text "Messages" ]
+                    , toggle 
+                    ]
+        , div ([ id "messages-content"] ++ doDisplayList)
+            [ ul []  <| List.map showMessage model.strings
+            ]
+        ]
+                     
 displayErrors : Model -> Html Msg
 displayErrors model = div [ id "errors" ]
                       (List.map displayError model.errors)

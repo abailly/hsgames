@@ -7,10 +7,101 @@ body {
     font-size: 1.2em;
     position: relative;
     color: black;
+    background-color: purple;
+}
+
+#acquire {
+    max-width: 800px;
+    width: 100%;
+}
+
+#player-id {
+	border-radius: 0.5em;
+	background-color: white;
+	padding: 1rem;
+	margin: .3rem;
+}
+
+#games-list {
+	border-radius: 0.5em;
+	background-color: white;
+	padding: 1rem;
+	margin: .3rem;
+}
+
+div.player {
+	border-radius: 0.5rem;
+	background-color: white;
+	padding: 1rem;
+	margin: .3rem;
+}
+
+div.plays {
+	border-radius: 0.5rem;
+	background-color: white;
+	padding: 1rem;
+	margin: .3rem;
+}
+
+
+#messages {
+	position: fixed;
+	width: 30%;
+	font-size: .8rem;
+	top: 1em;
+	right: 2rem;
+	background: aliceblue;
+	opacity: .6;
+        min-height: 1.3rem;
+	max-height: 15rem;
+	line-height: 1.1;
+	border-radius: 0.5rem;
+        transition: all 1s;
+}
+
+#messages-header {
+	background-color: black;
+	color: whitesmoke;
+	position: absolute;
+        border-radius: .5rem .5rem 0 0;
+	top: 0;
+	left: 0;
+	width: 100%;
+        height: 1.3rem;
+}
+
+#messages h1 {
+	font-size: 1em;
+	font-weight: 400;
+	display: inline-block;
+	width: 90%;
+	text-align: center;
+	margin: .3em 0;
+}
+
+#messages-header span {
+    cursor: pointer;
+}
+
+#messages-content {
+    margin-top: 1.3em;
+    overflow: auto;
+    min-height: 10rem;
+    max-height: 15rem;
+}
+
+#messages ul {
+	list-style: none;
+	padding: 0 1em;
 }
 
 div.board {
     max-width: 800px;
+    border-radius: 0.5em;
+    background-color: white;
+    padding: 1rem;
+    margin: .3rem;
+    text-align: center;
 }
 
 span.cell {
@@ -295,9 +386,6 @@ span.cell:after {
     display: block;
     line-height: 2;
     vertical-align: middle;
-}
-
-div.plays {
 }
 
 .cash:before {
