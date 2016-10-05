@@ -6,6 +6,7 @@ module Main where
 import           Acquire.Net                    (InOut (..), listGames,
                                                  runNewGame, runPlayer,
                                                  runServer)
+import           Acquire.Trace
 import           Control.Concurrent             (forkIO)
 import           Control.Concurrent.Async       (async)
 import           Control.Concurrent.Chan.Unagi  (InChan, OutChan, newChan,
@@ -54,7 +55,7 @@ handleClient :: IORef (InChan String, OutChan String) -> PortNumber -> Connectio
 handleClient channels p connection =
   (do
       Text message <- receiveDataMessage connection
-      putStrLn $ "message: " ++ show message
+      trace $ "received message: " ++ show message
       case eitherDecode message of
         Left e  -> sendTextData connection (encode $ CommandError e)
         Right c -> handleCommand c
@@ -70,15 +71,17 @@ handleClient channels p connection =
       startGame p playerName gameId = do
         (w,r)   <- newChan
         (w',r') <- newChan
-        void $ async $ runPlayer "localhost" p playerName gameId (io (w,r'))
+        void $ async $ do
+          runPlayer "localhost" p playerName gameId (io (w,r'))
+          trace $ "stopping player " ++ playerName ++ " for game " ++ gameId
         void $ async $ forever $ do
           v <- readChan r
           sendTextData connection v
+            `catch` (\ (e :: ConnectionException) -> trace $ "sending error: " ++ (show e))
         modifyIORef channels ( \ (w'',r'') -> (w', r''))
 
       handleCommand List = do
           r <- listGames "localhost" p
-          putStrLn $ "result:  " ++ show r
           sendTextData connection (encode r)
       handleCommand (NewGame numHumans numRobots) = do
           r <- runNewGame "localhost" p numHumans numRobots
@@ -88,6 +91,7 @@ handleClient channels p connection =
       handleCommand (Action n) = do
         (w, _) <- readIORef channels
         writeChan w (show n)
+        trace $ "action " ++ show n
       handleCommand Bye = sendClose connection ("Bye!" :: Text)
 
 main :: IO ()

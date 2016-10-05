@@ -24,6 +24,11 @@ import           System.Random
 
 type Server = TVar (M.Map GameId ActiveGame)
 
+data GameThreads = GameThreads { activeGame  :: ActiveGame
+                               , threads     :: [ThreadId]
+                               , connections :: [Connection]
+                               }
+
 -- | Starts a server
 --  A single `Server` can handle any number of games.
 -- Returns the port number the server is actually listening on, which may be different if
@@ -66,33 +71,37 @@ readSavedGames = do
 --  * game thread is set to nothing
 garbageCollector :: Server -> IO ()
 garbageCollector server = forever $ do
+  trace $ "garbage collecting"
   tids <- liftIO $ atomically $ do
     gamesMap <- readTVar server
     cleanedGames <- mapM cleanupStoppedGames (M.elems gamesMap)
-    writeTVar server (M.fromList $ map ((\ g -> (gameId g, g)) . x1) cleanedGames)
+    writeTVar server (M.fromList $ map ((\ g -> (gameId g, g)) . activeGame) cleanedGames)
     return cleanedGames
   forM_ tids doCleanupGame
   threadDelay $ 10 * 1000 * 1000
     where
 
-      x1 (a,_,_) = a
+      doCleanupGame :: GameThreads -> IO ()
+      doCleanupGame (GameThreads _ [] _)      = return ()
+      doCleanupGame GameThreads{..} = do
+        trace $ "cleaning up game : " ++ gameId activeGame
+        trace $ "closing connections : " ++ show connections
+        mapM_ closeConnection connections
+        trace $ "stopping threads : " ++ show threads
+        mapM_ killThread threads
 
-      doCleanupGame :: (ActiveGame, [ThreadId], [Connection]) -> IO ()
-      doCleanupGame (_, [], _) = return ()
-      doCleanupGame (g, tids, cnxs) = do
-        trace $ "cleaning up game : " ++ gameId g
-        trace $ "closing connections : " ++ show cnxs
-        mapM_ closeConnection cnxs
-        trace $ "stopping threads : " ++ show tids
-        mapM_ killThread tids
-
-      cleanupStoppedGames :: ActiveGame -> STM (ActiveGame, [ThreadId], [Connection])
+      cleanupStoppedGames :: ActiveGame -> STM GameThreads
       cleanupStoppedGames g@ActiveGame{..} =
         case gameThread of
-         Nothing -> return (g,[],[])
+         Nothing -> return $ GameThreads g [] []
          Just as -> do
            res <- pollSTM as
-           maybe (return (g,[],[])) (const $ return (g { gameThread = Nothing, connectionThreads = [], registeredHumans = M.empty }, connectionThreads, M.elems registeredHumans)) res
+           maybe
+             (pure $ GameThreads g [] [])
+             (const $ pure $ GameThreads cleanedGame connectionThreads (M.elems registeredHumans))
+             res
+             where
+               cleanedGame = g { gameThread = Nothing, connectionThreads = [], registeredHumans = M.empty }
 
 
 interpretCommands :: Handle -> ReaderT Server IO ()

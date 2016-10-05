@@ -64,7 +64,7 @@ update msg model =
                                 Ok i -> ({model | numRobots = i},Cmd.none)
                                 _    -> (model,Cmd.none)
         ListGames -> (model, sendCommand List)
-        Play n    -> (model, sendCommand (Action { selectedPlay = n }))
+        Play n    -> ({model| possiblePlays = []}, sendCommand (Action { selectedPlay = n }))
         Join g    -> (model, sendCommand (JoinGame { playerName = model.player.playerName, gameId =  g}))
         CreateGame -> (model, sendCommand (NewGame { numHumans = model.numPlayers, numRobots = model.numRobots}))
         Reset      -> ({model

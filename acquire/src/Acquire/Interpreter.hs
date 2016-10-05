@@ -59,7 +59,7 @@ playerInputHandler (SaveGame g) = liftIO $ do
   writeFile (".acquire." ++ gameId g ++ ".bak") (show g)
 playerInputHandler (PlayedOrder p g o) = do
   trace $ "played order for " ++ playerName p
-  broadcast (\ n (Cnx _ hout) -> when (n == "Console" ||
+  broadcast (\ n (Cnx _ hout) -> when (n /= "Console" &&
                                         n /= playerName p &&
                                         playerType ((players g) M.! n) /= Robot)
                                  (liftIO $ (hPutStrLn hout $ show $ Played (playerName p) (gameBoard g) o) >> hFlush hout))
@@ -81,8 +81,10 @@ broadcast :: (Monad m) => (PlayerName -> Connection -> m ()) -> ReaderT Connecti
 broadcast f = ask >>= mapM_ (lift . uncurry f) . M.assocs
 
 playHuman :: Player -> Game -> Handle -> Handle -> IO Order
-playHuman p@Player{..} game hin hout = do let plays = (possiblePlay game)
-                                          hPutStrLn hout $ show $ GameState p (gameBoard game) plays
+playHuman p@Player{..} game hin hout = do let plays = possiblePlay game
+                                              currentState = GameState p (gameBoard game) plays
+                                          trace $ "sending state to user:  " ++ show currentState
+                                          hPutStrLn hout $ show $ currentState
                                           hFlush hout
                                           r <- tryJust (guard . isEOFError) $ hGetLine hin
                                           trace $ "read from user:  " ++ show r
