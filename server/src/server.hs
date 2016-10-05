@@ -8,12 +8,14 @@ import           Acquire.Net                    (InOut (..), listGames,
                                                  runServer)
 import           Control.Concurrent             (forkIO)
 import           Control.Concurrent.Async       (async)
-import           Control.Concurrent.Chan.Unagi  (newChan, readChan, writeChan)
+import           Control.Concurrent.Chan.Unagi  (InChan, OutChan, newChan,
+                                                 readChan, writeChan)
 import           Control.Exception              (SomeException, catch)
 import           Control.Monad                  (forever)
 import           Data.Aeson
 import qualified Data.ByteString.Lazy           as BS
 import           Data.Functor
+import           Data.IORef
 import           Data.Monoid
 import           Data.Text.Lazy                 (Text, pack, unpack)
 import           Data.Text.Lazy.Encoding        (decodeUtf8)
@@ -44,18 +46,19 @@ handleWS :: Socket -> PendingConnection -> IO ()
 handleWS serverSocket pending = do
   p <- socketPort serverSocket
   connection <- acceptRequest pending
+  chans <- newChan
+  ref   <- newIORef chans
+  handleClient ref p connection
 
-  handleClient p connection
-
-handleClient :: PortNumber -> Connection ->  IO ()
-handleClient p connection =
+handleClient :: IORef (InChan String, OutChan String) -> PortNumber -> Connection ->  IO ()
+handleClient channels p connection =
   (do
       Text message <- receiveDataMessage connection
       putStrLn $ "message: " ++ show message
       case eitherDecode message of
         Left e  -> sendTextData connection (encode $ CommandError e)
         Right c -> handleCommand c
-      handleClient p connection)
+      handleClient channels p connection)
     `catch` (\ (e :: ConnectionException) -> putStrLn $ "error: " ++ (show e))
     where
       input             = readChan
@@ -71,6 +74,7 @@ handleClient p connection =
         void $ async $ forever $ do
           v <- readChan r
           sendTextData connection v
+        modifyIORef channels ( \ (w'',r'') -> (w', r''))
 
       handleCommand List = do
           r <- listGames "localhost" p
@@ -79,8 +83,11 @@ handleClient p connection =
       handleCommand (NewGame numHumans numRobots) = do
           r <- runNewGame "localhost" p numHumans numRobots
           sendTextData connection (encode r)
-      handleCommand (JoinGame playerName gameId) =
-          startGame p playerName gameId
+      handleCommand (JoinGame playerName gameId) = do
+        startGame p playerName gameId
+      handleCommand (Action n) = do
+        (w, _) <- readIORef channels
+        writeChan w (show n)
       handleCommand Bye = sendClose connection ("Bye!" :: Text)
 
 main :: IO ()

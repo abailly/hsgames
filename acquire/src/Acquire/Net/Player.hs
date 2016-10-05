@@ -8,6 +8,7 @@ import           Acquire.Interpreter
 import           Acquire.Net.Types
 import           Acquire.Player       as P
 import           Acquire.Pretty
+import           Acquire.Trace
 import           Control.Monad.Reader
 import           Network.Socket
 import           System.IO
@@ -51,7 +52,7 @@ runPlayer host port player game io = do
   h <- socketToHandle sock ReadWriteMode
   hSetBuffering h NoBuffering
   hPutStrLn h (show $ JoinGame player game)
-  putStrLn $ "registering " ++ player ++ " with server at address " ++ show (addrAddress server)
+  trace $ "registering " ++ player ++ " with server at address " ++ show (addrAddress server)
   readResult h player io
 
 readResult :: Handle -> PlayerName -> InOut -> IO ()
@@ -76,6 +77,7 @@ handleMessage :: Message -> InOut -> IO (Maybe String)
 handleMessage g@(GameState _ _ _) InOut{..} = do
   output g
   ln <- input
+  trace $ "input: " ++ ln
   return $ Just ln
 handleMessage m (InOut _ output _) = do
   output m

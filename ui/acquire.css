@@ -20,6 +20,7 @@ span.cell {
     width: 7.5%;
     border: thin solid black;
     margin: .1em .1em 0 0;
+    line-height: 1.5;
 }
 
 span.cell:after {
@@ -31,7 +32,255 @@ span.cell:after {
 .empty {
     background-color: #eee;
     color: #444;
-    font-size: 1.4rem;
+ }
+
+.neutral {
+    background-color: #444;
+    color: #eee;
+}
+
+.chain {
+    background-color: none;
+    color: rgba(0,0,0,.6);
+}
+
+.American:before {
+    font-size: 2em;
+    content: "A";
+    background-color: navy;
+    color: white;
+    display:block;
+    position: absolute;
+    top: 0;
+    left:0;
+    width:100%;
+    height:100%;
+    text-align:center;
+}
+
+.buyee-American {
+    border-top: 3em solid navy;
+    display: block;
+    border-right: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.buyer-American {
+    border-bottom: 3em solid navy;
+    display: block;
+    border-left: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.Continental:before{
+    font-size: 2em;
+    content: "C";
+    background-color: darkgreen;
+    color: white;
+    display:block;
+    position: absolute;
+    top: 0;
+    left:0;
+    width:100%;
+    height:100%;
+    text-align:center;
+}
+
+.buyee-Continental {
+    border-top: 3em solid darkgreen;
+    display: block;
+    border-right: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.buyer-Continental {
+    border-bottom: 3em solid darkgreen;
+    display: block;
+    border-left: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.Festival:before{
+    font-size: 2em;
+    content: "F";
+    background-color: purple;
+    color: white;
+    display:block;
+    position: absolute;
+    top: 0;
+    left:0;
+    width:100%;
+    height:100%;
+    text-align:center;
+}
+
+.buyee-Festival {
+    border-top: 3em solid purple;
+    display: block;
+    border-right: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.buyer-Festival {
+    border-bottom: 3em solid purple;
+    display: block;
+    border-left: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.Imperial:before{
+    font-size: 2em;
+    content: "I";
+    background-color: orange;
+    color: white;
+    display:block;
+    position: absolute;
+    top: 0;
+    left:0;
+    width:100%;
+    height:100%;
+    text-align:center;
+}
+
+.buyee-Imperial {
+    border-top: 3em solid orange;
+    display: block;
+    border-right: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.buyer-Imperial {
+    border-bottom: 3em solid orange;
+    display: block;
+    border-left: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.Luxor:before{
+    content: "L";
+    font-size: 2em;
+    background-color: yellow;
+    color: white;
+    display:block;
+    position: absolute;
+    top: 0;
+    left:0;
+    width:100%;
+    height:100%;
+    text-align:center;
+}
+
+.buyee-Luxor {
+    border-top: 3em solid yellow;
+    display: block;
+    border-right: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.buyer-Luxor {
+    border-bottom: 3em solid yellow;
+    display: block;
+    border-left: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.Tower:before{
+    content: "T";
+    background-color: red;
+    color: white;
+    display:block;
+    position: absolute;
+    top: 0;
+    left:0;
+    width:100%;
+    height:100%;
+    text-align:center;
+    font-size: 2em;
+}
+
+
+.buyee-Tower {
+    border-top: 3em solid red;
+    display: block;
+    border-right: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.buyer-Tower {
+    border-bottom: 3em solid red;
+    display: block;
+    border-left: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.Worldwide:before{
+    content: "W";
+    background-color: brown;
+    color: white;
+    display:block;
+    position: absolute;
+    top: 0;
+    left:0;
+    width:100%;
+    height:100%;
+    text-align:center;
+    font-size: 2em;
+}
+
+.buyee-Worldwide {
+    border-top: 3em solid brown;
+    display: block;
+    border-right: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
+}
+
+.buyer-Worldwide {
+    border-bottom: 3em solid brown;
+    display: block;
+    border-left: 3em solid transparent;
+    width: 100%;
+    height: 100%;
+    position: absolute;
+    z-index: -1;
 }
 
 .cell-content {
@@ -39,10 +288,172 @@ span.cell:after {
     position: absolute;
     top:0; bottom:0; left:0; right:0;
     text-align: center;
+    font-size: 1.4rem;
 } 
 
 .cell-content span {
     display: block;
     line-height: 2;
     vertical-align: middle;
+}
+
+div.plays {
+}
+
+.cash:before {
+    content: "Cash Available:";
+    padding-right: .3em;
+}
+
+.cash:after {
+    content: "$";
+    padding-left: .1em;
+}
+
+.stock:before {
+    content: "Stock Available: ";
+}
+
+.stock>span {
+    position:relative;
+    display: inline-block;
+    width: 4em;
+    height: 2em;
+    margin: 0 .5em;
+}
+
+span.stock-count {
+    display: block;
+    opacity:.8;
+    font-weight: bold;
+    width: 100%;
+    height: 100%;
+    font-size: 1.5em;
+    line-height: 1.5em;
+    background-color: white;
+    text-align: center;
+}
+
+#game-result-background {
+    position: absolute;
+    top:0;
+    left:0 ;
+    width: 100%;
+    height: 100%;
+    background: black;
+    opacity: .7;
+}
+
+#game-result {
+    opacity: 1;
+    position: absolute;
+    top: 0;
+    width: 50%;
+    background: lightgrey;
+    margin: 0 auto;
+    padding: 1em 1em 2em 1em;
+    border-radius: 1em;
+    text-align: center;
+}
+
+
+.player.Robot:before {
+  content: "\f0ad";
+  font-family: 'FontAwesome';
+  padding: .2em;
+  background: #333 ;
+  color: #eee;
+  border-radius: .5em;
+}
+.player.Human:before {
+  content: "\f0c0";
+  font-family: FontAwesome;
+  padding: .2em;
+  background-color: #333 ;
+  color: #eee ;
+  border-radius: .5em;
+}
+.player {
+  padding: .5em 0;
+  border-bottom: thin solid black;
+}
+.player:first-of-type {
+  border-top: thin solid black;  
+}
+.name {
+  padding:.3em;
+  background-color:aliceblue;
+  margin:.3em;
+  border-radius:.1em;
+  font-weight: 100;
+}
+.player .cash:before {
+  content: unset;
+}
+@media (max-width: 700px) {
+    .cell-content {
+        font-size: 1.2rem;
+    }    
+
+    .American:before {
+        font-size: 1.5em;
+    }
+    
+    .Tower:before {
+        font-size: 1.5em;
+    }
+
+    .Luxor:before {
+        font-size: 1.5em;
+    }
+
+    .Festival:before {
+        font-size: 1.5em;
+    }
+
+    .Continental:before {
+        font-size: 1.5em;
+    }
+
+    .Imperial:before {
+        font-size: 1.5em;
+    }
+
+    .Worldwide:before {
+        font-size: 1.5em;
+    }
+}
+
+@media (max-width: 550px) {
+    .cell-content {
+        font-size: 1rem;
+    }    
+
+    .American:before {
+        font-size: 1.2rem;
+    }
+    
+    .Tower:before {
+        font-size: 1.2rem;
+    }
+
+    .Luxor:before {
+        font-size: 1.2rem;
+    }
+
+    .Festival:before {
+        font-size: 1.2rem;
+    }
+
+    .Continental:before {
+        font-size: 1.2rem;
+    }
+
+    .Imperial:before {
+        font-size: 1.2rem;
+    }
+
+    .Worldwide:before {
+        font-size: 1.2rem;
+    }
 }

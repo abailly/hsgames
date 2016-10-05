@@ -7,6 +7,7 @@ module Acquire.Interpreter where
 import           Acquire.Game
 import           Acquire.Player
 import           Acquire.Robot
+import           Acquire.Trace
 import           Control.Exception    hiding (Handler)
 import           Control.Monad
 import           Control.Monad.Prompt
@@ -47,22 +48,30 @@ instance ToJSON Message
 
 playerInputHandler :: Handler (ReaderT Connections IO) a
 playerInputHandler (GetOrder p@(Player name Human _ _ _) g) = do
+  trace $ "human order: " ++ name
   Cnx hin hout <- (M.! name) <$> ask
   liftIO $ playHuman p g hin hout
-playerInputHandler (GetOrder p@(Player _ Robot _ _ _) g) = do
+playerInputHandler (GetOrder p@(Player name Robot _ _ _) g) = do
+  trace $ "robot order: " ++ name
   liftIO $ playRobot p g
-playerInputHandler (SaveGame g) = liftIO $ writeFile (".acquire." ++ gameId g ++ ".bak") (show g)
-playerInputHandler (PlayedOrder p g o) = broadcast (\ n (Cnx _ hout) -> when (n == "Console" ||
-                                                                              n /= playerName p &&
-                                                                              playerType ((players g) M.! n) /= Robot)
-                                                                        (liftIO $ (hPutStrLn hout $ show $ Played (playerName p) (gameBoard g) o) >> hFlush hout))
+playerInputHandler (SaveGame g) = liftIO $ do
+  trace $ "saving game " ++ gameId g
+  writeFile (".acquire." ++ gameId g ++ ".bak") (show g)
+playerInputHandler (PlayedOrder p g o) = do
+  trace $ "played order for " ++ playerName p
+  broadcast (\ n (Cnx _ hout) -> when (n == "Console" ||
+                                        n /= playerName p &&
+                                        playerType ((players g) M.! n) /= Robot)
+                                 (liftIO $ (hPutStrLn hout $ show $ Played (playerName p) (gameBoard g) o) >> hFlush hout))
 playerInputHandler (LoadGame gid) = do
+  trace $ "loading game " ++ gid
   let gameFile = ".acquire." ++ gid ++ ".bak"
   e <- liftIO $ doesFileExist gameFile
   if e
   then liftIO (readFile gameFile)  >>= return . Just . read
   else return Nothing
 playerInputHandler (Quit game) = do
+  trace $ "quitting game " ++ gameId game
   broadcast (\ n (Cnx _ hout) -> when (n == "Console" ||
                                        playerType ((players game) M.! n) /= Robot)
                                  (liftIO $ (hPutStrLn hout $ show $ GameEnds game) >> hFlush hout))
@@ -76,6 +85,7 @@ playHuman p@Player{..} game hin hout = do let plays = (possiblePlay game)
                                           hPutStrLn hout $ show $ GameState p (gameBoard game) plays
                                           hFlush hout
                                           r <- tryJust (guard . isEOFError) $ hGetLine hin
+                                          trace $ "read from user:  " ++ show r
                                           case r of
                                            Left  _    -> return Cancel
                                            Right line -> return (plays !! (read line - 1))

@@ -8,12 +8,15 @@ import String
 type Message = List
              | NewGame { numHumans : Int, numRobots : Int }
              | JoinGame { playerName : String, gameId : String }
+             | Action  { selectedPlay : Int }
              | Bye
 
 encodeMessage : Message -> Json.Value
 encodeMessage msg =
     case msg of
         List       -> Enc.object [("tag", Enc.string "List"), ("contents",Enc.list [])]
+        Action n   -> Enc.object [("tag", Enc.string "Action")
+                                 , ("selectedPlay",Enc.int n.selectedPlay)]
         NewGame n  -> Enc.object [("tag", Enc.string "NewGame")
                                  ,("numHumans",Enc.int n.numHumans)
                                  ,("numRobots",Enc.int n.numRobots)]
@@ -93,14 +96,24 @@ makePlayMessage tag =
                        ("gsPlayer" := decodePlayer)
                        ("gsBoard" := decodeBoard)
                        ("gsPlayables" := Json.list decodeOrder)
+        "Played"   -> Json.object3 (\ p b o -> Played { gsPlayerName = p, gsBoard = b, gsPlayed = o })
+                       ("gsPlayerName" := Json.string)
+                       ("gsBoard" := decodeBoard)
+                       ("gsPlayed" := decodeOrder)
+        "GameEnds"   -> Json.object1 (\ g -> GameEnds { gsEndGame = g })
+                       ("gsEndGame" := decodeGame)
         other       -> Json.fail <| other ++ " is not a known play message"
             
 type alias Game = { gameId       : GameId
                   , gameBoard    : GameBoard
                   , players      : Players
-                  , hotelChains  : HotelChains
                   }
 
+decodeGame : Json.Decoder Game
+decodeGame = Json.object3 Game
+             ("gameId" := Json.string)
+             ("gameBoard" := decodeBoard)
+             ("players" := decodePlayers)
 -- Stock
 type alias Stock = Dict.Dict ChainName Int
 
@@ -112,6 +125,12 @@ decodeStock = "stock" := (Json.map Dict.fromList <|
 
 type PlayerType = Human | Robot
 
+showPlayerType : PlayerType -> String
+showPlayerType t =
+    case t of
+        Human -> "Human"
+        Robot -> "Robot"
+    
 decodeType : Json.Decoder PlayerType
 decodeType = Json.string `andThen` \ s -> case s of
                                               "Human" -> Json.succeed Human
@@ -127,6 +146,9 @@ type alias Player = { playerName : PlayerName
                     , ownedCash  : Int
                     } 
 
+player : String -> Player
+player name = Player name Human [] Dict.empty 6000
+              
 decodePlayer : Json.Decoder Player
 decodePlayer = Json.object5 Player
                ("playerName" := Json.string)
@@ -134,7 +156,10 @@ decodePlayer = Json.object5 Player
                ("tiles"      := Json.list decodeTile)
                ("ownedStock" := decodeStock)
                ("ownedCash"  := Json.int)
-               
+
+decodePlayers : Json.Decoder Players
+decodePlayers = Json.dict decodePlayer
+
 -- Board
 type alias Tile = (Char,Int)
 
@@ -218,6 +243,35 @@ type Order = Place PlayerName Tile
            | Pass
            | EndGame
            | Cancel
+
+showOrder : Order -> String
+showOrder order =
+    case order of
+        Place n t ->
+            n ++ " plays @" ++ toString t
+        Merge pn tile buyee buyer ->
+            pn ++ " merges " ++ buyee ++ " into " ++ buyer ++ " @" ++ toString tile
+        Fund pn chainName tile ->
+            pn ++ " founds " ++ chainName ++ " @"  ++ toString tile
+        BuyStock pn chainName ->
+            pn ++ " buy 1 share of " ++ chainName
+        SellStock pn chainName shares price ->
+            let sharesstring = if shares > 1
+                               then " shares "
+                               else " share "
+            in pn ++ " sells " ++ toString shares ++ sharesstring ++ " of " ++ chainName ++ " at " ++ toString price ++ "$"
+
+        ExchangeStock pn buyee buyer shares ->
+            let sharesstring = if shares > 1
+                               then " shares "
+                               else " share "
+            in pn ++ " exchanges " ++ toString shares ++ sharesstring ++ " of " ++ buyee ++
+                " against " ++ toString (shares // 2) ++ sharesstring ++ " of " ++ buyer
+            
+        Pass -> "pass"
+        EndGame -> "end game"
+        Cancel -> "cancel"
+                  
 
 decodeOrder : Json.Decoder Order
 decodeOrder =  ("tag" := Json.string) `andThen` makeOrder
