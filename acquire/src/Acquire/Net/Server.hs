@@ -181,7 +181,8 @@ runGameServer gid numRobots clients  = do
   let connections = M.insert "Console" (Cnx stdin stdout) clients
       robots      = map ((,Robot) . ("robot " ++) . show) [ 1 .. numRobots ]
   forM_ (M.elems connections) (\ (Cnx _ hout) -> hFlush hout)
-  runReaderT (runPromptM playerInputHandler $ initialisedGame gid g (map (\ (p,_) -> (p,Human)) (M.toList clients) ++ robots) >>= interpretCommand) connections
+  runReaderT (runPromptM playerInputHandler $
+              initialisedGame gid g (map (\ (p,_) -> (p,Human)) (M.toList clients) ++ robots) >>= interpretCommand) connections
 
 notifyStartup :: GameId -> Connections -> [ ThreadId ]  -> IO ()
 notifyStartup gid cnx threads = do
