@@ -88,7 +88,7 @@ The `--player` name and `--game` ID parameters are mandatory.
 
 You should see something like the following:
 
-![](ui/images/cli-player.png)
+![](ui/images/cli-player.png?raw=true)
 
 To play, type the selected number before the list of possible plays and press `Enter`. Refer to the rules of the game for further
 directions.
@@ -124,9 +124,9 @@ $ elm-make src/Acquire.elm --output=acquire.js
   
 ### Screenshots
 
-![](ui/images/ui-player.png)
+![](ui/images/ui-player.png?raw=true)
 
-![](ui/images/ui-player-list.png)
+![](ui/images/ui-player-list.png?raw=true)
 
 ## Some details
 
