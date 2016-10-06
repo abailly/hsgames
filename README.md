@@ -1,84 +1,135 @@
-# Acquire in Haskell
+# Acquire in Haskell + Elm
 
-This is a rough implementation of [Acquire](http://www.webnoir.com/bob/sid/acquire.htm) boardgame as a client-server online game in
-Haskell. It's an early-stage implementation but is already playable, even in solitaire mode against randomly playing robots.
+This is an implementation of the [Acquire](http://www.webnoir.com/bob/sid/acquire.htm) boardgame as a client-server online game, using [Haskell](httP;//haskell.org) as a backend and game engine, and [Elm](http://elm-lang.org) . It is a not-so-quick-still-dirty implementation but in the few tests I already make, it appears playable at least locally.
 
-## Overview
+# Overview
 
-The game is played in client-server mode:
+The game can be played in two different ways:
 
-* The server can sport several games concurrently,
+* As a pure text-based client-server, using an ANSI capable terminal, 
+* Using an HTML interface.
+
+The core game server itself is of course agnostic about which front-end it is played with: 
+
+* It can host several games concurrently,
 * Client players can create a new game or list existing games,
 * Client players can join an existing non-started game.
 
-Server uses TCP over port 7890 by default for all operations.
+## Building
 
-## Getting Started
+Run `stack build` in top-level directory, this will build all needed executables.
+
+## Command-Line Mode
+
+### Getting Started ###
 
 To play in solo mode against robots, run the following commands in the source tree, assuming you are using
 [stack](https://github.com/commercialhaskell/stack) to build code (works equally well with cabal with more incantations):
 
-### To Start server
+### Start a Server
 
     $ stack init
     $ stack build
-    $ <PATH TO BIN>/acq server
+    $ stack exec hsg -- server
 
-### To Create Game
+The server supports a single option `-p <port>` to select the port it listens to. If passed 0, it will listen on a random port and
+print it on stdout:
+
+```
+$ stack exec hsg -- server -p 0
+[2016-10-05 14:07:20.538190000000 +0000] garbage collecting
+[2016-10-05 14:07:20.534807000000 +0000] Server started on port 54824
+```
+
+### Create a New Game
 
 Open another terminal and run:
 
-    $ <PATH TO BIN>/acq newGame -H 1 -R 5
+    $ stack exec hsg --  newGame -H 1 -R 5
     created new game DBEGXBIZ
 
 This creates a new game with one human and five robot players.
 
-You can check game is available by running:
+The `newGame` command supports the following option:
 
-    $ <PATH TO BIN>/acq list
+```
+Usage: hsg newGame [-h|--host HOST] [-p|--port PORT] [-H|--num-humans NUMBER]
+                   [-R|--num-robots NUMBER]
+```
+
+To check a game is available, use the `list` command:
+
+    $ stack exec hsg -- list
     DBEGXBIZ 3 humans, 3 robots, []
 
-### To Start Playing
+The `list` command supports the following option:
 
-Connect as a player:
+```
+Usage: hsg list [-h|--host HOST] [-p|--port PORT]
+```
 
-    $ <PATH TO BIN>/acq player -g DBEGXBIZ -n arnaud
+### Start Playing
+
+Assuming you created the above defined solo game, you can connect as a player to start playing the game:
+
+    $ stack exec hsg -- player -g DBEGXBIZ -n arnaud
     registering arnaud with server at address 127.0.0.1:7890
     registered player arnaud with game DBEGXBIZ
     starting game DBEGXBIZ
 
+The `player` command as the following options:
+
+```
+Usage: hsg player [-h|--host HOST] [-p|--port PORT] (-n|--player NAME)
+                  (-g|--game GAME ID) [-t|--player-type PLAYER-TYPE]
+```
+
+The `--player` name and `--game` ID parameters are mandatory.
+
 You should see something like the following:
 
-    A-1  A-2  A-3  A-4  A-5  A-6  A-7  A-8  A-9  A-10 A-11 A-12
-    B-1  B-2  B-3  B-4  B-5  B-6  B-7  B-8  B-9  B-10 B-11 B-12
-    C-1  C-2  C-3  C-4  C-5  C-6  C-7  C-8  C-9  C-10 C-11 C-12
-    D-1  D-2  D-3  D-4  D-5  D-6  D-7  D-8  D-9  D-10 D-11 D-12
-    E-1  E-2  E-3  E-4  E-5  E-6  E-7  E-8  E-9  E-10 E-11 E-12
-    F-1  F-2  F-3  F-4  F-5  F-6  F-7  F-8  F-9  F-10 F-11 F-12
-    G-1  G-2  G-3  G-4  G-5  G-6  G-7  G-8  G-9  G-10 G-11 G-12
-    H-1  H-2  H-3  H-4  H-5  H-6  H-7  H-8  H-9  H-10 H-11 H-12
-    I-1  I-2  I-3  I-4  I-5  I-6  I-7  I-8  I-9  I-10 I-11 I-12
-    arnaud [H] [I-3 
-               ,B-2 
-               ,I-2 
-               ,A-4 
-               ,F-4 
-               ,H-9 ]
-               [] $6000
-    Your move, arnaud ?
-    1- Place "arnaud" (Tile {tileCoords = ('I',3)})
-    2- Place "arnaud" (Tile {tileCoords = ('B',2)})
-    3- Place "arnaud" (Tile {tileCoords = ('I',2)})
-    4- Place "arnaud" (Tile {tileCoords = ('A',4)})
-    5- Place "arnaud" (Tile {tileCoords = ('F',4)})
-    6- Place "arnaud" (Tile {tileCoords = ('H',9)})
+![](ui/images/cli-player.png)
 
-Then select your move by typing the corresponding number.
+To play, type the selected number before the list of possible plays and press `Enter`. Refer to the rules of the game for further
+directions.
+
+## Web-based UI
+
+To start web server, run the following command:
+
+```
+$ stack exec server
+```
+
+> There currently aren't any option. Server starts on port 9090 and should be accessed locally
+
+### Building UI
+
+```
+$ cd ui
+$ elm-make src/Acquire.elm --output=acquire.js
+```
+
+### Playing
+
+* Point your browser at `http://localhost:9090/index.html` to load the UI. 
+* Enter your `Player Name` in the related field,
+* Click on `List Games`. If there are saved games, you should see them listed, otherwise you can create a new game, selecting the
+  number of humans and robot players and clicking on `New Game`,
+* To start playing a game, click on `Join`. If the required number of human players is connected, the game starts and the board is
+  displayed. 
+* If its your turn to play, you should see boxes appearing in the `Possible Plays` area: Click on a box to select that play,
+* On the top right, there is `Messages` box whose visibility can be toggled on and off: It lists all messages sent by server and
+  notably all other player's plays, most recent first.
+  
+### Screenshots
+
+![](ui/images/ui-player.png)
+
+![](ui/images/ui-player-list.png)
 
 ## Some details
 
-* Server runs by default on port 7890, set the port using `-p <some port>` number
-* Server outputs all order in its console in order to allow debugging and tracing of sequence of plays
-* Server saves game state between each order in a file `.acquire.bak` in working directory.
-* If a saved game exists in working directory, server loads it and continues game from the saved point
-* Client expects a valid input, it will crash otherwise.
+* Server saves game state between each order in a file `.acquire.<game-id>.bak` in its working directory,
+* If a saved game exists in working directory, server loads it and continues game from the saved point. This means if something goes
+  wrong, it's enough to restart server and get back to last play,
