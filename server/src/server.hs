@@ -11,12 +11,15 @@ import           Control.Concurrent             (forkIO)
 import           Control.Concurrent.Async       (async)
 import           Control.Concurrent.Chan.Unagi  (InChan, OutChan, newChan,
                                                  readChan, writeChan)
+import           Control.Concurrent.STM
 import           Control.Exception              (SomeException, catch)
 import           Control.Monad                  (forever)
 import           Data.Aeson
+import qualified Data.ByteString                as SBS
 import qualified Data.ByteString.Lazy           as BS
 import           Data.Functor
 import           Data.IORef
+import qualified Data.Map                       as M
 import           Data.Monoid
 import           Data.Text.Lazy                 (Text, pack, unpack)
 import           Data.Text.Lazy.Encoding        (decodeUtf8)
@@ -32,72 +35,123 @@ import           Network.WebSockets             (Connection,
                                                  ConnectionException,
                                                  DataMessage (..),
                                                  PendingConnection,
+                                                 RequestHead (..),
                                                  acceptRequest,
                                                  defaultConnectionOptions,
-                                                 receive, receiveDataMessage,
+                                                 pendingRequest, receive,
+                                                 receiveDataMessage,
                                                  sendBinaryData, sendClose,
                                                  sendTextData)
 
 newtype CommandError = CommandError { reason :: String }
-  deriving (Generic)
+                     deriving (Generic)
 
 instance ToJSON CommandError
 
-handleWS :: Socket -> PendingConnection -> IO ()
-handleWS serverSocket pending = do
+data ClientConnection = ClientConnection { inChan           :: InChan String
+                                         , outChan          :: OutChan String
+                                         , clientConnection :: Connection
+                                         }
+
+handleWS :: TVar (M.Map SBS.ByteString (IORef ClientConnection)) -> Socket -> PendingConnection -> IO ()
+handleWS cnxs serverSocket pending = do
   p <- socketPort serverSocket
+  let key = requestPath $ pendingRequest pending
+  trace $ "got websocket request with key: " ++ show key
   connection <- acceptRequest pending
-  chans <- newChan
-  ref   <- newIORef chans
+  ref <- getOrMakeChannels key connection
   handleClient ref p connection
+  where
+    -- This code is unfortunately rather complicated because
+    -- we are storing connections and channels mapping client WS connections, based
+    -- on path requested. The idea is that the client is supposed to generate random
+    -- strings upon first connection so that channels can later be reused when game
+    -- is in play, even if it is disconnected. This happens due to timeouts on both
+    -- client side and server-side apparently.
+    getOrMakeChannels key connection = do
+        maybeRef <- atomically $ M.lookup key <$> readTVar cnxs
+        case maybeRef of
+          Nothing -> do
+            (i,o) <- newChan
+            let cc = ClientConnection i o connection
+            ref   <- newIORef cc
+            atomically $ modifyTVar cnxs (M.insert key ref)
+            trace $ "registering new channels with key " ++ show key
+            return ref
+          Just r -> do
+            modifyIORef r (\ c -> c { clientConnection = connection })
+            trace $ "reusing old channels with key " ++ show key
+            return r
 
-handleClient :: IORef (InChan String, OutChan String) -> PortNumber -> Connection ->  IO ()
+
+handleClient :: IORef ClientConnection -> PortNumber -> Connection ->  IO ()
 handleClient channels p connection =
-  (do
-      Text message <- receiveDataMessage connection
-      trace $ "received message: " ++ show message
-      case eitherDecode message of
-        Left e  -> sendTextData connection (encode $ CommandError e)
-        Right c -> handleCommand c
-      handleClient channels p connection)
-    `catch` (\ (e :: ConnectionException) -> putStrLn $ "error: " ++ (show e))
-    where
-      input             = readChan
-      output       chan = writeChan chan . encode
-      outputResult chan = writeChan chan . encode
+  let clientLoop = do
+        Text message <- receiveDataMessage connection
+        trace $ "received message: " ++ show message
+        case eitherDecode message of
+          Left e  -> sendTextData connection (encode $ CommandError e)
+          Right c -> handleCommand c
+        clientLoop
+  in clientLoop `catch` (\ (e :: ConnectionException) -> trace $ "main client loop error: " ++ (show e))
+  where
+    -- I/O manager for WS connections
+    -- We use a pair of `Chan` to read from and write to, encoding
+    -- to JSON on the output
+    io (w,r) = InOut (input r) (output w) (outputResult w)
+      where
+        input             = readChan  -- should probably use decode to be symetric, but we send raw strings...
+        output       chan = writeChan chan . encode
+        outputResult chan = writeChan chan . encode
 
-      io (w,r) = InOut (input r) (output w) (outputResult w)
+    startGame p playerName gameId = do
+      (w,r)   <- newChan
+      (w',r') <- newChan
 
-      startGame p playerName gameId = do
-        (w,r)   <- newChan
-        (w',r') <- newChan
-        void $ async $ do
-          runPlayer "localhost" p playerName gameId (io (w,r'))
-          trace $ "stopping player " ++ playerName ++ " for game " ++ gameId
-        void $ async $ forever $ do
-          v <- readChan r
-          sendTextData connection v
-            `catch` (\ (e :: ConnectionException) -> trace $ "sending error: " ++ (show e))
-        modifyIORef channels ( \ (w'',r'') -> (w', r''))
+      -- we run 2 asyncs, one for handling player commands and general game play,
+      -- the other to pump server's response to WS connection. This seems necessary because
+      -- we have 2 connections to handle:
+      --
+      --  * WS Connection between remote client's UI and this server code,
+      --  * Chan-based connection between player's proxy and main server
+      --
+      -- There should be a way to greatly simplify this code using directly pure version of the game
+      -- instead of wrapping the CLI server.
+      void $ async $ do
+        trace $ "starting game loop for player " ++ playerName ++ " @" ++ gameId
+        runPlayer "localhost" p playerName gameId (io (w,r'))
+        trace $ "stopping game loop for player " ++ playerName ++ " @" ++ gameId
 
-      handleCommand List = do
-          r <- listGames "localhost" p
-          sendTextData connection (encode r)
-      handleCommand (NewGame numHumans numRobots) = do
-          r <- runNewGame "localhost" p numHumans numRobots
-          sendTextData connection (encode r)
-      handleCommand (JoinGame playerName gameId) = do
-        startGame p playerName gameId
-      handleCommand (Action n) = do
-        (w, _) <- readIORef channels
-        writeChan w (show n)
-        trace $ "action " ++ show n
-      handleCommand Bye = sendClose connection ("Bye!" :: Text)
+      void $ async $ forever $ do
+        trace $ "starting response sender for player " ++ playerName ++ " @" ++ gameId
+        v <- readChan r
+        cnx <- clientConnection <$> readIORef channels
+        sendTextData cnx v
+          `catch` (\ (e :: ConnectionException) -> trace $ "response sender error: " ++ (show e))
+
+      -- we set the write channel to the other end of the pipe used by player loop for
+      -- reading
+      modifyIORef channels ( \ c -> c { inChan = w'})
+
+    handleCommand List = do
+      r <- listGames "localhost" p
+      sendTextData connection (encode r)
+    handleCommand (NewGame numHumans numRobots) = do
+      r <- runNewGame "localhost" p numHumans numRobots
+      sendTextData connection (encode r)
+    handleCommand (JoinGame playerName gameId) =
+      startGame p playerName gameId
+    handleCommand (Action n) = do
+      ClientConnection w _ _ <- readIORef channels
+      writeChan w (show n)
+      trace $ "action " ++ show n
+    handleCommand Bye = sendClose connection ("Bye!" :: Text)
 
 main :: IO ()
 main = do
   (s,_) <- runServer 0
-  void $ run 9090 (WaiWS.websocketsOr defaultConnectionOptions (handleWS s) serveUI)
+  cnxs <- newTVarIO M.empty
+  void $ run 9090 (WaiWS.websocketsOr defaultConnectionOptions (handleWS cnxs s) serveUI)
     where
       serveUI :: Application
       serveUI = staticPolicy (noDots >-> addBase "ui") $ defaultResponse

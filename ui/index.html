@@ -11,6 +11,7 @@
     <script src="acquire.js"></script>
     <script>
       var node = document.getElementById('acquire');
-      var app = Elm.Acquire.embed(node);
+      var key = Math.ceil(Math.random() * 10000000).toString();
+      var app = Elm.Acquire.embed(node, key);
     </script>
 </body></html>

@@ -4,6 +4,7 @@ module Acquire exposing (main)
 @docs main
 -}
 
+import Platform.Sub as Sub
 import Debug
 import String
 import Json.Decode as Json
@@ -18,25 +19,28 @@ import Messages exposing (..)
 import Dict
 
 {-| Main -}
-main : Program Never
+main : Program String
 main =
-  App.program
+  App.programWithFlags
     { init          = init
     , view          = view
     , update        = update
     , subscriptions = subscriptions
     }
 
+type alias Key = String
+    
 type alias Model = { command : String, strings : List String, showMessages: Bool
                    , games : List GameDescription
-                   , numPlayers : Int, numRobots : Int  -- for creating new games
+                   , numPlayers : Int, numRobots : Int
                    , board : GameBoard, possiblePlays : List Messages.Order, player : Player
                    , errors : List String
                    , gameResult : Maybe Players
+                   , clientKey : Key
                    }
 
-type Msg = Output String -- from server
-         | SetName String  -- from user
+type Msg = Output String
+         | SetName String
          | ListGames
          | Join GameId
          | CreateGame
@@ -44,50 +48,47 @@ type Msg = Output String -- from server
          | SetNumPlayers String
          | SetNumRobots String
          | ShowMessages Bool
-         | Submit
          | Reset
 
 subscriptions model =
-  listen "ws://localhost:9090" Output
+  Sub.batch [ listen ("ws://localhost:9090/" ++ model.clientKey) Output ]
            
-init : (Model, Cmd Msg)
-init = (Model "" [] True [] 1 5 Dict.empty [] (player "") [] Nothing, Cmd.none)
+init : Key -> (Model, Cmd Msg)
+init key = (Model "" [] True [] 1 5 Dict.empty [] (player "") [] Nothing key, Cmd.none)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
-        Output s  -> handleServerMessages model s
-        SetName s   -> ({model | player = player s},Cmd.none)
-        ShowMessages b   -> ({model | showMessages = b },Cmd.none)
-        SetNumPlayers s  -> case String.toInt s of
-                                Ok i -> ({model | numPlayers = i},Cmd.none)
-                                _    -> (model,Cmd.none)
-        SetNumRobots s   -> case String.toInt s of
-                                Ok i -> ({model | numRobots = i},Cmd.none)
-                                _    -> (model,Cmd.none)
-        ListGames -> (model, sendCommand List)
-        Play n    -> ({model| possiblePlays = []}, sendCommand (Action { selectedPlay = n }))
-        Join g    -> (model, sendCommand (JoinGame { playerName = model.player.playerName, gameId =  g}))
-        CreateGame -> (model, sendCommand (NewGame { numHumans = model.numPlayers, numRobots = model.numRobots}))
-        Reset      -> ({model
-                           | command = "", strings = []
-                           , board = Dict.empty, possiblePlays = [], player = player (model.player.playerName)
-                           , errors = []
-                           , gameResult = Nothing}, Cmd.none)
-        Submit     -> ({model | command = ""}, send "ws://localhost:9090" model.command)
+        Output s        -> handleServerMessages model s
+        SetName s       -> ({model | player = player s},Cmd.none)
+        ShowMessages b  -> ({model | showMessages = b },Cmd.none)
+        SetNumPlayers s -> case String.toInt s of
+                               Ok i -> ({model | numPlayers = i},Cmd.none)
+                               _    -> (model,Cmd.none)
+        SetNumRobots s  -> case String.toInt s of
+                               Ok i -> ({model | numRobots = i},Cmd.none)
+                               _    -> (model,Cmd.none)
+        ListGames       -> (model, sendCommand model List)
+        Play n          -> ({model| possiblePlays = []}, sendCommand model (Action { selectedPlay = n }))
+        Join g          -> (model, sendCommand model (JoinGame { playerName = model.player.playerName, gameId =  g}))
+        CreateGame      -> (model, sendCommand model (NewGame { numHumans = model.numPlayers, numRobots = model.numRobots}))
+        Reset           -> ({model
+                                | command = "", strings = []
+                                , board = Dict.empty, possiblePlays = [], player = player (model.player.playerName)
+                                , errors = []
+                                , gameResult = Nothing}, Cmd.none)
 
 handleServerMessages : Model -> String -> (Model, Cmd Msg)
 handleServerMessages model s =
-    Debug.log ("received " ++ s) <|
     case Json.decodeString decodeServerMessages s of
         Ok (R (GamesList l)) ->
             ({model | games = l}, Cmd.none)
         Ok (R (NewGameStarted _)) ->
-            (model, sendCommand List)
+            (model, sendCommand model List)
         Ok (R (PlayerRegistered n gid)) ->
-            (model, sendCommand List)
+            (model, sendCommand model List)
         Ok (R (GameStarts gid)) ->
-            (model, sendCommand List)
+            (model, sendCommand model List)
         Ok (R (ErrorMessage m)) ->
             ({model | errors = m :: model.errors}, Cmd.none)
         Ok (M (GameState gs)) ->
@@ -101,8 +102,8 @@ handleServerMessages model s =
         _                ->
             ({model | command = "", strings = s :: model.strings}, Cmd.none)
                 
-sendCommand : Message -> Cmd Msg
-sendCommand m = send "ws://localhost:9090" (Json.encode 0 <| encodeMessage m)
+sendCommand : Model -> Message -> Cmd Msg
+sendCommand model m = send ("ws://localhost:9090/" ++ model.clientKey) (Json.encode 0 <| encodeMessage m)
                 
 view : Model -> Html Msg
 view model = div []

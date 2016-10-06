@@ -13,8 +13,10 @@ executables:
       - async
       - base
       - bytestring
+      - containers
       - http-types
       - network
+      - stm
       - text
       - unagi-chan
       - wai

@@ -72,8 +72,7 @@ playerInputHandler (LoadGame gid) = do
   else return Nothing
 playerInputHandler (Quit game) = do
   trace $ "quitting game " ++ gameId game
-  broadcast (\ n (Cnx _ hout) -> when (n == "Console" ||
-                                       playerType ((players game) M.! n) /= Robot)
+  broadcast (\ n (Cnx _ hout) -> when (playerType ((players game) M.! n) /= Robot)
                                  (liftIO $ (hPutStrLn hout $ show $ GameEnds game) >> hFlush hout))
   liftIO exitSuccess
 
@@ -83,11 +82,11 @@ broadcast f = ask >>= mapM_ (lift . uncurry f) . M.assocs
 playHuman :: Player -> Game -> Handle -> Handle -> IO Order
 playHuman p@Player{..} game hin hout = do let plays = possiblePlay game
                                               currentState = GameState p (gameBoard game) plays
-                                          trace $ "sending state to user:  " ++ show currentState
+                                          trace $ "sending state to user " ++ playerName
                                           hPutStrLn hout $ show $ currentState
                                           hFlush hout
                                           r <- tryJust (guard . isEOFError) $ hGetLine hin
-                                          trace $ "read from user:  " ++ show r
+                                          trace $ "read from user: " ++ show r
                                           case r of
                                            Left  _    -> return Cancel
                                            Right line -> return (plays !! (read line - 1))

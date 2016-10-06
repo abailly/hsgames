@@ -61,7 +61,7 @@ readResult h player io@InOut{..} = do
   let res :: Result = read  ln
   outputResult res
   case res of
-   GameStarts _ -> hFlush h >> putStrLn "starting play " >> play player h io
+   GameStarts _ -> hFlush h >> play player h io
    _            -> readResult h player io
 
 play :: PlayerName -> Handle -> InOut -> IO ()
@@ -76,9 +76,7 @@ play player handle io = do
 handleMessage :: Message -> InOut -> IO (Maybe String)
 handleMessage g@(GameState _ _ _) InOut{..} = do
   output g
-  ln <- input
-  trace $ "input: " ++ ln
-  return $ Just ln
+  Just `fmap` input
 handleMessage m (InOut _ output _) = do
   output m
   return Nothing
