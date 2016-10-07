@@ -121,8 +121,8 @@ messages model =
                  then span [ class "fa fa-toggle-down", onClick <| ShowMessages False ] []
                  else span [ class "fa fa-toggle-right", onClick <| ShowMessages True ] []
         doDisplayList = if   model.showMessages
-                       then []
-                       else [ A.style [("display", "none")]]
+                       then [A.style [("height", "10em")]]
+                       else [ A.style [("height", "0")]]
     in div [ id "messages" ]
         [ div [ id "messages-header" ]
                     [ h1 []  [text "Messages" ]

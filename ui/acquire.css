@@ -86,8 +86,8 @@ div.plays {
 #messages-content {
     margin-top: 1.3em;
     overflow: auto;
-    min-height: 10rem;
     max-height: 15rem;
+    transition: height 0.5s;
 }
 
 #messages ul {
