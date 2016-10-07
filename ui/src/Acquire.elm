@@ -4,6 +4,8 @@ module Acquire exposing (main)
 @docs main
 -}
 
+import Char
+import Random
 import Platform.Sub as Sub
 import Debug
 import String
@@ -19,27 +21,26 @@ import Messages exposing (..)
 import Dict
 
 {-| Main -}
-main : Program String
+main : Program Never
 main =
-  App.programWithFlags
+  App.program
     { init          = init
     , view          = view
     , update        = update
     , subscriptions = subscriptions
     }
 
-type alias Key = String
-    
 type alias Model = { command : String, strings : List String, showMessages: Bool
                    , games : List GameDescription
                    , numPlayers : Int, numRobots : Int
                    , board : GameBoard, possiblePlays : List Messages.Order, player : Player
                    , errors : List String
                    , gameResult : Maybe Players
-                   , clientKey : Key
+                   , wsServerUrl : String
                    }
 
 type Msg = Output String
+         | UseKey String
          | SetName String
          | ListGames
          | Join GameId
@@ -51,15 +52,20 @@ type Msg = Output String
          | Reset
 
 subscriptions model =
-  Sub.batch [ listen ("ws://localhost:9090/" ++ model.clientKey) Output ]
+    Debug.log "subscribing to WS "<|
+        Sub.batch [ listen model.wsServerUrl Output ]
            
-init : Key -> (Model, Cmd Msg)
-init key = (Model "" [] True [] 1 5 Dict.empty [] (player "") [] Nothing key, Cmd.none)
+init : (Model, Cmd Msg)
+init =
+    let randomClientKey = Random.map String.fromList (Random.list 16 <| Random.map Char.fromCode (Random.int 65 90))
+    in (Model "" [] True [] 1 5 Dict.empty [] (player "") [] Nothing ""
+       , Random.generate UseKey randomClientKey)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
         Output s        -> handleServerMessages model s
+        UseKey k        -> ({model | wsServerUrl = "ws://localhost:9090/" ++ k}, Cmd.none)
         SetName s       -> ({model | player = player s},Cmd.none)
         ShowMessages b  -> ({model | showMessages = b },Cmd.none)
         SetNumPlayers s -> case String.toInt s of
@@ -103,7 +109,7 @@ handleServerMessages model s =
             ({model | command = "", strings = s :: model.strings}, Cmd.none)
                 
 sendCommand : Model -> Message -> Cmd Msg
-sendCommand model m = send ("ws://localhost:9090/" ++ model.clientKey) (Json.encode 0 <| encodeMessage m)
+sendCommand model m = send model.wsServerUrl (Json.encode 0 <| encodeMessage m)
                 
 view : Model -> Html Msg
 view model = div []
