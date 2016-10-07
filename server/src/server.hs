@@ -122,12 +122,13 @@ handleClient channels p connection =
         runPlayer "localhost" p playerName gameId (io (w,r'))
         trace $ "stopping game loop for player " ++ playerName ++ " @" ++ gameId
 
-      void $ async $ forever $ do
+      void $ async $ do
         trace $ "starting response sender for player " ++ playerName ++ " @" ++ gameId
-        v <- readChan r
-        cnx <- clientConnection <$> readIORef channels
-        sendTextData cnx v
-          `catch` (\ (e :: ConnectionException) -> trace $ "response sender error: " ++ (show e))
+        forever $ do
+          v <- readChan r
+          cnx <- clientConnection <$> readIORef channels
+          sendTextData cnx v
+            `catch` (\ (e :: ConnectionException) -> trace $ "response sender error: " ++ (show e))
 
       -- we set the write channel to the other end of the pipe used by player loop for
       -- reading
