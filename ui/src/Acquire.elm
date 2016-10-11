@@ -30,14 +30,19 @@ main =
     , subscriptions = subscriptions
     }
 
-type alias Model = { strings : List String, showMessages: Bool
-                   , games : List GameDescription
-                   , numPlayers : Int, numRobots : Int
-                   , board : GameBoard, possiblePlays : List Messages.Order, player : Player
-                   , errors : List String
-                   , gameResult : Maybe Players
-                   , wsServerUrl : String
-                   }
+type alias Model = GameContext (GameState {})
+
+type alias GameContext a  = { a | strings : List String, showMessages: Bool
+                            , errors : List String
+                            , wsServerUrl : String
+                            }
+    
+type alias GameState a = { a | games : List GameDescription
+                         , numPlayers : Int, numRobots : Int
+                         , board : GameBoard, possiblePlays : List Messages.Order
+                         , player : Player
+                         , gameResult : Maybe Players
+                         }
 
 type Msg = Output String
          | UseKey String
@@ -58,7 +63,10 @@ subscriptions model =
 init : (Model, Cmd Msg)
 init =
     let randomClientKey = Random.map String.fromList (Random.list 16 <| Random.map Char.fromCode (Random.int 65 90))
-    in (Model [] True [] 1 5 Dict.empty [] (player "") [] Nothing ""
+    in ({ strings = [], showMessages =  True, errors = [], wsServerUrl = ""
+        , games = [], numPlayers = 1, numRobots= 5, board =  Dict.empty, possiblePlays = []
+        , player = player ""
+        , gameResult = Nothing }
        , Random.generate UseKey randomClientKey)
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -142,6 +150,7 @@ messages model =
 displayErrors : Model -> Html Msg
 displayErrors model = div [ id "errors" ]
                       (List.map displayError model.errors)
+                          
 displayError : String -> Html Msg
 displayError error = div [ class "error" ]
                      [ text error ]
