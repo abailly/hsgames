@@ -30,19 +30,16 @@ main =
     , subscriptions = subscriptions
     }
 
-type alias Model = GameContext (GameState {})
-
-type alias GameContext a  = { a | strings : List String, showMessages: Bool
-                            , errors : List String
-                            , wsServerUrl : String
-                            }
+type alias Model = { strings : List String, showMessages: Bool
+                   , errors : List String
+                   , wsServerUrl : String
+                   , game : GameState
+                   }
     
-type alias GameState a = { a | games : List GameDescription
-                         , numPlayers : Int, numRobots : Int
-                         , board : GameBoard, possiblePlays : List Messages.Order
-                         , player : Player
-                         , gameResult : Maybe Players
-                         }
+type GameState = Register { player : Player }
+                 | SelectGame { player : Player, games : List GameDescription, numPlayers : Int, numRobots : Int }
+                 | PlayGame { player : Player, board : GameBoard, possiblePlays : List Messages.Order }
+                 | EndOfGame { player : Player, board : GameBoard, gameResult : Maybe Players }
 
 type Msg = Output String
          | UseKey String
@@ -64,25 +61,27 @@ init : (Model, Cmd Msg)
 init =
     let randomClientKey = Random.map String.fromList (Random.list 16 <| Random.map Char.fromCode (Random.int 65 90))
     in ({ strings = [], showMessages =  True, errors = [], wsServerUrl = ""
-        , games = [], numPlayers = 1, numRobots= 5, board =  Dict.empty, possiblePlays = []
-        , player = player ""
-        , gameResult = Nothing }
+        , player = player "" }
        , Random.generate UseKey randomClientKey)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
-    case msg of
-        Output s        -> handleServerMessages model s
-        UseKey k        -> ({model | wsServerUrl = "ws://localhost:9090/" ++ k}, Cmd.none)
-        SetName s       -> ({model | player = player s},Cmd.none)
-        ShowMessages b  -> ({model | showMessages = b },Cmd.none)
-        SetNumPlayers s -> case String.toInt s of
-                               Ok i -> ({model | numPlayers = i},Cmd.none)
-                               _    -> (model,Cmd.none)
-        SetNumRobots s  -> case String.toInt s of
-                               Ok i -> ({model | numRobots = i},Cmd.none)
-                               _    -> (model,Cmd.none)
-        ListGames       -> (model, sendCommand model List)
+    case (msg,model.game) of
+        (Output s,_)    -> handleServerMessages model s
+        (UseKey k,_)    -> ({model | wsServerUrl = "ws://localhost:9090/" ++ k}, Cmd.none)
+        (SetName s, Register _)
+            -> ({model | game = Register { player = player s}},Cmd.none)
+        (ShowMessages b,_) -> ({model | showMessages = b },Cmd.none)
+        (SetNumPlayers s,SelectGame sg)
+            -> case String.toInt s of
+                   Ok i -> ({model | game = SelectGame {sg|numPlayers = i}},Cmd.none)
+                   _    -> (model,Cmd.none)
+        (SetNumRobots s,SelectGame sg)
+            -> case String.toInt s of
+                   Ok i -> ({model | game = SelectGame {sg|numRobots = i}},Cmd.none)
+                   _    -> (model,Cmd.none)
+        (ListGames, SelectGame sg)
+            -> (model, sendCommand model List)
         Play n          -> ({model| possiblePlays = []}, sendCommand model (Action { selectedPlay = n }))
         Join g          -> (model, sendCommand model (JoinGame { playerName = model.player.playerName, gameId =  g}))
         CreateGame      -> (model, sendCommand model (NewGame { numHumans = model.numPlayers, numRobots = model.numRobots}))
@@ -96,26 +95,59 @@ handleServerMessages : Model -> String -> (Model, Cmd Msg)
 handleServerMessages model s =
     case Json.decodeString decodeServerMessages s of
         Ok (R (GamesList l)) ->
-            ({model | games = l}, Cmd.none)
+            gamesList model l
         Ok (R (NewGameStarted _)) ->
             (model, sendCommand model List)
         Ok (R (PlayerRegistered n gid)) ->
             (model, sendCommand model List)
         Ok (R (GameStarts gid)) ->
-            (model, sendCommand model List)
+            gameStarts gid model
         Ok (R (ErrorMessage m)) ->
             ({model | errors = m :: model.errors}, Cmd.none)
         Ok (M (GameState gs)) ->
-            ({model | board = gs.gsBoard, possiblePlays = gs.gsPlayables, player = gs.gsPlayer}, Cmd.none)
+            gameState gs model
         Ok (M (Played pl)) ->
-            ({model | board = pl.gsBoard, possiblePlays = [], strings = showOrder pl.gsPlayed :: model.strings }, Cmd.none)
+            played pl model
         Ok (M (GameEnds g)) ->
-            ({model | board = g.gsEndGame.gameBoard
-             , possiblePlays = []
-             , gameResult = Just g.gsEndGame.players }, Cmd.none)
+            gameEnds g model
         _                ->
             ({model | strings = s :: model.strings}, Cmd.none)
-                
+
+gameStarts : GameId -> Model -> (Model,Cmd Msg)
+gameStarts gid model =
+    case model.game of
+        SelectGame {player} -> ({model|game = PlayGame {player = player, board = Dict.empty, possiblePlays = [] }}, sendCommand model List)
+        _                   -> (model, Cmd.none)
+
+gamesList : Model -> List GameDescription -> (Model, Cmd Msg)
+gamesList model listOfGames =
+    case model.game of
+        SelectGame s -> let newGame = SelectGame {s|games = listOfGames}
+                        in ({model| game = newGame }, Cmd.none)
+        _            -> (model, Cmd.none)
+
+gameState : { gsPlayer : Player
+            , gsBoard : GameBoard
+            , gsPlayables : List Messages.Order
+            } -> Model -> (Model, Cmd Msg)
+gameState {gsPlayer,gsBoard,gsPlayables} model =
+    case model.game of
+        PlayGame g -> let newGame = PlayGame { g | board = gsBoard, possiblePlays = gsPlayables, player = gsPlayer}
+                      in ({model | game = newGame}, Cmd.none)
+        _            -> (model, Cmd.none)
+
+played {gsBoard,gsPlayed} model =
+    case model.game of
+        PlayGame g -> let newGame = PlayGame { g | board = gsBoard, possiblePlays = []}
+                      in ({model | game = newGame, strings = showOrder gsPlayed :: model.strings }, Cmd.none)
+        _            -> (model, Cmd.none)
+
+gameEnds {gsEndGame} model =
+    case model.game of
+        PlayGame p -> ({model | game = EndOfGame { player = p.player
+                                                 , board = gsEndGame.gameBoard, gameResult = Just gsEndGame.players }}, Cmd.none)
+        _            -> (model, Cmd.none)
+
 sendCommand : Model -> Message -> Cmd Msg
 sendCommand model m = send model.wsServerUrl (Json.encode 0 <| encodeMessage m)
                 
@@ -123,7 +155,7 @@ view : Model -> Html Msg
 view model = div []
              [ displayErrors model
              , playerInput model
-             , gamesList model
+             , viewGamesList model
              , gameBoard model
              , gameResult model
              , messages model
@@ -242,8 +274,8 @@ displayCell ((r,c), cell) =
                   
                         
                       
-gamesList : Model -> Html Msg
-gamesList model = div [ id "games-list" ]
+viewGamesList : Model -> Html Msg
+viewGamesList model = div [ id "games-list" ]
                   [ button [onClick ListGames] [ text "List Games" ]
                   , createGame model
                   , ul [] (List.map displayPossibleGames model.games)
