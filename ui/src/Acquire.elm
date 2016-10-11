@@ -30,7 +30,7 @@ main =
     , subscriptions = subscriptions
     }
 
-type alias Model = { command : String, strings : List String, showMessages: Bool
+type alias Model = { strings : List String, showMessages: Bool
                    , games : List GameDescription
                    , numPlayers : Int, numRobots : Int
                    , board : GameBoard, possiblePlays : List Messages.Order, player : Player
@@ -58,7 +58,7 @@ subscriptions model =
 init : (Model, Cmd Msg)
 init =
     let randomClientKey = Random.map String.fromList (Random.list 16 <| Random.map Char.fromCode (Random.int 65 90))
-    in (Model "" [] True [] 1 5 Dict.empty [] (player "") [] Nothing ""
+    in (Model [] True [] 1 5 Dict.empty [] (player "") [] Nothing ""
        , Random.generate UseKey randomClientKey)
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -79,7 +79,7 @@ update msg model =
         Join g          -> (model, sendCommand model (JoinGame { playerName = model.player.playerName, gameId =  g}))
         CreateGame      -> (model, sendCommand model (NewGame { numHumans = model.numPlayers, numRobots = model.numRobots}))
         Reset           -> ({model
-                                | command = "", strings = []
+                                | strings = []
                                 , board = Dict.empty, possiblePlays = [], player = player (model.player.playerName)
                                 , errors = []
                                 , gameResult = Nothing}, Cmd.none)
@@ -106,7 +106,7 @@ handleServerMessages model s =
              , possiblePlays = []
              , gameResult = Just g.gsEndGame.players }, Cmd.none)
         _                ->
-            ({model | command = "", strings = s :: model.strings}, Cmd.none)
+            ({model | strings = s :: model.strings}, Cmd.none)
                 
 sendCommand : Model -> Message -> Cmd Msg
 sendCommand model m = send model.wsServerUrl (Json.encode 0 <| encodeMessage m)
