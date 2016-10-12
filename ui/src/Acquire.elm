@@ -39,11 +39,12 @@ type alias Model = { strings : List String, showMessages: Bool
 type GameState = Register { player : Player }
                  | SelectGame { player : Player, games : List GameDescription, numPlayers : Int, numRobots : Int }
                  | PlayGame { player : Player, board : GameBoard, possiblePlays : List Messages.Order }
-                 | EndOfGame { player : Player, board : GameBoard, gameResult : Maybe Players }
+                 | EndOfGame { player : Player, board : GameBoard, gameResult : Players }
 
 type Msg = Output String
          | UseKey String
          | SetName String
+         | RegisterPlayer
          | ListGames
          | Join GameId
          | CreateGame
@@ -61,7 +62,7 @@ init : (Model, Cmd Msg)
 init =
     let randomClientKey = Random.map String.fromList (Random.list 16 <| Random.map Char.fromCode (Random.int 65 90))
     in ({ strings = [], showMessages =  True, errors = [], wsServerUrl = ""
-        , player = player "" }
+        , game = Register { player = Player "" Human [] Dict.empty 0 }  }
        , Random.generate UseKey randomClientKey)
 
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -70,7 +71,9 @@ update msg model =
         (Output s,_)    -> handleServerMessages model s
         (UseKey k,_)    -> ({model | wsServerUrl = "ws://localhost:9090/" ++ k}, Cmd.none)
         (SetName s, Register _)
-            -> ({model | game = Register { player = player s}},Cmd.none)
+            -> ({model | game = Register { player = player s}}, Cmd.none)
+        (RegisterPlayer, Register r)
+            -> ({model | game = SelectGame { player = r.player, games = [], numPlayers = 1, numRobots = 5 }}, Cmd.none)
         (ShowMessages b,_) -> ({model | showMessages = b },Cmd.none)
         (SetNumPlayers s,SelectGame sg)
             -> case String.toInt s of
@@ -82,15 +85,18 @@ update msg model =
                    _    -> (model,Cmd.none)
         (ListGames, SelectGame sg)
             -> (model, sendCommand model List)
-        Play n          -> ({model| possiblePlays = []}, sendCommand model (Action { selectedPlay = n }))
-        Join g          -> (model, sendCommand model (JoinGame { playerName = model.player.playerName, gameId =  g}))
-        CreateGame      -> (model, sendCommand model (NewGame { numHumans = model.numPlayers, numRobots = model.numRobots}))
-        Reset           -> ({model
-                                | strings = []
-                                , board = Dict.empty, possiblePlays = [], player = player (model.player.playerName)
-                                , errors = []
-                                , gameResult = Nothing}, Cmd.none)
-
+        (Play n, PlayGame g)
+            -> ({model| game = PlayGame { g | possiblePlays = []}}, sendCommand model (Action { selectedPlay = n }))
+        (Join g, SelectGame sg)
+            -> (model, sendCommand model (JoinGame { playerName = sg.player.playerName, gameId = g}))
+        (CreateGame, SelectGame sg)
+            -> (model, sendCommand model (NewGame { numHumans = sg.numPlayers, numRobots = sg.numRobots}))
+        (Reset, EndOfGame eg)
+            -> ({model
+                    | strings = []
+                    , game = SelectGame { player = eg.player, games = [], numPlayers = 1, numRobots = 5 } }, Cmd.none)
+        _   -> (model, Cmd.none)
+               
 handleServerMessages : Model -> String -> (Model, Cmd Msg)
 handleServerMessages model s =
     case Json.decodeString decodeServerMessages s of
@@ -145,7 +151,7 @@ played {gsBoard,gsPlayed} model =
 gameEnds {gsEndGame} model =
     case model.game of
         PlayGame p -> ({model | game = EndOfGame { player = p.player
-                                                 , board = gsEndGame.gameBoard, gameResult = Just gsEndGame.players }}, Cmd.none)
+                                                 , board = gsEndGame.gameBoard, gameResult = gsEndGame.players }}, Cmd.none)
         _            -> (model, Cmd.none)
 
 sendCommand : Model -> Message -> Cmd Msg
@@ -157,7 +163,7 @@ view model = div []
              , playerInput model
              , viewGamesList model
              , gameBoard model
-             , gameResult model
+             , viewGameResult model
              , messages model
              ]
 
@@ -188,23 +194,31 @@ displayError error = div [ class "error" ]
                      [ text error ]
                          
 playerInput : Model -> Html Msg
-playerInput model = div [ id "player-id" ]
-                    [ span [] [text "Player Name" ]
-                    , input [ id "player-name", value model.player.playerName, onInput SetName ] []
-                    ]
+playerInput model =
+    case model.game of
+        Register p -> div [ id "player-id" ]
+                      [ span [] [text "Player Name" ]
+                      , input [ id "player-name", value p.player.playerName, onInput SetName ] []
+                      , button [ onClick RegisterPlayer ] [ text "Register" ]
+                      ]
+        _           -> text ""
 
 gameBoard : Model -> Html Msg
-gameBoard model = div [ id "game-board" ]
-                  [ div [ class "player" ]
-                    [ h1 [] [ text "Player's Hand" ]
-                    , span [ class "cash" ] [ text <| toString model.player.ownedCash ] 
-                    , div [ class "stock" ] <| List.map displayStock (Dict.toList model.player.ownedStock)
-                    ]
-                  , div [ class "plays" ]
-                    (h1 [] [ text "Possible Plays" ] :: (List.indexedMap displayPlay model.possiblePlays))
-                  , div [ class "board" ]
-                      (h1 [] [ text "Current Board" ] :: List.map displayCell (Dict.toList model.board))
-                  ]
+gameBoard model =
+    case model.game of
+        PlayGame g ->
+            div [ id "game-board" ]
+                [ div [ class "player" ]
+                      [ h1 [] [ text "Player's Hand" ]
+                      , span [ class "cash" ] [ text <| toString g.player.ownedCash ] 
+                      , div [ class "stock" ] <| List.map displayStock (Dict.toList g.player.ownedStock)
+                      ]
+                , div [ class "plays" ]
+                    (h1 [] [ text "Possible Plays" ] :: (List.indexedMap displayPlay g.possiblePlays))
+                , div [ class "board" ]
+                    (h1 [] [ text "Current Board" ] :: List.map displayCell (Dict.toList g.board))
+                ]
+        _          -> text ""
 
 displayStock : (ChainName, Int) -> Html Msg
 displayStock (cn, num) = span [ class cn ] [
@@ -275,18 +289,26 @@ displayCell ((r,c), cell) =
                         
                       
 viewGamesList : Model -> Html Msg
-viewGamesList model = div [ id "games-list" ]
-                  [ button [onClick ListGames] [ text "List Games" ]
-                  , createGame model
-                  , ul [] (List.map displayPossibleGames model.games)
-                  ]
+viewGamesList model =
+    case model.game of
+        SelectGame sg ->
+            div [ id "games-list" ]
+                [ button [onClick ListGames] [ text "List Games" ]
+                , createGame model
+                , ul [] (List.map displayPossibleGames sg.games)
+                ]
+        _             -> text ""
 
 createGame : Model -> Html Msg
-createGame model = div [ id "create-game" ]
-                   [ input [ id "num-players", type' "number", onInput SetNumPlayers, A.min "0", A.max "6", value (toString model.numPlayers) ] [] 
-                   , input [ id "num-robots", type' "number", onInput SetNumRobots, A.min "0", A.max "6", value (toString model.numRobots) ] [] 
-                   , button [ onClick CreateGame ] [ text "New Game" ]
-                   ]
+createGame model =
+    case model.game of
+        SelectGame sg ->
+            div [ id "create-game" ]
+                [ input [ id "num-players", type' "number", onInput SetNumPlayers, A.min "0", A.max "6", value (toString sg.numPlayers) ] [] 
+                , input [ id "num-robots", type' "number", onInput SetNumRobots, A.min "0", A.max "6", value (toString sg.numRobots) ] [] 
+                , button [ onClick CreateGame ] [ text "New Game" ]
+                ]
+        _             -> text ""
 
 displayPossibleGames : GameDescription -> Html Msg
 displayPossibleGames desc =
@@ -307,11 +329,11 @@ displayPossibleGames desc =
 displayPlayer : PlayerName -> Html Msg
 displayPlayer p = li [] [ text p ]
 
-gameResult : Model -> Html Msg
-gameResult model =
-    case model.gameResult of
-        Nothing -> div [ id "game-result-background", A.style [("display", "none")]] []
-        Just g  -> displayPlayerResults (Dict.values g)
+viewGameResult : Model -> Html Msg
+viewGameResult model =
+    case model.game of
+        EndOfGame g -> displayPlayerResults (Dict.values g.gameResult)
+        _           -> div [ id "game-result-background", A.style [("display", "none")]] []
 
 displayPlayerResults : List Player -> Html Msg
 displayPlayerResults players =
