@@ -58,7 +58,7 @@ playerInputHandler (SaveGame g) = liftIO $ do
   trace $ "saving game " ++ gameId g
   writeFile (".acquire." ++ gameId g ++ ".bak") (show g)
 playerInputHandler (PlayedOrder p g o) = do
-  trace $ "played order for " ++ playerName p
+  trace $ "played order " ++ show o ++ " for " ++ playerName p
   broadcast (\ n (Cnx _ hout) -> when (n /= "Console" &&
                                         n /= playerName p &&
                                         playerType ((players g) M.! n) /= Robot)
@@ -103,7 +103,9 @@ interpretCommand game@Game{..} = do
   prompt $ SaveGame game
   let player = currentPlayer game
   order <- prompt $ GetOrder player game
-  prompt $ PlayedOrder player game order
   if   order == Cancel
   then prompt (Quit game) >> return game
-  else interpretCommand $ play game order
+  else do
+    let game' = play game order
+    prompt $ PlayedOrder player game' order
+    interpretCommand game'

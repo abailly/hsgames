@@ -73,7 +73,8 @@ update msg model =
         (SetName s, Register _)
             -> ({model | game = Register { player = player s}}, Cmd.none)
         (RegisterPlayer, Register r)
-            -> ({model | game = SelectGame { player = r.player, games = [], numPlayers = 1, numRobots = 5 }}, Cmd.none)
+            -> ({model | game = SelectGame { player = r.player, games = [], numPlayers = 1, numRobots = 5 }}
+               , sendCommand model List)
         (ShowMessages b,_) -> ({model | showMessages = b },Cmd.none)
         (SetNumPlayers s,SelectGame sg)
             -> case String.toInt s of
@@ -149,10 +150,9 @@ played {gsBoard,gsPlayed} model =
         _            -> (model, Cmd.none)
 
 gameEnds {gsEndGame} model =
-    case model.game of
-        PlayGame p -> ({model | game = EndOfGame { player = p.player
-                                                 , board = gsEndGame.gameBoard, gameResult = gsEndGame.players }}, Cmd.none)
-        _            -> (model, Cmd.none)
+    Debug.log "game ends" <|
+        ({model | game = EndOfGame { player = p.player
+                                   , board = gsEndGame.gameBoard, gameResult = gsEndGame.players }}, Cmd.none)
 
 sendCommand : Model -> Message -> Cmd Msg
 sendCommand model m = send model.wsServerUrl (Json.encode 0 <| encodeMessage m)
@@ -293,8 +293,7 @@ viewGamesList model =
     case model.game of
         SelectGame sg ->
             div [ id "games-list" ]
-                [ button [onClick ListGames] [ text "List Games" ]
-                , createGame model
+                [ createGame model
                 , ul [] (List.map displayPossibleGames sg.games)
                 ]
         _             -> text ""

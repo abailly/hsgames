@@ -13,8 +13,8 @@ completeWithEndGame chains orders = if gameCanEnd chains
                                     else orders
 
 possiblePlay :: Game -> [ Order ]
-possiblePlay (Game _ _ _ [] _ (_, _))                             =  [Cancel]
 possiblePlay (Game _ _ _  _ _ (_, GameEnds))                      =  [Cancel]
+possiblePlay (Game _ _ _ [] _ (_, _))                             =  [EndGame]
 possiblePlay (Game _ _ plys _ chains (name, PlaceTile))           =  completeWithEndGame chains $ map (Place name) (tiles $ plys M.! name)
 possiblePlay (Game _ _ _ _ chains (name, ResolveMerger (TakeOver tile [c1,c2]) _))
                                                                     | length (chainTiles (chains M.! c1)) > length (chainTiles (chains M.! c2))

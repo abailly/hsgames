@@ -31,8 +31,8 @@ play game@Game{..} (ExchangeStock player buyer buyee qty) = exchangeStock game p
 play game@Game{..} (Fund player chain coord) = if   gameBoard `hasNeutralChainAt` coord
                                                then createNewChain game player chain coord
                                                else game
-play game (Place name coord)  = placeTile game name coord
-play game@Game{..} EndGame    = endGame game
+play game          (Place name coord)        = placeTile game name coord
+play game@Game{..} EndGame                   = endGame game
 
 
 -- |
