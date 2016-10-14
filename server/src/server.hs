@@ -93,7 +93,9 @@ handleClient channels p connection =
           Left e  -> sendTextData connection (encode $ CommandError e)
           Right c -> handleCommand c
         clientLoop
+
   in clientLoop `catch` (\ (e :: ConnectionException) -> trace $ "main client loop error: " ++ (show e))
+
   where
     -- I/O manager for WS connections
     -- We use a pair of `Chan` to read from and write to, encoding

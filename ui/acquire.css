@@ -15,6 +15,27 @@ body {
     width: 100%;
 }
 
+#game-title {
+    border-radius: 0.5em;
+    background-color: maroon;
+    padding: .3rem 1rem 1rem 1rem;
+    margin: .3rem;
+    text-align: center;
+    margin: 2rem 0;
+}
+
+#game-title h1 {
+    color: white;
+}
+
+#game-title h2 {
+    height: 2rem;
+    background-color: white;
+    color: maroon;
+    margin: 0 20%;
+}
+
+
 #player-id {
 	border-radius: 0.5em;
 	background-color: white;

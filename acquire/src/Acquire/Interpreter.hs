@@ -16,7 +16,6 @@ import           Data.Aeson           (ToJSON)
 import qualified Data.Map             as M
 import           GHC.Generics
 import           System.Directory
-import           System.Exit
 import           System.IO
 import           System.IO.Error
 import           System.Random
@@ -61,7 +60,7 @@ playerInputHandler (PlayedOrder p g o) = do
   trace $ "played order " ++ show o ++ " for " ++ playerName p
   broadcast (\ n (Cnx _ hout) -> when (n /= "Console" &&
                                         n /= playerName p &&
-                                        playerType ((players g) M.! n) /= Robot)
+                                        playerType (players g M.! n) /= Robot)
                                  (liftIO $ (hPutStrLn hout $ show $ Played (playerName p) (gameBoard g) o) >> hFlush hout))
 playerInputHandler (LoadGame gid) = do
   trace $ "loading game " ++ gid
@@ -72,9 +71,10 @@ playerInputHandler (LoadGame gid) = do
   else return Nothing
 playerInputHandler (Quit game) = do
   trace $ "quitting game " ++ gameId game
-  broadcast (\ n (Cnx _ hout) -> when (playerType ((players game) M.! n) /= Robot)
-                                 (liftIO $ (hPutStrLn hout $ show $ GameEnds game) >> hFlush hout))
-  liftIO exitSuccess
+  broadcast (\ n (Cnx _ hout) -> (liftIO $
+                                   trace ("ending game for player " ++ n) >>
+                                   (hPutStrLn hout $ show $ GameEnds game) >>
+                                   hFlush hout))
 
 broadcast :: (Monad m) => (PlayerName -> Connection -> m ()) -> ReaderT Connections m ()
 broadcast f = ask >>= mapM_ (lift . uncurry f) . M.assocs

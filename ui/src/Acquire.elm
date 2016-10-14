@@ -7,7 +7,6 @@ module Acquire exposing (main)
 import Char
 import Random
 import Platform.Sub as Sub
-import Debug
 import String
 import Json.Decode as Json
 import Json.Encode as Json
@@ -55,7 +54,6 @@ type Msg = Output String
          | Reset
 
 subscriptions model =
-    Debug.log "subscribing to WS "<|
         Sub.batch [ listen model.wsServerUrl Output ]
            
 init : (Model, Cmd Msg)
@@ -95,7 +93,8 @@ update msg model =
         (Reset, EndOfGame eg)
             -> ({model
                     | strings = []
-                    , game = SelectGame { player = eg.player, games = [], numPlayers = 1, numRobots = 5 } }, Cmd.none)
+                    , game = SelectGame { player = eg.player, games = [], numPlayers = 1, numRobots = 5 } }
+               , sendCommand model List)
         _   -> (model, Cmd.none)
                
 handleServerMessages : Model -> String -> (Model, Cmd Msg)
@@ -150,16 +149,18 @@ played {gsBoard,gsPlayed} model =
         _            -> (model, Cmd.none)
 
 gameEnds {gsEndGame} model =
-    Debug.log "game ends" <|
-        ({model | game = EndOfGame { player = p.player
-                                   , board = gsEndGame.gameBoard, gameResult = gsEndGame.players }}, Cmd.none)
+    case model.game of
+        PlayGame g -> ({model | game = EndOfGame { player = g.player
+                                                 , board = gsEndGame.gameBoard, gameResult = gsEndGame.players }}, Cmd.none)
+        _          -> (model, Cmd.none)
 
 sendCommand : Model -> Message -> Cmd Msg
 sendCommand model m = send model.wsServerUrl (Json.encode 0 <| encodeMessage m)
                 
 view : Model -> Html Msg
 view model = div []
-             [ displayErrors model
+             [ viewTitle model
+             , displayErrors model
              , playerInput model
              , viewGamesList model
              , gameBoard model
@@ -167,6 +168,17 @@ view model = div []
              , messages model
              ]
 
+viewTitle : Model -> Html Msg
+viewTitle model =
+    div [ id "game-title" ]
+        [ h1 [] [ text "Acquire"]
+        , case model.game of
+              Register { player }   -> h2 [] [ text player.playerName ]
+              SelectGame { player } -> h2 [] [ text player.playerName ]
+              PlayGame { player }   -> h2 [] [ text player.playerName ]
+              EndOfGame { player }  -> h2 [] [ text player.playerName ]
+        ]
+        
 messages: Model -> Html Msg
 messages model =
     let toggle = if model.showMessages
