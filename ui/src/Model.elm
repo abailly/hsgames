@@ -2,9 +2,16 @@ module Model exposing (..)
 
 import Messages exposing (..)
 
+type Domain = Domain String String
+
+(<:>) = Domain
+
+asString : Domain -> String
+asString (Domain h p) = h ++ ":" ++ p
+                        
 type alias Model = { strings : List String, showMessages: Bool
                    , errors : List String
-                   , wsServerUrl : String
+                   , domain : Domain, wsServerUrl : String
                    , game : GameState
                    }
     

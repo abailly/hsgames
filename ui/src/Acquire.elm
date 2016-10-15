@@ -18,9 +18,9 @@ import View exposing (view)
 import Dict
 
 {-| Main -}
-main : Program Never
+main : Program (String, String)
 main =
-  App.program
+  App.programWithFlags
     { init          = init
     , view          = view
     , update        = update
@@ -30,10 +30,10 @@ main =
 subscriptions model =
         Sub.batch [ listen model.wsServerUrl Output ]
            
-init : (Model, Cmd Msg)
-init =
+init : (String , String) -> (Model, Cmd Msg)
+init (host,port') =
     let randomClientKey = Random.map String.fromList (Random.list 16 <| Random.map Char.fromCode (Random.int 65 90))
-    in ({ strings = [], showMessages =  True, errors = [], wsServerUrl = ""
+    in ({ strings = [], showMessages =  True, errors = [], domain = host <:> port', wsServerUrl = ""
         , game = Register { player = Player "" Human [] Dict.empty 0 } }
        , Random.generate UseKey randomClientKey)
 
@@ -41,7 +41,8 @@ update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case (msg,model.game) of
         (Output s,_)    -> handleMessages model s
-        (UseKey k,_)    -> ({model | wsServerUrl = "ws://localhost:9090/" ++ k}, Cmd.none)
+        (UseKey k,_)    -> let url = "ws://" ++ asString model.domain ++ "/" ++ k
+                           in Debug.log url <| ({model | wsServerUrl = url}, Cmd.none)
         (SetName s, Register _)
             -> ({model | game = Register { player = player s}}, Cmd.none)
         (RegisterPlayer, Register r)

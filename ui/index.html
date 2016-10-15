@@ -11,6 +11,6 @@
     <script src="acquire.js"></script>
     <script>
       var node = document.getElementById('acquire');
-      var app = Elm.Acquire.embed(node);
+      var app = Elm.Acquire.embed(node, [window.location.hostname, window.location.port]);
     </script>
 </body></html>

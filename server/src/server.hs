@@ -42,6 +42,7 @@ import           Network.WebSockets             (Connection,
                                                  receiveDataMessage,
                                                  sendBinaryData, sendClose,
                                                  sendTextData)
+import           System.Environment
 
 newtype CommandError = CommandError { reason :: String }
                      deriving (Generic)
@@ -165,9 +166,11 @@ handleClient channels p connection =
 
 main :: IO ()
 main = do
+  [port] <- getArgs
   (s,_) <- runServer 0
+  socketPort s >>= trace . (\ p -> "started server on port " ++ show p)
   cnxs <- newTVarIO M.empty
-  void $ run 9090 (WaiWS.websocketsOr defaultConnectionOptions (handleWS cnxs s) serveUI)
+  void $ run (read port) (WaiWS.websocketsOr defaultConnectionOptions (handleWS cnxs s) serveUI)
     where
       serveUI :: Application
       serveUI = staticPolicy (noDots >-> addBase "ui") $ defaultResponse
