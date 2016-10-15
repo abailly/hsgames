@@ -82,7 +82,7 @@ gameBoard model =
                 , div [ class "plays" ]
                     (h1 [] [ text "Possible Plays" ] :: (List.indexedMap displayPlay g.possiblePlays))
                 , div [ class "board" ]
-                    (h1 [] [ text "Current Board" ] :: List.map displayCell (Dict.toList g.board))
+                    (h1 [] [ text "Current Board" ] :: List.map (displayCell g.highlightedCell) (Dict.toList g.board))
                 ]
         _          -> text ""
 
@@ -94,7 +94,9 @@ displayStock (cn, num) = span [ class cn ] [
 displayPlay : Int -> Messages.Order -> Html Msg
 displayPlay n order =
     case order of
-        Place _ (r,c) -> span [ class "cell empty", onClick <| Play (n + 1) ] [
+        Place _ (r,c) -> span [ class "cell empty", onClick <| Play (n + 1)
+                              , onMouseEnter (HighlightCell (r,c))
+                              , onMouseLeave UnhighlightCell ] [
                           span [ class "cell-content"]
                               [ span [] [ text <| String.fromChar r ++ "-" ++ toString c ]]
                          ]
@@ -135,14 +137,19 @@ displayPlay n order =
                               [ span [class "fa fa-lg fa-backward"] []]
                          ]
                              
-displayCell : (Tile,Cell) -> Html Msg
-displayCell ((r,c), cell) =
-    case cell.cellContent of
-        Empty   -> span [ class "cell empty" ] [
+displayCell : Maybe Tile -> (Tile,Cell) -> Html Msg
+displayCell highlighted ((r,c), cell) =
+    let hlClass = case highlighted of
+                      Just (r', c') -> if r == r' && c == c'
+                                       then " highlighted"
+                                       else " empty"
+                      Nothing       -> " empty"
+    in case cell.cellContent of
+        Empty   -> span [ class <| "cell"  ++ hlClass] [
                     span [ class "cell-content"]
                         [ span [] [ text <| String.fromChar r ++ "-" ++ toString c ]]
                    ]
-        Neutral _ -> span [ class "cell neutral" ] [
+        Neutral _ -> span [ class <| "cell neutral"] [
                     span [ class "cell-content"]
                         [ span [] [ text <| String.fromChar r ++ "-" ++ toString c ]]
                    ]
@@ -150,7 +157,7 @@ displayCell ((r,c), cell) =
                     span [ class "cell-content"]
                         [ span [] [ text <| String.fromChar r ++ "-" ++ toString c ]]
                    ]
-        _       -> text "" -- TODO
+        _       -> text ""
                   
                         
                       

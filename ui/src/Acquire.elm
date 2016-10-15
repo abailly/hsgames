@@ -69,6 +69,10 @@ update msg model =
                     | strings = []
                     , game = SelectGame { player = eg.player, games = [], numPlayers = 1, numRobots = 5 } }
                , sendCommand model List)
+        (HighlightCell tile, PlayGame g)
+            -> ({model| game = PlayGame { g | highlightedCell = Just tile }}, Cmd.none)
+        (UnhighlightCell, PlayGame g)
+            -> ({model| game = PlayGame { g | highlightedCell = Nothing }}, Cmd.none)
         _   -> (model, Cmd.none)
                
 handleMessages : Model -> String -> (Model, Cmd Msg)
@@ -96,7 +100,8 @@ handleMessages model s =
 gameStarts : GameId -> Model -> (Model,Cmd Msg)
 gameStarts gid model =
     case model.game of
-        SelectGame {player} -> ({model|game = PlayGame {player = player, gameId = gid, board = Dict.empty, possiblePlays = [] }}, sendCommand model List)
+        SelectGame {player} -> ({model|game = PlayGame {player = player, gameId = gid, board = Dict.empty
+                                                       , possiblePlays = [], highlightedCell = Nothing }}, sendCommand model List)
         _                   -> (model, Cmd.none)
 
 gamesList : Model -> List GameDescription -> (Model, Cmd Msg)

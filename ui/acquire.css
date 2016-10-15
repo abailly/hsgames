@@ -151,6 +151,11 @@ span.cell:after {
     color: #444;
  }
 
+.highlighted {
+    background-color: yellow;
+    color: #444;
+ }
+
 .neutral {
     background-color: #444;
     color: #eee;
