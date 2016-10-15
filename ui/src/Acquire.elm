@@ -46,8 +46,10 @@ update msg model =
         (SetName s, Register _)
             -> ({model | game = Register { player = player s}}, Cmd.none)
         (RegisterPlayer, Register r)
-            -> ({model | game = SelectGame { player = r.player, games = [], numPlayers = 1, numRobots = 5 }}
-               , sendCommand model List)
+            -> case String.trim r.player.playerName of
+                   "" -> (model, Cmd.none)
+                   _  -> ({model | game = SelectGame { player = r.player, games = [], numPlayers = 1, numRobots = 5 }}
+                         , sendCommand model List)
         (ShowMessages b,_) -> ({model | showMessages = b },Cmd.none)
         (SetNumPlayers s,SelectGame sg)
             -> case String.toInt s of
