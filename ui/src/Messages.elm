@@ -5,14 +5,14 @@ import Json.Encode as Enc
 import Dict
 import String
 
-type Message = List
+type Request = List
              | NewGame { numHumans : Int, numRobots : Int }
              | JoinGame { playerName : String, gameId : String }
              | Action  { selectedPlay : Int }
              | Bye
 
-encodeMessage : Message -> Json.Value
-encodeMessage msg =
+encodeRequest : Request -> Json.Value
+encodeRequest msg =
     case msg of
         List       -> Enc.object [("tag", Enc.string "List"), ("contents",Enc.list [])]
         Action n   -> Enc.object [("tag", Enc.string "Action")
@@ -289,3 +289,28 @@ makeOrder tag =
         "EndGame"       -> Json.succeed EndGame
         "Cancel"        -> Json.succeed Cancel
         other           -> Json.fail <| other ++ " is not a valid order"
+
+type alias Model = { strings : List String, showMessages: Bool
+                   , errors : List String
+                   , wsServerUrl : String
+                   , game : GameState
+                   }
+    
+type GameState = Register   { player : Player }
+               | SelectGame { player : Player, games : List GameDescription, numPlayers : Int, numRobots : Int }
+               | PlayGame   { player : Player, board : GameBoard, possiblePlays : List Order }
+               | EndOfGame  { player : Player, board : GameBoard, gameResult : Players }
+
+type Msg = Output String
+         | UseKey String
+         | SetName String
+         | RegisterPlayer
+         | ListGames
+         | Join GameId
+         | CreateGame
+         | Play Int
+         | SetNumPlayers String
+         | SetNumRobots String
+         | ShowMessages Bool
+         | Reset
+                           
