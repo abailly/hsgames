@@ -29,8 +29,8 @@ viewTitle model =
         , case model.game of
               Register { player }   -> h2 [] [ text player.playerName ]
               SelectGame { player } -> h2 [] [ text player.playerName ]
-              PlayGame { player }   -> h2 [] [ text player.playerName ]
-              EndOfGame { player }  -> h2 [] [ text player.playerName ]
+              PlayGame { player, gameId }   -> h2 [] [ text player.playerName, text "@" , text gameId ]
+              EndOfGame { player, gameId }  -> h2 [] [ text player.playerName, text "@" , text gameId ]
         ]
         
 messages: Model -> Html Msg
@@ -104,7 +104,7 @@ displayPlay n order =
                          ]
         SellStock _ cn num price -> span [ class <| "cell chain " ++ cn, onClick <| Play (n + 1) ] [
                                      span [ class "cell-content"]
-                                         [ span [class "fa fa-lg fa-exchange"] []]
+                                         [ span [class "fa fa-lg fa-usd"] []]
                                     ]
         ExchangeStock _ cf ct count -> span [ class <| "cell exchange", onClick <| Play (n + 1) ] [
                                      span [ class "cell-content"]

@@ -96,7 +96,7 @@ handleMessages model s =
 gameStarts : GameId -> Model -> (Model,Cmd Msg)
 gameStarts gid model =
     case model.game of
-        SelectGame {player} -> ({model|game = PlayGame {player = player, board = Dict.empty, possiblePlays = [] }}, sendCommand model List)
+        SelectGame {player} -> ({model|game = PlayGame {player = player, gameId = gid, board = Dict.empty, possiblePlays = [] }}, sendCommand model List)
         _                   -> (model, Cmd.none)
 
 gamesList : Model -> List GameDescription -> (Model, Cmd Msg)
@@ -124,6 +124,7 @@ gameEnds : Game -> Model -> (Model, Cmd Msg)
 gameEnds {players, gameBoard} model =
     case model.game of
         PlayGame g -> ({model | game = EndOfGame { player = g.player
+                                                 , gameId = g.gameId
                                                  , board = gameBoard, gameResult = players }}, Cmd.none)
         _          -> (model, Cmd.none)
 

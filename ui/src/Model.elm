@@ -10,8 +10,8 @@ type alias Model = { strings : List String, showMessages: Bool
     
 type GameState = Register   { player : Player }
                | SelectGame { player : Player, games : List GameDescription, numPlayers : Int, numRobots : Int }
-               | PlayGame   { player : Player, board : GameBoard, possiblePlays : List Messages.Order }
-               | EndOfGame  { player : Player, board : GameBoard, gameResult : Players }
+               | PlayGame   { player : Player, gameId : GameId, board : GameBoard, possiblePlays : List Messages.Order }
+               | EndOfGame  { player : Player, gameId : GameId, board : GameBoard, gameResult : Players }
 
 type Msg = Output String
          | UseKey String
