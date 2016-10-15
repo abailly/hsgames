@@ -5,6 +5,7 @@ import Json.Encode as Enc
 import Dict
 import String
 
+-- | Requests from client to server
 type Request = List
              | NewGame { numHumans : Int, numRobots : Int }
              | JoinGame { playerName : String, gameId : String }
@@ -31,24 +32,30 @@ type alias PlayerName = String
 
 -- Results & Messages from Server
 
-type ServerMessages = R CommandResult
-                    | M PlayMessage
-
-decodeServerMessages : Json.Decoder ServerMessages
-decodeServerMessages = Json.oneOf [ Json.map R decodeResult
-                                  , Json.map M decodePlayMessage
+type Messages = PlayerRegistered PlayerName GameId
+                    | NewGameStarted GameId
+                    | GameStarts GameId
+                    | GamesList (List GameDescription)
+                    | ErrorMessage String
+                    | GameState { gsPlayer : Player
+                                , gsBoard : GameBoard
+                                , gsPlayables : List Order
+                                }
+                    | Played    { gsPlayerName : PlayerName
+                                , gsBoard :  GameBoard
+                                , gsPlayed : Order
+                                }
+                    | GameEnds  { gsEndGame : Game }
+                      
+decodeMessages : Json.Decoder Messages
+decodeMessages = Json.oneOf [ decodeResult
+                                  , decodePlayMessage
                                   ]
 
-type CommandResult = PlayerRegistered PlayerName GameId
-                   | NewGameStarted GameId
-                   | GameStarts GameId
-                   | GamesList (List GameDescription)
-                   | ErrorMessage String
-
-decodeResult : Json.Decoder CommandResult
+decodeResult : Json.Decoder Messages
 decodeResult = ("tag" := Json.string) `andThen` makeResult
 
-makeResult : String -> Json.Decoder CommandResult
+makeResult : String -> Json.Decoder Messages
 makeResult tag =
     case tag of
         "PlayerRegistered" -> ("contents" := Json.tuple2 PlayerRegistered Json.string Json.string)
@@ -76,20 +83,11 @@ decodeGameDescription = Json.object5 GameDescription
                             
 
 -- Game Play
-type PlayMessage = GameState { gsPlayer : Player
-                             , gsBoard : GameBoard
-                             , gsPlayables : List Order
-                             }
-                 | Played    { gsPlayerName : PlayerName
-                             , gsBoard :  GameBoard
-                             , gsPlayed : Order
-                             }
-                 | GameEnds  { gsEndGame : Game }
 
-decodePlayMessage : Json.Decoder PlayMessage
+decodePlayMessage : Json.Decoder Messages
 decodePlayMessage = ("tag" := Json.string) `andThen` makePlayMessage
 
-makePlayMessage : String -> Json.Decoder PlayMessage
+makePlayMessage : String -> Json.Decoder Messages
 makePlayMessage tag =
     case tag of 
         "GameState" -> Json.object3 (\ p b t -> GameState { gsPlayer = p, gsBoard = b, gsPlayables = t })

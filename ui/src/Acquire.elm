@@ -40,7 +40,7 @@ init =
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case (msg,model.game) of
-        (Output s,_)    -> handleServerMessages model s
+        (Output s,_)    -> handleMessages model s
         (UseKey k,_)    -> ({model | wsServerUrl = "ws://localhost:9090/" ++ k}, Cmd.none)
         (SetName s, Register _)
             -> ({model | game = Register { player = player s}}, Cmd.none)
@@ -71,24 +71,24 @@ update msg model =
                , sendCommand model List)
         _   -> (model, Cmd.none)
                
-handleServerMessages : Model -> String -> (Model, Cmd Msg)
-handleServerMessages model s =
-    case Json.decodeString decodeServerMessages s of
-        Ok (R (GamesList l)) ->
+handleMessages : Model -> String -> (Model, Cmd Msg)
+handleMessages model s =
+    case Json.decodeString decodeMessages s of
+        Ok (GamesList l) ->
             gamesList model l
-        Ok (R (NewGameStarted _)) ->
+        Ok (NewGameStarted _) ->
             (model, sendCommand model List)
-        Ok (R (PlayerRegistered n gid)) ->
+        Ok (PlayerRegistered n gid) ->
             (model, sendCommand model List)
-        Ok (R (GameStarts gid)) ->
+        Ok (GameStarts gid) ->
             gameStarts gid model
-        Ok (R (ErrorMessage m)) ->
+        Ok (ErrorMessage m) ->
             ({model | errors = m :: model.errors}, Cmd.none)
-        Ok (M (GameState gs)) ->
+        Ok (GameState gs) ->
             gameState gs model
-        Ok (M (Played pl)) ->
+        Ok (Played pl) ->
             played pl model
-        Ok (M (GameEnds g)) ->
+        Ok (GameEnds g) ->
             gameEnds g model
         _                ->
             ({model | strings = s :: model.strings}, Cmd.none)
