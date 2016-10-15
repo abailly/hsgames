@@ -8,7 +8,7 @@ import           Acquire.Net                    (InOut (..), listGames,
                                                  runServer)
 import           Acquire.Trace
 import           Control.Concurrent             (forkIO)
-import           Control.Concurrent.Async       (async)
+import           Control.Concurrent.Async       (Async, async, cancel)
 import           Control.Concurrent.Chan.Unagi  (InChan, OutChan, newChan,
                                                  readChan, writeChan)
 import           Control.Concurrent.STM
@@ -51,6 +51,8 @@ instance ToJSON CommandError
 data ClientConnection = ClientConnection { inChan           :: InChan String
                                          , outChan          :: OutChan String
                                          , clientConnection :: Connection
+                                         , serverPump       :: Maybe (Async ())
+                                         , clientPump       :: Maybe (Async ())
                                          }
 
 handleWS :: TVar (M.Map SBS.ByteString (IORef ClientConnection)) -> Socket -> PendingConnection -> IO ()
@@ -73,7 +75,7 @@ handleWS cnxs serverSocket pending = do
         case maybeRef of
           Nothing -> do
             (i,o) <- newChan
-            let cc = ClientConnection i o connection
+            let cc = ClientConnection i o connection Nothing Nothing
             ref   <- newIORef cc
             atomically $ modifyTVar cnxs (M.insert key ref)
             trace $ "registering new channels with key " ++ show key
@@ -94,7 +96,9 @@ handleClient channels p connection =
           Right c -> handleCommand c
         clientLoop
 
-  in clientLoop `catch` (\ (e :: ConnectionException) -> trace $ "main client loop error: " ++ (show e))
+  in clientLoop `catch` (\ (e :: ConnectionException) -> do
+                            trace $ "client error: " ++ (show e) ++", closing everything"
+                            cleanup)
 
   where
     -- I/O manager for WS connections
@@ -119,12 +123,12 @@ handleClient channels p connection =
       --
       -- There should be a way to greatly simplify this code using directly pure version of the game
       -- instead of wrapping the CLI server.
-      void $ async $ do
+      toServer <- async $ do
         trace $ "starting game loop for player " ++ playerName ++ " @" ++ gameId
         runPlayer "localhost" p playerName gameId (io (w,r'))
         trace $ "stopping game loop for player " ++ playerName ++ " @" ++ gameId
 
-      void $ async $ do
+      toClient <- async $ do
         trace $ "starting response sender for player " ++ playerName ++ " @" ++ gameId
         forever $ do
           v <- readChan r
@@ -133,8 +137,17 @@ handleClient channels p connection =
             `catch` (\ (e :: ConnectionException) -> trace $ "response sender error: " ++ (show e))
 
       -- we set the write channel to the other end of the pipe used by player loop for
-      -- reading
-      modifyIORef channels ( \ c -> c { inChan = w'})
+      -- reading. This channel will be used by subsequent commands sent by client and
+      -- "pumped" to server
+      modifyIORef channels ( \ c -> c { inChan = w'
+                                      , serverPump = Just toServer, clientPump = Just toClient })
+
+    cleanup = do
+      ClientConnection w r cnx sp cp <- readIORef channels
+      sendClose cnx ("Bye" :: Text)
+      maybe (return ()) cancel sp
+      maybe (return ()) cancel cp
+      modifyIORef channels ( \ c -> c { serverPump = Nothing, clientPump = Nothing })
 
     handleCommand List = do
       r <- listGames "localhost" p
