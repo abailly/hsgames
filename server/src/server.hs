@@ -159,10 +159,10 @@ handleClient channels p connection =
     handleCommand (JoinGame playerName gameId) =
       startGame p playerName gameId
     handleCommand (Action n) = do
-      ClientConnection w _ _ <- readIORef channels
+      w <- inChan <$> readIORef channels
       writeChan w (show n)
       trace $ "action " ++ show n
-    handleCommand Bye = sendClose connection ("Bye!" :: Text)
+    handleCommand Bye = sendClose connection ("Bye" :: Text)
 
 main :: IO ()
 main = do

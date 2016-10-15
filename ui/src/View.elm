@@ -136,14 +136,13 @@ displayPlay n order =
                           span [ class "cell-content"]
                               [ span [class "fa fa-lg fa-backward"] []]
                          ]
-                             
+
+                        
 displayCell : Maybe Tile -> (Tile,Cell) -> Html Msg
-displayCell highlighted ((r,c), cell) =
-    let hlClass = case highlighted of
-                      Just (r', c') -> if r == r' && c == c'
-                                       then " highlighted"
-                                       else " empty"
-                      Nothing       -> " empty"
+displayCell highlighted ((r,c) as tile, cell) =
+    let hlClass = maybe " empty" (\ hlTile -> if hlTile == tile
+                                             then " highlighted"
+                                             else " empty") highlighted
     in case cell.cellContent of
         Empty   -> span [ class <| "cell"  ++ hlClass] [
                     span [ class "cell-content"]
@@ -223,7 +222,9 @@ displayPlayerResult player =
     [ span [ class "name" ] [ text player.playerName ]
     , span [ class "cash" ] [ text <| toString player.ownedCash ]
     ]
-    
+
+-- * Utilities
+
 onEnter : msg -> Attribute msg
 onEnter msg =
   on "keydown" (Json.map (always msg) (Json.customDecoder keyCode is13))
@@ -239,3 +240,11 @@ is13 code =
 showMessage : String -> Html Msg
 showMessage s = li [ class "message" ] [ text s ]
 
+-- | Optional mapping of some `Maybe a` value
+-- This is from Haskell's Data.Maybe package. Given a `Maybe a`, either returns
+-- some `defaultValue` if `optional` is `Nothing` or applies given `transform` function
+-- on the content of `Just a` value.
+maybe : b -> (a -> b) -> Maybe a -> b
+maybe defaultVal transform optional =
+    Maybe.withDefault defaultVal <|
+    Maybe.map transform optional
