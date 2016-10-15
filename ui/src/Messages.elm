@@ -33,37 +33,46 @@ type alias PlayerName = String
 -- Results & Messages from Server
 
 type Messages = PlayerRegistered PlayerName GameId
-                    | NewGameStarted GameId
-                    | GameStarts GameId
-                    | GamesList (List GameDescription)
-                    | ErrorMessage String
-                    | GameState { gsPlayer : Player
-                                , gsBoard : GameBoard
-                                , gsPlayables : List Order
-                                }
-                    | Played    { gsPlayerName : PlayerName
-                                , gsBoard :  GameBoard
-                                , gsPlayed : Order
-                                }
-                    | GameEnds  { gsEndGame : Game }
-                      
+              | NewGameStarted GameId
+              | GameStarts GameId
+              | GamesList (List GameDescription)
+              | ErrorMessage String
+              | GameUpdated GameUpdate
+              | Played PlayerPlay   
+              | GameEnds Game
+
+type alias GameUpdate = { gsPlayer : Player
+                         , gsBoard : GameBoard
+                         , gsPlayables : List Order
+                         }
+
+type alias PlayerPlay = { gsPlayerName : PlayerName
+                        , gsBoard :  GameBoard
+                        , gsPlayed : Order
+                        }
+    
 decodeMessages : Json.Decoder Messages
-decodeMessages = Json.oneOf [ decodeResult
-                                  , decodePlayMessage
-                                  ]
+decodeMessages = ("tag" := Json.string) `andThen` makeMessages
 
-decodeResult : Json.Decoder Messages
-decodeResult = ("tag" := Json.string) `andThen` makeResult
-
-makeResult : String -> Json.Decoder Messages
-makeResult tag =
+makeMessages : String -> Json.Decoder Messages
+makeMessages tag =
     case tag of
         "PlayerRegistered" -> ("contents" := Json.tuple2 PlayerRegistered Json.string Json.string)
         "NewGameStarted"   -> ("contents" := Json.map NewGameStarted Json.string)
         "GameStarts"       -> ("contents" := Json.map GameStarts Json.string)
         "GamesList"        -> ("contents" := Json.map GamesList (Json.list decodeGameDescription))
         "ErrorMessage"     -> ("contents" := Json.map ErrorMessage Json.string)
-        other              -> Json.fail <| "tag " ++ other ++ " is not a known result"
+        "GameState"        -> Json.map GameUpdated <| Json.object3 GameUpdate
+                              ("gsPlayer" := decodePlayer)
+                              ("gsBoard" := decodeBoard)
+                              ("gsPlayables" := Json.list decodeOrder)
+        "Played"           -> Json.map Played <| Json.object3 PlayerPlay
+                              ("gsPlayerName" := Json.string)
+                              ("gsBoard" := decodeBoard)
+                              ("gsPlayed" := decodeOrder)
+        "GameEnds"         -> Json.object1 GameEnds
+                              ("gsEndGame" := decodeGame)
+        other              -> Json.fail <| "tag " ++ other ++ " is not a known server message tag"
                               
 type alias GameDescription = { gameDescId           : GameId
                              , descNumberOfHumans   : Int
@@ -71,7 +80,6 @@ type alias GameDescription = { gameDescId           : GameId
                              , descRegisteredHumans : List PlayerName
                              , descLive             : Bool
                              }
-              
 
 decodeGameDescription : Json.Decoder GameDescription
 decodeGameDescription = Json.object5 GameDescription
@@ -83,25 +91,6 @@ decodeGameDescription = Json.object5 GameDescription
                             
 
 -- Game Play
-
-decodePlayMessage : Json.Decoder Messages
-decodePlayMessage = ("tag" := Json.string) `andThen` makePlayMessage
-
-makePlayMessage : String -> Json.Decoder Messages
-makePlayMessage tag =
-    case tag of 
-        "GameState" -> Json.object3 (\ p b t -> GameState { gsPlayer = p, gsBoard = b, gsPlayables = t })
-                       ("gsPlayer" := decodePlayer)
-                       ("gsBoard" := decodeBoard)
-                       ("gsPlayables" := Json.list decodeOrder)
-        "Played"   -> Json.object3 (\ p b o -> Played { gsPlayerName = p, gsBoard = b, gsPlayed = o })
-                       ("gsPlayerName" := Json.string)
-                       ("gsBoard" := decodeBoard)
-                       ("gsPlayed" := decodeOrder)
-        "GameEnds"   -> Json.object1 (\ g -> GameEnds { gsEndGame = g })
-                       ("gsEndGame" := decodeGame)
-        other       -> Json.fail <| other ++ " is not a known play message"
-            
 type alias Game = { gameId       : GameId
                   , gameBoard    : GameBoard
                   , players      : Players

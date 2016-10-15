@@ -84,7 +84,7 @@ handleMessages model s =
             gameStarts gid model
         Ok (ErrorMessage m) ->
             ({model | errors = m :: model.errors}, Cmd.none)
-        Ok (GameState gs) ->
+        Ok (GameUpdated gs) ->
             gameState gs model
         Ok (Played pl) ->
             played pl model
@@ -106,26 +106,25 @@ gamesList model listOfGames =
                         in ({model| game = newGame }, Cmd.none)
         _            -> (model, Cmd.none)
 
-gameState : { gsPlayer : Player
-            , gsBoard : GameBoard
-            , gsPlayables : List Messages.Order
-            } -> Model -> (Model, Cmd Msg)
+gameState : GameUpdate -> Model -> (Model, Cmd Msg)
 gameState {gsPlayer,gsBoard,gsPlayables} model =
     case model.game of
         PlayGame g -> let newGame = PlayGame { g | board = gsBoard, possiblePlays = gsPlayables, player = gsPlayer}
                       in ({model | game = newGame}, Cmd.none)
         _            -> (model, Cmd.none)
 
+played : PlayerPlay -> Model -> (Model, Cmd Msg)
 played {gsBoard,gsPlayed} model =
     case model.game of
         PlayGame g -> let newGame = PlayGame { g | board = gsBoard, possiblePlays = []}
                       in ({model | game = newGame, strings = showOrder gsPlayed :: model.strings }, Cmd.none)
         _            -> (model, Cmd.none)
 
-gameEnds {gsEndGame} model =
+gameEnds : Game -> Model -> (Model, Cmd Msg)
+gameEnds {players, gameBoard} model =
     case model.game of
         PlayGame g -> ({model | game = EndOfGame { player = g.player
-                                                 , board = gsEndGame.gameBoard, gameResult = gsEndGame.players }}, Cmd.none)
+                                                 , board = gameBoard, gameResult = players }}, Cmd.none)
         _          -> (model, Cmd.none)
 
 sendCommand : Model -> Request -> Cmd Msg
