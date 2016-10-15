@@ -8,6 +8,7 @@ import Html.Attributes exposing (href, src, placeholder, min, max, value, id, cl
 import Html.Attributes as A
 import Html.Events exposing (..)
 import Messages exposing (..)
+import Model exposing (..)
 import String
 
 view : Model -> Html Msg

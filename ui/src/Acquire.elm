@@ -13,8 +13,9 @@ import Json.Encode as Json
 import Html.App as App
 import WebSocket exposing (..)
 import Messages exposing (..)
-import Dict
+import Model exposing (..)
 import View exposing (view)
+import Dict
 
 {-| Main -}
 main : Program Never
