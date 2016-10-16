@@ -57,7 +57,7 @@ RUN npm install -g elm elm-live
 RUN ln -s /usr/bin/nodejs /usr/bin/node
 
 # build app
-COPY build.sh build.sh
+COPY . .
 RUN ./build.sh
 
 EXPOSE 8080
