@@ -44,33 +44,36 @@ placeTile  game@Game{..} name coord = let isTilePlayable   = find ((== name) . p
 
 drawTile :: PlayerName -> Maybe Tile -> Game -> Game
 drawTile _     Nothing game = game
-drawTile name (Just tile) game@Game{..} | null drawingTiles = game
-                                        | otherwise         = let removeTile t p = p { tiles = head drawingTiles : delete t (tiles p) }
-                                                              in game { drawingTiles = tail drawingTiles
-                                                                      , players      = M.adjust (removeTile tile) name players
-                                                                      }
+drawTile name (Just tile) game@Game{..}
+  | null drawingTiles = game
+  | otherwise         = let removeTile t p = p { tiles = head drawingTiles : delete t (tiles p) }
+                        in game { drawingTiles = tail drawingTiles
+                                , players      = M.adjust (removeTile tile) name players
+                                }
 
 -- |
 doPlayTile :: PlayerName -> Maybe Tile -> Game -> Game
 doPlayTile _    Nothing     game@Game{..} = game
-doPlayTile name (Just tile) game@Game{..} = let newCell = Cell tile (Neutral tile)
-                                                adj = linkedCells gameBoard newCell
-                                                owners = nub $ sort $ catMaybes $ map (isOwned . cellContent) adj
-                                            in case owners of
-                                                [] -> game { gameBoard = gameBoard // [ (tile, newCell) ]
-                                                           , turn = if hasAdjacentNeutralTile gameBoard tile
-                                                                    then (name, FundChain tile)
-                                                                    else buyStockOrNextPlayer name game
-                                                           }
-                                                [c]     -> tileExpandsExistingChain c adj name game
-                                                [c1,c2] -> twoChainsMerger c1 c2 tile name game
-                                                chains  -> threeChainsMerger chains tile name game
+doPlayTile name (Just tile) game@Game{..} =
+  let newCell = Cell tile (Neutral tile)
+      adj = linkedCells gameBoard newCell
+      owners = nub $ sort $ catMaybes $ map (isOwned . cellContent) adj
+  in case owners of
+       [] -> game { gameBoard = gameBoard // [ (tile, newCell) ]
+                  , turn = if hasAdjacentNeutralTile gameBoard tile
+                           then (name, FundChain tile)
+                           else buyStockOrNextPlayer name game
+                  }
+       [c]     -> tileExpandsExistingChain c adj name game
+       [c1,c2] -> twoChainsMerger c1 c2 tile name game
+       chains  -> threeChainsMerger chains tile name game
 
 tileExpandsExistingChain :: ChainName -> [Cell] -> PlayerName -> Game -> Game
-tileExpandsExistingChain chainName adj name game@Game{..} = game { gameBoard = gameBoard // map (\ (Cell t _) -> (t, Cell t (Chain chainName))) adj
-                                                                 , hotelChains  = M.adjust expandChain chainName hotelChains
-                                                                 , turn         = buyStockOrNextPlayer name game
-                                                                 }
+tileExpandsExistingChain chainName adj name game@Game{..} =
+  game { gameBoard = gameBoard // map (\ (Cell t _) -> (t, Cell t (Chain chainName))) adj
+       , hotelChains  = M.adjust expandChain chainName hotelChains
+       , turn         = buyStockOrNextPlayer name game
+       }
   where
     expandChain c = c { chainTiles = map cellCoord adj }
 
@@ -89,16 +92,17 @@ tileExpandsExistingChain chainName adj name game@Game{..} = game { gameBoard = g
 -- A maximum of seven chains may be on the board at one time.  Any hotel which would create an eighth chain may not be placed.
 --
 createNewChain :: Game -> String -> ChainName -> Tile -> Game
-createNewChain game@Game{..} player chain coord = let linked = linkedCells gameBoard (Cell coord (Neutral coord))
-                                                      fundedChain c = c { chainTiles = map cellCoord linked, chainStock = chainStock c - 1 }
-                                                      getFoundersShare Nothing  = Just 1
-                                                      getFoundersShare (Just n) = Just $ n + 1
-                                                      chainFounder p = p { ownedStock = alterStock getFoundersShare chain (ownedStock p) }
-                                                  in  game { gameBoard  = gameBoard // map ( \ (Cell t _) -> (t, (Cell t (Chain chain)))) linked
-                                                           , hotelChains = M.adjust fundedChain chain hotelChains
-                                                           , players = M.adjust chainFounder player players
-                                                           , turn = (player, BuySomeStock 3)
-                                                           }
+createNewChain game@Game{..} player chain coord =
+  let linked = linkedCells gameBoard (Cell coord (Neutral coord))
+      fundedChain c = c { chainTiles = map cellCoord linked, chainStock = chainStock c - 1 }
+      getFoundersShare Nothing  = Just 1
+      getFoundersShare (Just n) = Just $ n + 1
+      chainFounder p = p { ownedStock = alterStock getFoundersShare chain (ownedStock p) }
+  in  game { gameBoard  = gameBoard // map ( \ (Cell t _) -> (t, (Cell t (Chain chain)))) linked
+           , hotelChains = M.adjust fundedChain chain hotelChains
+           , players = M.adjust chainFounder player players
+           , turn = (player, BuySomeStock 3)
+           }
 
 -- |
 -- == Buying Stock
@@ -111,24 +115,24 @@ createNewChain game@Game{..} player chain coord = let linked = linkedCells gameB
 -- by selling stock except during the designated disposal period after a merger.  Trading and selling of stock
 -- between players is not permitted.  At any time, player may ask how much stock remains in a particular chain.
 buyStock :: Game -> PlayerName -> ChainName -> Game
-buyStock game@Game{..} player chain = if   game `hasActiveChain` chain            &&
-                                           chainStock (hotelChains M.! chain) > 0
-                                      then let price = stockPrice (hotelChains M.! chain)
-                                               decreaseStock c = c { chainStock = chainStock c - 1 }
-                                               addOwnedStock (Just n) = Just $ n + 1
-                                               addOwnedStock Nothing  = Just 1
-                                               buyAndPayStock p = p { ownedCash = ownedCash p - price
-                                                                    , ownedStock = alterStock addOwnedStock chain (ownedStock p)
-                                                                    }
-                                           in  if hasEnoughMoneyToBuyStock (players M.! player) (hotelChains M.! chain)
-                                               then game { hotelChains = M.adjust decreaseStock chain hotelChains
-                                                         , players = M.adjust buyAndPayStock player players
-                                                         , turn = case turn of
-                                                                   (_, BuySomeStock n) | n > 1 -> (player, BuySomeStock (n-1))
-                                                                   _                           -> (nextPlayer game, PlaceTile)
-                                                         }
-                                               else game
-                                      else game
+buyStock game@Game{..} player chain =
+  let price                  = stockPrice (hotelChains M.! chain)
+      decreaseStock c        = c { chainStock = chainStock c - 1 }
+      addOwnedStock (Just n) = Just $ n + 1
+      addOwnedStock Nothing  = Just 1
+      buyAndPayStock p       = p { ownedCash = ownedCash p - price
+                                 , ownedStock = alterStock addOwnedStock chain (ownedStock p)
+                                 }
+  in  if hasEnoughMoneyToBuyStock (players M.! player) (hotelChains M.! chain) &&
+         game `hasActiveChain` chain                                           &&
+         chainStock (hotelChains M.! chain) > 0
+      then game { hotelChains = M.adjust decreaseStock chain hotelChains
+                , players = M.adjust buyAndPayStock player players
+                , turn = case turn of
+                           (_, BuySomeStock n) | n > 1 -> (player, BuySomeStock (n-1))
+                           _                           -> (nextPlayer game, PlaceTile)
+                }
+      else game
 
 playerPass :: Game -> Game
 playerPass game = game { turn = case turn game of
@@ -151,9 +155,10 @@ playerPass game = game { turn = case turn game of
 -- A chain containing 11 or more hotels is "safe" and cannot be taken over by another chain.
 -- A player may not place a hotel which would merge two safe chains.  A safe chain may still take over an open chain, however.
 twoChainsMerger :: ChainName -> ChainName -> Tile -> PlayerName -> Game -> Game
-twoChainsMerger c1 c2 tile name game@Game{..} = if not (isSafe (hotelChains M.! c1)) || not (isSafe (hotelChains M.! c2))
-                                                then game { turn = (name, ResolveMerger (TakeOver tile [c1,c2]) ((nextPlayer game), PlaceTile)) }
-                                                else game
+twoChainsMerger c1 c2 tile name game@Game{..} =
+  if not (isSafe (hotelChains M.! c1)) || not (isSafe (hotelChains M.! c2))
+  then game { turn = (name, ResolveMerger (TakeOver tile [c1,c2]) ((nextPlayer game), PlaceTile)) }
+  else game
 
 -- |
 -- === Multiple mergers
@@ -165,16 +170,17 @@ twoChainsMerger c1 c2 tile name game@Game{..} = if not (isSafe (hotelChains M.! 
 -- is to be handled first.  Bonuses and stock prices are determined by the number of hotels in the defunct chain
 -- before the merger.
 threeChainsMerger :: [ChainName] -> Tile -> PlayerName -> Game -> Game
-threeChainsMerger mergedChains tile name game@Game{..} = let mergedChainsBySize = sortBy (compare `on` (negate . length . chainTiles)) $ map (hotelChains M.!) mergedChains
-                                                             largestChain = chainName $ head mergedChainsBySize
-                                                             secondChain = chainName $ head $ tail mergedChainsBySize
-                                                             smallestChain = chainName $ head $ tail $ tail mergedChainsBySize
-                                                         in if any (not . isSafe) mergedChainsBySize
-                                                            then game { turn = (name,
-                                                                                ResolveMerger (TakeOver tile [largestChain,secondChain])
-                                                                                (name, ResolveMerger (TakeOver tile [largestChain,smallestChain]) (nextPlayer game, PlaceTile)))
-                                                                      }
-                                                            else game
+threeChainsMerger mergedChains tile name game@Game{..} =
+  let mergedChainsBySize = sortBy (compare `on` (negate . length . chainTiles)) $ map (hotelChains M.!) mergedChains
+      largestChain = chainName $ head mergedChainsBySize
+      secondChain = chainName $ head $ tail mergedChainsBySize
+      smallestChain = chainName $ head $ tail $ tail mergedChainsBySize
+  in if any (not . isSafe) mergedChainsBySize
+     then game { turn = (name,
+                         ResolveMerger (TakeOver tile [largestChain,secondChain])
+                          (name, ResolveMerger (TakeOver tile [largestChain,smallestChain]) (nextPlayer game, PlaceTile)))
+               }
+     else game
 
 -- |
 -- === Majority holder's bonus.
@@ -185,23 +191,25 @@ threeChainsMerger mergedChains tile name game@Game{..} = let mergedChainsBySize 
 -- the title of second largest shareholder, the second bonus is divided equally between the
 -- tying players.  If only one player holds stock in the defunct chain, he receives both bonuses.
 computeMergerBonus :: Game -> ChainName -> Game
-computeMergerBonus game@Game{..} chain = let buyeeChain = hotelChains M.! chain
-                                             buyeeOwnedStock p = findOr0 chain (ownedStock p)
-                                             plys = M.elems players
-                                             shareHolders = groupBy ((==) `on` snd) $
-                                                            sortBy (compare `on` (negate . snd)) $
-                                                            filter ((/=0) . snd) $
-                                                            zip plys (map buyeeOwnedStock plys)
-                                         in case shareHolders of
-                                             []            -> game
-                                             [fsts]        -> divideAmong (map fst fsts) (uncurry (+) $ mergerBonus buyeeChain) game
-                                             (fsts:snds:_) -> divideAmong (map fst snds) (snd $ mergerBonus buyeeChain) $
-                                                              divideAmong (map fst fsts) (fst $ mergerBonus buyeeChain) game
+computeMergerBonus game@Game{..} chain =
+  let buyeeChain = hotelChains M.! chain
+      buyeeOwnedStock p = findOr0 chain (ownedStock p)
+      plys = M.elems players
+      shareHolders = groupBy ((==) `on` snd) $
+        sortBy (compare `on` (negate . snd)) $
+        filter ((/=0) . snd) $
+        zip plys (map buyeeOwnedStock plys)
+  in case shareHolders of
+       []            -> game
+       [fsts]        -> divideAmong (map fst fsts) (uncurry (+) $ mergerBonus buyeeChain) game
+       (fsts:snds:_) -> divideAmong (map fst snds) (snd $ mergerBonus buyeeChain) $
+                        divideAmong (map fst fsts) (fst $ mergerBonus buyeeChain) game
 
 divideAmong :: [Player] -> Int -> Game -> Game
-divideAmong plys amount game@Game{..} = let bonus = amount `div` length plys
-                                            playersWithBonus = map (\ p -> p { ownedCash = bonus + ownedCash p}) plys
-                                        in game { players = M.fromList (zip (map playerName playersWithBonus) playersWithBonus) `M.union` players }
+divideAmong plys amount game@Game{..} =
+  let bonus = amount `div` length plys
+      playersWithBonus = map (\ p -> p { ownedCash = bonus + ownedCash p}) plys
+  in game { players = M.fromList (zip (map playerName playersWithBonus) playersWithBonus) `M.union` players }
 
 -- |
 -- === Disposal of stock at time of merger.
@@ -210,21 +218,22 @@ divideAmong plys amount game@Game{..} = let bonus = amount `div` length plys
 --
 --  1.  __Hold__:  Stock may be held in expectation of starting another chain with that name.
 merge :: Game -> PlayerName -> Tile ->  ChainName -> ChainName -> Game
-merge game@Game{..} _    tile buyer buyee = let buyerChain = hotelChains M.! buyer
-                                                buyeeChain = hotelChains M.! buyee
-                                                mergedTiles =  tile : chainTiles buyerChain ++ chainTiles buyeeChain
-                                                mergeIntoBuyer c = c { chainTiles = mergedTiles }
-                                                clearBuyee c = c { chainTiles = [] }
-                                                game' = computeMergerBonus game buyee
-                                            in if length (chainTiles buyerChain) >=  length (chainTiles buyeeChain) &&
-                                                  isActive buyerChain && isActive buyeeChain
-                                               then game' { hotelChains = M.adjust clearBuyee buyee $ M.adjust mergeIntoBuyer buyer hotelChains
-                                                          , gameBoard = gameBoard // map ( \ t -> (t, (Cell t (Chain buyer)))) mergedTiles
-                                                          , turn = (head $ M.keys players,
-                                                                    let (_, ResolveMerger _ cont) = turn
-                                                                    in ResolveMerger
-                                                                       (DisposeStock (nextPlayer game) buyer buyee (stockPrice buyeeChain) (M.keys players)) cont) }
-                                               else game
+merge game@Game{..} _    tile buyer buyee =
+  let buyerChain = hotelChains M.! buyer
+      buyeeChain = hotelChains M.! buyee
+      mergedTiles =  tile : chainTiles buyerChain ++ chainTiles buyeeChain
+      mergeIntoBuyer c = c { chainTiles = mergedTiles }
+      clearBuyee c = c { chainTiles = [] }
+      game' = computeMergerBonus game buyee
+  in if length (chainTiles buyerChain) >=  length (chainTiles buyeeChain) &&
+        isActive buyerChain && isActive buyeeChain
+     then game' { hotelChains = M.adjust clearBuyee buyee $ M.adjust mergeIntoBuyer buyer hotelChains
+                , gameBoard = gameBoard // map ( \ t -> (t, (Cell t (Chain buyer)))) mergedTiles
+                , turn = (head $ M.keys players,
+                           let (_, ResolveMerger _ cont) = turn
+                           in ResolveMerger
+                              (DisposeStock (nextPlayer game) buyer buyee (stockPrice buyeeChain) (M.keys players)) cont) }
+     else game
 
 -- |
 --  2. __Sell__:  Stock may be sold to Stock Market at a price determined by the number of hotels in the defunct chain before the merger.
@@ -269,10 +278,11 @@ exchangeStock game@Game{..} player buyer buyee qty =
 -- bonuses are paid for all active chains.  All players sell their stock.
 -- Stock in a chain that is not on the board is worthless.  The player with the most money is the winner.
 endGame :: Game -> Game
-endGame game@Game{..} = let game' = foldl computeMergerBonus game (map chainName $ activeChains hotelChains)
-                            sellEverything p = p { ownedCash  = ownedCash p +
-                                                                (sum $ M.elems $ mapStock (\ k a -> stockPrice (hotelChains M.! k) * a) (ownedStock p))
-                                                 , ownedStock = emptyStock
+endGame game@Game{..} =
+  let game' = foldl computeMergerBonus game (map chainName $ activeChains hotelChains)
+      sellEverything p = p { ownedCash  = ownedCash p +
+                                          (sum $ M.elems $ mapStock (\ k a -> stockPrice (hotelChains M.! k) * a) (ownedStock p))
+                           , ownedStock = emptyStock
                                                  }
-                        in game' { players = M.map sellEverything players
-                                 , turn = (fst turn, GameEnds) }
+  in game' { players = M.map sellEverything players
+           , turn = (fst turn, GameEnds) }
