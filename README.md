@@ -1,6 +1,8 @@
 # Acquire in Haskell + Elm
 
-This is an implementation of the [Acquire](http://www.webnoir.com/bob/sid/acquire.htm) boardgame as a client-server online game, using [Haskell](httP;//haskell.org) as a backend and game engine, and [Elm](http://elm-lang.org) . It is a not-so-quick-still-dirty implementation but in the few tests I already make, it appears playable at least locally.
+This is an implementation of the [Acquire](http://www.webnoir.com/bob/sid/acquire.htm) boardgame as a client-server online game, using [Haskell](http://haskell.org) as a backend and game engine, and [Elm](http://elm-lang.org) . It is a not-so-quick-still-dirty implementation but in the few tests I already make, it appears playable at least locally.
+
+An instance is deployed on [Clever Cloud](http://clever-cloud.com). Open [this page](http://app-1935dca6-d312-47b0-9e32-2fcced0f9eec.cleverapps.io/index.html) to start playing Acquire online.
 
 # Overview
 
