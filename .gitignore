@@ -50,3 +50,8 @@ ui/.lein-failures
 .hub.pid
 .node.out
 .node.pid
+server/server.cabal
+.acquire.*
+.stack-work/
+.chinese.stats
+.HTF/
