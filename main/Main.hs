@@ -6,7 +6,6 @@ module Main where
 
 import           Acquire.Game
 import           Acquire.Net
-import           Acquire.Player
 import           Acquire.Pretty           hiding ((<$>), (<>))
 import           Acquire.Trace
 import           Control.Concurrent

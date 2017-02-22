@@ -10,9 +10,9 @@ import           Data.Maybe
 import           Acquire.Game.Cells
 import           Acquire.Game.Core
 import           Acquire.Game.Hotels
+import           Acquire.Game.Player
 import           Acquire.Game.Tiles
 import           Acquire.Game.Turn
-import           Acquire.Player
 
 -- |
 -- = Player turn

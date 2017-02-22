@@ -11,8 +11,8 @@ import           System.Random.Shuffle
 
 import           Acquire.Game.Cells
 import           Acquire.Game.Hotels
+import           Acquire.Game.Player
 import           Acquire.Game.Tiles
-import           Acquire.Player
 
 
 data MergerPhase = TakeOver Tile [ChainName]

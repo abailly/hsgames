@@ -1,12 +1,12 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE RecordWildCards   #-}
-module Acquire.Net.Types(module Acquire.Player, G.Game,
+module Acquire.Net.Types(module Acquire.Game.Player, G.Game,
                          Command(..), G.GameId, Connection(..), Connections, ActiveGame(..), GameDescription(..), Result(..),
                          gamesList) where
 
 import qualified Acquire.Game             as G
-import           Acquire.Player
+import           Acquire.Game.Player
 import           Acquire.Pretty           hiding ((<$>))
 import           Control.Concurrent
 import           Control.Concurrent.Async

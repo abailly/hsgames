@@ -2,7 +2,6 @@
 module Acquire.Robot where
 
 import           Acquire.Game
-import           Acquire.Player
 import           System.Random
 
 playRobot :: Player -> Game -> IO Order

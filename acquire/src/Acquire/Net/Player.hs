@@ -4,8 +4,8 @@
 module Acquire.Net.Player where
 
 import           Acquire.Game
+import           Acquire.Game.Player  as P
 import           Acquire.Net.Types
-import           Acquire.Player       as P
 import           Acquire.Pretty
 import           Acquire.Trace
 import           Control.Monad.Reader

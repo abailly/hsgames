@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric     #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns      #-}
-module Acquire.Player where
+module Acquire.Game.Player where
 
 import           Acquire.Game.Hotels
 import           Acquire.Game.Tiles

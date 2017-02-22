@@ -5,7 +5,7 @@ import qualified Data.Map            as M
 
 import           Acquire.Game.Core
 import           Acquire.Game.Hotels
-import           Acquire.Player
+import           Acquire.Game.Player
 
 completeWithEndGame :: HotelChains -> [Order] -> [Order]
 completeWithEndGame chains orders = if gameCanEnd chains

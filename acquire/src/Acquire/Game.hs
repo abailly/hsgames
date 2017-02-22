@@ -19,6 +19,7 @@ module Acquire.Game (
   -- * High-level interface to game play
   -- ** Query/update game state
   currentPlayer, newGame, play, possiblePlay, highlightPlayableTiles,
+  module Acquire.Game.Player,
   -- ** Main Game Loop
   PlayerInput(..), Handler, Message(..), initialisedGame, interpretCommand
     ) where
@@ -26,8 +27,8 @@ module Acquire.Game (
 import           Acquire.Game.Cells
 import           Acquire.Game.Core
 import           Acquire.Game.Play
+import           Acquire.Game.Player
 import           Acquire.Game.Turn
-import           Acquire.Player
 import           Control.Monad.Prompt
 import           Data.Aeson           (ToJSON)
 import           Data.Array           ((//))

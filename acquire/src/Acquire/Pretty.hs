@@ -7,7 +7,6 @@ import           Acquire.Game
 import           Acquire.Game.Cells
 import           Acquire.Game.Hotels
 import           Acquire.Game.Tiles
-import           Acquire.Player
 import           Data.Array
 import qualified Data.Map                     as M
 import           Text.PrettyPrint.ANSI.Leijen

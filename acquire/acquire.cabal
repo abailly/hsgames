@@ -37,9 +37,9 @@ library
   ghc-options:       -threaded -Wall -Werror -fno-warn-orphans -rtsopts
   exposed-modules: Acquire.Game
                  , Acquire.Pretty
-                 , Acquire.Player
                  , Acquire.Net
                  , Acquire.Robot
+                 , Acquire.Game.Player
                  , Acquire.Game.Core, Acquire.Game.Turn, Acquire.Game.Play
                  , Acquire.Game.Tiles, Acquire.Game.Cells, Acquire.Game.Hotels
                  , Acquire.Net.Player, Acquire.Net.Server, Acquire.Net.Types, Acquire.Net.Game
