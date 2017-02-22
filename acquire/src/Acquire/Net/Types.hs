@@ -6,7 +6,6 @@ module Acquire.Net.Types(module Acquire.Player, G.Game,
                          gamesList) where
 
 import qualified Acquire.Game             as G
-import           Acquire.Interpreter      (Connection (..), Connections)
 import           Acquire.Player
 import           Acquire.Pretty           hiding ((<$>))
 import           Control.Concurrent
@@ -15,6 +14,7 @@ import           Data.Aeson               (ToJSON)
 import qualified Data.Map                 as M
 import           Data.Maybe               (isJust)
 import           GHC.Generics
+import           System.IO                (Handle)
 
 data Command = NewGame Int Int             -- ^Starts a game with given number of human players and robots
              | StartingGame PlayerName     -- ^Notification from player he is joining runnable game
@@ -31,7 +31,13 @@ data Result = PlayerRegistered PlayerName G.GameId
 
 instance ToJSON Result
 
-data ActiveGame = ActiveGame { gameId            :: G.GameId
+data Connection = Cnx { hIn  :: Handle
+                      , hOut :: Handle
+                      } deriving (Show)
+
+type Connections = M.Map PlayerName Connection
+
+data ActiveGame = ActiveGame { activeGameId      :: G.GameId
                              , numberOfHumans    :: Int
                              , numberOfRobots    :: Int
                              , registeredHumans  :: Connections
@@ -49,7 +55,7 @@ data GameDescription = GameDescription { gameDescId           :: G.GameId
 instance ToJSON GameDescription
 
 gamesList :: ActiveGame -> GameDescription
-gamesList ActiveGame{..} = GameDescription gameId numberOfHumans numberOfRobots (M.keys registeredHumans) (isJust gameThread)
+gamesList ActiveGame{..} = GameDescription activeGameId numberOfHumans numberOfRobots (M.keys registeredHumans) (isJust gameThread)
 
 instance Pretty GameDescription where
   pretty GameDescription{..} = text gameDescId <+> int descNumberOfHumans <+> text "humans" <> char ','

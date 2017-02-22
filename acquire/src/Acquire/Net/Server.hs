@@ -1,18 +1,20 @@
 {-# LANGUAGE FlexibleInstances   #-}
+{-# LANGUAGE GADTs               #-}
 {-# LANGUAGE RecordWildCards     #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TupleSections       #-}
 module Acquire.Net.Server(runServer, PortNumber) where
 
-import qualified Acquire.Game             as G
-import           Acquire.Game.Core        (players)
+import           Acquire.Game             (gameBoard, gameId, possiblePlay)
+import           Acquire.Game.Core        (Order (..), players)
 import           Acquire.Interpreter
 import           Acquire.Net.Types
+import           Acquire.Robot
 import           Acquire.Trace
 import           Control.Concurrent
 import           Control.Concurrent.Async
 import           Control.Concurrent.STM
-import           Control.Exception        (try)
+import           Control.Exception        (try, tryJust)
 import           Control.Monad.Prompt
 import           Control.Monad.Reader
 import           Data.List
@@ -20,9 +22,59 @@ import qualified Data.Map                 as M
 import           Network.Socket
 import           System.Directory
 import           System.IO
+import           System.IO.Error
 import           System.Random
 
 type Server = TVar (M.Map GameId ActiveGame)
+
+closeConnection :: Connection -> IO ()
+closeConnection (Cnx hin hout) = hClose hin >> hClose hout
+
+playerInputHandler :: Handler (ReaderT Connections IO) a
+playerInputHandler (GetOrder p@(Player name Human _ _ _) g) = do
+  trace $ "human order: " ++ name
+  Cnx hin hout <- (M.! name) <$> ask
+  liftIO $ playHuman p g hin hout
+playerInputHandler (GetOrder p@(Player name Robot _ _ _) g) = do
+  trace $ "robot order: " ++ name
+  liftIO $ playRobot p g
+playerInputHandler (SaveGame g) = liftIO $ do
+  trace $ "saving game " ++ gameId g
+  writeFile (".acquire." ++ gameId g ++ ".bak") (show g)
+playerInputHandler (PlayedOrder p g o) = do
+  trace $ "played order " ++ show o ++ " for " ++ playerName p
+  broadcast (\ n (Cnx _ hout) -> when (n /= "Console" &&
+                                        n /= playerName p &&
+                                        playerType (players g M.! n) /= Robot)
+                                 (liftIO $ (hPutStrLn hout $ show $ Played (playerName p) (gameBoard g) o) >> hFlush hout))
+playerInputHandler (LoadGame gid) = do
+  trace $ "loading game " ++ gid
+  let gameFile = ".acquire." ++ gid ++ ".bak"
+  e <- liftIO $ doesFileExist gameFile
+  if e
+  then liftIO (readFile gameFile)  >>= return . Just . read
+  else return Nothing
+playerInputHandler (Quit game) = do
+  trace $ "quitting game " ++ gameId game
+  broadcast (\ n (Cnx _ hout) -> (liftIO $
+                                   trace ("ending game for player " ++ n) >>
+                                   (hPutStrLn hout $ show $ GameEnds game) >>
+                                   hFlush hout))
+
+broadcast :: (Monad m) => (PlayerName -> Connection -> m ()) -> ReaderT Connections m ()
+broadcast f = ask >>= mapM_ (lift . uncurry f) . M.assocs
+
+playHuman :: Player -> Game -> Handle -> Handle -> IO Order
+playHuman p@Player{..} game hin hout = do let plays = possiblePlay game
+                                              currentState = GameState p (gameBoard game) plays
+                                          trace $ "sending state to user " ++ playerName
+                                          hPutStrLn hout $ show $ currentState
+                                          hFlush hout
+                                          r <- tryJust (guard . isEOFError) $ hGetLine hin
+                                          trace $ "read from user: " ++ show r
+                                          case r of
+                                           Left  _    -> return Cancel
+                                           Right line -> return (plays !! (read line - 1))
 
 data GameThreads = GameThreads { activeGame  :: ActiveGame
                                , threads     :: [ThreadId]
@@ -58,7 +110,7 @@ readSavedGames = do
     isSaveFile f = ".acquire" `isPrefixOf` f && ".bak" `isSuffixOf` f
     loadSaved f = do
       g <- read <$> readFile f
-      let gid = G.gameId g
+      let gid = gameId g
           nh = length $ filter isHuman (M.elems $ players g)
           nr = length $ filter isRobot (M.elems $ players g)
       return $ (gid, ActiveGame gid nh nr M.empty [] Nothing)
@@ -75,7 +127,7 @@ garbageCollector server = forever $ do
   tids <- liftIO $ atomically $ do
     gamesMap <- readTVar server
     cleanedGames <- mapM cleanupStoppedGames (M.elems gamesMap)
-    writeTVar server (M.fromList $ map ((\ g -> (gameId g, g)) . activeGame) cleanedGames)
+    writeTVar server (M.fromList $ map ((\ g -> (activeGameId g, g)) . activeGame) cleanedGames)
     return cleanedGames
   forM_ tids doCleanupGame
   threadDelay $ 10 * 1000 * 1000
@@ -84,7 +136,7 @@ garbageCollector server = forever $ do
       doCleanupGame :: GameThreads -> IO ()
       doCleanupGame (GameThreads _ [] _)      = return ()
       doCleanupGame GameThreads{..} = do
-        trace $ "cleaning up game : " ++ gameId activeGame
+        trace $ "cleaning up game : " ++ activeGameId activeGame
         trace $ "closing connections : " ++ show connections
         mapM_ closeConnection connections
         trace $ "stopping threads : " ++ show threads
@@ -163,16 +215,16 @@ addPlayerToActiveGame h tid player game activeGames = do
                              Nothing -> do
                                let players = M.insert player (Cnx h h) registeredHumans
                                    g'      = g { registeredHumans = players, connectionThreads = tid : connectionThreads }
-                               modifyTVar' activeGames (M.insert gameId g')
+                               modifyTVar' activeGames (M.insert activeGameId g')
                                return $ Right g'
 
 runFilledGame :: ActiveGame -> ReaderT Server IO (Maybe Result)
 runFilledGame ActiveGame{..} = do
-  liftIO $ notifyStartup gameId registeredHumans connectionThreads
-  asyncGame <- liftIO $ async (runGameServer gameId numberOfRobots registeredHumans)
-  trace ("started game " ++ gameId)
+  liftIO $ notifyStartup activeGameId registeredHumans connectionThreads
+  asyncGame <- liftIO $ async (runGameServer activeGameId numberOfRobots registeredHumans)
+  trace ("started game " ++ activeGameId)
   activeGames <- ask
-  liftIO $ atomically $ modifyTVar' activeGames (M.adjust (\ g -> g { gameThread = Just asyncGame}) gameId)
+  liftIO $ atomically $ modifyTVar' activeGames (M.adjust (\ g -> g { gameThread = Just asyncGame}) activeGameId)
   return Nothing
 
 runGameServer :: GameId -> Int -> Connections -> IO Game
