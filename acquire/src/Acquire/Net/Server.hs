@@ -5,9 +5,8 @@
 {-# LANGUAGE TupleSections       #-}
 module Acquire.Net.Server(runServer, PortNumber) where
 
-import           Acquire.Game             (gameBoard, gameId, possiblePlay)
+import           Acquire.Game
 import           Acquire.Game.Core        (Order (..), players)
-import           Acquire.Interpreter
 import           Acquire.Net.Types
 import           Acquire.Robot
 import           Acquire.Trace
@@ -185,8 +184,8 @@ startNewGame :: Int -> Int -> ReaderT Server IO (Maybe Result)
 startNewGame numh numr = do
   activeGames <- ask
   newId <- liftIO randomGameId
-  let newGame = ActiveGame newId numh numr M.empty [] Nothing
-  liftIO $ atomically $ modifyTVar' activeGames  (M.insert newId newGame)
+  let emptyGame = ActiveGame newId numh numr M.empty [] Nothing
+  liftIO $ atomically $ modifyTVar' activeGames  (M.insert newId emptyGame)
   return $ Just $ NewGameStarted newId
 
 randomGameId :: IO GameId

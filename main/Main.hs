@@ -4,7 +4,7 @@
 
 module Main where
 
-import           Acquire.Interpreter
+import           Acquire.Game
 import           Acquire.Net
 import           Acquire.Player
 import           Acquire.Pretty           hiding ((<$>), (<>))

@@ -38,7 +38,6 @@ library
   exposed-modules: Acquire.Game
                  , Acquire.Pretty
                  , Acquire.Player
-                 , Acquire.Interpreter
                  , Acquire.Net
                  , Acquire.Hotels
                  , Acquire.Tiles

@@ -3,8 +3,7 @@
 {-# LANGUAGE TupleSections       #-}
 module Acquire.Net.Player where
 
-import           Acquire.Game         (highlightPlayableTiles)
-import           Acquire.Interpreter
+import           Acquire.Game
 import           Acquire.Net.Types
 import           Acquire.Player       as P
 import           Acquire.Pretty
@@ -61,17 +60,17 @@ readResult h player io@InOut{..} = do
   let res :: Result = read  ln
   outputResult res
   case res of
-   GameStarts _ -> hFlush h >> play player h io
+   GameStarts _ -> hFlush h >> askForPlay player h io
    _            -> readResult h player io
 
-play :: PlayerName -> Handle -> InOut -> IO ()
-play player handle io = do
+askForPlay :: PlayerName -> Handle -> InOut -> IO ()
+askForPlay player handle io = do
   dat <- hGetLine handle
   m <- handleMessage (read dat) io
   case m of
    Just response -> void $ hPutStrLn handle response
    Nothing       -> return ()
-  play player handle io
+  askForPlay player handle io
 
 handleMessage :: Message -> InOut -> IO (Maybe String)
 handleMessage g@(GameState _ _ _) InOut{..} = do
