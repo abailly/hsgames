@@ -9,10 +9,10 @@ import           GHC.Generics
 import           System.Random
 import           System.Random.Shuffle
 
-import           Acquire.Cells
-import           Acquire.Hotels
+import           Acquire.Game.Cells
+import           Acquire.Game.Hotels
+import           Acquire.Game.Tiles
 import           Acquire.Player
-import           Acquire.Tiles
 
 
 data MergerPhase = TakeOver Tile [ChainName]
@@ -99,6 +99,6 @@ hasAdjacentNeutralTile board coord = not (null (adjacentCells (isNeutral . cellC
 nextPlayer :: Game -> PlayerName
 nextPlayer game = let (p,_) = turn game
                   in case M.lookupGT p (players game) of
-                      Nothing -> fst $ M.findMin (players game)
+                      Nothing     -> fst $ M.findMin (players game)
                       Just (p',_) -> p'
 

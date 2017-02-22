@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Acquire.Tiles where
+module Acquire.Game.Tiles where
 
 import           Data.Aeson
 import           Data.Array

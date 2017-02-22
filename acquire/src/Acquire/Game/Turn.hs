@@ -1,10 +1,10 @@
 {-# LANGUAGE RecordWildCards #-}
 module Acquire.Game.Turn where
 
-import qualified Data.Map          as M
+import qualified Data.Map            as M
 
 import           Acquire.Game.Core
-import           Acquire.Hotels
+import           Acquire.Game.Hotels
 import           Acquire.Player
 
 completeWithEndGame :: HotelChains -> [Order] -> [Order]

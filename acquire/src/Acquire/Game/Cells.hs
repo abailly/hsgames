@@ -1,14 +1,14 @@
 {-# LANGUAGE DeriveGeneric        #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-module Acquire.Cells where
+module Acquire.Game.Cells where
 
-import           Acquire.Hotels
-import           Acquire.Tiles
-import           Data.Aeson     (ToJSON (..))
+import           Acquire.Game.Hotels
+import           Acquire.Game.Tiles
+import           Data.Aeson          (ToJSON (..))
 import           Data.Array
 import           Data.Maybe
-import qualified Data.Set       as S
+import qualified Data.Set            as S
 import           GHC.Generics
 
 data Content = Empty

@@ -3,11 +3,11 @@
 {-# LANGUAGE ViewPatterns      #-}
 module Acquire.Player where
 
-import           Acquire.Hotels
-import           Acquire.Tiles
-import           Data.Aeson     (FromJSON (..), ToJSON (..), Value (..), object,
-                                 (.:), (.=))
-import qualified Data.Map       as M
+import           Acquire.Game.Hotels
+import           Acquire.Game.Tiles
+import           Data.Aeson          (FromJSON (..), ToJSON (..), Value (..),
+                                      object, (.:), (.=))
+import qualified Data.Map            as M
 import           GHC.Generics
 
 
@@ -63,11 +63,11 @@ type PlayerName = String
 
 isHuman :: Player -> Bool
 isHuman (playerType -> Human) = True
-isHuman _                    = False
+isHuman _                     = False
 
 isRobot :: Player -> Bool
 isRobot (playerType -> Robot) = True
-isRobot _                    = False
+isRobot _                     = False
 
 hasEnoughMoneyToBuyStock :: Player -> HotelChain -> Bool
 hasEnoughMoneyToBuyStock player chain = let price = stockPrice chain

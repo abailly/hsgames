@@ -23,7 +23,7 @@ module Acquire.Game (
   PlayerInput(..), Handler, Message(..), initialisedGame, interpretCommand
     ) where
 
-import           Acquire.Cells
+import           Acquire.Game.Cells
 import           Acquire.Game.Core
 import           Acquire.Game.Play
 import           Acquire.Game.Turn

@@ -39,11 +39,9 @@ library
                  , Acquire.Pretty
                  , Acquire.Player
                  , Acquire.Net
-                 , Acquire.Hotels
-                 , Acquire.Tiles
-                 , Acquire.Cells
                  , Acquire.Robot
                  , Acquire.Game.Core, Acquire.Game.Turn, Acquire.Game.Play
+                 , Acquire.Game.Tiles, Acquire.Game.Cells, Acquire.Game.Hotels
                  , Acquire.Net.Player, Acquire.Net.Server, Acquire.Net.Types, Acquire.Net.Game
                  , Acquire.Trace
 

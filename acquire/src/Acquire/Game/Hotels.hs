@@ -3,11 +3,11 @@
 {-# LANGUAGE RecordWildCards      #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ViewPatterns         #-}
-module Acquire.Hotels where
+module Acquire.Game.Hotels where
 
-import           Acquire.Tiles
-import           Data.Aeson    (FromJSON, ToJSON (..), ToJSONKey)
-import qualified Data.Map      as M
+import           Acquire.Game.Tiles
+import           Data.Aeson         (FromJSON, ToJSON (..), ToJSONKey)
+import qualified Data.Map           as M
 import           GHC.Generics
 
 data ChainName = American | Continental | Festival | Imperial | Luxor | Tower | Worldwide

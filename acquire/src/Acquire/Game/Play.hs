@@ -3,16 +3,16 @@ module Acquire.Game.Play where
 
 import           Data.Array
 import           Data.Function
-import           Data.List         (delete, find, groupBy, nub, sort, sortBy)
-import qualified Data.Map          as M
+import           Data.List           (delete, find, groupBy, nub, sort, sortBy)
+import qualified Data.Map            as M
 import           Data.Maybe
 
-import           Acquire.Cells
+import           Acquire.Game.Cells
 import           Acquire.Game.Core
+import           Acquire.Game.Hotels
+import           Acquire.Game.Tiles
 import           Acquire.Game.Turn
-import           Acquire.Hotels
 import           Acquire.Player
-import           Acquire.Tiles
 
 -- |
 -- = Player turn
