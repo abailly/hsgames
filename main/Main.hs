@@ -16,6 +16,7 @@ import           Control.Monad.Prompt
 import           Control.Monad.Reader
 import           Data.List                (isPrefixOf)
 import qualified Data.Map                 as M
+import           Data.Monoid
 import           Network.Socket           (socketPort)
 import           Options.Applicative
 import           System.Environment

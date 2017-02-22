@@ -1,5 +1,7 @@
 module Acquire exposing (main)
 
+-- {{{
+
 {-| Comment
 @docs main
 -}
@@ -17,6 +19,8 @@ import Model exposing (..)
 import View exposing (view)
 import Dict
 
+-- }}}
+
 {-| Main -}
 main : Program (String, String)
 main =
@@ -27,15 +31,14 @@ main =
     , subscriptions = subscriptions
     }
 
-subscriptions model =
-        Sub.batch [ listen model.wsServerUrl Output ]
-           
 init : (String , String) -> (Model, Cmd Msg)
+-- {{{
 init (host,port') =
     let randomClientKey = Random.map String.fromList (Random.list 16 <| Random.map Char.fromCode (Random.int 65 90))
     in ({ strings = [], showMessages =  True, errors = [], domain = host <:> port', wsServerUrl = ""
         , game = Register { player = Player "" Human [] Dict.empty 0 } }
        , Random.generate UseKey randomClientKey)
+-- }}}
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -43,6 +46,7 @@ update msg model =
         (Output s,_)    -> handleMessages model s
         (UseKey k,_)    -> let url = "ws://" ++ asString model.domain ++ "/" ++ k
                            in Debug.log url <| ({model | wsServerUrl = url}, Cmd.none)
+-- {{{
         (SetName s, Register _)
             -> ({model | game = Register { player = player s}}, Cmd.none)
         (RegisterPlayer, Register r)
@@ -77,7 +81,10 @@ update msg model =
         (UnhighlightCell, PlayGame g)
             -> ({model| game = PlayGame { g | highlightedCell = Nothing }}, Cmd.none)
         _   -> (model, Cmd.none)
-               
+
+-- }}}
+        
+-- {{{
 handleMessages : Model -> String -> (Model, Cmd Msg)
 handleMessages model s =
     case Json.decodeString decodeMessages s of
@@ -138,3 +145,8 @@ gameEnds {players, gameBoard} model =
 
 sendCommand : Model -> Request -> Cmd Msg
 sendCommand model m = send model.wsServerUrl (Json.encode 0 <| encodeRequest m)
+
+subscriptions model =
+        Sub.batch [ listen model.wsServerUrl Output ]
+           
+-- }}}

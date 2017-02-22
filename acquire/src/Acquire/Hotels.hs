@@ -6,7 +6,7 @@
 module Acquire.Hotels where
 
 import           Acquire.Tiles
-import           Data.Aeson    (FromJSON, ToJSON (..))
+import           Data.Aeson    (FromJSON, ToJSON (..), ToJSONKey)
 import qualified Data.Map      as M
 import           GHC.Generics
 
@@ -14,6 +14,7 @@ data ChainName = American | Continental | Festival | Imperial | Luxor | Tower | 
                 deriving (Eq, Enum, Ord, Show, Read, Generic)
 
 instance ToJSON ChainName
+instance ToJSONKey ChainName
 instance FromJSON ChainName
 
 data HotelChain = HotelChain { chainName  :: ChainName
@@ -25,9 +26,6 @@ instance ToJSON HotelChain
 instance FromJSON HotelChain
 
 type HotelChains = M.Map ChainName HotelChain
-
-instance ToJSON HotelChains where
-  toJSON = toJSON . M.toList
 
 isActive :: HotelChain -> Bool
 isActive HotelChain{..} = not (null chainTiles)

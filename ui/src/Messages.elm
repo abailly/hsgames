@@ -42,9 +42,9 @@ type Messages = PlayerRegistered PlayerName GameId
               | GameEnds Game
 
 type alias GameUpdate = { gsPlayer : Player
-                         , gsBoard : GameBoard
-                         , gsPlayables : List Order
-                         }
+                        , gsBoard : GameBoard
+                        , gsPlayables : List Order
+                        }
 
 type alias PlayerPlay = { gsPlayerName : PlayerName
                         , gsBoard :  GameBoard

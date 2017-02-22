@@ -95,7 +95,7 @@ initialisedGame :: GameId -> StdGen -> [(PlayerName,PlayerType)] -> Prompt Playe
 initialisedGame gid g num = do
   loaded <- prompt $ LoadGame gid
   case loaded of
-   Nothing -> return $ newGame gid g num
+   Nothing    -> return $ newGame gid g num
    Just  game -> return game
 
 interpretCommand :: Game -> Prompt PlayerInput Game

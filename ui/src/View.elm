@@ -1,5 +1,6 @@
 module View exposing (view)
 
+-- {{{
 import Dict
 import Json.Decode as Json
 import Json.Encode as Json
@@ -10,6 +11,7 @@ import Html.Events exposing (..)
 import Messages exposing (..)
 import Model exposing (..)
 import String
+-- }}}
 
 view : Model -> Html Msg
 view model = div []
@@ -21,6 +23,8 @@ view model = div []
              , viewGameResult model
              , messages model
              ]
+
+-- {{{
 
 viewTitle : Model -> Html Msg
 viewTitle model =
@@ -248,3 +252,6 @@ maybe : b -> (a -> b) -> Maybe a -> b
 maybe defaultVal transform optional =
     Maybe.withDefault defaultVal <|
     Maybe.map transform optional
+
+-- }}}
+

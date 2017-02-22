@@ -6,4 +6,4 @@ packages:
   - 'chinese'
 extra-deps:
   - unagi-chan-0.4.0.0
-resolver: lts-7.0
+resolver: lts-8.2
