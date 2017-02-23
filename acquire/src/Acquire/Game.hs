@@ -21,9 +21,10 @@ module Acquire.Game (
   module Acquire.Game.Hotels,
   -- * High-level interface to game play
   -- ** Query/update game state
-  currentPlayer, newGame, play, possiblePlay, highlightPlayableTiles,
+  currentPlayer, newGame, possiblePlay, highlightPlayableTiles,
   module Acquire.Game.Player,
   -- ** Main Game Loop
+  module Acquire.Game.Play,
   PlayerInput(..), Handler, Message(..), initialisedGame, interpretCommand
     ) where
 
