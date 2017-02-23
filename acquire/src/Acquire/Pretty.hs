@@ -4,9 +4,6 @@
 module Acquire.Pretty(Pretty(..), module Text.PrettyPrint.ANSI.Leijen, render) where
 
 import           Acquire.Game
-import           Acquire.Game.Cells
-import           Acquire.Game.Hotels
-import           Acquire.Game.Tiles
 import           Data.Array
 import qualified Data.Map                     as M
 import           Text.PrettyPrint.ANSI.Leijen

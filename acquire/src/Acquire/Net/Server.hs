@@ -6,7 +6,6 @@
 module Acquire.Net.Server(runServer, PortNumber) where
 
 import           Acquire.Game
-import           Acquire.Game.Core        (Order (..), players)
 import           Acquire.Net.Types
 import           Acquire.Robot
 import           Acquire.Trace

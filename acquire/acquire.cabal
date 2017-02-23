@@ -39,12 +39,12 @@ library
                  , Acquire.Pretty
                  , Acquire.Net
                  , Acquire.Robot
-                 , Acquire.Game.Player
-                 , Acquire.Game.Core, Acquire.Game.Turn, Acquire.Game.Play
-                 , Acquire.Game.Tiles, Acquire.Game.Cells, Acquire.Game.Hotels
                  , Acquire.Net.Player, Acquire.Net.Server, Acquire.Net.Types, Acquire.Net.Game
                  , Acquire.Trace
-
+  other-modules:  Acquire.Game.Player
+                , Acquire.Game.Core, Acquire.Game.Turn, Acquire.Game.Play
+                , Acquire.Game.Tiles, Acquire.Game.Cells, Acquire.Game.Hotels
+                                                
 
 Test-Suite tests
    Default-Language:  Haskell2010

@@ -4,7 +4,6 @@
 module Acquire.Net.Player where
 
 import           Acquire.Game
-import           Acquire.Game.Player  as P
 import           Acquire.Net.Types
 import           Acquire.Pretty
 import           Acquire.Trace
@@ -31,7 +30,7 @@ consoleIO = InOut getLine printMessage printResult
       putStrLn ""
       putStrLn (render $ pretty player)
       putStrLn ""
-      putStrLn $ "Your move, " ++ P.playerName player ++ " ?"
+      putStrLn $ "Your move, " ++ playerName player ++ " ?"
       mapM_ (\ (p,n :: Int) -> putStrLn $ show n ++ "- " ++ show p) (zip plays [1 .. ])
     printMessage (Played player _ order) = do
       putStrLn $ "player "++ player ++ " played " ++ show order

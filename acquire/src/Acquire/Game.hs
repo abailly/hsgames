@@ -15,7 +15,10 @@
 -- hotels to the chains in which you have controlling interest to increase their value.
 module Acquire.Game (
   -- * Types
-  Game(..), GameBoard, Order(Cancel), GameId,
+  Game(..), Order(Cancel), GameId,
+  module Acquire.Game.Cells,
+  module Acquire.Game.Tiles,
+  module Acquire.Game.Hotels,
   -- * High-level interface to game play
   -- ** Query/update game state
   currentPlayer, newGame, play, possiblePlay, highlightPlayableTiles,
@@ -26,8 +29,10 @@ module Acquire.Game (
 
 import           Acquire.Game.Cells
 import           Acquire.Game.Core
+import           Acquire.Game.Hotels
 import           Acquire.Game.Play
 import           Acquire.Game.Player
+import           Acquire.Game.Tiles
 import           Acquire.Game.Turn
 import           Control.Monad.Prompt
 import           Data.Aeson           (ToJSON)
