@@ -6,6 +6,8 @@ import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html5.DragDrop as DragDrop
+import String exposing (fromInt)
+import Tuple exposing (first)
 
 
 type alias Position =
@@ -313,7 +315,7 @@ parkingStyle army =
             , style "border" "3px solid red"
             , style "position" "absolute"
             , style "top" "10px"
-            , style "left" "2700px"
+            , style "left" "3000px"
             ]
 
         German ->
@@ -323,7 +325,7 @@ parkingStyle army =
             , style "border" "3px solid green"
             , style "position" "absolute"
             , style "top" "10px"
-            , style "left" "3350px"
+            , style "left" "3650px"
             ]
 
 
@@ -331,12 +333,6 @@ mapStyle =
     [ style "background" "url('/assets/carte.png') no-repeat"
     , style "width" "3000px"
     , style "height" "2000px"
-    ]
-
-
-unitStyle =
-    [ style "margin" "5px"
-    , style "position" "relative"
     ]
 
 
@@ -355,10 +351,10 @@ view model =
             List.map (\p -> viewDiv (divStyle p) model.positions dropId droppablePosition p) <| List.concat (List.map pos <| List.range 0 12)
 
         russianParking =
-            viewDiv (parkingStyle Russian) model.positions dropId droppablePosition ( 100, 100 )
+            viewParking (parkingStyle Russian) model.positions dropId droppablePosition ( 100, 100 )
 
         germanParking =
-            viewDiv (parkingStyle German) model.positions dropId droppablePosition ( 200, 200 )
+            viewParking (parkingStyle German) model.positions dropId droppablePosition ( 200, 200 )
     in
     div mapStyle
         (russianParking :: positions ++ [ germanParking ])
@@ -373,36 +369,86 @@ isNothing maybe =
             True
 
 
-viewDiv style_ positions dropId droppablePosition position =
-    let
-        highlight =
-            if dropId |> Maybe.map ((==) position) |> Maybe.withDefault False then
-                case droppablePosition of
-                    Nothing ->
-                        []
-
-                    Just pos ->
-                        if pos.y < pos.height // 2 then
-                            [ style "background-color" "cyan" ]
-
-                        else
-                            [ style "background-color" "magenta" ]
-
-            else
+highlighted dropId droppablePosition position =
+    if dropId |> Maybe.map ((==) position) |> Maybe.withDefault False then
+        case droppablePosition of
+            Nothing ->
                 []
 
-        mkImg unit =
-            img (src ("/assets/" ++ armyToString unit.army ++ "/" ++ unit.name ++ ".png") :: DragDrop.draggable DragDropMsg unit.name ++ unitStyle) []
+            Just pos ->
+                if pos.y < pos.height // 2 then
+                    [ style "background-color" "cyan" ]
+
+                else
+                    [ style "background-color" "magenta" ]
+
+    else
+        []
+
+
+viewParking style_ positions dropId droppablePosition position =
+    let
+        highlight =
+            highlighted dropId droppablePosition position
 
         units =
             Maybe.withDefault [] <| Dict.get position positions
+
+        styledFloating =
+            always
+                [ style "margin" "5px"
+                ]
     in
     div
         (style_
             ++ highlight
             ++ DragDrop.droppable DragDropMsg position
         )
-        (List.map mkImg units)
+        (viewUnits units styledFloating)
+
+
+viewDiv style_ positions dropId droppablePosition position =
+    let
+        highlight =
+            highlighted dropId droppablePosition position
+
+        units =
+            Maybe.withDefault [] <| Dict.get position positions
+
+        styleStacked index =
+            let
+                shift =
+                    index * 20
+            in
+            [ style "margin" "5px"
+            , style "position" "absolute"
+            , style "top" (fromInt shift ++ "px")
+            , style "left" (fromInt shift ++ "px")
+            , style "z-index" (fromInt shift)
+            ]
+    in
+    div
+        (style_
+            ++ highlight
+            ++ DragDrop.droppable DragDropMsg position
+        )
+        (viewUnits units styleStacked)
+
+
+viewUnits units styling =
+    let
+        mkImg unit ( otherUnits, index ) =
+            ( img
+                (src ("/assets/" ++ armyToString unit.army ++ "/" ++ unit.name ++ ".png")
+                    :: DragDrop.draggable DragDropMsg unit.name
+                    ++ styling index
+                )
+                []
+                :: otherUnits
+            , index + 1
+            )
+    in
+    List.foldl mkImg ( [], 0 ) units |> first
 
 
 main =
