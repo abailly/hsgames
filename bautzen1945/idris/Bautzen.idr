@@ -72,6 +72,18 @@ record Unit (nation : Nation) (unitType : UnitType) where
 Eq (Unit n u) where
   unit == unit' = name unit == name unit'
 
+-- list of existing units
+
+-- Russian/Polish
+
+r13_5dp : Unit Russian Infantry
+r13_5dp = MkUnit "13/5DP" Regiment 6 False (MkStdFactors 3 4)
+
+-- German
+
+g21_20pz : Unit German Armored
+g21_20pz = MkUnit "21/20Pz" Regiment 10 False (MkStdFactors 6 4)
+
 -- Section 2
 
 -- Positions & Map
