@@ -1,0 +1,5 @@
+package xxi
+pkgs = contrib
+modules = Bautzen
+main = main
+executable = bautzen
