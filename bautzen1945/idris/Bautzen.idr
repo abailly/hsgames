@@ -165,7 +165,10 @@ record GameState where
   units : List (GameUnit, Pos)
 
 data GameError : Type where
-  InvalidMove : (unitName : String) -> (to : Pos) -> GameError
+  NoSuchUnit : (unitName : String) -> GameError
+  NotYourTurn : (side : Side) -> GameError
+  EnemyInHex : (unit : GameUnit) -> (hex : Pos) -> GameError
+  MoveFromZocToZoc : (unit : GameUnit) -> (to : Pos) -> GameError
 
 data Command : (segment : GameSegment) -> Type where
   MoveTo : (unitName : String) -> (to : Pos) -> Command Move
@@ -189,6 +192,38 @@ export
 initialGame : Game
 initialGame = MkGame [] initialState
 
+-- section 3
+-- zones of control
+
+data ZoC : Type where
+  InZoC : (side : Side) -> ZoC
+  Free : ZoC
+
+||| Test if given position for given `side` is in the ZoC of the unit.
+inZoCOf : (pos : Pos) -> (side : Side) -> (GameUnit, Pos) -> Bool
+inZoCOf pos curSide (unit, location) with (curSide == side (nation unit))
+  | False = pos `elem` neighbours location
+  | True = False
+
+||| Is the given `Pos`ition in an enemy ZoC?
+||| This assumes the current `side` is playing and checking ZoCs
+inZoC : Side -> List (GameUnit, Pos) -> Pos -> ZoC
+inZoC curSide units pos =
+  case find (inZoCOf pos curSide) units of
+    Nothing => Free
+    (Just (MkGameUnit nation _ _ _ _ _ _, _)) => InZoC (side nation)
+
+-- ZoC tests
+
+inZoCTrue : (inZoCOf (Hex 3 3) Axis (Bautzen.r13_5dp, Hex 3 4) = True)
+inZoCTrue = Refl
+
+inZoCFalsePolish : (inZoCOf (Hex 3 3) Allies (Bautzen.r13_5dp, Hex 3 4) = False)
+inZoCFalsePolish = Refl
+
+-- section 4
+-- Movements
+
 setPosition : String -> Pos -> List (GameUnit, Pos) -> List (GameUnit, Pos)
 setPosition unitName newPosition = foldr setPos []
   where
@@ -206,37 +241,36 @@ apply : Event -> Game -> Game
 apply event (MkGame events curState) =
   MkGame (event :: events) (applyEvent event curState)
 
+moreMoveTo : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (from : Pos) -> (to : Pos) -> Either GameError Event
+moreMoveTo unit units from to with (inZoC (side (nation unit)) units from, inZoC (side (nation unit)) units to)
+  | (InZoC _, InZoC) = Left (MoveFromZocToZoc unit to)
+  | (Free , InZoC _) = ?hole
+  | (InZoC _, Free) = ?hole
+  | (Free, Free) = ?hole
+
 moveTo : (side : Side) -> (units : List (GameUnit, Pos)) -> (unitName : String) -> (to : Pos) -> Either GameError Event
-moveTo side units unitName to = ?moveTo_rhs
+moveTo sideToPlay units unitName to =
+  case find (\ (u,_) => name u == unitName) units of
+    Nothing => Left (NoSuchUnit unitName)
+    (Just (unit, b)) => if side (nation unit) /= sideToPlay
+                        then Left (NotYourTurn (side (nation unit)))
+                        else case find (\ (u,p) => p == to) units of
+                                  Nothing => moreMoveTo unit units b to
+                                  (Just (other, _)) => if friendly (nation unit) (nation other)
+                                                       then moreMoveTo unit units b to
+                                                       else Left (EnemyInHex other to)
+
+cannot_move_if_unit_does_not_exist : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4) ] "foo" (Hex 3 5) = Left (NoSuchUnit "foo")
+cannot_move_if_unit_does_not_exist = Refl
+
+cannot_move_not_current_side : moveTo Axis [ (Bautzen.r13_5dp, Hex 3 4) ] "13/5DP" (Hex 3 5) = Left (NotYourTurn Allies)
+cannot_move_not_current_side = Refl
+
+cannot_move_if_target_hex_is_occupied_by_enemy : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4), (Bautzen.g21_20pz, Hex 3 5) ] "13/5DP" (Hex 3 5) = Left (EnemyInHex Bautzen.g21_20pz (Hex 3 5))
+cannot_move_if_target_hex_is_occupied_by_enemy = Refl
+
+cannot_move_from_zoc_to_zoc : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4), (Bautzen.g21_20pz, Hex 3 5) ] "13/5DP" (Hex 4 4) = Left (MoveFromZocToZoc Bautzen.r13_5dp (Hex 4 4))
+cannot_move_from_zoc_to_zoc = Refl
 
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event
 act (MkGame events (MkGameState turn side Move units)) (MoveTo unitName to) = moveTo side units unitName to
-
--- section 3
--- zones of control
-
-data ZoC : Type where
-  InZoC : (nation : Nation) -> ZoC
-  Free : ZoC
-
-inZoCOf : (pos : Pos) -> (side : Side) -> (GameUnit, Pos) -> Bool
-inZoCOf pos curSide (unit, location) with (curSide == side (nation unit))
-  | False = pos `elem` neighbours location
-  | True = False
-
-
-||| Is the given `Pos`ition in an enemy ZoC?
-||| This assumes the current `side` is playing and  checking ZoCs
-inZoC : Pos -> GameState -> ZoC
-inZoC pos (MkGameState turn side segment units) =
-  case find (inZoCOf pos side) units of
-    Nothing => Free
-    (Just (MkGameUnit nation _ _ _ _ _ _, _)) => InZoC nation
-
--- ZoC tests
-
-inZoCTrue : (inZoCOf (Hex 3 3) Axis (Bautzen.r13_5dp, Hex 3 4) = True)
-inZoCTrue = Refl
-
-inZoCFalsePolish : (inZoCOf (Hex 3 3) Allies (Bautzen.r13_5dp, Hex 3 4) = False)
-inZoCFalsePolish = Refl
