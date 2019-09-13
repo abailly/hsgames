@@ -96,7 +96,6 @@ g21_20pz = MkGameUnit German Armored "21/20Pz" Regiment 10 False (MkStdFactors 6
 
 -- Positions & Map
 
-
 ||| A position/hex of the game board encoded as a pair of `Nat`
 ||| with bounds
 data Pos : Type where
@@ -150,6 +149,67 @@ neighbours pos =
                                 , (Dec, Inc)
                                 ]
 
+-- Map & Terrain types
+
+||| Terrain types
+data Terrain : Type where
+  Clear : Terrain
+  Wood : Terrain
+  Rough : Terrain
+  RoughWood : Terrain
+  Hill : (base : Terrain) -> Terrain
+  Village : (base : Terrain) -> Terrain
+  Town : Terrain
+  SupplySource : Terrain
+
+||| Terrain type between hexes (eg. edges)
+data Connection : Type where
+  Plain : Connection
+  Road : (base : Connection) -> Connection
+  River : Connection
+  Lake : Connection
+
+data Cost : Type where
+  Impossible : Cost
+  Zero : Cost
+  Half : Cost -> Cost
+  One : Cost -> Cost
+  Two : Cost -> Cost
+
+cost : UnitType -> Terrain -> Connection -> Cost
+cost _        _            Lake = Impossible
+cost Infantry terrain      (Road cnx) = Half (cost Infantry terrain cnx)
+cost Infantry (Hill base)  cnx  = Two (cost Infantry base cnx)
+cost Infantry RoughWood cnx     = One (One Zero)
+cost unitType (Village t)  cnx  = One (cost Infantry t cnx)
+cost Infantry _            _    = One Zero
+cost unitType (Hill base)  (Road cnx) = Half (cost unitType base cnx)
+cost _        (Hill _)     _    = Impossible
+cost unitType RoughWood    cnx  = Two (Two Zero)
+cost unitType Rough        cnx  = Two Zero
+cost _        Wood         _    = Two Zero
+cost _        _            _    = One Zero
+
+record Map where
+  constructor MkMap
+  hexes : List (Pos, Terrain)
+  edges : List ((Pos, Pos), Connection)
+
+
+||| Retrieve the `Terrain`s in a position
+terrain : Pos -> Map -> Terrain
+terrain pos map =
+  case lookup pos (hexes map) of
+     Nothing => Clear
+     (Just ts) => ts
+
+||| Retrieve the types of connections between 2 hexes
+connection : Pos -> Pos -> Map -> Connection
+connection x y map =
+  case lookup (x,y) (edges map) of
+    Nothing => Plain
+    Just cs => cs
+
 -- Game sequences
 
 data GameSegment : Type where
@@ -169,14 +229,14 @@ data GameError : Type where
   NotYourTurn : (side : Side) -> GameError
   EnemyInHex : (unit : GameUnit) -> (hex : Pos) -> GameError
   MoveFromZocToZoc : (unit : GameUnit) -> (to : Pos) -> GameError
+  ForbiddenTerrain : (from : Pos) -> (to : Pos) -> GameError
 
 data Command : (segment : GameSegment) -> Type where
   MoveTo : (unitName : String) -> (to : Pos) -> Command Move
 
 data Event : Type where
-  ||| Given unit has moved from some position to some other position
-  ||| @from:
-  Moved : (unitName : String) -> (from : Pos) -> (to : Pos) -> Event
+  ||| Unit has moved from some position to some other position
+  Moved : (unit : GameUnit) -> (from : Pos) -> (to : Pos) -> (cost : Cost) -> Event
 
 export
 data Game : Type where
@@ -234,43 +294,96 @@ setPosition unitName newPosition = foldr setPos []
       else u :: acc
 
 applyEvent : Event -> GameState -> GameState
-applyEvent (Moved unitName from to) (MkGameState turn side segment units) =
-  MkGameState turn side segment (setPosition unitName to units)
+applyEvent (Moved unit from to _) (MkGameState turn side segment units) =
+  MkGameState turn side segment (setPosition (name unit) to units)
 
 apply : Event -> Game -> Game
 apply event (MkGame events curState) =
   MkGame (event :: events) (applyEvent event curState)
 
-moreMoveTo : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (from : Pos) -> (to : Pos) -> Either GameError Event
-moreMoveTo unit units from to with (inZoC (side (nation unit)) units from, inZoC (side (nation unit)) units to)
+moreMoveTo : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos) -> Either GameError Event
+moreMoveTo unit units gameMap from to with (inZoC (side (nation unit)) units from, inZoC (side (nation unit)) units to)
   | (InZoC _, InZoC) = Left (MoveFromZocToZoc unit to)
   | (Free , InZoC _) = ?hole
   | (InZoC _, Free) = ?hole
-  | (Free, Free) = ?hole
+  | (Free, Free) with (cost (unitType unit) (terrain to gameMap) (connection from to gameMap))
+    | Impossible = Left (ForbiddenTerrain from to)
+    | c = Right (Moved unit from to c)
 
-moveTo : (side : Side) -> (units : List (GameUnit, Pos)) -> (unitName : String) -> (to : Pos) -> Either GameError Event
-moveTo sideToPlay units unitName to =
+moveTo : (side : Side) -> (units : List (GameUnit, Pos)) -> Map -> (unitName : String) -> (to : Pos) -> Either GameError Event
+moveTo sideToPlay units gameMap unitName to =
   case find (\ (u,_) => name u == unitName) units of
     Nothing => Left (NoSuchUnit unitName)
     (Just (unit, b)) => if side (nation unit) /= sideToPlay
                         then Left (NotYourTurn (side (nation unit)))
                         else case find (\ (u,p) => p == to) units of
-                                  Nothing => moreMoveTo unit units b to
+                                  Nothing => moreMoveTo unit units gameMap b to
                                   (Just (other, _)) => if friendly (nation unit) (nation other)
-                                                       then moreMoveTo unit units b to
+                                                       then moreMoveTo unit units gameMap b to
                                                        else Left (EnemyInHex other to)
 
-cannot_move_if_unit_does_not_exist : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4) ] "foo" (Hex 3 5) = Left (NoSuchUnit "foo")
+TestMap : Map
+TestMap =
+  MkMap [ (Hex 3 4, Wood)
+        , (Hex 4 4, Clear)
+        , (Hex 3 5, RoughWood)
+        , (Hex 2 4, Rough)
+        , (Hex 2 3, Hill (RoughWood))
+        , (Hex 3 3, Wood)
+        , (Hex 4 3, Town)
+        , (Hex 8 6, Clear)
+        , (Hex 8 7, Village Clear)
+        , (Hex 7 7, Hill Rough)
+        , (Hex 10 2, Village Wood)
+        , (Hex 10 3, Clear)
+        ]
+        [ ((Hex 4 4, Hex 5 5), Road Plain)
+        , ((Hex 8 6, Hex 8 7), Lake)
+        , ((Hex 8 7, Hex 7 7), Road Plain)
+        , ((Hex 10 3, Hex 10 2), Road River)
+        ]
+
+cannot_move_if_unit_does_not_exist : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4) ] TestMap "foo" (Hex 3 5) = Left (NoSuchUnit "foo")
 cannot_move_if_unit_does_not_exist = Refl
 
-cannot_move_not_current_side : moveTo Axis [ (Bautzen.r13_5dp, Hex 3 4) ] "13/5DP" (Hex 3 5) = Left (NotYourTurn Allies)
+cannot_move_not_current_side : moveTo Axis [ (Bautzen.r13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 5) = Left (NotYourTurn Allies)
 cannot_move_not_current_side = Refl
 
-cannot_move_if_target_hex_is_occupied_by_enemy : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4), (Bautzen.g21_20pz, Hex 3 5) ] "13/5DP" (Hex 3 5) = Left (EnemyInHex Bautzen.g21_20pz (Hex 3 5))
+cannot_move_if_target_hex_is_occupied_by_enemy : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4), (Bautzen.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 3 5) = Left (EnemyInHex Bautzen.g21_20pz (Hex 3 5))
 cannot_move_if_target_hex_is_occupied_by_enemy = Refl
 
-cannot_move_from_zoc_to_zoc : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4), (Bautzen.g21_20pz, Hex 3 5) ] "13/5DP" (Hex 4 4) = Left (MoveFromZocToZoc Bautzen.r13_5dp (Hex 4 4))
+cannot_move_from_zoc_to_zoc : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4), (Bautzen.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 4 4) = Left (MoveFromZocToZoc Bautzen.r13_5dp (Hex 4 4))
 cannot_move_from_zoc_to_zoc = Refl
 
+moving_into_clear_terrain_costs_1 : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 4 4) = Right (Moved Bautzen.r13_5dp (Hex 3 4) (Hex 4 4) (One Zero))
+moving_into_clear_terrain_costs_1 = Refl
+
+infantry_moving_into_rough_terrain_costs_1 : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 3) = Right (Moved Bautzen.r13_5dp (Hex 3 4) (Hex 3 3) (One Zero))
+infantry_moving_into_rough_terrain_costs_1 = Refl
+
+non_infantry_moving_into_rough_terrain_costs_2 : moveTo Axis [ (Bautzen.g21_20pz, Hex 3 4) ] TestMap "21/20Pz" (Hex 3 3) = Right (Moved Bautzen.g21_20pz (Hex 3 4) (Hex 3 3) (Two Zero))
+non_infantry_moving_into_rough_terrain_costs_2 = Refl
+
+cost_for_rough_is_cumulative : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 5) = Right (Moved Bautzen.r13_5dp (Hex 3 4) (Hex 3 5) (One (One Zero)))
+cost_for_rough_is_cumulative = Refl
+
+armored_cost_for_rough_is_cumulative : moveTo Axis [ (Bautzen.g21_20pz, Hex 3 4) ] TestMap "21/20Pz" (Hex 3 5) = Right (Moved Bautzen.g21_20pz (Hex 3 4) (Hex 3 5) (Two (Two Zero)))
+armored_cost_for_rough_is_cumulative = Refl
+
+moving_across_a_lake_is_forbidden : moveTo Axis [ (Bautzen.g21_20pz, Hex 8 6) ] TestMap "21/20Pz" (Hex 8 7) = Left (ForbiddenTerrain (Hex 8 6) (Hex 8 7))
+moving_across_a_lake_is_forbidden = Refl
+
+armored_moving_on_hill_is_forbidden : moveTo Axis [ (Bautzen.g21_20pz, Hex 3 4) ] TestMap "21/20Pz" (Hex 2 3) = Left (ForbiddenTerrain (Hex 3 4) (Hex 2 3))
+armored_moving_on_hill_is_forbidden = Refl
+
+armored_moving_on_hill_through_road_costs_half : moveTo Axis [ (Bautzen.g21_20pz, Hex 8 7) ] TestMap "21/20Pz" (Hex 7 7) = Right (Moved Bautzen.g21_20pz (Hex 8 7) (Hex 7 7) (Half (Two Zero)))
+armored_moving_on_hill_through_road_costs_half = Refl
+
+infantry_moving_through_road_costs_half : moveTo Allies [ (Bautzen.r13_5dp, Hex 8 7) ] TestMap "13/5DP" (Hex 7 7) = Right (Moved Bautzen.r13_5dp (Hex 8 7) (Hex 7 7) (Half (Two (One Zero))))
+infantry_moving_through_road_costs_half = Refl
+
+river_adds_one_PM_to_move : moveTo Allies [ (Bautzen.r13_5dp, Hex 10 3) ] TestMap "13/5DP" (Hex 10 2) = Right (Moved Bautzen.r13_5dp (Hex 10 3) (Hex 10 2) (Half (One (One Zero))))
+river_adds_one_PM_to_move = Refl
+
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event
-act (MkGame events (MkGameState turn side Move units)) (MoveTo unitName to) = moveTo side units unitName to
+act (MkGame events (MkGameState turn side Move units)) (MoveTo unitName to) = moveTo side units TestMap unitName to
