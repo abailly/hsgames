@@ -17,7 +17,7 @@ Eq Pos where
   (==) (Hex col row) (Hex col' row') = col == col' && row == row'
 
 Show Pos where
-  show (Hex c r) = show2Digits  c ++ show2Digits r
+  show (Hex c r) = show2Digits c ++ show2Digits r
     where
       show2Digits : Nat -> String
       show2Digits n =

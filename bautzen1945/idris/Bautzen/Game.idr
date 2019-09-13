@@ -1,9 +1,9 @@
 module Bautzen.Game
 
-import Bautzen.Game.Core
+import public Bautzen.Game.Core
 import Bautzen.Game.Move
-import Bautzen.GameUnit
-import Bautzen.Pos
+import public Bautzen.GameUnit
+import public Bautzen.Pos
 import Bautzen.Terrain
 
 import Data.Fin

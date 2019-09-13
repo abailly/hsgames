@@ -1,5 +1,5 @@
 package xxi
-pkgs = contrib
+pkgs = contrib, idrishttp
 modules = Bautzen
 main = bautzen1945
 executable = bautzen1945
