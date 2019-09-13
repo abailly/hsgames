@@ -245,7 +245,9 @@ data Command : (segment : GameSegment) -> Type where
 
 data Event : Type where
   ||| Unit has moved from some position to some other position
-  Moved : (unit : GameUnit) -> (from : Pos) -> (to : Pos) -> (cost : Cost) -> Event
+  Moved : (unit : GameUnit) -> (from : Pos) -> (to : Pos) -> (cost : Cost)
+        -> { auto prf : LTE (toNat cost) (currentMP unit) }
+        -> Event
 
 export
 data Game : Type where
@@ -296,36 +298,42 @@ inZoCFalsePolish = Refl
 -- section 4
 -- Movements
 
-setPosition : String -> Pos -> List (GameUnit, Pos) -> List (GameUnit, Pos)
-setPosition unitName newPosition = foldr setPos []
+updateMovedUnit : (unit : GameUnit) -> Pos -> (mps : Nat) -> { auto prf : LTE mps (currentMP unit) } -> List (GameUnit, Pos) -> List (GameUnit, Pos)
+updateMovedUnit unit newPosition mps = foldr updateUnit []
   where
-    setPos : (GameUnit, Pos) -> List (GameUnit, Pos) -> List (GameUnit, Pos)
-    setPos u@(unit, pos) acc =
-      if name unit == unitName
-      then (unit, newPosition) :: acc
+    updateUnit : (GameUnit, Pos) -> List (GameUnit, Pos) -> List (GameUnit, Pos)
+    updateUnit u@(gu, pos) acc =
+      if name unit == name gu
+      then let unit' = record { currentMP = currentMP unit - mps } unit
+           in (unit', newPosition) :: acc
       else u :: acc
 
 applyEvent : Event -> GameState -> GameState
-applyEvent (Moved unit from to _) (MkGameState turn side segment units) =
-  MkGameState turn side segment (setPosition (name unit) to units)
+applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
+  MkGameState turn side segment (updateMovedUnit unit to (toNat cost) units)
 
 apply : Event -> Game -> Game
 apply event (MkGame events curState) =
   MkGame (event :: events) (applyEvent event curState)
 
-movementCost : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos) -> Either GameError Cost
-movementCost unit units gameMap from to with (cost (unitType unit) (terrain to gameMap) (connection from to gameMap))
-    | Impossible = Left (ForbiddenTerrain from to)
-    | c = let cost = toNat c
-          in if cost <= currentMP unit
-             then Right c
-             else Left (NotEnoughMPs unit from to cost)
+movementCost : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos)
+             -> Bool
+             -> Either GameError (cost : Cost ** LTE (toNat cost) (currentMP unit))
+movementCost unit units gameMap from to leavingZoC with (cost (unitType unit) (terrain to gameMap) (connection from to gameMap))
+  movementCost unit units gameMap from to _     | Impossible = Left (ForbiddenTerrain from to)
+  movementCost unit units gameMap from to False | c = case isLTE (toNat c) (currentMP unit) of
+                                                           Yes prf => Right (c ** prf)
+                                                           No _    => Left (NotEnoughMPs unit from to (toNat c))
+  movementCost unit units gameMap from to True  | c = let cost = One c
+                                                      in case isLTE (toNat cost) (currentMP unit) of
+                                                           Yes prf => Right (cost ** prf)
+                                                           No _    => Left (NotEnoughMPs unit from to (toNat cost))
 
 moreMoveTo : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos) -> Either GameError Event
 moreMoveTo unit units gameMap from to with (inZoC (side (nation unit)) units from, inZoC (side (nation unit)) units to)
-  | (InZoC _, Free) = do c <- movementCost unit units gameMap from to
-                         pure (Moved unit from to (One c))
-  | (Free, _) = do c <- movementCost unit units gameMap from to
+  | (InZoC _, Free) = do (c ** _) <- movementCost unit units gameMap from to True
+                         pure (Moved unit from to c)
+  | (Free, _) = do (c ** _) <- movementCost unit units gameMap from to False
                    pure (Moved unit from to c)
   | (_, _) = Left (MoveFromZocToZoc unit to)
 
