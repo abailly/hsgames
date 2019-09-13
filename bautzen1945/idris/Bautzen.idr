@@ -12,16 +12,22 @@ data Nation : Type where
   Russian : Nation
   Polish : Nation
 
+data Side : Type where
+  Axis : Side
+  Allies : Side
+
+Eq Side where
+  Axis == Axis = True
+  Allies == Allies = True
+  _ == _ = False
+
+side : Nation -> Side
+side German = Axis
+side Polish = Allies
+side Russian = Allies
+
 friendly : Nation -> Nation -> Bool
-friendly German German = True
-friendly Russian Russian = True
-friendly Polish Polish = True
-friendly German Russian = False
-friendly German Polish = False
-friendly Polish German = False
-friendly Polish Russian = True
-friendly Russian German = False
-friendly Russian Polish = True
+friendly n n' = side n == side n'
 
 data UnitType : Type where
   Armored : UnitType
@@ -116,25 +122,24 @@ data Mvmt : Type where
   Neut : Mvmt
   Inc : Mvmt
 
-||| Compute the neighbours of a given position
-||| There are at most 6 neighbours, with side and corner hexes having of
-||| course less.
-
-moveTo : (x : Nat) -> (prf : LTE x bound) -> Mvmt -> Maybe (n : Nat ** LTE n bound)
-moveTo Z prf Dec = Nothing
-moveTo (S k) prf Dec = Just (k ** lteSuccLeft prf)
-moveTo x prf Neut = Just (x ** prf)
-moveTo x prf Inc {bound} with (isLTE (S x) bound)
+shiftPos : (x : Nat) -> (prf : LTE x bound) -> Mvmt -> Maybe (n : Nat ** LTE n bound)
+shiftPos Z prf Dec = Nothing
+shiftPos (S k) prf Dec = Just (k ** lteSuccLeft prf)
+shiftPos x prf Neut = Just (x ** prf)
+shiftPos x prf Inc {bound} with (isLTE (S x) bound)
   | (Yes y) = Just (S x ** y)
   | (No contra) = Nothing
 
 
 makePos : (pos : Pos) -> (Mvmt, Mvmt) -> Maybe Pos
 makePos (Hex col row {cbound} {rbound} ) (a, b) = do
-  (c' ** p1) <- moveTo col cbound a
-  (r' ** p2) <- moveTo row rbound b
+  (c' ** p1) <- shiftPos col cbound a
+  (r' ** p2) <- shiftPos row rbound b
   pure $ Hex c' r' {cbound = p1} {rbound = p2}
 
+||| Compute the neighbours of a given position
+||| There are at most 6 neighbours, with side and corner hexes having of
+||| course less.
 neighbours : (pos : Pos) -> List Pos
 neighbours pos =
   catMaybes $ map (makePos pos) [ (Inc, Inc)
@@ -152,26 +157,60 @@ data GameSegment : Type where
   Move : GameSegment
   Combat : GameSegment
 
-data Event : Type where
-
 record GameState where
   constructor MkGameState
   turn : Fin 5
-  side : Nation
+  side : Side
   segment : GameSegment
   units : List (GameUnit, Pos)
 
+data GameError : Type where
+  InvalidMove : (unitName : String) -> (to : Pos) -> GameError
+
+data Command : (segment : GameSegment) -> Type where
+  MoveTo : (unitName : String) -> (to : Pos) -> Command Move
+
+data Event : Type where
+  ||| Given unit has moved from some position to some other position
+  ||| @from:
+  Moved : (unitName : String) -> (from : Pos) -> (to : Pos) -> Event
+
 export
 data Game : Type where
-  MkGame : List Event -> GameState -> Game
+  MkGame : (events : List Event) -> (curState : GameState) -> Game
+
+curSegment : Game -> GameSegment
+curSegment (MkGame events (MkGameState turn side segment units)) = segment
 
 initialState : GameState
-initialState = MkGameState 0 German Supply []
+initialState = MkGameState 0 Axis Supply []
 
 export
 initialGame : Game
 initialGame = MkGame [] initialState
 
+setPosition : String -> Pos -> List (GameUnit, Pos) -> List (GameUnit, Pos)
+setPosition unitName newPosition = foldr setPos []
+  where
+    setPos : (GameUnit, Pos) -> List (GameUnit, Pos) -> List (GameUnit, Pos)
+    setPos u@(unit, pos) acc =
+      if name unit == unitName
+      then (unit, newPosition) :: acc
+      else u :: acc
+
+applyEvent : Event -> GameState -> GameState
+applyEvent (Moved unitName from to) (MkGameState turn side segment units) =
+  MkGameState turn side segment (setPosition unitName to units)
+
+apply : Event -> Game -> Game
+apply event (MkGame events curState) =
+  MkGame (event :: events) (applyEvent event curState)
+
+moveTo : (side : Side) -> (units : List (GameUnit, Pos)) -> (unitName : String) -> (to : Pos) -> Either GameError Event
+moveTo side units unitName to = ?moveTo_rhs
+
+act : (game : Game) -> Command (curSegment game) -> Either GameError Event
+act (MkGame events (MkGameState turn side Move units)) (MoveTo unitName to) = moveTo side units unitName to
 
 -- section 3
 -- zones of control
@@ -180,8 +219,8 @@ data ZoC : Type where
   InZoC : (nation : Nation) -> ZoC
   Free : ZoC
 
-inZoCOf : (pos : Pos) -> (side : Nation) -> (GameUnit, Pos) -> Bool
-inZoCOf pos side (unit, location) with (friendly side (nation unit))
+inZoCOf : (pos : Pos) -> (side : Side) -> (GameUnit, Pos) -> Bool
+inZoCOf pos curSide (unit, location) with (curSide == side (nation unit))
   | False = pos `elem` neighbours location
   | True = False
 
@@ -196,11 +235,8 @@ inZoC pos (MkGameState turn side segment units) =
 
 -- ZoC tests
 
-inZoCTrue : (inZoCOf (Hex 3 3) German (Bautzen.r13_5dp, Hex 3 4) = True)
+inZoCTrue : (inZoCOf (Hex 3 3) Axis (Bautzen.r13_5dp, Hex 3 4) = True)
 inZoCTrue = Refl
 
-inZoCFalsePolish : (inZoCOf (Hex 3 3) Polish (Bautzen.r13_5dp, Hex 3 4) = False)
+inZoCFalsePolish : (inZoCOf (Hex 3 3) Allies (Bautzen.r13_5dp, Hex 3 4) = False)
 inZoCFalsePolish = Refl
-
-inZoCFalseRussian : (inZoCOf (Hex 3 3) Russian (Bautzen.r13_5dp, Hex 3 4) = False)
-inZoCFalseRussian = Refl
