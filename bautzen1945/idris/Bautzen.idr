@@ -61,28 +61,30 @@ Factors AntiTank = StdFactors
 Factors HQ = Arty
 Factors SupplyColumn = ()
 
-record Unit (nation : Nation) (unitType : UnitType) where
-  constructor MkUnit
+record GameUnit where
+  constructor MkGameUnit
+  nation : Nation
+  unitType : UnitType
   name : String
   size : UnitSize
   move : Nat
   hit : Bool
   combat : Factors unitType
 
-Eq (Unit n u) where
+Eq GameUnit where
   unit == unit' = name unit == name unit'
 
 -- list of existing units
 
 -- Russian/Polish
 
-r13_5dp : Unit Russian Infantry
-r13_5dp = MkUnit "13/5DP" Regiment 6 False (MkStdFactors 3 4)
+r13_5dp : GameUnit
+r13_5dp = MkGameUnit Russian Infantry "13/5DP" Regiment 6 False (MkStdFactors 3 4)
 
 -- German
 
-g21_20pz : Unit German Armored
-g21_20pz = MkUnit "21/20Pz" Regiment 10 False (MkStdFactors 6 4)
+g21_20pz : GameUnit
+g21_20pz = MkGameUnit German Armored "21/20Pz" Regiment 10 False (MkStdFactors 6 4)
 
 -- Section 2
 
@@ -143,21 +145,33 @@ neighbours pos =
                                 , (Dec, Inc)
                                 ]
 
-
 -- Game sequences
-
 
 data GameSegment : Type where
   Supply : GameSegment
   Move : GameSegment
   Combat : GameSegment
 
+data Event : Type where
+
 record GameState where
   constructor MkGameState
-  turn : Fin 6
+  turn : Fin 5
   side : Nation
   segment : GameSegment
-  units : List (Unit n u, Pos)
+  units : List (GameUnit, Pos)
+
+export
+data Game : Type where
+  MkGame : List Event -> GameState -> Game
+
+initialState : GameState
+initialState = MkGameState 0 German Supply []
+
+export
+initialGame : Game
+initialGame = MkGame [] initialState
+
 
 -- section 3
 -- zones of control
@@ -166,8 +180,8 @@ data ZoC : Type where
   InZoC : (nation : Nation) -> ZoC
   Free : ZoC
 
-inZoCOf : (pos : Pos) -> (side : Nation) -> (Unit n u, Pos) -> Bool
-inZoCOf pos side (_, location) with (friendly side n)
+inZoCOf : (pos : Pos) -> (side : Nation) -> (GameUnit, Pos) -> Bool
+inZoCOf pos side (unit, location) with (friendly side (nation unit))
   | False = pos `elem` neighbours location
   | True = False
 
@@ -178,4 +192,15 @@ inZoC : Pos -> GameState -> ZoC
 inZoC pos (MkGameState turn side segment units) =
   case find (inZoCOf pos side) units of
     Nothing => Free
-    (Just (MkUnit {nation} _ _ _ _ _, _)) => InZoC nation
+    (Just (MkGameUnit nation _ _ _ _ _ _, _)) => InZoC nation
+
+-- ZoC tests
+
+inZoCTrue : (inZoCOf (Hex 3 3) German (Bautzen.r13_5dp, Hex 3 4) = True)
+inZoCTrue = Refl
+
+inZoCFalsePolish : (inZoCOf (Hex 3 3) Polish (Bautzen.r13_5dp, Hex 3 4) = False)
+inZoCFalsePolish = Refl
+
+inZoCFalseRussian : (inZoCOf (Hex 3 3) Russian (Bautzen.r13_5dp, Hex 3 4) = False)
+inZoCFalseRussian = Refl

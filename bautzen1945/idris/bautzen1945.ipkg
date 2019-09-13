@@ -1,5 +1,5 @@
 package xxi
 pkgs = contrib
 modules = Bautzen
-main = main
-executable = bautzen
+main = bautzen1945
+executable = bautzen1945
