@@ -74,6 +74,7 @@ record GameUnit where
   name : String
   size : UnitSize
   move : Nat
+  currentMP : Nat
   hit : Bool
   combat : Factors unitType
 
@@ -85,12 +86,12 @@ Eq GameUnit where
 -- Russian/Polish
 
 r13_5dp : GameUnit
-r13_5dp = MkGameUnit Russian Infantry "13/5DP" Regiment 6 False (MkStdFactors 3 4)
+r13_5dp = MkGameUnit Russian Infantry "13/5DP" Regiment 6 6 False (MkStdFactors 3 4)
 
 -- German
 
 g21_20pz : GameUnit
-g21_20pz = MkGameUnit German Armored "21/20Pz" Regiment 10 False (MkStdFactors 6 4)
+g21_20pz = MkGameUnit German Armored "21/20Pz" Regiment 10 10 False (MkStdFactors 6 4)
 
 -- Section 2
 
@@ -271,7 +272,7 @@ inZoC : Side -> List (GameUnit, Pos) -> Pos -> ZoC
 inZoC curSide units pos =
   case find (inZoCOf pos curSide) units of
     Nothing => Free
-    (Just (MkGameUnit nation _ _ _ _ _ _, _)) => InZoC (side nation)
+    (Just (MkGameUnit nation _ _ _ _ _ _ _, _)) => InZoC (side nation)
 
 -- ZoC tests
 
