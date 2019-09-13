@@ -191,6 +191,13 @@ cost unitType Rough        cnx        = Two Zero
 cost _        Wood         _          = Two Zero
 cost _        _            _          = One Zero
 
+toNat : Cost -> Nat
+toNat Impossible = 10000000 -- should probably be another type?
+toNat Zero       = 0
+toNat (Half x)   = divNatNZ (toNat x) 2 SIsNotZ
+toNat (One x)    = S (toNat x)
+toNat (Two x)    = S (S (toNat x))
+
 record Map where
   constructor MkMap
   hexes : List (Pos, Terrain)
@@ -231,6 +238,7 @@ data GameError : Type where
   EnemyInHex : (unit : GameUnit) -> (hex : Pos) -> GameError
   MoveFromZocToZoc : (unit : GameUnit) -> (to : Pos) -> GameError
   ForbiddenTerrain : (from : Pos) -> (to : Pos) -> GameError
+  NotEnoughMPs : (unit : GameUnit) -> (from : Pos)-> (to : Pos) -> (mp : Nat) -> GameError
 
 data Command : (segment : GameSegment) -> Type where
   MoveTo : (unitName : String) -> (to : Pos) -> Command Move
@@ -308,7 +316,10 @@ apply event (MkGame events curState) =
 movementCost : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos) -> Either GameError Cost
 movementCost unit units gameMap from to with (cost (unitType unit) (terrain to gameMap) (connection from to gameMap))
     | Impossible = Left (ForbiddenTerrain from to)
-    | c = Right c
+    | c = let cost = toNat c
+          in if cost <= currentMP unit
+             then Right c
+             else Left (NotEnoughMPs unit from to cost)
 
 moreMoveTo : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos) -> Either GameError Event
 moreMoveTo unit units gameMap from to with (inZoC (side (nation unit)) units from, inZoC (side (nation unit)) units to)
@@ -395,6 +406,12 @@ river_adds_one_PM_to_move = Refl
 
 moving_out_of_ZoC_adds_one_PM_to_move : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4), (Bautzen.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 2 3) = Right (Moved Bautzen.r13_5dp (Hex 3 4) (Hex 2 3) (One (Two (One (One Zero)))))
 moving_out_of_ZoC_adds_one_PM_to_move = Refl
+
+g21_20pz_no_mp : GameUnit
+g21_20pz_no_mp = MkGameUnit German Armored "21/20Pz" Regiment 10 3 False (MkStdFactors 6 4)
+
+unit_cannot_move_if_not_enough_MP : moveTo Axis [ (Bautzen.g21_20pz_no_mp, Hex 3 4) ] TestMap "21/20Pz" (Hex 3 5) = Left (NotEnoughMPs Bautzen.g21_20pz_no_mp (Hex 3 4) (Hex 3 5) 4)
+unit_cannot_move_if_not_enough_MP = Refl
 
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event
 act (MkGame events (MkGameState turn side Move units)) (MoveTo unitName to) = moveTo side units TestMap unitName to
