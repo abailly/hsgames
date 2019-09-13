@@ -146,7 +146,7 @@ neighbours pos =
                                 , (Neut, Inc)
                                 , (Neut, Dec)
                                 , (Dec, Neut)
-                                , (Dec, Inc)
+                                , (Inc, Dec)
                                 ]
 
 -- Map & Terrain types
@@ -177,18 +177,18 @@ data Cost : Type where
   Two : Cost -> Cost
 
 cost : UnitType -> Terrain -> Connection -> Cost
-cost _        _            Lake = Impossible
+cost _        _            Lake       = Impossible
 cost Infantry terrain      (Road cnx) = Half (cost Infantry terrain cnx)
-cost Infantry (Hill base)  cnx  = Two (cost Infantry base cnx)
-cost Infantry RoughWood cnx     = One (One Zero)
-cost unitType (Village t)  cnx  = One (cost Infantry t cnx)
-cost Infantry _            _    = One Zero
+cost Infantry (Hill base)  cnx        = Two (cost Infantry base cnx)
+cost unitType (Village t)  cnx        = One (cost unitType t cnx)
+cost Infantry RoughWood cnx           = One (One Zero)
+cost Infantry _            _          = One Zero
 cost unitType (Hill base)  (Road cnx) = Half (cost unitType base cnx)
-cost _        (Hill _)     _    = Impossible
-cost unitType RoughWood    cnx  = Two (Two Zero)
-cost unitType Rough        cnx  = Two Zero
-cost _        Wood         _    = Two Zero
-cost _        _            _    = One Zero
+cost _        (Hill _)     _          = Impossible
+cost unitType RoughWood    cnx        = Two (Two Zero)
+cost unitType Rough        cnx        = Two Zero
+cost _        Wood         _          = Two Zero
+cost _        _            _          = One Zero
 
 record Map where
   constructor MkMap
@@ -278,6 +278,9 @@ inZoC curSide units pos =
 inZoCTrue : (inZoCOf (Hex 3 3) Axis (Bautzen.r13_5dp, Hex 3 4) = True)
 inZoCTrue = Refl
 
+inZoCTrue2 : (inZoCOf (Hex 4 3) Axis (Bautzen.r13_5dp, Hex 3 4) = True)
+inZoCTrue2 = Refl
+
 inZoCFalsePolish : (inZoCOf (Hex 3 3) Allies (Bautzen.r13_5dp, Hex 3 4) = False)
 inZoCFalsePolish = Refl
 
@@ -301,14 +304,18 @@ apply : Event -> Game -> Game
 apply event (MkGame events curState) =
   MkGame (event :: events) (applyEvent event curState)
 
+movementCost : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos) -> Either GameError Cost
+movementCost unit units gameMap from to with (cost (unitType unit) (terrain to gameMap) (connection from to gameMap))
+    | Impossible = Left (ForbiddenTerrain from to)
+    | c = Right c
+
 moreMoveTo : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos) -> Either GameError Event
 moreMoveTo unit units gameMap from to with (inZoC (side (nation unit)) units from, inZoC (side (nation unit)) units to)
-  | (InZoC _, InZoC) = Left (MoveFromZocToZoc unit to)
-  | (Free , InZoC _) = ?hole
-  | (InZoC _, Free) = ?hole
-  | (Free, Free) with (cost (unitType unit) (terrain to gameMap) (connection from to gameMap))
-    | Impossible = Left (ForbiddenTerrain from to)
-    | c = Right (Moved unit from to c)
+  | (InZoC _, Free) = do c <- movementCost unit units gameMap from to
+                         pure (Moved unit from to (One c))
+  | (Free, _) = do c <- movementCost unit units gameMap from to
+                   pure (Moved unit from to c)
+  | (_, _) = Left (MoveFromZocToZoc unit to)
 
 moveTo : (side : Side) -> (units : List (GameUnit, Pos)) -> Map -> (unitName : String) -> (to : Pos) -> Either GameError Event
 moveTo sideToPlay units gameMap unitName to =
@@ -384,6 +391,9 @@ infantry_moving_through_road_costs_half = Refl
 
 river_adds_one_PM_to_move : moveTo Allies [ (Bautzen.r13_5dp, Hex 10 3) ] TestMap "13/5DP" (Hex 10 2) = Right (Moved Bautzen.r13_5dp (Hex 10 3) (Hex 10 2) (Half (One (One Zero))))
 river_adds_one_PM_to_move = Refl
+
+moving_out_of_ZoC_adds_one_PM_to_move : moveTo Allies [ (Bautzen.r13_5dp, Hex 3 4), (Bautzen.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 2 3) = Right (Moved Bautzen.r13_5dp (Hex 3 4) (Hex 2 3) (One (Two (One (One Zero)))))
+moving_out_of_ZoC_adds_one_PM_to_move = Refl
 
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event
 act (MkGame events (MkGameState turn side Move units)) (MoveTo unitName to) = moveTo side units TestMap unitName to
