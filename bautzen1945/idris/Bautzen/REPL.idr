@@ -41,7 +41,9 @@ eoiHandler : Game -> String
 eoiHandler = show
 
 initialPositions : List (GameUnit, Pos)
-initialPositions = [ (Bautzen.GameUnit.r13_5dp, Hex 3 4), (Bautzen.GameUnit.g21_20pz, Hex 3 5) ]
+initialPositions = [ (Bautzen.GameUnit.r13_5dp, Hex 3 4)
+                   , (Bautzen.GameUnit.g21_20pz, Hex 3 5)
+                   ]
 
 initialState : GameState
 initialState = MkGameState 0 Axis Move initialPositions

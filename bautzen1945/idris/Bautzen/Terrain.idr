@@ -78,6 +78,7 @@ TestMap : Map
 TestMap =
   MkMap [ (Hex 3 4, Wood)
         , (Hex 4 4, Clear)
+        , (Hex 4 5, Hill Rough)
         , (Hex 3 5, RoughWood)
         , (Hex 2 4, Rough)
         , (Hex 2 3, Hill (RoughWood))

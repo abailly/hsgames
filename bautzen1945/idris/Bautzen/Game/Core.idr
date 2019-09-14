@@ -35,6 +35,7 @@ data GameError : Type where
   EnemyInHex : (unit : GameUnit) -> (hex : Pos) -> GameError
   MoveFromZocToZoc : (unit : GameUnit) -> (to : Pos) -> GameError
   ForbiddenTerrain : (from : Pos) -> (to : Pos) -> GameError
+  InvalidMove : (from : Pos) -> (to : Pos) -> GameError
   NotEnoughMPs : (unit : GameUnit) -> (from : Pos)-> (to : Pos) -> (mp : Nat) -> GameError
 
 Show GameError where
@@ -43,6 +44,7 @@ Show GameError where
   show (EnemyInHex unit hex) = "Target hex is occupied by enemy: " ++ show hex
   show (MoveFromZocToZoc unit to) = "Cannot move from a ZoC to a ZoC: " ++ show to
   show (ForbiddenTerrain from to) = "Unit cannot enter terrain: " ++ show from ++ " -> " ++ show to
+  show (InvalidMove from to) = "Move is invalid: " ++ show from ++ " -> " ++ show to
   show (NotEnoughMPs unit from to mp) = "Unit has not enough MPs: " ++ show mp ++ ", " ++ show from ++ " -> " ++ show to
 
 data Command : (segment : GameSegment) -> Type where
