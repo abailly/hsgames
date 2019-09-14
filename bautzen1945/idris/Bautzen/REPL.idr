@@ -37,27 +37,27 @@ ToSExp UnitSize where
 
 ToSExp StdFactors where
   toSExp (MkStdFactors attack defense) =
-    SList [ SList [ SSym "attack", toSExp attack ]
-          , SList [ SSym "defense", toSExp defense ]
+    SList [ toSExp attack
+          , toSExp defense
           ]
 
 ToSExp Arty where
   toSExp (MkArty support distance) =
-    SList [ SList [ SSym "support", toSExp support ]
-          , SList [ SSym "distance", toSExp distance ]
+    SList [ toSExp support
+          , toSExp distance
           ]
 
 ToSExp GameUnit where
   toSExp (MkGameUnit nation unitType name size move currentMP hit combat) =
     SList [ SSym ":unit"
-          , SList [ SSym "nation", toSExp nation ]
-          , SList [ SSym "unitType", toSExp unitType ]
-          , SList [ SSym "name", toSExp name ]
-          , SList [ SSym "size", toSExp size ]
-          , SList [ SSym "move", toSExp move ]
-          , SList [ SSym "currentMP", toSExp currentMP ]
-          , SList [ SSym "hit", toSExp hit ]
-          , SList [ SSym "combat", case unitType of
+          , toSExp nation
+          , toSExp unitType
+          , toSExp name
+          , toSExp size
+          , toSExp move
+          , toSExp currentMP
+          , toSExp hit
+          , case unitType of
                                     Armored       => toSExp combat
                                     HeavyArmored  => toSExp combat
                                     MechInfantry  => toSExp combat
@@ -67,13 +67,12 @@ ToSExp GameUnit where
                                     AntiTank      => toSExp combat
                                     HQ            => toSExp combat
                                     SupplyColumn  => toSExp combat
-                  ]
           ]
 
 ToSExp Pos where
   toSExp (Hex col row) =
-    SList [ SList [ SSym "col", toSExp col ]
-          , SList [ SSym "row", toSExp row ]
+    SList [ toSExp col
+          , toSExp row
           ]
 
 ToSExp Cost where
@@ -91,10 +90,10 @@ ToSExp GameError where
 ToSExp Event where
   toSExp (Moved unit from to cost) =
       SList [ SSym ":moved"
-            , SList [ SSym "unit", toSExp unit ]
-            , SList [ SSym "from", toSExp from ]
-            , SList [ SSym "to", toSExp to ]
-            , SList [ SSym "cost", toSExp cost ]
+            , SSym ":unit", toSExp unit
+            , SSym ":from", toSExp from
+            , SSym ":to", toSExp to
+            , SSym ":cost", toSExp cost
             ]
 
 makeMoveCommand : (unitName : String) -> (col : Int) -> (row : Int) -> Either String (Command Move)

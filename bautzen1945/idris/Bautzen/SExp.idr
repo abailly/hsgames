@@ -59,7 +59,7 @@ Show SExp where
       showList : List SExp -> String
       showList [] = ""
       showList [x] = show x
-      showList (x :: y :: xs) = show x ++ " " ++ show y ++ showList xs
+      showList (x :: xs) = show x ++ " " ++ showList xs
   show (SStr x)   = show x
   show (SSym x)   = x
   show (SInt x)   = show x
