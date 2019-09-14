@@ -75,7 +75,7 @@ neighbours (Hex col row) with (col `divMod` 1)
   neighbours (Hex col@(Z + (_ * fromInteger 2)) row)     | (MkDivMod _ Z remainderSmall) = catMaybes $ map (makePos (Hex col row)) evenShifts
   neighbours (Hex col@((S Z) + (_ * fromInteger 2)) row) | (MkDivMod _ (S Z) remainderSmall) = catMaybes $ map (makePos (Hex col row)) oddShifts
   neighbours (Hex ((S (S _)) + (_ * fromInteger 2)) _)   | (MkDivMod _ (S (S _)) LTEZero) impossible
-  neighbours (Hex ((S (S _)) + (_ * fromInteger 2)) _)   | (MkDivMod _ (S (S _)) (LTESucc lte)) = [] -- this case is odd...
+  neighbours (Hex ((S (S _)) + (_ * fromInteger 2)) _)   | (MkDivMod _ (S (S _)) (LTESucc lte)) = absurd $ succNotLTEzero (fromLteSucc lte)
 
 namespace PosTest
   %access private
