@@ -1,5 +1,7 @@
 module Bautzen.Pos
 
+import Data.Nat.DivMod
+
 %access public export
 %default total
 
@@ -45,15 +47,41 @@ makePos (Hex col row {cbound} {rbound} ) (a, b) = do
   (r' ** p2) <- shiftPos row rbound b
   pure $ Hex c' r' {cbound = p1} {rbound = p2}
 
+
+oddShifts : List (Mvmt, Mvmt)
+oddShifts = [ (Dec, Neut)
+            , (Neut, Dec)
+            , (Inc, Neut)
+            , (Inc, Inc)
+            , (Neut, Inc)
+            , (Dec, Inc)
+            ]
+
+
+evenShifts : List (Mvmt, Mvmt)
+evenShifts = [ (Dec, Dec)
+            , (Neut, Dec)
+            , (Inc, Dec)
+            , (Inc, Neut)
+            , (Neut, Inc)
+            , (Dec, Neut)
+            ]
+
 ||| Compute the neighbours of a given position
 ||| There are at most 6 neighbours, with side and corner hexes having of
 ||| course less.
 neighbours : (pos : Pos) -> List Pos
-neighbours pos =
-  catMaybes $ map (makePos pos) [ (Inc, Inc)
-                                , (Inc, Neut)
-                                , (Neut, Inc)
-                                , (Neut, Dec)
-                                , (Dec, Neut)
-                                , (Inc, Dec)
-                                ]
+neighbours (Hex col row) with (col `divMod` 1)
+  neighbours (Hex col@(Z + (_ * fromInteger 2)) row)     | (MkDivMod _ Z remainderSmall) = catMaybes $ map (makePos (Hex col row)) evenShifts
+  neighbours (Hex col@((S Z) + (_ * fromInteger 2)) row) | (MkDivMod _ (S Z) remainderSmall) = catMaybes $ map (makePos (Hex col row)) oddShifts
+  neighbours (Hex ((S (S _)) + (_ * fromInteger 2)) _)   | (MkDivMod _ (S (S _)) LTEZero) impossible
+  neighbours (Hex ((S (S _)) + (_ * fromInteger 2)) _)   | (MkDivMod _ (S (S _)) (LTESucc lte)) = [] -- this case is odd...
+
+namespace PosTest
+  %access private
+
+  neighbours1_test : (neighbours (Hex 3 3) = [ Hex 2 3, Hex 3 2, Hex 4 3, Hex 4 4, Hex 3 4, Hex 2 4] )
+  neighbours1_test = Refl
+
+  neighbours_test : (neighbours (Hex 2 2) = [ Hex 1 1, Hex 2 1, Hex 3 1, Hex 3 2, Hex 2 3, Hex 1 2] )
+  neighbours_test = Refl
