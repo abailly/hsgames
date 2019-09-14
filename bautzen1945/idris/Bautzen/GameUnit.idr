@@ -67,12 +67,14 @@ data UnitSize : Type where
   Brigade : UnitSize
   Division : UnitSize
   Corps : UnitSize
+  Army : UnitSize
 
 Show UnitSize where
   show Regiment = "Regiment"
   show Brigade = "Brigade"
   show Division = "Division"
   show Corps = "Corps"
+  show Army = "Army"
 
 record StdFactors where
   constructor MkStdFactors
@@ -106,6 +108,7 @@ record GameUnit where
   nation : Nation
   unitType : UnitType
   name : String
+  parent : Maybe String
   size : UnitSize
   move : Nat
   currentMP : Nat
@@ -113,10 +116,11 @@ record GameUnit where
   combat : Factors unitType
 
 Show GameUnit where
-  show (MkGameUnit nation unitType name size move currentMP hit combat) =
+  show (MkGameUnit nation unitType name parent size move currentMP hit combat) =
     "MkGameUnit nation=" ++ show nation ++
     ", unitType=" ++ show unitType ++
     ", name=" ++ name ++
+    ", parent=" ++ fromMaybe "" parent ++
     ", size=" ++ show size ++
     ", move=" ++ show move ++
     ", currentMP=" ++ show currentMP ++
@@ -133,16 +137,19 @@ Show GameUnit where
                          SupplyColumn => show combat)
 
 Eq GameUnit where
-  unit == unit' = name unit == name unit'
+  unit == unit' = name unit == name unit' && parent unit == parent unit'
+
+fullName : GameUnit -> String
+fullName u = name u ++ maybe "" (\ n => "/" ++ n) (parent u)
 
 -- list of existing units
 
 -- Russian/Polish
 
 r13_5dp : GameUnit
-r13_5dp = MkGameUnit Russian Infantry "13/5DP" Regiment 6 6 False (MkStdFactors 3 4)
+r13_5dp = MkGameUnit Russian Infantry "13" (Just "5DP") Regiment 6 6 False (MkStdFactors 3 4)
 
 -- German
 
 g21_20pz : GameUnit
-g21_20pz = MkGameUnit German Armored "21/20Pz" Regiment 10 10 False (MkStdFactors 6 4)
+g21_20pz = MkGameUnit German Armored "21" (Just "20Pz") Regiment 10 10 False (MkStdFactors 6 4)

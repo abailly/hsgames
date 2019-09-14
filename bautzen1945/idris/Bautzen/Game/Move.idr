@@ -14,7 +14,7 @@ updateMovedUnit unit newPosition mps = foldr updateUnit []
   where
     updateUnit : (GameUnit, Pos) -> List (GameUnit, Pos) -> List (GameUnit, Pos)
     updateUnit u@(gu, pos) acc =
-      if name unit == name gu
+      if fullName unit == fullName gu
       then let unit' = record { currentMP = currentMP unit - mps } unit
            in (unit', newPosition) :: acc
       else u :: acc
@@ -42,7 +42,7 @@ moreMoveTo unit units gameMap from to with (inZoC (side (nation unit)) units fro
 
 moveTo : (side : Side) -> (units : List (GameUnit, Pos)) -> Map -> (unitName : String) -> (to : Pos) -> Either GameError Event
 moveTo sideToPlay units gameMap unitName to =
-  case find (\ (u,_) => name u == unitName) units of
+  case find (\ (u,_) => fullName u == unitName) units of
     Nothing => Left (NoSuchUnit unitName)
     (Just (unit, b)) => if side (nation unit) /= sideToPlay
                         then Left (NotYourTurn (side (nation unit)))
@@ -102,7 +102,7 @@ namespace MoveTest
   moving_out_of_ZoC_adds_one_PM_to_move = Refl
 
   g21_20pz_no_mp : GameUnit
-  g21_20pz_no_mp = MkGameUnit German Armored "21/20Pz" Regiment 10 3 False (MkStdFactors 6 4)
+  g21_20pz_no_mp = MkGameUnit German Armored "21" (Just "20Pz") Regiment 10 3 False (MkStdFactors 6 4)
 
   unit_cannot_move_if_not_enough_MP : moveTo Axis [ (MoveTest.g21_20pz_no_mp, Hex 3 4) ] TestMap "21/20Pz" (Hex 3 5) = Left (NotEnoughMPs MoveTest.g21_20pz_no_mp (Hex 3 4) (Hex 3 5) 4)
   unit_cannot_move_if_not_enough_MP = Refl
