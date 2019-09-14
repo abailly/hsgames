@@ -1,42 +1,9 @@
 module Bautzen.REPL.SExpParser
 
+import Bautzen.SExp
+
 import Text.Parse
 import Text.ParseError
-
-public export
-data SExp : Type where
-  SList : List SExp -> SExp
-  SSym : String -> SExp
-  SStr : String -> SExp
-  SInt : Int -> SExp
-
-export
-total
-Show SExp where
-  show (SList xs) = "(" ++ showList xs ++ ")"
-    where
-      showList : List SExp -> String
-      showList [] = ""
-      showList [x] = show x
-      showList (x :: y :: xs) = show x ++ " " ++ show y ++ showList xs
-  show (SStr x)   = show x
-  show (SSym x)   = x
-  show (SInt x)   = show x
-
-export
-Eq SExp where
-  (SList []) == (SList []) = True
-  (SList (x :: xs)) == (SList (x' :: xs')) = x == x' && equal xs xs'
-    where
-      equal : List SExp -> List SExp -> Bool
-      equal [] [] = True
-      equal (x :: xs) (y :: ys) = x == y && equal xs ys
-      equal _ _ = False
-
-  (SStr x) == (SStr x') = x == x'
-  (SSym x) == (SSym x') = x == x'
-  (SInt x) == (SInt x') = x == x'
-  _ == _ = True
 
 record SExpParse where
   constructor MkSExpParse
