@@ -99,7 +99,7 @@ Factors HeavyEngineer = StdFactors
 Factors Artillery     = Arty
 Factors AntiTank      = StdFactors
 Factors HQ            = Arty
-Factors SupplyColumn  = ()
+Factors SupplyColumn  = Unit
 
 record GameUnit where
   constructor MkGameUnit

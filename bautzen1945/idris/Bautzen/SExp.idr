@@ -10,24 +10,44 @@ data SExp : Type where
   SInt : Int -> SExp
 
 ||| Conversion utility from a type to a `SExp`
+public export
 interface ToSExp a where
   toSExp : a -> SExp
 
+export
+ToSExp SExp where
+  toSExp = id
+
+export
+ToSExp Unit where
+  toSExp () = SList []
+
+export
 ToSExp String where
   toSExp = SStr
 
+export
 ToSExp Int where
   toSExp = SInt
 
+export
+ToSExp Bool where
+  toSExp True = SSym "t"
+  toSExp False = SSym "nil"
+
+export
 ToSExp Integer where
   toSExp = SInt . fromInteger
 
+export
 ToSExp Nat where
   toSExp = SInt . cast
 
+export
 ToSExp a => ToSExp (List a) where
   toSExp = SList . map toSExp
 
+export
 ToSExp a => ToSExp (Vect n a) where
   toSExp = toSExp . toList
 

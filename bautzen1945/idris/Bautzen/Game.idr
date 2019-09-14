@@ -4,7 +4,7 @@ import public Bautzen.Game.Core
 import Bautzen.Game.Move
 import public Bautzen.GameUnit
 import public Bautzen.Pos
-import Bautzen.Terrain
+import public Bautzen.Terrain
 
 import Data.Fin
 

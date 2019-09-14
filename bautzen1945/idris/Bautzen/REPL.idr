@@ -2,11 +2,100 @@ module Bautzen.REPL
 
 import Bautzen.Game
 import Bautzen.REPL.SExpParser
+import Bautzen.SExp
 
 import Data.Fin
 import Prelude.Interactive
 
 %default total
+
+ToSExp Side where
+  toSExp Axis = SSym "Axis"
+  toSExp Allies = SSym "Allies"
+
+ToSExp Nation where
+  toSExp German = SSym "German"
+  toSExp Russian = SSym "Russian"
+  toSExp Polish = SSym "Polish"
+
+ToSExp UnitType where
+  toSExp Armored = SSym "Armored"
+  toSExp HeavyArmored = SSym "HeavyArmored"
+  toSExp MechInfantry = SSym "MechInfantry"
+  toSExp Infantry = SSym "Infantry"
+  toSExp HeavyEngineer = SSym "HeavyEngineer"
+  toSExp Artillery = SSym "Artillery"
+  toSExp AntiTank = SSym "AntiTank"
+  toSExp HQ = SSym "HQ"
+  toSExp SupplyColumn = SSym "SupplyColumn"
+
+ToSExp UnitSize where
+  toSExp Regiment = SSym "Regiment"
+  toSExp Brigade = SSym "Brigade"
+  toSExp Division = SSym "Division"
+  toSExp Corps = SSym "Corps"
+
+ToSExp StdFactors where
+  toSExp (MkStdFactors attack defense) =
+    SList [ SList [ SSym "attack", toSExp attack ]
+          , SList [ SSym "defense", toSExp defense ]
+          ]
+
+ToSExp Arty where
+  toSExp (MkArty support distance) =
+    SList [ SList [ SSym "support", toSExp support ]
+          , SList [ SSym "distance", toSExp distance ]
+          ]
+
+ToSExp GameUnit where
+  toSExp (MkGameUnit nation unitType name size move currentMP hit combat) =
+    SList [ SSym ":unit"
+          , SList [ SSym "nation", toSExp nation ]
+          , SList [ SSym "unitType", toSExp unitType ]
+          , SList [ SSym "name", toSExp name ]
+          , SList [ SSym "size", toSExp size ]
+          , SList [ SSym "move", toSExp move ]
+          , SList [ SSym "currentMP", toSExp currentMP ]
+          , SList [ SSym "hit", toSExp hit ]
+          , SList [ SSym "combat", case unitType of
+                                    Armored       => toSExp combat
+                                    HeavyArmored  => toSExp combat
+                                    MechInfantry  => toSExp combat
+                                    Infantry      => toSExp combat
+                                    HeavyEngineer => toSExp combat
+                                    Artillery     => toSExp combat
+                                    AntiTank      => toSExp combat
+                                    HQ            => toSExp combat
+                                    SupplyColumn  => toSExp combat
+                  ]
+          ]
+
+ToSExp Pos where
+  toSExp (Hex col row) =
+    SList [ SList [ SSym "col", toSExp col ]
+          , SList [ SSym "row", toSExp row ]
+          ]
+
+ToSExp Cost where
+  toSExp = toSExp . toNat
+
+ToSExp GameError where
+  toSExp (NoSuchUnit unitName) = SList [ SSym ":error", SSym "NoSuchUnit", SStr unitName ]
+  toSExp (NotYourTurn side) = SList [ SSym ":error", SSym "NoSuchUnit", toSExp side ]
+  toSExp (EnemyInHex unit hex) = SList [ SSym ":error", SSym "EnemyInHex", toSExp unit, toSExp hex ]
+  toSExp (MoveFromZocToZoc unit to) = SList [ SSym ":error", SSym "MoveFromZocToZoc", toSExp unit, toSExp to ]
+  toSExp (ForbiddenTerrain from to) = SList [ SSym ":error", SSym "ForbiddenTerrain", toSExp from, toSExp to ]
+  toSExp (InvalidMove from to) = SList [ SSym ":error", SSym "InvalidMove", toSExp from, toSExp to ]
+  toSExp (NotEnoughMPs unit from to mp) = SList [ SSym ":error", SSym "NotEnoughMPs", toSExp unit, toSExp from, toSExp to, toSExp mp ]
+
+ToSExp Event where
+  toSExp (Moved unit from to cost) =
+      SList [ SSym ":moved"
+            , SList [ SSym "unit", toSExp unit ]
+            , SList [ SSym "from", toSExp from ]
+            , SList [ SSym "to", toSExp to ]
+            , SList [ SSym "cost", toSExp cost ]
+            ]
 
 makeMoveCommand : (unitName : String) -> (col : Int) -> (row : Int) -> Either String (Command Move)
 makeMoveCommand unitName col row with (fromIntegerNat (cast col), fromIntegerNat (cast row))
@@ -33,8 +122,8 @@ commandHandler game command =
   case parseCommand game command of
     Left err => (err, game)
     Right cmd => case act game cmd of
-                      Left err => (show err, game)
-                      Right event => (show event, apply event game)
+                      Left err => (show (toSExp err) ++ "\n", game)
+                      Right event => (show (toSExp event) ++ "\n", apply event game)
 
 partial
 eoiHandler : Game -> String
