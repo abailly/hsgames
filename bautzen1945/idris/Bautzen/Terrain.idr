@@ -17,7 +17,7 @@ data Terrain : Type where
   Hill : (base : Terrain) -> Terrain
   Village : (base : Terrain) -> Terrain
   Town : Terrain
-  SupplySource : Terrain
+  SupplySource : (base : Terrain) -> Terrain
 
 ||| Terrain type between hexes (eg. edges)
 data Connection : Type where
@@ -34,6 +34,7 @@ data Cost : Type where
   Two : Cost -> Cost
 
 cost : UnitType -> Terrain -> Connection -> Cost
+cost unitType (SupplySource base) cnx  = cost unitType base cnx
 cost _        _            Lake       = Impossible
 cost Infantry terrain      (Road cnx) = Half (cost Infantry terrain cnx)
 cost Infantry (Hill base)  cnx        = Two (cost Infantry base cnx)
