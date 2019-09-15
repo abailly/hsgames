@@ -36,20 +36,49 @@ stackingLimit (SupplySource base) = stackingLimit base
 
 data Stacking : Type where
   Stacked : (n : Nat) -> Stacking
-  Overstack : (n : Nat) -> Stacking
+  Overstacked : (n : Nat) -> Stacking
   CannotStack : Stacking
 
 ||| What's the stacking status of `units` on `terrain`?
+||| This can be used to test incrementally the stacking of adding one unit to
+||| to an existing stack too.
+||| @units a lits of units to check stacking of.
+||| @terrain the terrain of the `Hex` the units are stacked on.
 stacking : (units : List GameUnit) -> (terrain: Terrain) -> Stacking
 stacking units terrain =
-  let sp = sum $ map sps units
-  in Stacked sp
+  if moreThan2DifferentFormations || unitsFromDifferentNations
+  then CannotStack
+  else let sp = sum $ map sps units
+       in if sp <= stackingLimit terrain
+          then Stacked sp
+          else Overstacked sp
   where
+    unitsFromDifferentNations : Bool
+    unitsFromDifferentNations = (length . nub . map nation $ units) > 1
+
+    moreThan2DifferentFormations : Bool
+    moreThan2DifferentFormations = (length . catMaybes . nub . map parent $ units) > 2
+
     sps : GameUnit -> Nat
     sps (MkGameUnit nation unitType name parent size move currentMP hit combat) = stackingPoints nation size unitType
 
 namespace StackingTest
   %access private
 
-  stacking_of_a_single_unit : stacking [ GameUnit.r13_5dp ] Clear = Stacked 2
+  stacking_of_a_single_unit : stacking [ GameUnit.p13_5dp ] Clear = Stacked 2
   stacking_of_a_single_unit = Refl
+
+  stacking_of_more_units_from_same_parent : stacking [ GameUnit.p13_5dp, GameUnit.p15_5dp, GameUnit.p17_5dp ] Clear = Stacked 6
+  stacking_of_more_units_from_same_parent = Refl
+
+  overstack_from_units_from_same_parent : stacking [ GameUnit.p13_5dp, GameUnit.p15_5dp, GameUnit.p5dp ] Clear = Overstacked 7
+  overstack_from_units_from_same_parent = Refl
+
+  cannot_stack_more_than_1_unit_from_different_parent : stacking [ GameUnit.p13_5dp, GameUnit.p33_7dp, GameUnit.p32_8dp ] Clear = CannotStack
+  cannot_stack_more_than_1_unit_from_different_parent = Refl
+
+  can_stack_independent_units : stacking [ GameUnit.p13_5dp, GameUnit.p33_7dp, GameUnit.p6l ] Clear = Overstacked 7
+  can_stack_independent_units = Refl
+
+  cannot_stack_units_from_different_nations : stacking [ GameUnit.p13_5dp, GameUnit.r857_294 ] Clear = CannotStack
+  cannot_stack_units_from_different_nations = Refl
