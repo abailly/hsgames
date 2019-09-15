@@ -34,6 +34,7 @@ ToSExp UnitSize where
   toSExp Brigade = SSym "Brigade"
   toSExp Division = SSym "Division"
   toSExp Corps = SSym "Corps"
+  toSExp Army = SSym "Army"
 
 ToSExp StdFactors where
   toSExp (MkStdFactors attack defense) =
@@ -48,25 +49,26 @@ ToSExp Arty where
           ]
 
 ToSExp GameUnit where
-  toSExp (MkGameUnit nation unitType name size move currentMP hit combat) =
+  toSExp (MkGameUnit nation unitType name parent size move currentMP hit combat) =
     SList [ SSym ":unit"
           , toSExp nation
           , toSExp unitType
           , toSExp name
+          , toSExp parent
           , toSExp size
           , toSExp move
           , toSExp currentMP
           , toSExp hit
           , case unitType of
-                                    Armored       => toSExp combat
-                                    HeavyArmored  => toSExp combat
-                                    MechInfantry  => toSExp combat
-                                    Infantry      => toSExp combat
-                                    HeavyEngineer => toSExp combat
-                                    Artillery     => toSExp combat
-                                    AntiTank      => toSExp combat
-                                    HQ            => toSExp combat
-                                    SupplyColumn  => toSExp combat
+              Armored       => toSExp combat
+              HeavyArmored  => toSExp combat
+              MechInfantry  => toSExp combat
+              Infantry      => toSExp combat
+              HeavyEngineer => toSExp combat
+              Artillery     => toSExp combat
+              AntiTank      => toSExp combat
+              HQ            => toSExp combat
+              SupplyColumn  => toSExp combat
           ]
 
 ToSExp Pos where
@@ -129,7 +131,7 @@ eoiHandler : Game -> String
 eoiHandler = show
 
 initialPositions : List (GameUnit, Pos)
-initialPositions = [ (Bautzen.GameUnit.r13_5dp, Hex 3 4)
+initialPositions = [ (Bautzen.GameUnit.p13_5dp, Hex 3 4)
                    , (Bautzen.GameUnit.g21_20pz, Hex 3 5)
                    ]
 
