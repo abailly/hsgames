@@ -56,28 +56,28 @@ moveTo sideToPlay units gameMap unitName to =
 
 namespace MoveTest
   %access private
-  cannot_move_if_unit_does_not_exist : moveTo Allies [ (Bautzen.GameUnit.r13_5dp, Hex 3 4) ] TestMap "foo" (Hex 3 5) = Left (NoSuchUnit "foo")
+  cannot_move_if_unit_does_not_exist : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "foo" (Hex 3 5) = Left (NoSuchUnit "foo")
   cannot_move_if_unit_does_not_exist = Refl
 
-  cannot_move_not_current_side : moveTo Axis [ (Bautzen.GameUnit.r13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 5) = Left (NotYourTurn Allies)
+  cannot_move_not_current_side : moveTo Axis [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 5) = Left (NotYourTurn Allies)
   cannot_move_not_current_side = Refl
 
-  cannot_move_if_target_hex_is_occupied_by_enemy : moveTo Allies [ (Bautzen.GameUnit.r13_5dp, Hex 3 4), (Bautzen.GameUnit.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 3 5) = Left (EnemyInHex Bautzen.GameUnit.g21_20pz (Hex 3 5))
+  cannot_move_if_target_hex_is_occupied_by_enemy : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4), (Bautzen.GameUnit.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 3 5) = Left (EnemyInHex Bautzen.GameUnit.g21_20pz (Hex 3 5))
   cannot_move_if_target_hex_is_occupied_by_enemy = Refl
 
-  cannot_move_from_zoc_to_zoc : moveTo Allies [ (Bautzen.GameUnit.r13_5dp, Hex 3 4), (Bautzen.GameUnit.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 4 5) = Left (MoveFromZocToZoc Bautzen.GameUnit.r13_5dp (Hex 4 5))
+  cannot_move_from_zoc_to_zoc : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4), (Bautzen.GameUnit.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 4 5) = Left (MoveFromZocToZoc Bautzen.GameUnit.p13_5dp (Hex 4 5))
   cannot_move_from_zoc_to_zoc = Refl
 
-  moving_into_clear_terrain_costs_1 : moveTo Allies [ (Bautzen.GameUnit.r13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 4 4) = Right (Moved Bautzen.GameUnit.r13_5dp (Hex 3 4) (Hex 4 4) (One Zero))
+  moving_into_clear_terrain_costs_1 : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 4 4) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 3 4) (Hex 4 4) (One Zero))
   moving_into_clear_terrain_costs_1 = Refl
 
-  infantry_moving_into_rough_terrain_costs_1 : moveTo Allies [ (Bautzen.GameUnit.r13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 3) = Right (Moved Bautzen.GameUnit.r13_5dp (Hex 3 4) (Hex 3 3) (One Zero))
+  infantry_moving_into_rough_terrain_costs_1 : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 3) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 3 4) (Hex 3 3) (One Zero))
   infantry_moving_into_rough_terrain_costs_1 = Refl
 
   non_infantry_moving_into_rough_terrain_costs_2 : moveTo Axis [ (Bautzen.GameUnit.g21_20pz, Hex 3 4) ] TestMap "21/20Pz" (Hex 3 3) = Right (Moved Bautzen.GameUnit.g21_20pz (Hex 3 4) (Hex 3 3) (Two Zero))
   non_infantry_moving_into_rough_terrain_costs_2 = Refl
 
-  cost_for_rough_is_cumulative : moveTo Allies [ (Bautzen.GameUnit.r13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 5) = Right (Moved Bautzen.GameUnit.r13_5dp (Hex 3 4) (Hex 3 5) (One (One Zero)))
+  cost_for_rough_is_cumulative : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 5) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 3 4) (Hex 3 5) (One (One Zero)))
   cost_for_rough_is_cumulative = Refl
 
   armored_cost_for_rough_is_cumulative : moveTo Axis [ (Bautzen.GameUnit.g21_20pz, Hex 3 4) ] TestMap "21/20Pz" (Hex 3 5) = Right (Moved Bautzen.GameUnit.g21_20pz (Hex 3 4) (Hex 3 5) (Two (Two Zero)))
@@ -92,13 +92,13 @@ namespace MoveTest
   armored_moving_on_hill_through_road_costs_half : moveTo Axis [ (Bautzen.GameUnit.g21_20pz, Hex 8 7) ] TestMap "21/20Pz" (Hex 7 7) = Right (Moved Bautzen.GameUnit.g21_20pz (Hex 8 7) (Hex 7 7) (Half (Two Zero)))
   armored_moving_on_hill_through_road_costs_half = Refl
 
-  infantry_moving_through_road_costs_half : moveTo Allies [ (Bautzen.GameUnit.r13_5dp, Hex 8 7) ] TestMap "13/5DP" (Hex 7 7) = Right (Moved Bautzen.GameUnit.r13_5dp (Hex 8 7) (Hex 7 7) (Half (Two (One Zero))))
+  infantry_moving_through_road_costs_half : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 8 7) ] TestMap "13/5DP" (Hex 7 7) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 8 7) (Hex 7 7) (Half (Two (One Zero))))
   infantry_moving_through_road_costs_half = Refl
 
-  river_adds_one_PM_to_move : moveTo Allies [ (Bautzen.GameUnit.r13_5dp, Hex 10 3) ] TestMap "13/5DP" (Hex 10 2) = Right (Moved Bautzen.GameUnit.r13_5dp (Hex 10 3) (Hex 10 2) (Half (One (One Zero))))
+  river_adds_one_PM_to_move : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 10 3) ] TestMap "13/5DP" (Hex 10 2) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 10 3) (Hex 10 2) (Half (One (One Zero))))
   river_adds_one_PM_to_move = Refl
 
-  moving_out_of_ZoC_adds_one_PM_to_move : moveTo Allies [ (Bautzen.GameUnit.r13_5dp, Hex 3 4), (Bautzen.GameUnit.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 4 4) = Right (Moved Bautzen.GameUnit.r13_5dp (Hex 3 4) (Hex 4 4) (One (One Zero)))
+  moving_out_of_ZoC_adds_one_PM_to_move : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4), (Bautzen.GameUnit.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 4 4) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 3 4) (Hex 4 4) (One (One Zero)))
   moving_out_of_ZoC_adds_one_PM_to_move = Refl
 
   g21_20pz_no_mp : GameUnit

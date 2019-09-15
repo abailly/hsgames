@@ -14,6 +14,12 @@ data Nation : Type where
   Russian : Nation
   Polish : Nation
 
+Eq Nation where
+  (==) German German = True
+  (==) Russian Russian = True
+  (==) Polish Polish = True
+  (==) _ _ = False
+
 Show Nation where
   show German = "German"
   show Russian = "Russian"
@@ -144,10 +150,33 @@ fullName u = name u ++ maybe "" (\ n => "/" ++ n) (parent u)
 
 -- list of existing units
 
--- Russian/Polish
+-- Polish
 
-r13_5dp : GameUnit
-r13_5dp = MkGameUnit Russian Infantry "13" (Just "5DP") Regiment 6 6 False (MkStdFactors 3 4)
+p13_5dp : GameUnit
+p13_5dp = MkGameUnit Polish Infantry "13" (Just "5DP") Regiment 6 6 False (MkStdFactors 3 4)
+
+p15_5dp : GameUnit
+p15_5dp = MkGameUnit Polish Infantry "15" (Just "5DP") Regiment 6 6 False (MkStdFactors 3 4)
+
+p17_5dp : GameUnit
+p17_5dp = MkGameUnit Polish Infantry "17" (Just "5DP") Regiment 6 6 False (MkStdFactors 3 4)
+
+p5dp : GameUnit
+p5dp = MkGameUnit Polish HQ "HQ" (Just "5DP") Division 4 4 False (MkArty 5 2)
+
+p33_7dp : GameUnit
+p33_7dp = MkGameUnit Polish Infantry "33" (Just "7DP") Regiment 6 6 False (MkStdFactors 3 4)
+
+p32_8dp : GameUnit
+p32_8dp = MkGameUnit Polish Infantry "32" (Just "8DP") Regiment 6 6 False (MkStdFactors 3 4)
+
+p6l : GameUnit
+p6l = MkGameUnit Polish Artillery "6L" Nothing Brigade 4 4 False (MkArty 4 4)
+
+-- Russian
+
+r857_294 : GameUnit
+r857_294 = MkGameUnit Russian Infantry "857" (Just "294") Brigade 8 8 False (MkStdFactors 2 4)
 
 -- German
 

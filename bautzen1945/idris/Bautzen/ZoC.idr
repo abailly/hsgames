@@ -28,11 +28,11 @@ inZoC curSide units pos =
 
 -- ZoC tests
 
-inZoCTrue : (inZoCOf (Hex 3 3) Axis (Bautzen.GameUnit.r13_5dp, Hex 3 4) = True)
+inZoCTrue : (inZoCOf (Hex 3 3) Axis (Bautzen.GameUnit.p13_5dp, Hex 3 4) = True)
 inZoCTrue = Refl
 
-inZoCTrue2 : (inZoCOf (Hex 4 3) Axis (Bautzen.GameUnit.r13_5dp, Hex 3 4) = False)
+inZoCTrue2 : (inZoCOf (Hex 4 3) Axis (Bautzen.GameUnit.p13_5dp, Hex 3 4) = False)
 inZoCTrue2 = Refl
 
-inZoCFalsePolish : (inZoCOf (Hex 3 3) Allies (Bautzen.GameUnit.r13_5dp, Hex 3 4) = False)
+inZoCFalsePolish : (inZoCOf (Hex 3 3) Allies (Bautzen.GameUnit.p13_5dp, Hex 3 4) = False)
 inZoCFalsePolish = Refl
