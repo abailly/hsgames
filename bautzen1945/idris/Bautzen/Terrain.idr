@@ -33,20 +33,20 @@ data Cost : Type where
   One : Cost -> Cost
   Two : Cost -> Cost
 
-cost : UnitType -> Terrain -> Connection -> Cost
-cost unitType (SupplySource base) cnx  = cost unitType base cnx
-cost _        _            Lake       = Impossible
-cost Infantry terrain      (Road cnx) = Half (cost Infantry terrain cnx)
-cost Infantry (Hill base)  cnx        = Two (cost Infantry base cnx)
-cost unitType (Village t)  cnx        = One (cost unitType t cnx)
-cost Infantry RoughWood cnx           = One (One Zero)
-cost Infantry _            _          = One Zero
-cost unitType (Hill base)  (Road cnx) = Half (cost unitType base cnx)
-cost _        (Hill _)     _          = Impossible
-cost unitType RoughWood    cnx        = Two (Two Zero)
-cost unitType Rough        cnx        = Two Zero
-cost _        Wood         _          = Two Zero
-cost _        _            _          = One Zero
+cost : UnitType -> Terrain ->          Connection -> Cost
+cost   unitType    (SupplySource base) cnx        = cost unitType base cnx
+cost   _           _                   Lake       = Impossible
+cost   Infantry    terrain             (Road cnx) = Half (cost Infantry terrain cnx)
+cost   Infantry    (Hill base)         cnx        = Two (cost Infantry base cnx)
+cost   unitType    (Village t)         cnx        = One (cost unitType t cnx)
+cost   Infantry    RoughWood cnx                  = One (One Zero)
+cost   Infantry    _                   _          = One Zero
+cost   unitType    (Hill base)         (Road cnx) = Half (cost unitType base cnx)
+cost   _           (Hill _)            _          = Impossible
+cost   unitType    RoughWood           cnx        = Two (Two Zero)
+cost   unitType    Rough               cnx        = Two Zero
+cost   _           Wood                _          = Two Zero
+cost   _           _                   _          = One Zero
 
 toNat : Cost -> Nat
 toNat Impossible = 10000000 -- should probably be another type?
