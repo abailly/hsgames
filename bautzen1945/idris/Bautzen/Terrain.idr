@@ -17,7 +17,13 @@ data Terrain : Type where
   Hill : (base : Terrain) -> Terrain
   Village : (base : Terrain) -> Terrain
   Town : Terrain
-  SupplySource : (base : Terrain) -> Terrain
+  SupplySource : (side : Side) -> (base : Terrain) -> Terrain
+
+isSupplyFor : Nation -> Terrain -> Bool
+isSupplyFor nation (SupplySource s _) = side nation == s
+isSupplyFor nation (Hill base) = isSupplyFor nation base
+isSupplyFor nation (Village base) = isSupplyFor nation base
+isSupplyFor  _ _ = False
 
 ||| Terrain type between hexes (eg. edges)
 data Connection : Type where
@@ -33,20 +39,20 @@ data Cost : Type where
   One : Cost -> Cost
   Two : Cost -> Cost
 
-cost : UnitType -> Terrain ->          Connection -> Cost
-cost   unitType    (SupplySource base) cnx        = cost unitType base cnx
-cost   _           _                   Lake       = Impossible
-cost   Infantry    terrain             (Road cnx) = Half (cost Infantry terrain cnx)
-cost   Infantry    (Hill base)         cnx        = Two (cost Infantry base cnx)
-cost   unitType    (Village t)         cnx        = One (cost unitType t cnx)
-cost   Infantry    RoughWood cnx                  = One (One Zero)
-cost   Infantry    _                   _          = One Zero
-cost   unitType    (Hill base)         (Road cnx) = Half (cost unitType base cnx)
-cost   _           (Hill _)            _          = Impossible
-cost   unitType    RoughWood           cnx        = Two (Two Zero)
-cost   unitType    Rough               cnx        = Two Zero
-cost   _           Wood                _          = Two Zero
-cost   _           _                   _          = One Zero
+cost : UnitType -> Terrain ->            Connection -> Cost
+cost   unitType    (SupplySource _ base) cnx        = cost unitType base cnx
+cost   _           _                     Lake       = Impossible
+cost   Infantry    terrain               (Road cnx) = Half (cost Infantry terrain cnx)
+cost   Infantry    (Hill base)           cnx        = Two (cost Infantry base cnx)
+cost   unitType    (Village t)           cnx        = One (cost unitType t cnx)
+cost   Infantry    RoughWood cnx                    = One (One Zero)
+cost   Infantry    _                     _          = One Zero
+cost   unitType    (Hill base)           (Road cnx) = Half (cost unitType base cnx)
+cost   _           (Hill _)              _          = Impossible
+cost   unitType    RoughWood             cnx        = Two (Two Zero)
+cost   unitType    Rough                 cnx        = Two Zero
+cost   _           Wood                  _          = Two Zero
+cost   _           _                     _          = One Zero
 
 toNat : Cost -> Nat
 toNat Impossible = 10000000 -- should probably be another type?
@@ -74,6 +80,10 @@ connection x y map =
   case lookup (x,y) (edges map) of
     Nothing => Plain
     Just cs => cs
+
+||| Get the `Pos`itions of all supply sources for given `Nation` on the map
+supplySources : Nation -> Map -> List Pos
+supplySources n (MkMap hexes edges) = map fst $ filter (isSupplyFor n . snd) hexes
 
 TestMap : Map
 TestMap =
