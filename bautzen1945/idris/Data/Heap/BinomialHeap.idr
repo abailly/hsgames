@@ -8,6 +8,8 @@ module Data.Heap.BinomialHeap
 
 import Data.Vect
 
+import public Data.Binary
+
 %default total
 
 mutual
@@ -40,3 +42,28 @@ link left@(MkTree elem subs) right@(MkTree elem' subs') =
   if elem <= elem'
   then MkTree elem (CCons right subs)
   else MkTree elem' (CCons left subs')
+
+||| A `Forest` is a list of `BinTree` with rank at most `rank`
+||| @rank The rank of the largest `BinTree` contained in the Forest
+||| @bin the `Binary` encoding of the occupied positions in this `Forest`. There
+|||      is a tree at index `i` if the corresponding bit is `B1`
+||| @a the type of elements contained in this forest
+data Forest : (rank : Nat) -> (bin : Binary v) -> (a : Type) -> Type where
+  FEnd : Forest rank BEnd a
+  F0   :                   Forest (S rank) b a -> Forest rank (B0 b) a
+  F1   : BinTree rank a -> Forest (S rank) b a -> Forest rank (B1 b) a
+
+
+emptyForest : Forest rank BEnd a
+emptyForest = FEnd
+
+insertTree : (Ord a) => BinTree rank a -> Forest rank b a -> Forest rank (inc b) a
+insertTree tree FEnd     = F1 tree FEnd
+insertTree tree (F0 forest)   = F1 tree forest
+insertTree tree (F1 tree' forest) = F0 (insertTree (link tree tree') forest)
+
+mergeForests : (Ord a) => Forest rank b a -> Forest rank b' a
+             -> Forest rank (add b b') a
+mergeForests FEnd right = ?hole
+mergeForests left FEnd = ?hole
+mergeForests _  _ = ?hole

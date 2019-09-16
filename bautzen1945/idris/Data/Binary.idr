@@ -7,6 +7,8 @@ module Data.Binary
 
 import public Data.Nat.Parity
 
+%access public export
+
 ||| Right to left representation of binary numbers
 ||| Working with a right-to-left representation makes addition much easier. We
 ||| can always reconstruct the usual representation through a `Show` instance
@@ -45,6 +47,18 @@ fromNat (S k) with (evenOrOdd k)
   | (Right (haf ** prf)) = rewrite prf in B0 (fromNat (S haf))
 
 
+One : Binary 1
+One = fromNat 1
+
+Two : Binary 2
+Two = fromNat 2
+
+||| Increment given `Binary`
+inc : Binary k -> Binary (S k)
+inc BEnd = B1 BEnd
+inc (B0 bin) = B1 bin
+inc (B1 bin) = B0 (inc bin)
+
 infixl 6 +.
 
 -- there's probably a way to use lemmas from Prelude.Nat about distributivity
@@ -59,17 +73,20 @@ distributePlus2 (S k) =
 ||| Unsurprisingly, it returns the sum of the 2 numbers, in binary representation.
 ||| @x left number to add
 ||| @y right number to add
-(+.) : (x : Binary n) -> (y : Binary m) -> Binary (n + m)
-(+.) BEnd     y             = y
-(+.) x        BEnd  {n}     = rewrite plusZeroRightNeutral n in x
-(+.) (B0 l)  (B0 r) {n=v * fromInteger 2}     {m=w * fromInteger 2}     =
-  rewrite sym (multDistributesOverPlusLeft v w 2) in B0 (l +. r)
-(+.) (B1 l)  (B0 r) {n=S (v * fromInteger 2)} {m=w * fromInteger 2}     =
-  rewrite sym (multDistributesOverPlusLeft v w 2) in B1 (l +. r)
-(+.) (B0 l)  (B1 r) {n=v * fromInteger 2}     {m=S (w * fromInteger 2)} =
+add : (x : Binary n) -> (y : Binary m) -> Binary (n + m)
+add BEnd     y             = y
+add x        BEnd  {n}     = rewrite plusZeroRightNeutral n in x
+add (B0 l)  (B0 r) {n=v * fromInteger 2}     {m=w * fromInteger 2}     =
+  rewrite sym (multDistributesOverPlusLeft v w 2) in B0 (add l r)
+add (B1 l)  (B0 r) {n=S (v * fromInteger 2)} {m=w * fromInteger 2}     =
+  rewrite sym (multDistributesOverPlusLeft v w 2) in B1 (add l r)
+add (B0 l)  (B1 r) {n=v * fromInteger 2}     {m=S (w * fromInteger 2)} =
   rewrite plusCommutative (mult v 2) (S (mult w 2)) in
-  rewrite sym (multDistributesOverPlusLeft w v 2) in B1 (r +. l)
-(+.) (B1 l)  (B1 r) {n=S (v * fromInteger 2)} {m=S (w * fromInteger 2)} =
+  rewrite sym (multDistributesOverPlusLeft w v 2) in B1 (add r l)
+add (B1 l)  (B1 r) {n=S (v * fromInteger 2)} {m=S (w * fromInteger 2)} =
   rewrite plusCommutative (mult v 2) (S (mult w 2)) in
   rewrite sym (multDistributesOverPlusLeft w v 2) in
-  rewrite distributePlus2 (w+v) in B0 (r +. l +. B1 BEnd)
+  rewrite distributePlus2 (w+v) in B0 (add (add r  l) $ B1 BEnd)
+
+(+.) : (x : Binary n) -> (y : Binary m) -> Binary (n + m)
+(+.) = add
