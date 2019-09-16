@@ -1,6 +1,6 @@
 ||| Rules for stacking
 ||| Section 5
-module Bautzen.Stacking
+module Bautzen.Game.Stacking
 
 import Bautzen.GameUnit
 import Bautzen.Terrain
