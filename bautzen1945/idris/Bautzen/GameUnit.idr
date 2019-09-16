@@ -149,8 +149,14 @@ fullName : GameUnit -> String
 fullName u = name u ++ maybe "" (\ n => "/" ++ n) (parent u)
 
 ||| Check if given `unit` is a HQ for the given formation name
-isHQFor : String -> GameUnit -> Bool
-isHQFor formation (MkGameUnit _ HQ _ (Just parent) _ _ _ _ _) = parent == formation
+||| To provide valid command for a unit, another unit:
+|||
+||| * be a `HQ` type of unit
+||| * be part of the same formation than the given unit
+||| * _or_ be an army/group HQ
+isHQFor : GameUnit -> GameUnit -> Bool
+isHQFor unit (MkGameUnit nationality HQ _ Nothing Army _ _ _ _) = nation unit == nationality
+isHQFor unit (MkGameUnit _ HQ _ formation _ _ _ _ _) = parent unit == formation
 isHQFor _ _ = False
 
 -- list of existing units
@@ -177,6 +183,9 @@ p32_8dp = MkGameUnit Polish Infantry "32" (Just "8DP") Regiment 6 6 False (MkStd
 
 p6l : GameUnit
 p6l = MkGameUnit Polish Artillery "6L" Nothing Brigade 4 4 False (MkArty 4 4)
+
+p2awp : GameUnit
+p2awp = MkGameUnit Polish HQ "2AWP" Nothing Army 3 3 False (MkArty 9 5)
 
 -- Russian
 
