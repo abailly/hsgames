@@ -148,6 +148,11 @@ Eq GameUnit where
 fullName : GameUnit -> String
 fullName u = name u ++ maybe "" (\ n => "/" ++ n) (parent u)
 
+||| Check if given `unit` is a HQ for the given formation name
+isHQFor : String -> GameUnit -> Bool
+isHQFor formation (MkGameUnit _ HQ _ (Just parent) _ _ _ _ _) = parent == formation
+isHQFor _ _ = False
+
 -- list of existing units
 
 -- Polish

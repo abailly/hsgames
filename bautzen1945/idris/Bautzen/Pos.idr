@@ -6,7 +6,7 @@ import Data.Nat.DivMod
 import Data.Nat.Parity
 import Decidable.Order
 
-import Data.ZZ.Extra
+import public Data.ZZ.Extra
 
 %access public export
 %default total
@@ -39,7 +39,6 @@ Show Pos where
 ||| much easier to compute geometric values.
 ||| We only store the `x` (column) and `z` (depth) coordinates instead
 ||| of a triple as the `y` dimension can be simply recovered as `-x -z`.
-private
 data Cube : Type where
   MkCube : (x : ZZ) -> (z : ZZ) -> Cube
 
@@ -47,14 +46,12 @@ data Cube : Type where
 ||| Compute the L1 distance between 2 `Cube`s
 ||| see [Red Blob Games](https://www.redblobgames.com/grids/hexagons/#distances-cube) page
 ||| for details on the (pretty cool) algorithm.
-private
 cubeDistance : Cube -> Cube -> Nat
 cubeDistance (MkCube x z) (MkCube x' z') =
   let y  = negate x - z
       y' = negate x' - z'
   in max (max (absZ (x - x')) (absZ (y - y'))) (absZ (z - z'))
 
-private
 posToCube : Pos -> Cube
 posToCube (Hex col row) =
   let x = cast col
@@ -62,7 +59,6 @@ posToCube (Hex col row) =
       z = cast row - divZZNZ (x - sign) 2 PosSIsNotZ
   in MkCube x z
 
-export
 distance : Pos -> Pos -> Nat
 distance x y =
   let c1 = posToCube x
