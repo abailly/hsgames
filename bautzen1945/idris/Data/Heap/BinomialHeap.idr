@@ -10,6 +10,7 @@ import Data.Vect
 
 import public Data.Binary
 
+%access public export
 %default total
 
 mutual
@@ -58,12 +59,12 @@ emptyForest : Forest rank BEnd a
 emptyForest = FEnd
 
 insertTree : (Ord a) => BinTree rank a -> Forest rank b a -> Forest rank (inc b) a
-insertTree tree FEnd     = F1 tree FEnd
-insertTree tree (F0 forest)   = F1 tree forest
+insertTree tree FEnd              = F1 tree FEnd
+insertTree tree (F0 forest)       = F1 tree forest
 insertTree tree (F1 tree' forest) = F0 (insertTree (link tree tree') forest)
 
 mergeForests : (Ord a) => Forest rank b a -> Forest rank b' a
              -> Forest rank (add b b') a
-mergeForests FEnd right = ?hole
-mergeForests left FEnd = ?hole
-mergeForests _  _ = ?hole
+mergeForests FEnd right {b'}   = rewrite sym (natIsBinary b') in right
+mergeForests left FEnd {b} = ?hole
+mergeForests _  _  = ?hole
