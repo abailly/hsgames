@@ -15,6 +15,7 @@ module Data.Heap
 
 ||| Interface to Heap/Priority Queue
 interface Heap (heap : Type -> Type) where
+
   ||| Create a new, empty `Heap`
   empty : heap a
 
