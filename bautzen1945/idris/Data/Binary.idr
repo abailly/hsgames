@@ -108,29 +108,59 @@ Two = toBinary 2
 
 infixl 6 +.
 
+lemmaB0plusB0 : (m, n : Nat) -> (S (plus n (S m)) * 2) =
+       (S (S (plus (mult n 2) (S (S (mult m 2))))))
+lemmaB0plusB0 m n =
+  rewrite plusCommutative n (S m) in
+  rewrite plusCommutative (mult n 2) (S (S (mult m 2))) in
+  rewrite multDistributesOverPlusLeft m n 2 in
+  Refl
+
+lemmaB1plusB0 : (v, w : Nat) -> (mult (v + S w) 2 = (mult v 2) + (S (S (mult w 2))))
+lemmaB1plusB0 v w =
+  rewrite multDistributesOverPlusLeft v (S w) 2 in
+  Refl
+
+lemmaB0plusB1 : (v, w : Nat) -> (mult (S v + w) 2 = S (plus (mult v 2) (S (mult w 2))))
+lemmaB0plusB1 v w =
+  rewrite multDistributesOverPlusLeft v w 2 in
+  rewrite plusSuccRightSucc (mult v 2) (mult w 2) in
+  Refl
+
+lemmaB1plusB1 : (v, w : Nat) -> (S (mult (v + w) 2) = plus (mult v 2) (S (mult w 2)))
+lemmaB1plusB1 v w =
+  rewrite multDistributesOverPlusLeft v w 2 in
+  rewrite plusSuccRightSucc (mult v 2) (mult w 2) in
+  Refl
+
 ||| Add two binary numbers
+|||
 ||| Unsurprisingly, it returns the sum of the 2 numbers, in binary representation.
+||| **Implementation note**: We use `toBinary` to convert the sum of the 2 numbers
+||| which is probably very inefficient at runtime, probably in `O(n + m)` whereas
+||| standard addition has complexity `O(log(n + m))`. This is left to implement
+||| properly later on, using the first implementation provided in the comments
+||| below.
+|||
 ||| @x left binary number to add
 ||| @y right binary number to add
 ||| @n `Nat` represented by `x`
 ||| @m `Nat` represented by `y`
-partial
 add : (x : Binary n) -> (y : Binary m) -> Binary (n + m)
-add {n} {m} _ _ = toBinary (n + m)
-
--- add BZero     y             = y
--- add x        BZero  {n}     = rewrite plusZeroRightNeutral n in x
--- add (B0 l)  (B0 r) {n=v * fromInteger 2}     {m=w * fromInteger 2}     =
---   rewrite sym (multDistributesOverPlusLeft v w 2) in B0 (add l r)
--- add (B1 l)  (B0 r) {n=S (v * fromInteger 2)} {m=w * fromInteger 2}     =
---   rewrite sym (multDistributesOverPlusLeft v w 2) in B1 (add l r)
--- add (B0 l)  (B1 r) {n=v * fromInteger 2}     {m=S (w * fromInteger 2)} =
---   rewrite plusCommutative (mult v 2) (S (mult w 2)) in
---   rewrite sym (multDistributesOverPlusLeft w v 2) in B1 (add r l)
--- add (B1 l)  (B1 r) {n=S (v * fromInteger 2)} {m=S (w * fromInteger 2)} =
---   rewrite plusCommutative (mult v 2) (S (mult w 2)) in
---   rewrite sym (multDistributesOverPlusLeft w v 2) in
---   rewrite distributePlus2 (w+v) in B0 (add (add r  l) $ B1 BZero)
+add BZero         y            = y
+add (B0 bin {n})  BZero        = rewrite plusZeroRightNeutral (mult n 2) in B0 bin
+add (B1 bin {n})  BZero        = rewrite plusZeroRightNeutral (mult n 2) in B1 bin
+add (B0 l {n=v})  (B0 r {n=w}) = rewrite sym (lemmaB0plusB0 w v) in B0 (add l r)
+add (B1 l {n=v})  (B0 r {n=w}) = rewrite sym (lemmaB1plusB0 v w) in B1 (add l r)
+add (B0 l {n=v})  (B1 r {n=w}) = rewrite sym (lemmaB0plusB1 v w) in B1 (add l r)
+add (B1 l {n=v})  (B1 r {n=w}) = rewrite sym (lemmaB1plusB1 v w) in B0 (inc (add l r))
 
 (+.) : (x : Binary n) -> (y : Binary m) -> Binary (n + m)
 (+.) = add
+
+
+-- Properties
+bZeroRightNeutral : (b : Binary n) -> (add b BZero = b)
+bZeroRightNeutral BZero = Refl
+bZeroRightNeutral (B0 bin) = ?bZeroRightNeutral_rhs_2
+bZeroRightNeutral (B1 bin) = ?bZeroRightNeutral_rhs_3
