@@ -4,7 +4,6 @@ import Bautzen.Terrain
 import Bautzen.GameUnit
 import Bautzen.Pos
 
-
 export
 GameMap : Map
 GameMap = MkMap positions []

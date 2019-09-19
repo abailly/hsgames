@@ -57,6 +57,11 @@ ToSExp a => ToSExp (Vect n a) where
   toSExp = toSExp . toList
 
 export
+(ToSExp a, ToSExp b) => ToSExp (Either a b) where
+  toSExp (Left l) = SList [ SSym ":error", toSExp l ]
+  toSExp (Right r) = SList [ SSym ":ok", toSExp r ]
+
+export
 total
 Show SExp where
   show (SList xs) = "(" ++ showList xs ++ ")"
