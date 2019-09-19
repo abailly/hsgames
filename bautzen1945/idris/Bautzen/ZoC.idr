@@ -12,6 +12,11 @@ data ZoC : Type where
   InZoC : (side : Side) -> ZoC
   Free : ZoC
 
+Eq ZoC where
+  Free == Free = True
+  (InZoC s) == (InZoC s') = s == s'
+  _ == _ = False
+
 ||| Test if given position for given `side` is in the ZoC of the unit.
 inZoCOf : (pos : Pos) -> (side : Side) -> (GameUnit, Pos) -> Bool
 inZoCOf pos curSide (unit, location) with (curSide == side (nation unit))

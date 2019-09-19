@@ -1,15 +1,18 @@
 module Bautzen.Game.Map
 
 import Bautzen.Terrain
+import Bautzen.GameUnit
 import Bautzen.Pos
 
+
+export
 GameMap : Map
 GameMap = MkMap positions []
   where
     positions = [(Hex 0 0, Clear),
                  (Hex 0 1, Clear),
                  (Hex 0 2, Clear),
-                 (Hex 0 3, Clear),
+                 (Hex 0 3, SupplySource Axis $ Clear),
                  (Hex 0 4, Clear),
                  (Hex 1 0, Clear),
                  (Hex 1 1, Clear),

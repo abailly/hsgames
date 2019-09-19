@@ -10,7 +10,7 @@
 ||| types: We must have a _lowest_ bound when we construct a singleton tree.
 module Data.Heap.LeftistHeap
 
-import Data.Heap
+import public Data.Heap
 import Decidable.Order
 
 %default total
@@ -95,6 +95,7 @@ data BinaryHeap : Type -> Type where
   BinHeap : ( n : Nat ** Tree.LeftistBinTree n a) -> BinaryHeap a
 
 -- implementation of Heap
+public export
 Heap BinaryHeap where
 
   empty = BinHeap (Z ** Empty)

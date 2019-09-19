@@ -3,6 +3,7 @@
 module Bautzen.Game.Supply
 
 import Bautzen.GameUnit
+import Bautzen.ZoC
 import Bautzen.Game.Core
 import Bautzen.Game.Move
 import Bautzen.Pos
@@ -60,19 +61,32 @@ computeShortestPath units gameMap unit state =
               else let q' = foldr (addNeighbours cur) q (neighbours src)
                    in computeShortestPath units gameMap unit q'
   where
+    enemyIn : Pos -> Bool
+    enemyIn hex = case find (\ (u,p) => p == hex) units of
+                    Nothing => False
+                    (Just (other, _)) => not (friendly (nation unit) (nation other))
+
+    cannotMoveInto : Pos -> Bool
+    cannotMoveInto hex =
+      (inZoC (side $ nation unit) units hex /= Free) ||
+      enemyIn hex
+
     addNeighbours : AState -> Pos -> BinaryHeap AState -> BinaryHeap AState
     addNeighbours (MkAState src tgt path costSoFar costsMap) hex queue =
-      case movementCost unit units gameMap src hex False of
-        (Left l) => queue
-        (Right (x ** _)) =>
-          let newCost = costSoFar + toNat x
-              costTox = SMap.lookup hex costsMap
-          in case costTox of
-               Just oldCost => if newCost < oldCost
-                               then let costEstimate = newCost + (distance hex tgt)
-                                    in Heap.push (MkAState hex tgt (hex :: path) costEstimate (SMap.insert hex newCost costsMap)) queue
-                               else queue
-
+      if cannotMoveInto hex
+      then queue
+      else case movementCost unit units gameMap src hex False of
+             (Left l) => queue
+             (Right (x ** _)) =>
+               let newCost = costSoFar + toNat x
+                   costTox = SMap.lookup hex costsMap
+               in case costTox of
+                    Just oldCost => if newCost < oldCost
+                                    then let costEstimate = newCost + (distance hex tgt)
+                                         in Heap.push (MkAState hex tgt (hex :: path) costEstimate (SMap.insert hex newCost costsMap)) queue
+                                    else queue
+                    Nothing => let costEstimate = newCost + (distance hex tgt)
+                               in Heap.push (MkAState hex tgt (hex :: path) costEstimate (SMap.insert hex newCost costsMap)) queue
 ||| Computes a path of adjacent `Pos`itions `from` to `srcs`.
 |||
 ||| The path must be free of enemy `ZoC`s and enemy `units`. This function
