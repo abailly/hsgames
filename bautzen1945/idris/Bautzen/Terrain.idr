@@ -28,6 +28,7 @@ isSupplyFor  _ _ = False
 ||| Terrain type between hexes (eg. edges)
 data Connection : Type where
   Plain : Connection
+  ||| A road or rail connection
   Road : (base : Connection) -> Connection
   River : Connection
   Lake : Connection

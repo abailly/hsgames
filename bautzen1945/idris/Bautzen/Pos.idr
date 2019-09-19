@@ -33,6 +33,13 @@ Show Pos where
         then "0" ++ show (n + 1)
         else show (n + 1)
 
+Ord Pos where
+  compare (Hex col row) (Hex col' row') =
+    case compare col col' of
+      LT => LT
+      EQ => compare row row'
+      GT => GT
+
 ||| Cube coordinates.
 ||| Cube coordinates stem from the observation a 2-D hexagonal grid is equivalent
 ||| to a diagonal "slice" of a 3-D cubic grid. Using cubic coordinates makes it
