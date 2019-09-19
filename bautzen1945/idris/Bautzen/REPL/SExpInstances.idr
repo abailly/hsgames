@@ -1,6 +1,9 @@
 module Bautzen.REPL.SExpInstances
 
-import Bautzen.Game
+import Bautzen.GameUnit
+import Bautzen.Game.Core
+import Bautzen.Pos
+import Bautzen.Terrain
 import Bautzen.SExp
 
 %access export

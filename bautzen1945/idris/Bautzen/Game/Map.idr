@@ -4,10 +4,9 @@ import Bautzen.Terrain
 import Bautzen.GameUnit
 import Bautzen.Pos
 
-
 export
-GameMap : Map
-GameMap = MkMap positions []
+PartialGameMap : Map
+PartialGameMap = MkMap positions []
   where
     positions = [(Hex 0 0, Clear),
                  (Hex 0 1, Clear),
