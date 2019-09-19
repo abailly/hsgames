@@ -1,71 +1,114 @@
 ||| An implementation of `Data.Heap` based on left-skewed binary trees.
-||| This implementation is an adaptation of Okasaki's `LeftistHeap`
-||| found on pp.18-20 of his book.
 |||
-||| * an [Agda](http://ics.p.lodz.pl/~stolarek/_media/pl:research:dep-typed-wbl-heaps.pdf) implementation that looks reasonably easy to port
+||| This implementation is an adaptation of Okasaki's `LeftistHeap`
+||| found on pp.18-20 of his book, and of this
+||| [Agda](http://ics.p.lodz.pl/~stolarek/_media/pl:research:dep-typed-wbl-heaps.pdf)
+||| implementation that looked reasonably easy to port.
+|||
+||| Note that contrary to the paper, we don't index our `LeftistBinTree` with a
+||| `Priority` because this would require to _tighten_ the constraint to bounded
+||| types: We must have a _lowest_ bound when we construct a singleton tree.
 module Data.Heap.LeftistHeap
 
 import Data.Heap
 import Decidable.Order
 
-||| A `LeftistHeap` is a binary tree decorated with `rank` informations
-||| @rank the rank of the heap, eg. the number of elements it contains
-||| @a The type of elements stored in the heap
-data LeftistHeap : (rank : Nat) -> (a : Type) -> Type where
+%default total
 
-  ||| The empty heap
-  Empty : LeftistHeap Z a
+namespace Tree
 
-  ||| An element in the `Heap`
+  ||| A `LeftistBinTree` is a binary tree decorated with `rank` informations.
   |||
-  ||| A `Node` in the heap is built in such a way that it respects the _leftist_
-  ||| property: The rank of the `left` node is greater than or equal to the rank
-  ||| of the `right` node. Furthermore it must respect the _priority_ property
-  ||| which implies that `elem` is lower than equal to elements in `left`  and
-  ||| `right` sub-heaps.
+  ||| This is a `Nat`-indexed data structure that forms the basis for a proper
+  ||| heap respecting the `Heap` interface.
+  ||| @rank the rank of the tree, eg. the number of elements it contains
+  ||| @a The type of elements stored in the tree
+  data LeftistBinTree : (rank : Nat) -> (a : Type) -> Type where
+
+    ||| The empty tree
+    Empty : LeftistBinTree Z a
+
+    ||| An element in the `Tree`
+    |||
+    ||| A `Node` in the tree is built in such a way that it respects the _leftist_
+    ||| property: The rank of the `left` node is greater than or equal to the rank
+    ||| of the `right` node. Furthermore it must respect the _priority_ property
+    ||| which implies that `elem` is lower than equal to elements in `left`  and
+    ||| `right` sub-trees.
+    |||
+    ||| @elem the element contained in the node
+    ||| @left the left branch of the tree with rank `k`
+    ||| @right the right branch of the tree with rank `n`
+    ||| @prfLeftist a proof that the rank of `left` is greater than or equal to the
+    ||| the rank of `right`
+    Node : (elem : a)
+         -> (left : LeftistBinTree k a) -> (right : LeftistBinTree n a)
+         -> { auto prfLeftist : LTE n k }
+         -> LeftistBinTree (S (k + n)) a
+
+  makeNode : (elem : a) -> LeftistBinTree r a -> LeftistBinTree q a -> LeftistBinTree (S (r + q)) a
+  makeNode elem x y {r} {q} with (order {to=LTE} r q)
+    makeNode elem x y {r = r} {q = q} | (Left l)  = rewrite plusCommutative r q in Node elem y x
+    makeNode elem x y {r = r} {q = q} | (Right z) = Node elem x y
+
+  ||| Merge 2 `LeftistBinTree`s while preserving properties.
   |||
-  ||| @elem the element contained in the node
-  ||| @left the left branch of the tree with rank `k`
-  ||| @right the right branch of the tree with rank `n`
-  ||| @prfLeftist a proof that the rank of `left` is greater than or equal to the
-  ||| the rank of `right`
-  Node : (elem : a)
-       -> (left : LeftistHeap k a) -> (right : LeftistHeap n a)
-       -> { auto prfLeftist : LTE n k }
-       -> LeftistHeap (S (k + n)) a
+  ||| @left first tree to merge
+  ||| @right second tree to merge
+  mergeTree : (Ord a) => (left : LeftistBinTree r a) -> (right : LeftistBinTree q a) -> LeftistBinTree (r + q) a
+  mergeTree Empty right = right
+  mergeTree left  Empty {r} = rewrite plusZeroRightNeutral r in left
+  mergeTree (Node elem left right {k} {n}) (Node elem' left' right' {k=k1} {n=n1}) with (elem < elem')
+    mergeTree (Node elem left right {k} {n}) (Node elem' left' right' {k=k1} {n=n1}) | True =
+      rewrite sym (plusAssociative k n (S (k1 + n1))) in
+      makeNode elem left (mergeTree right (Node elem' left' right'))
+    mergeTree (Node elem left right {k} {n}) (Node elem' left' right' {k=k1} {n=n1}) | False =
+      rewrite sym (plusSuccRightSucc (k + n) (k1 + n1)) in
+      rewrite plusCommutative (plus k n) (plus k1 n1) in
+      rewrite plusSuccRightSucc (k1 + n1) (k + n) in
+      rewrite sym (plusAssociative k1 n1 (S (k + n))) in
+      rewrite plusCommutative n1 (S (plus k n)) in
+      makeNode elem' left' (mergeTree (Node elem left right) right')
 
-makeNode : (elem : a) -> LeftistHeap r a -> LeftistHeap q a -> LeftistHeap (S (r + q)) a
-makeNode elem x y {r} {q} with (order {to=LTE} r q)
-  makeNode elem x y {r = r} {q = q} | (Left l)  = rewrite plusCommutative r q in Node elem y x
-  makeNode elem x y {r = r} {q = q} | (Right z) = Node elem x y
+  findMin : LeftistBinTree r a -> Maybe a
+  findMin Empty           = Nothing
+  findMin (Node elem _ _) = Just elem
 
-||| Merge 2 `LeftistHeap`s while preserving properties.
-|||
-||| @left first heap to merge
-||| @right second heap to merge
-mergeHeap : (Ord a) => (left : LeftistHeap r a) -> (right : LeftistHeap q a) -> LeftistHeap (r + q) a
-mergeHeap Empty right = right
-mergeHeap left  Empty {r} = rewrite plusZeroRightNeutral r in left
-mergeHeap (Node elem left right {k} {n}) (Node elem' left' right' {k=k1} {n=n1}) with (elem < elem')
-  mergeHeap (Node elem left right {k} {n}) (Node elem' left' right' {k=k1} {n=n1}) | True =
-    rewrite sym (plusAssociative k n (S (k1 + n1))) in
-    makeNode elem left (mergeHeap right (Node elem' left' right'))
-  mergeHeap (Node elem left right {k} {n}) (Node elem' left' right' {k=k1} {n=n1}) | False =
-    rewrite sym (plusSuccRightSucc (k + n) (k1 + n1)) in
-    rewrite plusCommutative (plus k n) (plus k1 n1) in
-    rewrite plusSuccRightSucc (k1 + n1) (k + n) in
-    rewrite sym (plusAssociative k1 n1 (S (k + n))) in
-    rewrite plusCommutative n1 (S (plus k n)) in
-    makeNode elem' left' (mergeHeap (Node elem left right) right')
+  popMin : (Ord a) => LeftistBinTree (S r) a -> (LeftistBinTree r a, a)
+  popMin Empty impossible
+  popMin (Node elem left right) = (mergeTree left right, elem)
 
-findMin : LeftistHeap r a -> Maybe a
-findMin Empty           = Nothing
-findMin (Node elem _ _) = Just elem
+  insert : (Ord a) => a -> LeftistBinTree r a -> LeftistBinTree (S r) a
+  insert x Empty = Node x Empty Empty
+  insert x node  = mergeTree (Node x Empty Empty) node
 
-popMin : (Ord a) => LeftistHeap (S r) a -> (LeftistHeap r a, Maybe a)
-popMin Empty impossible
-popMin (Node elem left right) = (mergeHeap left right, Just elem)
+||| a `BinaryHeap` is a heap backed by a `LeftistBinTree`
+export
+data BinaryHeap : Type -> Type where
 
-insert : (Ord a) => a -> LeftistHeap r a -> LeftistHeap (S r) a
-insert x Empty = Node x Empty Empty
-insert x node  = mergeHeap (Node x Empty Empty) node
+  ||| Wrapper around a dependent product of a `rank` and a tree of the
+  ||| given rank.
+  |||
+  ||| This allows us to "hide" the indexed nature of the binary tree and to
+  ||| provide a proper implementation of `Heap` interface.
+  |||
+  BinHeap : ( n : Nat ** Tree.LeftistBinTree n a) -> BinaryHeap a
+
+-- implementation of Heap
+Heap BinaryHeap where
+
+  empty = BinHeap (Z ** Empty)
+
+  isEmpty (BinHeap (Z ** _)) = True
+  isEmpty (BinHeap _) = False
+
+  push elem (BinHeap (n ** tree)) = BinHeap (S n ** insert elem tree)
+
+  peek (BinHeap (n ** tree)) = findMin tree
+
+  pop (BinHeap (Z ** Empty))  = (empty, Nothing)
+  pop (BinHeap (S n ** tree)) = let (tree', x) = popMin tree
+                                in (BinHeap (n ** tree'), Just x)
+
+  merge (BinHeap (n ** left)) (BinHeap (m ** right)) =
+    BinHeap (n + m ** mergeTree left right)
