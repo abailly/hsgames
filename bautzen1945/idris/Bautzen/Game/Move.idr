@@ -92,6 +92,9 @@ namespace MoveTest
   armored_moving_on_hill_through_road_costs_half : moveTo Axis [ (Bautzen.GameUnit.g21_20pz, Hex 8 7) ] TestMap "21/20Pz" (Hex 7 7) = Right (Moved Bautzen.GameUnit.g21_20pz (Hex 8 7) (Hex 7 7) (Half (Two Zero)))
   armored_moving_on_hill_through_road_costs_half = Refl
 
+  armored_moving_through_road_costs_half : moveTo Axis [ (Bautzen.GameUnit.g21_20pz, Hex 4 4) ] TestMap "21/20Pz" (Hex 5 4) = Right (Moved Bautzen.GameUnit.g21_20pz (Hex 4 4) (Hex 5 4) (Half (One Zero)))
+  armored_moving_through_road_costs_half = Refl
+
   infantry_moving_through_road_costs_half : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 8 7) ] TestMap "13/5DP" (Hex 7 7) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 8 7) (Hex 7 7) (Half (Two (One Zero))))
   infantry_moving_through_road_costs_half = Refl
 

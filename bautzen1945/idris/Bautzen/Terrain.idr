@@ -68,6 +68,7 @@ cost   Infantry    RoughWood cnx                    = One (One Zero)
 cost   Infantry    _                     _          = One Zero
 cost   unitType    (Hill base)           (Road cnx) = Half (cost unitType base cnx)
 cost   _           (Hill _)              _          = Impossible
+cost   unitType    terrain               (Road cnx) = Half (cost unitType terrain cnx)
 cost   unitType    RoughWood             cnx        = Two (Two Zero)
 cost   unitType    Rough                 cnx        = Two Zero
 cost   _           Wood                  _          = Two Zero
@@ -109,6 +110,7 @@ TestMap =
   MkMap [ (Hex 3 4, Wood)
         , (Hex 4 4, Clear)
         , (Hex 4 5, Hill Rough)
+        , (Hex 5 4, Clear)
         , (Hex 3 5, RoughWood)
         , (Hex 2 4, Rough)
         , (Hex 2 3, Hill (RoughWood))
@@ -120,8 +122,8 @@ TestMap =
         , (Hex 10 2, Village Wood)
         , (Hex 10 3, Clear)
         ]
-        [ ((Hex 4 4, Hex 5 5), Road Plain)
+        [ ((Hex 4 4, Hex 5 4), Road Plain)
         , ((Hex 8 6, Hex 8 7), Lake)
         , ((Hex 8 7, Hex 7 7), Road Plain)
-        , ((Hex 10 3, Hex 10 2), Road River)
+        , ((Hex 10 3, Hex 10 2), Road (River Plain))
         ]
