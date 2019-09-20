@@ -68,5 +68,5 @@ query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
     (Just (unit, pos)) =>
       case supplyPathTo units gameMap (supplySources (nation unit) gameMap) (unit, pos) of
         [] => Left (NoSupplyPathFor unitName pos)
-        (x :: _) => Right x
+        x  => Right x
 query (MkGame _ (MkGameState _ side _ units) gameMap) TerrainMap = gameMap

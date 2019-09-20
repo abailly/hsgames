@@ -87,10 +87,12 @@ computeShortestPath units gameMap unit state =
                                     else queue
                     Nothing => let costEstimate = newCost + (distance hex tgt)
                                in Heap.push (MkAState hex tgt (hex :: path) costEstimate (SMap.insert hex newCost costsMap)) queue
-||| Computes a path of adjacent `Pos`itions `from` to `srcs`.
+
+
+||| Computes a path of adjacent `Pos`itions `from` to one of `srcs`.
 |||
 ||| The path must be free of enemy `ZoC`s and enemy `units`. This function
-||| uses the well-known _A*_ algorithm to build a path to all the given sources for the
+||| uses the well-known _A*_ algorithm to build a path to _one_ given sources for the
 ||| given unit. See [path finding](https://www.redblobgames.com/pathfinding/a-star/introduction.html#astar) page
 ||| for more details.
 |||
@@ -99,17 +101,26 @@ computeShortestPath units gameMap unit state =
 ||| free of enemies and ZoCs
 ||| @gameMap the terrain map
 ||| @srcs target supply sources, to trace a path to
-supplyPathTo : (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (srcs : List Pos) -> (from: (GameUnit, Pos)) -> List (List Pos)
+supplyPathTo : (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (srcs : List Pos) -> (from: (GameUnit, Pos)) -> List Pos
 supplyPathTo units gameMap srcs (unit, pos) = supplyPathToAcc startStates
   where
     startState : Pos -> AState
     startState tgt = MkAState pos tgt [] 0 SMap.empty
 
-    startStates : List (BinaryHeap AState)
-    startStates = map (\ st => Heap.push st empty) $ map startState srcs
+    on : (a -> a -> b) -> (c -> a) -> (c -> c -> b)
+    on f g x y = f (g x) (g y)
 
-    supplyPathToAcc : List (BinaryHeap AState) -> List (List Pos)
-    supplyPathToAcc = map (computeShortestPath units gameMap unit)
+    startStates : List (BinaryHeap AState)
+    startStates = map (\ st => Heap.push st empty) $
+                  sortBy (compare `on` (Pos.distance pos . tgt)) $
+                  map startState srcs
+
+    getFirstNonEmptyPath : List Pos -> BinaryHeap AState -> List Pos
+    getFirstNonEmptyPath []   start = computeShortestPath units gameMap unit start
+    getFirstNonEmptyPath path _     = path
+
+    supplyPathToAcc : List (BinaryHeap AState) -> List Pos
+    supplyPathToAcc = foldl getFirstNonEmptyPath []
 
 
 

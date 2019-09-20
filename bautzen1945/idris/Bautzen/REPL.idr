@@ -51,8 +51,8 @@ eoiHandler : Game -> String
 eoiHandler = show
 
 initialPositions : List (GameUnit, Pos)
-initialPositions = [ (Bautzen.GameUnit.p13_5dp, Hex 3 4)
-                   , (Bautzen.GameUnit.g21_20pz, Hex 3 5)
+initialPositions = [ (Bautzen.GameUnit.p13_5dp, Hex 15 9)
+                   , (Bautzen.GameUnit.g21_20pz, Hex 5 8)
                    ]
 
 initialState : GameState
