@@ -9,6 +9,7 @@ import Data.Fin
 import Prelude.Interactive
 
 %default total
+%flag C "-O3"
 
 data CmdREPL : (segment : GameSegment) -> Type where
   Cmd : (cmd : Command segment) -> CmdREPL segment
@@ -51,7 +52,7 @@ eoiHandler : Game -> String
 eoiHandler = show
 
 initialPositions : List (GameUnit, Pos)
-initialPositions = [ (Bautzen.GameUnit.p13_5dp, Hex 15 9)
+initialPositions = [ (Bautzen.GameUnit.p13_5dp, Hex 1 9)
                    , (Bautzen.GameUnit.g21_20pz, Hex 5 8)
                    ]
 

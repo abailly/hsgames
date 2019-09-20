@@ -15,6 +15,45 @@ import Decidable.Order
 
 %default total
 
+namespace RawTree
+
+  ||| A implementation of a leftist binary tree which is not `Nat`-indexed
+  data LeftistBinTree : (a : Type) -> Type where
+    Empty : LeftistBinTree a
+    Node : (elem : a) -> (rank : Int) -> (left : LeftistBinTree a) -> (right : LeftistBinTree a)
+         -> LeftistBinTree a
+
+  rank : LeftistBinTree a -> Int
+  rank Empty = 0
+  rank (Node _ rank _ _) = rank
+
+  makeNode : (elem : a) -> LeftistBinTree a -> LeftistBinTree a -> LeftistBinTree a
+  makeNode elem left right =
+    if rank left < rank right
+    then Node elem (rank left + rank right) right left
+    else Node elem (rank left + rank right) left right
+
+  mergeTree : (Ord a) => (left : LeftistBinTree a) -> (right : LeftistBinTree a) -> LeftistBinTree a
+  mergeTree Empty right = right
+  mergeTree left  Empty = left
+  mergeTree l@(Node elem rank left right) r@(Node elem' rank' left' right') =
+    if (elem < elem')
+    then  makeNode elem left (mergeTree right r)
+    else  makeNode elem' left' (mergeTree l right')
+
+  findMin : LeftistBinTree a -> Maybe a
+  findMin Empty           = Nothing
+  findMin (Node elem _ _ _) = Just elem
+
+  popMin : (Ord a) => LeftistBinTree a -> (LeftistBinTree a, Maybe a)
+  popMin Empty  = (Empty, Nothing)
+  popMin (Node elem _ left right) = (mergeTree left right, Just elem)
+
+  insert : (Ord a) => a -> LeftistBinTree a -> LeftistBinTree a
+  insert x Empty = Node x 1 Empty Empty
+  insert x node  = mergeTree (Node x 1 Empty Empty) node
+
+
 namespace Tree
 
   ||| A `LeftistBinTree` is a binary tree decorated with `rank` informations.
@@ -113,3 +152,5 @@ Heap BinaryHeap where
 
   merge (BinHeap (n ** left)) (BinHeap (m ** right)) =
     BinHeap (n + m ** mergeTree left right)
+
+  stats = const Nothing

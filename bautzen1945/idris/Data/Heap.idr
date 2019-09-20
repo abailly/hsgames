@@ -49,3 +49,10 @@ interface Heap (heap : Type -> Type) where
   ||| @return a new heap containing all elements of `q` and `q'`
   ||| in correct order
   merge : (Ord a) => (q : heap a) -> (q' : heap a) -> heap a
+
+  ||| Extract statistics form the `heap` for debugging purpose
+  |||
+  ||| This interface is kind of uninteresting and is just a stop-gap solution,
+  ||| it needs to be refactored to produce some real statistics data, like the
+  ||| number of operations done so far on this heap and possibly their timing.
+  stats : (Show a) => heap a -> Maybe String

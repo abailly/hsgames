@@ -9,9 +9,11 @@ import Bautzen.Game.Move
 import Bautzen.Pos
 import Bautzen.Terrain
 
-import Data.Heap.LeftistHeap
+import Data.Heap.RawBinaryHeap as R
+import Data.Heap.LeftistHeap as L
 
 import Data.SortedMap as SMap
+import Debug.Trace
 
 %access export
 %default total
@@ -34,34 +36,34 @@ record AState where
   ||| The accumulated path's cost so far
   costSoFar : Nat
 
-  ||| Currently known costs to reach various positions
-  costsMap : SMap.SortedMap Pos Nat
+Show AState where
+  show (MkAState src tgt path costSoFar) = show src ++ ": " ++ show costSoFar
 
 Eq AState where
-  (MkAState src tgt path costSoFar _) == (MkAState src' tgt' path' costSoFar' _) =
+  (MkAState src tgt path costSoFar) == (MkAState src' tgt' path' costSoFar') =
     src == src' && tgt == tgt' && costSoFar == costSoFar'
 
 Ord AState where
-  compare (MkAState src tgt path costSoFar _) (MkAState src' tgt' path' costSoFar' _) =
+  compare (MkAState src tgt path costSoFar) (MkAState src' tgt' path' costSoFar') =
     case compare costSoFar costSoFar' of
       EQ => case compare tgt tgt' of
         EQ => compare src src'
         ordering => ordering
       ordering => ordering
 
-computeShortestPath : (fuel : Nat) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (unit : GameUnit) -> BinaryHeap AState -> List Pos
-computeShortestPath Z _ _ _ _ = []
-computeShortestPath (S fuel) units gameMap unit state =
-  if isEmpty state
-  then []
-  else let (q, st) = Heap.pop state
+computeShortestPath : (fuel : Nat) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (unit : GameUnit) ->  (costsMap : SMap.SortedMap Pos Nat) -> L.BinaryHeap AState -> List Pos
+computeShortestPath Z _ _ _ _ queue = trace ("running out of fuel, explored hexes" ++ show (stats queue)) []
+computeShortestPath (S fuel) units gameMap unit costsMap queue =
+  if isEmpty queue
+  then trace ("empty queue, explored hexes" ++ show (stats queue)) []
+  else let (q, st) = Heap.pop queue
        in case st of
-            Nothing => computeShortestPath fuel units gameMap unit q
-            Just cur@(MkAState src tgt path _ _) =>
+            Nothing => trace ("empty queue, explored hexes" ++ show (stats queue)) []
+            Just cur@(MkAState src tgt path _) =>
               if src == tgt
-              then path
-              else let q' = foldr (addNeighbours cur) q (neighbours src)
-                   in computeShortestPath fuel units gameMap unit q'
+              then trace ("found target "++ show path ++ ", explored hexes" ++ show (stats queue)) path
+              else let (q', costsMap') = foldl (addNeighbours cur) (q, costsMap) (neighbours src)
+                   in computeShortestPath fuel units gameMap unit costsMap' q'
   where
     -- TODO factor to Move
     enemyIn : Pos -> Bool
@@ -74,22 +76,26 @@ computeShortestPath (S fuel) units gameMap unit state =
       (inZoC (side $ nation unit) units hex /= Free) ||
       enemyIn hex
 
-    addNeighbours : AState -> Pos -> BinaryHeap AState -> BinaryHeap AState
-    addNeighbours (MkAState src tgt path costSoFar costsMap) hex queue =
+    explore : Pos -> Nat -> AState -> (L.BinaryHeap AState, SMap.SortedMap Pos Nat) -> (L.BinaryHeap AState, SMap.SortedMap Pos Nat)
+    explore hex newCost state@(MkAState src tgt path costSoFar) (queue, costsMap) =
+      let costEstimate = newCost + (distance hex tgt)
+      in (Heap.push (MkAState hex tgt (hex :: path) costEstimate) queue, SMap.insert hex newCost costsMap)
+
+    addNeighbours : AState -> (L.BinaryHeap AState, SMap.SortedMap Pos Nat) -> Pos -> (L.BinaryHeap AState, SMap.SortedMap Pos Nat)
+    addNeighbours state@(MkAState src tgt path costSoFar) (queue, costsMap) hex =
       if cannotMoveInto hex
-      then queue
+      then (queue, costsMap)
       else case movementCost unit units gameMap src hex False of
-             (Left l) => queue
+             (Left l) => (queue, costsMap)
              (Right (x ** _)) =>
                let newCost = costSoFar + toNat x
                    costTox = SMap.lookup hex costsMap
                in case costTox of
                     Just oldCost => if newCost < oldCost
-                                    then let costEstimate = newCost + (distance hex tgt)
-                                         in Heap.push (MkAState hex tgt (hex :: path) costEstimate (SMap.insert hex newCost costsMap)) queue
-                                    else queue
-                    Nothing => let costEstimate = newCost + (distance hex tgt)
-                               in Heap.push (MkAState hex tgt (hex :: path) costEstimate (SMap.insert hex newCost costsMap)) queue
+                                    then explore hex newCost state (queue, costsMap)
+                                    else (queue, costsMap)
+                    Nothing => explore hex newCost state (queue, costsMap)
+
 
 
 ||| Computes a path of adjacent `Pos`itions `from` to one of `srcs`.
@@ -106,25 +112,25 @@ computeShortestPath (S fuel) units gameMap unit state =
 ||| @srcs target supply sources, to trace a path to
 supplyPathTo : (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (srcs : List Pos) -> (from: (GameUnit, Pos)) -> List Pos
 supplyPathTo units gameMap srcs (unit, pos) = supplyPathToAcc startStates
+
   where
     startState : Pos -> AState
-    startState tgt = MkAState pos tgt [] 0 SMap.empty
+    startState tgt = MkAState pos tgt [pos] 0
 
     on : (a -> a -> b) -> (c -> a) -> (c -> c -> b)
     on f g x y = f (g x) (g y)
 
-    startStates : List (BinaryHeap AState)
-    startStates = map (\ st => Heap.push st empty) $
+    startStates : List (L.BinaryHeap AState)
+    startStates = map (\ st => Heap.push st Heap.empty) $
                   sortBy (compare `on` (Pos.distance pos . tgt)) $
                   map startState srcs
 
-    getFirstNonEmptyPath : List Pos -> BinaryHeap AState -> List Pos
-    getFirstNonEmptyPath []   start = computeShortestPath 10000 units gameMap unit start
+    getFirstNonEmptyPath : List Pos -> L.BinaryHeap AState -> List Pos
+    getFirstNonEmptyPath []   start = computeShortestPath 10000 units gameMap unit SMap.empty start
     getFirstNonEmptyPath path _     = path
 
-    supplyPathToAcc : List (BinaryHeap AState) -> List Pos
+    supplyPathToAcc : List (L.BinaryHeap AState) -> List Pos
     supplyPathToAcc = foldl getFirstNonEmptyPath []
-
 
 
 ||| Check if given `unit` is in supply
@@ -137,3 +143,9 @@ isInSupply : (unit : (GameUnit, Pos)) -> (units : List (GameUnit, Pos)) -> (game
 isInSupply (unit, pos) units gameMap =
   let sources = supplySources (nation unit) gameMap -- get all possible supply sources for unit
   in not (isNil $ supplyPathTo units gameMap sources (unit, pos))
+
+-- TODO handle rules for Supply columns
+-- section 7.2
+
+-- TODO handle effects of lack of supply on unit
+-- section 7.3
