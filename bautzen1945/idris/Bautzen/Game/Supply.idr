@@ -14,6 +14,7 @@ import Data.Heap.LeftistHeap
 import Data.SortedMap as SMap
 
 %access export
+%default total
 
 -- section 7.1.2
 
@@ -48,19 +49,21 @@ Ord AState where
         ordering => ordering
       ordering => ordering
 
-computeShortestPath : (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (unit : GameUnit) -> BinaryHeap AState -> List Pos
-computeShortestPath units gameMap unit state =
+computeShortestPath : (fuel : Nat) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (unit : GameUnit) -> BinaryHeap AState -> List Pos
+computeShortestPath Z _ _ _ _ = []
+computeShortestPath (S fuel) units gameMap unit state =
   if isEmpty state
   then []
   else let (q, st) = Heap.pop state
        in case st of
-            Nothing => computeShortestPath units gameMap unit q
+            Nothing => computeShortestPath fuel units gameMap unit q
             Just cur@(MkAState src tgt path _ _) =>
               if src == tgt
               then path
               else let q' = foldr (addNeighbours cur) q (neighbours src)
-                   in computeShortestPath units gameMap unit q'
+                   in computeShortestPath fuel units gameMap unit q'
   where
+    -- TODO factor to Move
     enemyIn : Pos -> Bool
     enemyIn hex = case find (\ (u,p) => p == hex) units of
                     Nothing => False
@@ -116,7 +119,7 @@ supplyPathTo units gameMap srcs (unit, pos) = supplyPathToAcc startStates
                   map startState srcs
 
     getFirstNonEmptyPath : List Pos -> BinaryHeap AState -> List Pos
-    getFirstNonEmptyPath []   start = computeShortestPath units gameMap unit start
+    getFirstNonEmptyPath []   start = computeShortestPath 10000 units gameMap unit start
     getFirstNonEmptyPath path _     = path
 
     supplyPathToAcc : List (BinaryHeap AState) -> List Pos
