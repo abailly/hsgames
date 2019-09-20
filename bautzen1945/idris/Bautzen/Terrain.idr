@@ -19,6 +19,17 @@ data Terrain : Type where
   Town : Terrain
   SupplySource : (side : Side) -> (base : Terrain) -> Terrain
 
+Show Terrain where
+  show Clear                      = "Cl"
+  show Wood                       = "Wd"
+  show Rough                      = "Rg"
+  show RoughWood                  = "RW"
+  show (Hill base)                = "H (" ++ show base ++ ")"
+  show (Village base)             = "V (" ++ show base ++ ")"
+  show Town                       = "T"
+  show (SupplySource Axis base)   = "SX (" ++ show base ++ ")"
+  show (SupplySource Allies base) = "SA (" ++ show base ++ ")"
+
 isSupplyFor : Nation -> Terrain -> Bool
 isSupplyFor nation (SupplySource s _) = side nation == s
 isSupplyFor nation (Hill base) = isSupplyFor nation base
@@ -30,8 +41,14 @@ data Connection : Type where
   Plain : Connection
   ||| A road or rail connection
   Road : (base : Connection) -> Connection
-  River : Connection
+  River : (base : Connection) -> Connection
   Lake : Connection
+
+Show Connection where
+  show Plain       = ""
+  show (Road base) = "Rd (" ++ show base ++ ")"
+  show (River base)= "Rv (" ++ show base ++ ")"
+  show Lake        = "Lk"
 
 data Cost : Type where
   Impossible : Cost
@@ -43,6 +60,7 @@ data Cost : Type where
 cost : UnitType -> Terrain ->            Connection -> Cost
 cost   unitType    (SupplySource _ base) cnx        = cost unitType base cnx
 cost   _           _                     Lake       = Impossible
+cost   unitType    terrain               (River cx) = One (cost unitType terrain cx)
 cost   Infantry    terrain               (Road cnx) = Half (cost Infantry terrain cnx)
 cost   Infantry    (Hill base)           cnx        = Two (cost Infantry base cnx)
 cost   unitType    (Village t)           cnx        = One (cost unitType t cnx)

@@ -95,7 +95,7 @@ namespace MoveTest
   infantry_moving_through_road_costs_half : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 8 7) ] TestMap "13/5DP" (Hex 7 7) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 8 7) (Hex 7 7) (Half (Two (One Zero))))
   infantry_moving_through_road_costs_half = Refl
 
-  river_adds_one_PM_to_move : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 10 3) ] TestMap "13/5DP" (Hex 10 2) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 10 3) (Hex 10 2) (Half (One (One Zero))))
+  river_adds_one_PM_to_move : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 10 3) ] TestMap "13/5DP" (Hex 10 2) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 10 3) (Hex 10 2) (Half (One (One (One Zero)))))
   river_adds_one_PM_to_move = Refl
 
   moving_out_of_ZoC_adds_one_PM_to_move : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4), (Bautzen.GameUnit.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 4 4) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 3 4) (Hex 4 4) (One (One Zero)))
