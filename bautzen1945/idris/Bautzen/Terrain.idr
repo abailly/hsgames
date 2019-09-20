@@ -3,6 +3,8 @@ module Bautzen.Terrain
 import Bautzen.GameUnit
 import Bautzen.Pos
 
+import Data.Vect
+
 %access public export
 %default total
 
@@ -84,8 +86,29 @@ toNat (Two x)    = S (S (toNat x))
 record Map where
   constructor MkMap
   hexes : List (Pos, Terrain)
-  edges : List ((Pos, Pos), Connection)
+  edges : List (Pos, List (Pos, Connection))
 
+tabulate : List (Pos, a) -> Vect 13 (Vect 23 (Maybe a))
+tabulate = foldr append table
+  where
+    append : (Pos, a) -> Vect 13 (Vect 23 (Maybe a)) -> Vect 13 (Vect 23 (Maybe a))
+    append (Hex c r, a) vect with (natToFin c 23, natToFin r 13)
+      | (Just c', Just r') = let row = index r' vect
+                             in replaceAt r' (replaceAt c' (Just a) row) vect
+      | (_, _) = vect
+
+    table : Vect 13 (Vect 23 (Maybe a))
+    table = replicate 13 (replicate 23 Nothing)
+
+Show Map where
+  show (MkMap hexes edges) =
+    "Map hexes= " ++ unlines terrain ++ "\n   edges=" ++ unlines connections
+    where
+      terrain : List String
+      terrain = toList $ map show (tabulate hexes)
+
+      connections : List String
+      connections = toList $ map show (tabulate edges)
 
 ||| Retrieve the `Terrain`s in a position
 terrain : Pos -> Map -> Terrain
@@ -97,9 +120,7 @@ terrain pos map =
 ||| Retrieve the types of connections between 2 hexes
 connection : Pos -> Pos -> Map -> Connection
 connection x y map =
-  case lookup (x,y) (edges map) of
-    Nothing => Plain
-    Just cs => cs
+  fromMaybe Plain (lookup x (edges map) >>= lookup y)
 
 ||| Get the `Pos`itions of all supply sources for given `Nation` on the map
 supplySources : Nation -> Map -> List Pos
@@ -122,8 +143,8 @@ TestMap =
         , (Hex 10 2, Village Wood)
         , (Hex 10 3, Clear)
         ]
-        [ ((Hex 4 4, Hex 5 4), Road Plain)
-        , ((Hex 8 6, Hex 8 7), Lake)
-        , ((Hex 8 7, Hex 7 7), Road Plain)
-        , ((Hex 10 3, Hex 10 2), Road (River Plain))
+        [ (Hex 4 4, [ (Hex 5 4, Road Plain) ])
+        , (Hex 8 6, [ (Hex 8 7, Lake) ])
+        , (Hex 8 7, [ (Hex 7 7, Road Plain) ])
+        , (Hex 10 3, [ (Hex 10 2, Road (River Plain)) ])
         ]
