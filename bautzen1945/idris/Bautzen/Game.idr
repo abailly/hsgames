@@ -18,11 +18,11 @@ import Data.Fin
 %default total
 
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event
-act (MkGame events (MkGameState turn side Move units)) (MoveTo unitName to) = moveTo side units TestMap unitName to
+act (MkGame events (MkGameState turn side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to
 
 apply : Event -> Game -> Game
-apply event (MkGame events curState) =
-  MkGame (event :: events) (applyEvent event curState)
+apply event (MkGame events curState gameMap) =
+  MkGame (event :: events) (applyEvent event curState) gameMap
   where
     applyEvent : Event -> GameState -> GameState
     applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
@@ -57,12 +57,16 @@ data Query : (result : Type) -> Type where
   ||| @unitName full name of unit to check supply for
   SupplyPath : (unitName : String) -> Query (Either QueryError (List Pos))
 
-partial
-query : (ToSExp result) => (game : Game) -> (gameMap : Map) -> (qry : Query result) -> result
-query (MkGame _ (MkGameState _ side _ units)) gameMap (SupplyPath unitName) =
+  ||| Retrieve the game's `Map`
+  TerrainMap : Query Map
+
+covering
+query : (ToSExp result) => (game : Game) -> (qry : Query result) -> result
+query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
   case find ( \ (u, _) => fullName u == unitName) units of
     Nothing => Left (UnitDoesNotExist unitName)
     (Just (unit, pos)) =>
       case supplyPathTo units gameMap (supplySources (nation unit) gameMap) (unit, pos) of
         [] => Left (NoSupplyPathFor unitName pos)
         (x :: _) => Right x
+query (MkGame _ (MkGameState _ side _ units) gameMap) TerrainMap = gameMap

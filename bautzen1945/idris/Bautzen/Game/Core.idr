@@ -60,10 +60,10 @@ Show Event where
   show (Moved unit from to cost) = "Moved " ++ name unit ++ " from " ++ show from ++ " to " ++ show to ++ " for "  ++ show (toNat cost) ++ " mps"
 
 data Game : Type where
-  MkGame : (events : List Event) -> (curState : GameState) -> Game
+  MkGame : (events : List Event) -> (curState : GameState) -> (gameMap : Map) -> Game
 
 Show Game where
-  show (MkGame events state) = "Game: " ++ show events ++ "\n" ++ show state
+  show (MkGame events state gameMap) = "Game: " ++ show events ++ "\n" ++ show state ++ "\n" ++ show gameMap
 
 curSegment : Game -> GameSegment
-curSegment (MkGame events (MkGameState turn side segment units)) = segment
+curSegment (MkGame _ (MkGameState _ _  segment _) _) = segment

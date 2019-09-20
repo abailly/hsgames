@@ -97,3 +97,28 @@ ToSExp Event where
             , SSym ":to", toSExp to
             , SSym ":cost", toSExp cost
             ]
+
+splice : SExp -> SExp -> SExp
+splice first (SList xs) = SList $ first :: xs
+splice first s  = SList [ first, s ]
+
+ToSExp Terrain where
+  toSExp Clear = SSym "Clear"
+  toSExp Wood = SSym "Wood"
+  toSExp Rough = SSym "Rough"
+  toSExp RoughWood = SSym "RoughWood"
+  toSExp (Hill base) = splice (SSym "Hill") (toSExp base)
+  toSExp (Village base) = splice (SSym "Village") (toSExp base)
+  toSExp Town = SSym "Town"
+  toSExp (SupplySource side base) = splice (SList [ SSym "Supply", toSExp side] ) (toSExp base)
+
+ToSExp Connection where
+  toSExp Plain = SSym "Plain"
+  toSExp (Road base) = splice (SSym "Road") (toSExp base)
+  toSExp (River base) = splice (SSym "River") (toSExp base)
+  toSExp Lake = SSym "Lake"
+
+ToSExp Map where
+  toSExp (MkMap hexes edges) = SList [ SList [ SSym ":hexes", toSExp (tabulate hexes) ]
+                                     , SList [ SSym ":edges", toSExp edges ]
+                                     ]

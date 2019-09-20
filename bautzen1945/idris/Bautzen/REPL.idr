@@ -27,6 +27,7 @@ makeCommand game (SList [ SSym ":move", SStr unitName, SList [ SInt col, SInt ro
   | Move = Cmd <$> makeMoveCommand unitName col row
   | other = Left $ "Invalid command for segment " ++ show other
 makeCommand game (SList [ SSym "supply-path?", SStr unitName ] ) = Right $ Qry $ SupplyPath unitName
+makeCommand game (SList [ SSym "map?" ] ) = Right $ Qry TerrainMap
 makeCommand _ sexp = Left $ "Unknown command " ++ show sexp
 
 partial
@@ -43,7 +44,7 @@ commandHandler game command =
     Right (Cmd cmd) => case act game cmd of
                          Left err => (show (toSExp err) ++ "\n", game)
                          Right event => (show (toSExp event) ++ "\n", apply event game)
-    Right (Qry qry) => (show (toSExp $ query game PartialGameMap qry) ++ "\n", game)
+    Right (Qry qry) => (show (toSExp $ query game qry) ++ "\n", game)
 
 partial
 eoiHandler : Game -> String
@@ -58,7 +59,7 @@ initialState : GameState
 initialState = MkGameState 0 Axis Move initialPositions
 
 initialGame : Game
-initialGame = MkGame [] initialState
+initialGame = MkGame [] initialState FullGameMap
 
 export
 partial

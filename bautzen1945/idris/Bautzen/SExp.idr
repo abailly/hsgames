@@ -44,6 +44,10 @@ ToSExp Nat where
   toSExp = SInt . cast
 
 export
+(ToSExp a, ToSExp b) => ToSExp (a, b) where
+  toSExp (a, b) = SList [ toSExp a, toSExp b ]
+
+export
 ToSExp a => ToSExp (Maybe a) where
   toSExp Nothing = SSym "nil"
   toSExp (Just a) = toSExp a
