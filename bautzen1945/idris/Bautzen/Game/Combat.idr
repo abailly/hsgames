@@ -4,32 +4,24 @@ module Bautzen.Game.Combat
 
 import Bautzen.GameUnit
 import Bautzen.Game.Core
+import Bautzen.Odds
 import Bautzen.Pos
 import Bautzen.Terrain
+
+import Data.Nat.DivMod
+
+%default total
 
 -- section 8.1
 -- Those are generalities about the combat that cannot be implemented alone
 
 -- section 8.2
 
-||| The raw odds in a combat, basically a glorified pair.
-record RawOdds where
-  constructor MkRawOdds
-
-  ||| Raw attack factor
-  attackFactor : Nat
-
-  ||| Raw defense factor
-  defenseFactor : Nat
-
-Semigroup RawOdds where
-  (<+>) (MkRawOdds atk def) (MkRawOdds atk' def') = MkRawOdds (atk + atk') (def + def')
-
 ||| Start resolving an attack from given list of `attackers` to given list of `defenders`.
 |||
-||| see section 8.2, alinea 3
 ||| This computes the base factors for the combat, without taking into account the support
 ||| provided by HQs, Artillery, etc. nor the change to odds coming from terrain...
+||| * see section 8.2, alinea 3
 |||
 ||| @attackers the group of units attacking
 ||| @defenders the group of defending units
