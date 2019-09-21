@@ -22,20 +22,36 @@ record RawOdds where
   ||| Raw defense factor
   defenseFactor : Nat
 
-||| Start resolving an attack from given list of `attackers` to given `defender` Position.
+Semigroup RawOdds where
+  (<+>) (MkRawOdds atk def) (MkRawOdds atk' def') = MkRawOdds (atk + atk') (def + def')
+
+||| Start resolving an attack from given list of `attackers` to given list of `defenders`.
 |||
+||| see section 8.2, alinea 3
 ||| This computes the base factors for the combat, without taking into account the support
 ||| provided by HQs, Artillery, etc. nor the change to odds coming from terrain...
 |||
 ||| @attackers the group of units attacking
-||| @defender the position that's under attack
-||| @units the current state and position of units
-||| @gameMap the terrain map
-attack : (attackers : List GameUnit) -> (defender : Pos) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> Either GameError RawOdds
-attack attackers defender units gameMap = Right $ MkRawOdds atk def
+||| @defenders the group of defending units
+attack : (attackers : List GameUnit) -> (defenders : List GameUnit) -> RawOdds
+attack attackers defenders = MkRawOdds atk def
   where
     atk = sum $ map attackCapacity attackers
-    def = sum $ map defenseCapacity $ map fst $ filter ( \ (u,p) => p == defender) units
+    def = sum $ map defenseCapacity defenders
+
+||| Update some `odds` with all relevant support factors.
+|||
+||| * see section 8.2, alinea 3
+||| * see section 9.2
+|||
+||| @attackSupport list of units supporting the attack
+||| @defenseSupport list of units supporting the defense
+||| @baseOdds the base odds without support
+support : (attackSupport : List GameUnit) -> (defenseSupport : List GameUnit) -> (baseOdds : RawOdds) -> RawOdds
+support attackSupport defenseSupport baseOdds@(MkRawOdds atk def) = baseOdds <+> MkRawOdds atkSupport defSupport
+  where
+    atkSupport = min atk $ sum (map supportCapacity attackSupport)
+    defSupport = min def $ sum (map supportCapacity defenseSupport)
 
 
 namespace CombatTest
@@ -46,5 +62,11 @@ namespace CombatTest
               , (Bautzen.GameUnit.g21_20pz, Hex 4 4)
               ]
 
-  basic_odds_are_Sum_of_attack_over_sum_of_defense : attack [ GameUnit.g21_20pz ] (Hex 5 4) CombatTest.positions TestMap = Right (MkRawOdds 6 4)
+  basic_odds_are_Sum_of_attack_over_sum_of_defense : attack [ GameUnit.g21_20pz ] [ Bautzen.GameUnit.p13_5dp ] = (MkRawOdds 6 4)
   basic_odds_are_Sum_of_attack_over_sum_of_defense = Refl
+
+  adds_support_Factors_to_raw_odds : support [ GameUnit.p6l ] [ GameUnit.g20pz ] (MkRawOdds 6 7) =  (MkRawOdds 10 13)
+  adds_support_Factors_to_raw_odds = Refl
+
+  support_factors_can_excede_to_raw_odds : support [ GameUnit.p6l ] [ GameUnit.g20pz ] (MkRawOdds 6 4) =  (MkRawOdds 10 8)
+  support_factors_can_excede_to_raw_odds = Refl

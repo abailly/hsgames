@@ -192,6 +192,13 @@ defenseCapacity (MkGameUnit _ HQ _ _ _ _ _ _ (MkArty (S k) _)) = divNatNZ (S k) 
 defenseCapacity (MkGameUnit _ SupplyColumn _ _ _ _ _ _ _) = 0
 
 
+||| Support factor of a unit
+supportCapacity : (unit : GameUnit) -> Nat
+supportCapacity (MkGameUnit _ Artillery _ _ _ _ _ _  (MkArty support _)) = support
+supportCapacity (MkGameUnit _ AntiTank _ _ _ _ _ _  (MkPak antitank)) = antitank
+supportCapacity (MkGameUnit _ HQ _ _ _ _ _ _  (MkArty support _)) = support
+supportCapacity _ = 0
+
 -- list of existing units
 
 -- Polish
@@ -229,3 +236,6 @@ r857_294 = MkGameUnit Russian Infantry "857" (Just "294") Brigade 8 8 False (MkS
 
 g21_20pz : GameUnit
 g21_20pz = MkGameUnit German Armored "21" (Just "20Pz") Regiment 10 10 False (MkStdFactors 6 4)
+
+g20pz : GameUnit
+g20pz = MkGameUnit German HQ "HQ" (Just "20Pz") Division 8 8 False (MkArty 6 3)
