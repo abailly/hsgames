@@ -98,6 +98,13 @@ record Arty where
 Show Arty where
   show (MkArty sup dist) = "Arty support=" ++ show sup ++ ", distance=" ++ show dist
 
+record Pak where
+  constructor MkPak
+  antitank : Nat
+
+Show Pak where
+  show (MkPak at) = "Antitank factor=" ++ show at
+
 Factors : UnitType -> Type
 Factors Armored       = StdFactors
 Factors HeavyArmored  = StdFactors
@@ -105,7 +112,7 @@ Factors MechInfantry  = StdFactors
 Factors Infantry      = StdFactors
 Factors HeavyEngineer = StdFactors
 Factors Artillery     = Arty
-Factors AntiTank      = StdFactors
+Factors AntiTank      = Pak
 Factors HQ            = Arty
 Factors SupplyColumn  = Unit
 
@@ -158,6 +165,32 @@ isHQFor : GameUnit -> GameUnit -> Bool
 isHQFor unit (MkGameUnit nationality HQ _ Nothing Army _ _ _ _) = nation unit == nationality
 isHQFor unit (MkGameUnit _ HQ _ formation _ _ _ _ _) = parent unit == formation
 isHQFor _ _ = False
+
+||| Attack factor of a `unit` when directly involved
+||| in a combat
+attackCapacity : (unit : GameUnit) -> Nat
+attackCapacity (MkGameUnit _ Armored  _ _ _ _ _ _ ( MkStdFactors attack _ )) = attack
+attackCapacity (MkGameUnit _ HeavyArmored  _ _ _ _ _ _ ( MkStdFactors attack _ )) = attack
+attackCapacity (MkGameUnit _ MechInfantry  _ _ _ _ _ _ ( MkStdFactors attack _ )) = attack
+attackCapacity (MkGameUnit _ Infantry  _ _ _ _ _ _ ( MkStdFactors attack _ )) = attack
+attackCapacity (MkGameUnit _ HeavyEngineer  _ _ _ _ _ _ ( MkStdFactors attack _ )) = attack
+-- all other units have a raw attack factor of 0 because they can't attack alone
+attackCapacity _ = 0
+
+||| Defense factor of a `unit` when directly involved
+||| in a combat
+defenseCapacity : (unit : GameUnit) -> Nat
+defenseCapacity (MkGameUnit _ Armored _ _ _ _ _ _ (MkStdFactors _ defense)) = defense
+defenseCapacity (MkGameUnit _ HeavyArmored _ _ _ _ _ _ (MkStdFactors _ defense)) = defense
+defenseCapacity (MkGameUnit _ MechInfantry _ _ _ _ _ _ (MkStdFactors _ defense)) = defense
+defenseCapacity (MkGameUnit _ Infantry _ _ _ _ _ _ (MkStdFactors _ defense)) = defense
+defenseCapacity (MkGameUnit _ HeavyEngineer _ _ _ _ _ _ (MkStdFactors _ defense)) = defense
+defenseCapacity (MkGameUnit _ Artillery _ _ _ _ _ _ _) = 1
+defenseCapacity (MkGameUnit _ AntiTank _ _ _ _ _ _ _) = 1
+defenseCapacity (MkGameUnit _ HQ _ _ _ _ _ _ (MkArty Z _)) = 0
+defenseCapacity (MkGameUnit _ HQ _ _ _ _ _ _ (MkArty (S k) _)) = divNatNZ (S k) 2 SIsNotZ
+defenseCapacity (MkGameUnit _ SupplyColumn _ _ _ _ _ _ _) = 0
+
 
 -- list of existing units
 

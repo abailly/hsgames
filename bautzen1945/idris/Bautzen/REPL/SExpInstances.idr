@@ -48,6 +48,9 @@ ToSExp Arty where
           , toSExp distance
           ]
 
+ToSExp Pak where
+  toSExp (MkPak antitank) = toSExp antitank
+
 ToSExp GameUnit where
   toSExp (MkGameUnit nation unitType name parent size move currentMP hit combat) =
     SList [ SSym ":unit"
