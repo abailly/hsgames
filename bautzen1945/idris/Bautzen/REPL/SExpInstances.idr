@@ -84,13 +84,14 @@ ToSExp Cost where
   toSExp = toSExp . toNat
 
 ToSExp GameError where
-  toSExp (NoSuchUnit unitName) = SList [ SSym ":error", SSym "NoSuchUnit", SStr unitName ]
+  toSExp (NoSuchUnits unitNames) = SList [ SSym ":error", SSym "NoSuchUnit", toSExp unitNames ]
   toSExp (NotYourTurn side) = SList [ SSym ":error", SSym "NoSuchUnit", toSExp side ]
   toSExp (EnemyInHex unit hex) = SList [ SSym ":error", SSym "EnemyInHex", toSExp unit, toSExp hex ]
   toSExp (MoveFromZocToZoc unit to) = SList [ SSym ":error", SSym "MoveFromZocToZoc", toSExp unit, toSExp to ]
   toSExp (ForbiddenTerrain from to) = SList [ SSym ":error", SSym "ForbiddenTerrain", toSExp from, toSExp to ]
   toSExp (InvalidMove from to) = SList [ SSym ":error", SSym "InvalidMove", toSExp from, toSExp to ]
   toSExp (NotEnoughMPs unit from to mp) = SList [ SSym ":error", SSym "NotEnoughMPs", toSExp unit, toSExp from, toSExp to, toSExp mp ]
+  toSExp (NotAdjacentTo units to) = SList [ SSym ":error", SSym "NotAdjacentTo", toSExp units , toSExp to ]
 
 ToSExp Event where
   toSExp (Moved unit from to cost) =

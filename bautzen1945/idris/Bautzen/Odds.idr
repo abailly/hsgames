@@ -1,6 +1,7 @@
 ||| Logic for manipulating combat odds
 module Bautzen.Odds
 
+import Data.Fin
 import Data.Nat.DivMod
 
 %access public export
@@ -83,6 +84,15 @@ MinBound Odds where
 MaxBound Odds where
   maxBound = SevenVsOne
 
+implicit toFin : Odds -> Fin 8
+toFin OneVsTwo = 0
+toFin OneVsOne = 1
+toFin TwoVsOne = 2
+toFin ThreeVsOne = 3
+toFin FourVsOne = 4
+toFin FiveVsOne = 5
+toFin SixVsOne = 6
+toFin SevenVsOne = 7
 
 ||| Transform a concrete attack/defense ratio into `Odds`
 |||

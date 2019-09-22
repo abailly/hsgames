@@ -1,6 +1,7 @@
 module Bautzen.Game
 
 import public Bautzen.GameUnit
+import public Bautzen.Game.Combat
 import public Bautzen.Game.Core
 import public Bautzen.Game.Move
 import public Bautzen.Game.Supply
@@ -19,6 +20,7 @@ import Data.Fin
 
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event
 act (MkGame events (MkGameState turn side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to
+act (MkGame events (MkGameState turn side Combat units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
 
 apply : Event -> Game -> Game
 apply event (MkGame events curState gameMap) =

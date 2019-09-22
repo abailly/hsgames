@@ -43,7 +43,7 @@ moreMoveTo unit units gameMap from to with (inZoC (side (nation unit)) units fro
 moveTo : (side : Side) -> (units : List (GameUnit, Pos)) -> Map -> (unitName : String) -> (to : Pos) -> Either GameError Event
 moveTo sideToPlay units gameMap unitName to =
   case find (\ (u,_) => fullName u == unitName) units of
-    Nothing => Left (NoSuchUnit unitName)
+    Nothing => Left (NoSuchUnits [unitName])
     (Just (unit, b)) => if side (nation unit) /= sideToPlay
                         then Left (NotYourTurn (side (nation unit)))
                         else if not (to `elem` (neighbours b))
@@ -56,7 +56,7 @@ moveTo sideToPlay units gameMap unitName to =
 
 namespace MoveTest
   %access private
-  cannot_move_if_unit_does_not_exist : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "foo" (Hex 3 5) = Left (NoSuchUnit "foo")
+  cannot_move_if_unit_does_not_exist : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "foo" (Hex 3 5) = Left (NoSuchUnits [ "foo" ])
   cannot_move_if_unit_does_not_exist = Refl
 
   cannot_move_not_current_side : moveTo Axis [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 5) = Left (NotYourTurn Allies)

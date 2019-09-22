@@ -237,5 +237,8 @@ r857_294 = MkGameUnit Russian Infantry "857" (Just "294") Brigade 8 8 False (MkS
 g21_20pz : GameUnit
 g21_20pz = MkGameUnit German Armored "21" (Just "20Pz") Regiment 10 10 False (MkStdFactors 6 4)
 
+g59_20pz : GameUnit
+g59_20pz = MkGameUnit German MechInfantry "59" (Just "20Pz") Regiment 10 10 False (MkStdFactors 4 5)
+
 g20pz : GameUnit
 g20pz = MkGameUnit German HQ "HQ" (Just "20Pz") Division 8 8 False (MkArty 6 3)
