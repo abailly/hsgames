@@ -92,6 +92,8 @@ ToSExp GameError where
   toSExp (InvalidMove from to) = SList [ SSym ":error", SSym "InvalidMove", toSExp from, toSExp to ]
   toSExp (NotEnoughMPs unit from to mp) = SList [ SSym ":error", SSym "NotEnoughMPs", toSExp unit, toSExp from, toSExp to, toSExp mp ]
   toSExp (NotAdjacentTo units to) = SList [ SSym ":error", SSym "NotAdjacentTo", toSExp units , toSExp to ]
+  toSExp (NothingToAttack target) = SList [ SSym ":error", SSym "NothingToAttack", toSExp target ]
+  toSExp (AttackingOwnUnits units target) = SList [ SSym ":error", SSym "AttackingOwnUnits", toSExp units , toSExp target ]
 
 ToSExp Event where
   toSExp (Moved unit from to cost) =
@@ -100,6 +102,12 @@ ToSExp Event where
             , SSym ":from", toSExp from
             , SSym ":to", toSExp to
             , SSym ":cost", toSExp cost
+            ]
+  toSExp (CombatEngaged atk def target) =
+      SList [ SSym ":combat-engaged"
+            , SSym ":attackers", toSExp atk
+            , SSym ":defenders", toSExp def
+            , SSym ":target", toSExp target
             ]
 
 splice : SExp -> SExp -> SExp

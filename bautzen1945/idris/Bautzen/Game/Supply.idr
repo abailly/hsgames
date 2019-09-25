@@ -149,3 +149,6 @@ isInSupply (unit, pos) units gameMap =
 
 -- TODO handle effects of lack of supply on unit
 -- section 7.3
+
+-- TODO handle special case of supply path going through hex in ZoC containing
+-- a friendly unit

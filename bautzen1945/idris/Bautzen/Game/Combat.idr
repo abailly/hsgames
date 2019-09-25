@@ -47,19 +47,6 @@ support attackSupport defenseSupport baseOdds@(MkRawOdds atk def) = baseOdds <+>
     atkSupport = min atk $ sum (map supportCapacity attackSupport)
     defSupport = min def $ sum (map supportCapacity defenseSupport)
 
-||| Combat result as steps lost by attacker and defender.
-record Losses where
-  constructor (/>)
-
-  ||| Steps lost by attacker
-  attackerLoss : Nat
-
-  ||| Steps lost by defender. Can be transformed in hexes of retreat.
-  defenderLoss : Nat
-
-infix 1 />
-
-
 ||| Combat resolution table.
 |||
 ||| The table is transposed w.r.t. the actual rules booklet
@@ -115,6 +102,15 @@ checkAttackersAreAdjacentToTarget attackers target =
     [] => Right attackers
     errs => Left (NotAdjacentTo (map fst errs) target)
 
+validateDefenders : (side : Side) -> (positions : List (GameUnit, Pos)) -> (gameMap : Map)
+                  -> (target : Pos)
+                  -> Either GameError (List (GameUnit, Pos))
+validateDefenders attackerSide positions gameMap target =
+  case filter (\ (u, p) => p == target) positions of
+    [] => Left $ NothingToAttack target
+    defenders => if any (\ (u, _) => side (nation u) == attackerSide) defenders
+                 then Left $ AttackingOwnUnits (map fst defenders) target
+                 else Right defenders
 
 ||| Start a combat with given units attacking given hex.
 attackWith : (side : Side) -> (units : List (GameUnit, Pos)) -> (gameMap : Map)
@@ -125,7 +121,8 @@ attackWith side units gameMap unitNames target = do
   attackers <- validateAttackers side units gameMap attackUnits target
   -- section 8.1
   attackers' <- checkAttackersAreAdjacentToTarget attackers target
-  ?noEvent
+  defenders <- validateDefenders side units gameMap target
+  pure $ CombatEngaged attackers defenders target
 
 namespace CombatTest
   %access private
@@ -153,3 +150,9 @@ namespace CombatTest
 
   fail_attack_if_not_adjacent_to_target_hex : attackWith Axis CombatTest.positions TestMap [ "59/20Pz", "21/20Pz" ] (Hex 5 4) = Left (NotAdjacentTo [ GameUnit.g59_20pz ] (Hex 5 4))
   fail_attack_if_not_adjacent_to_target_hex = Refl
+
+  fail_attack_if_attacked_hex_is_empty : attackWith Axis CombatTest.positions TestMap [ "21/20Pz" ] (Hex 4 5) = Left (NothingToAttack (Hex 4 5))
+  fail_attack_if_attacked_hex_is_empty = Refl
+
+  fail_attack_if_attacked_units_Are_of_same_side_than_attacker : attackWith Axis CombatTest.positions TestMap [ "21/20Pz" ] (Hex 3 4) = Left (AttackingOwnUnits [ GameUnit.g59_20pz ] (Hex 3 4))
+  fail_attack_if_attacked_units_Are_of_same_side_than_attacker = Refl

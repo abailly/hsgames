@@ -20,7 +20,7 @@ import Data.Fin
 
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event
 act (MkGame events (MkGameState turn side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to
-act (MkGame events (MkGameState turn side Combat units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
+act (MkGame events (MkGameState turn side (Combat NoCombat) units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
 
 apply : Event -> Game -> Game
 apply event (MkGame events curState gameMap) =
@@ -29,6 +29,9 @@ apply event (MkGame events curState gameMap) =
     applyEvent : Event -> GameState -> GameState
     applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
       MkGameState turn side segment (updateMovedUnit unit to (toNat cost) units)
+    applyEvent (CombatEngaged atk def tgt) game =
+      record { segment = Combat (AssignTacticalSupport (side game) (MkCombatState atk Nothing def Nothing Nothing)) } game
+
 
 -- Queries
 
