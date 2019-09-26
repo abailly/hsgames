@@ -41,13 +41,13 @@ makeAttackWithCommand unitNames col row = do
 
 
 makeCommand : (game : Game) -> SExp -> Either String (CmdREPL (curSegment game))
-makeCommand game (SList [ SSym ":move", SStr unitName, SList [ SInt col, SInt row] ] ) with (curSegment game)
+makeCommand game (SList [ SSym "move!", SStr unitName, SList [ SInt col, SInt row] ] ) with (curSegment game)
   | Move = Cmd <$> makeMoveCommand unitName col row
   | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym ":attack-with", SList unitNames, SList [ SInt col, SInt row] ] ) with (curSegment game)
+makeCommand game (SList [ SSym "attack!", SList unitNames, SList [ SInt col, SInt row] ] ) with (curSegment game)
   | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames col row
   | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym ":next" ] ) = pure $ Cmd NextSegment
+makeCommand game (SList [ SSym "next!" ] ) = pure $ Cmd NextSegment
 makeCommand game (SList [ SSym "supply-path?", SStr unitName ] ) = Right $ Qry $ SupplyPath unitName
 makeCommand game (SList [ SSym "map?" ] ) = Right $ Qry TerrainMap
 makeCommand game (SList [ SSym "positions?" ] ) = Right $ Qry Positions
