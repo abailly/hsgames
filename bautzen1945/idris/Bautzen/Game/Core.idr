@@ -97,13 +97,26 @@ Show (Command segment) where
   show NextSegment = "NextSegment"
 
 data Event : Type where
+
   ||| Unit has moved from some position to some other position
   Moved : (unit : GameUnit) -> (from : Pos) -> (to : Pos) -> (cost : Cost)
         -> { auto prf : LTE (toNat cost) (currentMP unit) }
         -> Event
 
+  ||| Some attackers have engaged combat with some defenders on the given target hex.
+  |||
+  ||| The target hex can be inferred from the `defenders`' position, eg. all `defenders`
+  ||| should be in the same hex.
+  |||
+  ||| @attackers list of attacker's units and their positions
+  ||| @defenders list of defender's units and their positions
+  ||| @target the attacked position
   CombatEngaged : (attackers : List (GameUnit, Pos)) -> (defenders : List (GameUnit, Pos)) -> (target : Pos) -> Event
 
+  ||| The segment has been advanced one step.
+  |||
+  ||| @from the previous segment
+  ||| @to the new segment
   SegmentChanged : (from : GameSegment)  -> (to : GameSegment) -> Event
 
 Show Event where
