@@ -5,6 +5,7 @@ import public Bautzen.Game.Combat
 import public Bautzen.Game.Core
 import public Bautzen.Game.Move
 import public Bautzen.Game.Supply
+import public Bautzen.Game.Turn
 import public Bautzen.Pos
 import public Bautzen.Terrain
 import public Bautzen.Game.Map
@@ -21,6 +22,7 @@ import Data.Fin
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event
 act (MkGame events (MkGameState turn side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to
 act (MkGame events (MkGameState turn side (Combat NoCombat) units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
+act game NextSegment = nextSegment game
 
 apply : Event -> Game -> Game
 apply event (MkGame events curState gameMap) =
@@ -31,6 +33,8 @@ apply event (MkGame events curState gameMap) =
       MkGameState turn side segment (updateMovedUnit unit to (toNat cost) units)
     applyEvent (CombatEngaged atk def tgt) game =
       record { segment = Combat (AssignTacticalSupport (side game) (MkCombatState atk Nothing def Nothing Nothing)) } game
+    applyEvent (SegmentChanged from to) game =
+      record { segment = to } game
 
 
 -- Queries
@@ -65,6 +69,9 @@ data Query : (result : Type) -> Type where
   ||| Retrieve the game's `Map`
   TerrainMap : Query Map
 
+  ||| Retrieve positions of all units
+  Positions : Query (List (GameUnit, Pos))
+
 covering
 query : (ToSExp result) => (game : Game) -> (qry : Query result) -> result
 query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
@@ -75,3 +82,4 @@ query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
         [] => Left (NoSupplyPathFor unitName pos)
         x  => Right x
 query (MkGame _ (MkGameState _ side _ units) gameMap) TerrainMap = gameMap
+query (MkGame _ (MkGameState _ side _ positions) _) Positions = positions

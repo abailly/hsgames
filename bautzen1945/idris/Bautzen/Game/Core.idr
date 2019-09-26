@@ -89,6 +89,12 @@ Show GameError where
 data Command : (segment : GameSegment) -> Type where
   MoveTo : (unitName : String) -> (to : Pos) -> Command Move
   AttackWith : (unitNames : List String) -> (target : Pos) -> Command (Combat NoCombat)
+  NextSegment : Command segment
+
+Show (Command segment) where
+  show (MoveTo unitName to) = "MoveTo " ++ unitName ++ " -> " ++ show to
+  show (AttackWith unitNames target) = "AttackWith " ++ show unitNames ++ " -> " ++ show target
+  show NextSegment = "NextSegment"
 
 data Event : Type where
   ||| Unit has moved from some position to some other position
@@ -98,9 +104,12 @@ data Event : Type where
 
   CombatEngaged : (attackers : List (GameUnit, Pos)) -> (defenders : List (GameUnit, Pos)) -> (target : Pos) -> Event
 
+  SegmentChanged : (from : GameSegment)  -> (to : GameSegment) -> Event
+
 Show Event where
   show (Moved unit from to cost) = "Moved " ++ name unit ++ " from " ++ show from ++ " to " ++ show to ++ " for "  ++ show (toNat cost) ++ " mps"
   show (CombatEngaged atk def tgt) = "CombatEngaged " ++ show (map (GameUnit.name . fst) atk) ++ " -> " ++ show (map (GameUnit.name . fst) def) ++ " @ " ++ show tgt
+  show (SegmentChanged from to) = "Segment Changed " ++ show from ++ " -> " ++ show to
 
 data Game : Type where
   MkGame : (events : List Event) -> (curState : GameState) -> (gameMap : Map) -> Game

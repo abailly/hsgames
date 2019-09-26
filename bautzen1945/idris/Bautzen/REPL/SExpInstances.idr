@@ -85,7 +85,7 @@ ToSExp Cost where
 
 ToSExp GameError where
   toSExp (NoSuchUnits unitNames) = SList [ SSym ":error", SSym "NoSuchUnit", toSExp unitNames ]
-  toSExp (NotYourTurn side) = SList [ SSym ":error", SSym "NoSuchUnit", toSExp side ]
+  toSExp (NotYourTurn side) = SList [ SSym ":error", SSym "NotYourTurn", toSExp side ]
   toSExp (EnemyInHex unit hex) = SList [ SSym ":error", SSym "EnemyInHex", toSExp unit, toSExp hex ]
   toSExp (MoveFromZocToZoc unit to) = SList [ SSym ":error", SSym "MoveFromZocToZoc", toSExp unit, toSExp to ]
   toSExp (ForbiddenTerrain from to) = SList [ SSym ":error", SSym "ForbiddenTerrain", toSExp from, toSExp to ]
@@ -94,6 +94,30 @@ ToSExp GameError where
   toSExp (NotAdjacentTo units to) = SList [ SSym ":error", SSym "NotAdjacentTo", toSExp units , toSExp to ]
   toSExp (NothingToAttack target) = SList [ SSym ":error", SSym "NothingToAttack", toSExp target ]
   toSExp (AttackingOwnUnits units target) = SList [ SSym ":error", SSym "AttackingOwnUnits", toSExp units , toSExp target ]
+
+ToSExp Losses where
+  toSExp (attackerLoss /> defenderLoss) = SList [ toSExp attackerLoss, toSExp defenderLoss ]
+
+ToSExp CombatState where
+  toSExp (MkCombatState attackers attackerSupport defenders defenderSupport losses) =
+    SList [ SSym ":combat-state"
+          , SSym ":attackers", toSExp attackers
+          , SSym ":attacker-support", toSExp attackerSupport
+          , SSym ":defenders", toSExp defenders
+          , SSym ":defender-support", toSExp defenderSupport
+          , SSym ":losses", toSExp losses
+          ]
+
+ToSExp CombatPhase where
+  toSExp NoCombat = SSym "NoCombat"
+  toSExp (AssignTacticalSupport side combat) = SList [ SSym "AssignTacticalSupport",  toSExp side, toSExp combat ]
+  toSExp (AssignStrategicSupport side combat) = SList [ SSym "AssignStrategicSupport",  toSExp side, toSExp combat ]
+  toSExp (ApplyLosses side losses combat) = SList [ SSym "ApplyLosses",  toSExp side, toSExp losses, toSExp combat ]
+
+ToSExp GameSegment where
+  toSExp Supply = SSym "Supply"
+  toSExp Move = SSym "Move"
+  toSExp (Combat phase) = SList [ SSym "Combat", toSExp phase ]
 
 ToSExp Event where
   toSExp (Moved unit from to cost) =
@@ -108,6 +132,11 @@ ToSExp Event where
             , SSym ":attackers", toSExp atk
             , SSym ":defenders", toSExp def
             , SSym ":target", toSExp target
+            ]
+  toSExp (SegmentChanged from to) =
+      SList [ SSym ":segment-changed"
+            , SSym ":from", toSExp from
+            , SSym ":to", toSExp to
             ]
 
 splice : SExp -> SExp -> SExp
