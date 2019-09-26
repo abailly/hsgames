@@ -44,6 +44,10 @@ ToSExp Nat where
   toSExp = SInt . cast
 
 export
+ToSExp (Fin n) where
+  toSExp = SInt . fromInteger . cast
+
+export
 (ToSExp a, ToSExp b) => ToSExp (a, b) where
   toSExp (a, b) = SList [ toSExp a, toSExp b ]
 

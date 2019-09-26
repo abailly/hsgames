@@ -6,6 +6,8 @@ import Bautzen.Pos
 import Bautzen.Terrain
 import Bautzen.SExp
 
+import Data.Fin
+
 %access export
 %default total
 
@@ -94,6 +96,8 @@ ToSExp GameError where
   toSExp (NotAdjacentTo units to) = SList [ SSym ":error", SSym "NotAdjacentTo", toSExp units , toSExp to ]
   toSExp (NothingToAttack target) = SList [ SSym ":error", SSym "NothingToAttack", toSExp target ]
   toSExp (AttackingOwnUnits units target) = SList [ SSym ":error", SSym "AttackingOwnUnits", toSExp units , toSExp target ]
+  toSExp (CombatInProgress side) = SList [ SSym ":error", SSym "CombatInProgress", toSExp side ]
+  toSExp GameHasEnded = SList [ SSym ":error", SSym "GameHasEnded" ]
 
 ToSExp Losses where
   toSExp (attackerLoss /> defenderLoss) = SList [ toSExp attackerLoss, toSExp defenderLoss ]
@@ -118,6 +122,7 @@ ToSExp GameSegment where
   toSExp Supply = SSym "Supply"
   toSExp Move = SSym "Move"
   toSExp (Combat phase) = SList [ SSym "Combat", toSExp phase ]
+  toSExp GameEnd = SSym "GameEnd"
 
 ToSExp Event where
   toSExp (Moved unit from to cost) =
@@ -138,6 +143,15 @@ ToSExp Event where
             , SSym ":from", toSExp from
             , SSym ":to", toSExp to
             ]
+  toSExp (TurnEnded n) =
+      SList [ SSym ":turn-ended"
+            , SSym ":new-turn", toSExp n
+            ]
+  toSExp AxisTurnDone =
+      SList [ SSym ":axis-turn-done" ]
+  toSExp GameEnded =
+      SList [ SSym ":game-ended" ]
+
 
 splice : SExp -> SExp -> SExp
 splice first (SList xs) = SList $ first :: xs

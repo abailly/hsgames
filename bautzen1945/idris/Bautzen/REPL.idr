@@ -47,6 +47,9 @@ makeCommand game (SList [ SSym "move!", SStr unitName, SList [ SInt col, SInt ro
 makeCommand game (SList [ SSym "attack!", SList unitNames, SList [ SInt col, SInt row] ] ) with (curSegment game)
   | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames col row
   | other = Left $ "Invalid command for segment " ++ show other
+makeCommand game (SList [ SSym "attack!", SStr unitName, SList [ SInt col, SInt row] ] ) with (curSegment game)
+  | Combat NoCombat = Cmd <$> makeAttackWithCommand [ SStr unitName ] col row
+  | other = Left $ "Invalid command for segment " ++ show other
 makeCommand game (SList [ SSym "next!" ] ) = pure $ Cmd NextSegment
 makeCommand game (SList [ SSym "supply-path?", SStr unitName ] ) = Right $ Qry $ SupplyPath unitName
 makeCommand game (SList [ SSym "map?" ] ) = Right $ Qry TerrainMap
@@ -79,7 +82,7 @@ initialPositions = [ (Bautzen.GameUnit.p13_5dp, Hex 1 9)
                    ]
 
 initialState : GameState
-initialState = MkGameState 0 Axis Move initialPositions
+initialState = MkGameState 5 Axis Move initialPositions
 
 initialGame : Game
 initialGame = MkGame [] initialState FullGameMap

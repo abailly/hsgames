@@ -41,15 +41,17 @@ data GameSegment : Type where
   Supply : GameSegment
   Move : GameSegment
   Combat : (phase : CombatPhase) -> GameSegment
+  GameEnd : GameSegment
 
 Show GameSegment where
   show Supply = "Supply"
   show Move = "Move"
   show Combat = "Combat"
+  show GameEnd = "GameEnd"
 
 record GameState where
   constructor MkGameState
-  turn : Fin 5
+  turn : Fin 6
   side : Side
   segment : GameSegment
   units : List (GameUnit, Pos)
@@ -73,6 +75,8 @@ data GameError : Type where
   NotAdjacentTo : (units : List GameUnit) -> (target : Pos) -> GameError
   NothingToAttack : (target : Pos) -> GameError
   AttackingOwnUnits : (units : List GameUnit) -> (target : Pos) -> GameError
+  CombatInProgress : (side : Side) -> GameError
+  GameHasEnded : GameError
 
 Show GameError where
   show (NoSuchUnits unitNames) = "No such units: " ++ show unitNames
@@ -85,6 +89,8 @@ Show GameError where
   show (NotAdjacentTo units target) = "Units are not adjacent to target hex: " ++ show units ++ " -> " ++ show target
   show (NothingToAttack target) = "Attacked hex is empty: " ++ show target
   show (AttackingOwnUnits units target) = "Attacking own units: " ++ show units ++ " -> " ++ show target
+  show (CombatInProgress side) = "Combat in progress for: " ++ show side
+  show GameHasEnded = "Game has ended"
 
 data Command : (segment : GameSegment) -> Type where
   MoveTo : (unitName : String) -> (to : Pos) -> Command Move
@@ -119,10 +125,22 @@ data Event : Type where
   ||| @to the new segment
   SegmentChanged : (from : GameSegment)  -> (to : GameSegment) -> Event
 
+  ||| Axis turn is over, move to Allies turn
+  AxisTurnDone : Event
+
+  ||| Turn ended, start a new turn
+  TurnEnded : Fin 6 -> Event
+
+  ||| Game has ended
+  GameEnded : Event
+
 Show Event where
   show (Moved unit from to cost) = "Moved " ++ name unit ++ " from " ++ show from ++ " to " ++ show to ++ " for "  ++ show (toNat cost) ++ " mps"
   show (CombatEngaged atk def tgt) = "CombatEngaged " ++ show (map (GameUnit.name . fst) atk) ++ " -> " ++ show (map (GameUnit.name . fst) def) ++ " @ " ++ show tgt
   show (SegmentChanged from to) = "Segment Changed " ++ show from ++ " -> " ++ show to
+  show AxisTurnDone = "Axis Turn Over"
+  show (TurnEnded n) = "Turn Ended: " ++ show (finToNat n)
+  show GameEnded = "Game Ended"
 
 data Game : Type where
   MkGame : (events : List Event) -> (curState : GameState) -> (gameMap : Map) -> Game

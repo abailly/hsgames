@@ -24,17 +24,23 @@ act (MkGame events (MkGameState turn side Move units) gameMap) (MoveTo unitName 
 act (MkGame events (MkGameState turn side (Combat NoCombat) units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
 act game NextSegment = nextSegment game
 
+applyEvent : Event -> GameState -> GameState
+applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
+  MkGameState turn side segment (updateMovedUnit unit to (toNat cost) units)
+applyEvent (CombatEngaged atk def tgt) game =
+  record { segment = Combat (AssignTacticalSupport (side game) (MkCombatState atk Nothing def Nothing Nothing)) } game
+applyEvent (SegmentChanged from to) game =
+  record { segment = to } game
+applyEvent AxisTurnDone game =
+  record { side = Allies, segment = Supply } game
+applyEvent (TurnEnded n) game =
+  record { turn = n, side = Axis, segment = Supply } game
+applyEvent GameEnded game =
+  record { segment = GameEnd } game
+
 apply : Event -> Game -> Game
 apply event (MkGame events curState gameMap) =
   MkGame (event :: events) (applyEvent event curState) gameMap
-  where
-    applyEvent : Event -> GameState -> GameState
-    applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
-      MkGameState turn side segment (updateMovedUnit unit to (toNat cost) units)
-    applyEvent (CombatEngaged atk def tgt) game =
-      record { segment = Combat (AssignTacticalSupport (side game) (MkCombatState atk Nothing def Nothing Nothing)) } game
-    applyEvent (SegmentChanged from to) game =
-      record { segment = to } game
 
 
 -- Queries
