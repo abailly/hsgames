@@ -13,7 +13,6 @@ import Data.Heap.RawBinaryHeap as R
 import Data.Heap.LeftistHeap as L
 
 import Data.SortedMap as SMap
-import Debug.Trace
 
 %access export
 %default total
@@ -52,16 +51,16 @@ Ord AState where
       ordering => ordering
 
 computeShortestPath : (fuel : Nat) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (unit : GameUnit) ->  (costsMap : SMap.SortedMap Pos Nat) -> L.BinaryHeap AState -> List Pos
-computeShortestPath Z _ _ _ _ queue = trace ("running out of fuel, explored hexes" ++ show (stats queue)) []
+computeShortestPath Z _ _ _ _ queue = []
 computeShortestPath (S fuel) units gameMap unit costsMap queue =
   if isEmpty queue
-  then trace ("empty queue, explored hexes" ++ show (stats queue)) []
+  then []
   else let (q, st) = Heap.pop queue
        in case st of
-            Nothing => trace ("empty queue, explored hexes" ++ show (stats queue)) []
+            Nothing => []
             Just cur@(MkAState src tgt path _) =>
               if src == tgt
-              then trace ("found target "++ show path ++ ", explored hexes" ++ show (stats queue)) path
+              then path
               else let (q', costsMap') = foldl (addNeighbours cur) (q, costsMap) (neighbours src)
                    in computeShortestPath fuel units gameMap unit costsMap' q'
   where
