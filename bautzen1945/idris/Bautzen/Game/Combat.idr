@@ -109,6 +109,43 @@ attackWith side units gameMap unitNames target = do
   defenders <- validateDefenders side units gameMap target
   pure $ CombatEngaged attackers defenders target
 
+-- Support
+
+checkSupportingUnits : (units : List (GameUnit, Pos))
+                     -> Either GameError (List (GameUnit, Pos))
+checkSupportingUnits units =
+  let notSupporting = filter (not . isSupportingUnit . fst) units
+  in case notSupporting of
+       [] => Right units
+       ns => Left $ NotSupportingUnits (map fst ns)
+
+supportInRangeOf : (base : List (GameUnit, Pos)) -> (supporter: (GameUnit, Pos)) -> Bool
+supportInRangeOf base (unit, pos) =
+  let maxDistance = supportDistance unit
+  in any (\ (u, p) => distance p pos <= maxDistance) base
+
+checkSupportInRange : (supporters : List (GameUnit, Pos)) -> (base : List (GameUnit, Pos)) -> Either GameError (List (GameUnit, Pos))
+checkSupportInRange supporters base =
+  case filter (not . supportInRangeOf base) supporters of
+    [] => Right supporters
+    xs => Left $ NotInSupportRange (map fst xs)
+
+validateSupport :  (supporters : List (GameUnit, Pos))
+                -> (supported : EngagedUnits)
+                -> Either GameError (List (GameUnit, Pos))
+validateSupport supporters (MkEngagedUnits base _ _) =
+  checkSupportInRange supporters base
+
+validateSupportUnits : (currentSide : Side) -> (supportedSide : Side)
+                     -> (state : CombatState)
+                     -> (units : List (GameUnit, Pos))
+                     -> Either GameError (List (GameUnit, Pos))
+validateSupportUnits currentSide supportedSide (MkCombatState _ atk def _) units =
+  if (currentSide == supportedSide)
+  then validateSupport units atk
+  else validateSupport units def
+
+
 ||| Add support units to an _engaged_ combat.
 |||
 ||| If successful, this will add some units to
@@ -124,7 +161,10 @@ supportWith : (currentSide : Side) -> (supportSide : Side)
            -> (unitNames : List String)
            -> (state : CombatState)
            -> Either GameError Event
-supportWith currentSide supportSide units gameMap unitNames state = ?supportWith_rhs
+supportWith currentSide supportSide units gameMap unitNames state = do
+  supportUnits <- findUnits unitNames units >>= checkSupportingUnits
+  validatedUnits <- validateSupportUnits currentSide supportSide state supportUnits
+  ?hole
 
 namespace CombatTest
   %access private
@@ -158,3 +198,17 @@ namespace CombatTest
 
   fail_attack_if_attacked_units_Are_of_same_side_than_attacker : attackWith Axis CombatTest.positions TestMap [ "21/20Pz" ] (Hex 3 4) = Left (AttackingOwnUnits [ GameUnit.g59_20pz ] (Hex 3 4))
   fail_attack_if_attacked_units_Are_of_same_side_than_attacker = Refl
+
+  combatState : CombatState
+  combatState = MkCombatState (Hex 5 4)
+                (MkEngagedUnits [ (GameUnit.g21_20pz, Hex 4 4) ] [] 0)
+                (MkEngagedUnits [ (GameUnit.p13_5dp, Hex 5 4) ] [] 0)
+                Nothing
+
+  fail_support_if_unit_not_HQ_or_arty :
+    supportWith Axis Axis CombatTest.positions TestMap [ "59/20Pz" ] CombatTest.combatState = Left (NotSupportingUnits [ GameUnit.g59_20pz ])
+  fail_support_if_unit_not_HQ_or_arty = Refl
+
+  fail_support_if_attacker_hq_not_in_support_range :
+    supportWith Axis Axis ((GameUnit.g20pz, Hex 1 1) :: CombatTest.positions) TestMap [ "HQ/20Pz" ] CombatTest.combatState = Left (NotInSupportRange [ GameUnit.g20pz ])
+  fail_support_if_attacker_hq_not_in_support_range = Refl

@@ -55,6 +55,8 @@ data GameError : Type where
   NotAdjacentTo : (units : List GameUnit) -> (target : Pos) -> GameError
   NothingToAttack : (target : Pos) -> GameError
   AttackingOwnUnits : (units : List GameUnit) -> (target : Pos) -> GameError
+  NotSupportingUnits: (units : List GameUnit) -> GameError
+  NotInSupportRange: (units : List GameUnit) -> GameError
   CombatInProgress : (side : Side) -> GameError
   GameHasEnded : GameError
 
@@ -67,6 +69,8 @@ Show GameError where
   show (InvalidMove from to) = "Move is invalid: " ++ show from ++ " -> " ++ show to
   show (NotEnoughMPs unit from to mp) = "Unit has not enough MPs: " ++ show mp ++ ", " ++ show from ++ " -> " ++ show to
   show (NotAdjacentTo units target) = "Units are not adjacent to target hex: " ++ show units ++ " -> " ++ show target
+  show (NotInSupportRange units) = "Units are not in support range: " ++ show units
+  show (NotSupportingUnits units) = "Units are not support units (HQ or Artillery): " ++ show units
   show (NothingToAttack target) = "Attacked hex is empty: " ++ show target
   show (AttackingOwnUnits units target) = "Attacking own units: " ++ show units ++ " -> " ++ show target
   show (CombatInProgress side) = "Combat in progress for: " ++ show side

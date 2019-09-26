@@ -112,6 +112,9 @@ mutual
 
   ||| Convert a s-expression into a list of strings
   |||
+  ||| This function actually _flattens_ the given s-expression, traversing it depth-first and
+  ||| expecting to find only _strings_.
+  |||
   ||| * A single string is converted as a singleton
   ||| * A list of strings is converted as a list
   ||| * Any other type raises an error

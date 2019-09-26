@@ -191,6 +191,14 @@ defenseCapacity (MkGameUnit _ HQ _ _ _ _ _ _ (MkArty Z _)) = 0
 defenseCapacity (MkGameUnit _ HQ _ _ _ _ _ _ (MkArty (S k) _)) = divNatNZ (S k) 2 SIsNotZ
 defenseCapacity (MkGameUnit _ SupplyColumn _ _ _ _ _ _ _) = 0
 
+||| Is the unit a supporting unit?
+isSupportingUnit : (unit : GameUnit) -> Bool
+isSupportingUnit unit =
+  case unitType unit of
+    Artillery => True
+    AntiTank => True
+    HQ => True
+    _ => False
 
 ||| Support factor of a unit
 supportCapacity : (unit : GameUnit) -> Nat
@@ -198,6 +206,12 @@ supportCapacity (MkGameUnit _ Artillery _ _ _ _ _ _  (MkArty support _)) = suppo
 supportCapacity (MkGameUnit _ AntiTank _ _ _ _ _ _  (MkPak antitank)) = antitank
 supportCapacity (MkGameUnit _ HQ _ _ _ _ _ _  (MkArty support _)) = support
 supportCapacity _ = 0
+
+supportDistance : (unit : GameUnit) -> Nat
+supportDistance (MkGameUnit _ Artillery _ _ _ _ _ _  (MkArty _ distance)) = distance
+supportDistance (MkGameUnit _ AntiTank _ _ _ _ _ _  (MkPak antitank)) = 0
+supportDistance (MkGameUnit _ HQ _ _ _ _ _ _  (MkArty _ distance)) = distance
+supportDistance _ = 0
 
 -- list of existing units
 
