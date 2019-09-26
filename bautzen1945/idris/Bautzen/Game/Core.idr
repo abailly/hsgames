@@ -1,5 +1,6 @@
 module Bautzen.Game.Core
 
+import Bautzen.Combats
 import Bautzen.GameUnit
 import Bautzen.Pos
 import Bautzen.Terrain
@@ -9,33 +10,12 @@ import Data.Fin
 %access public export
 %default total
 
-||| Combat result as steps lost by attacker and defender.
-record Losses where
-  constructor (/>)
-
-  ||| Steps lost by attacker
-  attackerLoss : Nat
-
-  ||| Steps lost by defender. Can be transformed in hexes of retreat.
-  defenderLoss : Nat
-
-infix 1 />
-
-
-record CombatState where
-  constructor MkCombatState
-  attackers : List (GameUnit, Pos)
-  attackerSupport : Maybe Nat
-  defenders : List (GameUnit, Pos)
-  defenderSupport : Maybe Nat
-  losses : Maybe Losses
-
 ||| * see section 8.2
 data CombatPhase : Type where
   NoCombat : CombatPhase
   AssignTacticalSupport : (side : Side) -> (combat : CombatState) -> CombatPhase
   AssignStrategicSupport : (side : Side) -> (combat : CombatState) -> CombatPhase
-  ApplyLosses : (side : Side) -> (losses : Nat) -> (combat : CombatState) -> CombatPhase
+  ApplyLosses : (side : Side) -> (combat : CombatState) -> CombatPhase
 
 data GameSegment : Type where
   Supply : GameSegment
@@ -96,11 +76,13 @@ data Command : (segment : GameSegment) -> Type where
   MoveTo : (unitName : String) -> (to : Pos) -> Command Move
   AttackWith : (unitNames : List String) -> (target : Pos) -> Command (Combat NoCombat)
   NextSegment : Command segment
+  TacticalSupport : (unitNames : List String) -> Command (Combat $ AssignTacticalSupport side combatState)
 
 Show (Command segment) where
   show (MoveTo unitName to) = "MoveTo " ++ unitName ++ " -> " ++ show to
   show (AttackWith unitNames target) = "AttackWith " ++ show unitNames ++ " -> " ++ show target
   show NextSegment = "NextSegment"
+  show (TacticalSupport unitNames) = "TacticalSupport " ++ show unitNames
 
 data Event : Type where
 

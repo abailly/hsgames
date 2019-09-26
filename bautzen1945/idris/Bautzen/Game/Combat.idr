@@ -2,6 +2,7 @@
 ||| Section 8
 module Bautzen.Game.Combat
 
+import Bautzen.Combats
 import Bautzen.GameUnit
 import Bautzen.Game.Core
 import Bautzen.Odds
@@ -46,22 +47,6 @@ support attackSupport defenseSupport baseOdds@(MkRawOdds atk def) = baseOdds <+>
   where
     atkSupport = min atk $ sum (map supportCapacity attackSupport)
     defSupport = min def $ sum (map supportCapacity defenseSupport)
-
-||| Combat resolution table.
-|||
-||| The table is transposed w.r.t. the actual rules booklet
-CombatTable : Vect 8 (Vect 8 Losses)
-CombatTable =
-  [ [ 3 /> 0, 3 /> 0, 3 /> 0, 2 /> 0 , 2 /> 1 , 2 /> 1 , 1 /> 1 , 0 /> 1 ]
-  , [ 2 /> 0, 2 /> 0, 1 /> 0, 1 /> 0 , 2 /> 1 , 2 /> 2 , 2 /> 2 , 1 /> 2 ]
-  , [ 1 /> 0, 1 /> 0, 1 /> 0, 1 /> 1 , 1 /> 1 , 1 /> 2 , 0 /> 2 , 0 /> 2 ]
-  , [ 1 /> 0, 1 /> 0, 1 /> 1, 1 /> 2 , 1 /> 2 , 1 /> 2 , 1 /> 2 , 1 /> 3 ]
-  , [ 1 /> 1, 1 /> 1, 1 /> 2, 1 /> 2 , 1 /> 2 , 1 /> 3 , 1 /> 3 , 1 /> 4 ]
-  , [ 1 /> 1, 0 /> 1, 1 /> 3, 1 /> 3 , 1 /> 4 , 0 /> 4 , 0 /> 4 , 0 /> 5 ]
-  , [ 0 /> 1, 0 /> 1, 1 /> 3, 1 /> 3 , 1 /> 4 , 0 /> 4 , 0 /> 4 , 0 /> 5 ]
-  , [ 0 /> 2, 0 /> 2, 1 /> 3, 1 /> 3 , 1 /> 4 , 0 /> 5 , 0 /> 5 , 0 /> 6 ]
-  ]
-
 
 ||| Given some odds and the result of 6-sided dice, provide combat outcome in the form of
 ||| a pair of numbers representing step loss for each side.
@@ -123,6 +108,23 @@ attackWith side units gameMap unitNames target = do
   attackers' <- checkAttackersAreAdjacentToTarget attackers target
   defenders <- validateDefenders side units gameMap target
   pure $ CombatEngaged attackers defenders target
+
+||| Add support units to an _engaged_ combat.
+|||
+||| If successful, this will add some units to
+|||
+||| @currentSide the side whose turn it is to play, e.g the attacker's side
+||| @supportSide the side which is expected to provide support
+||| @units the positions and state of units on the map
+||| @gameMap the map
+||| @unitNames names of units providing support
+||| @state overall state of the combat
+supportWith : (currentSide : Side) -> (supportSide : Side)
+           -> (units : List (GameUnit, Pos)) -> (gameMap : Map)
+           -> (unitNames : List String)
+           -> (state : CombatState)
+           -> Either GameError Event
+supportWith currentSide supportSide units gameMap unitNames state = ?supportWith_rhs
 
 namespace CombatTest
   %access private

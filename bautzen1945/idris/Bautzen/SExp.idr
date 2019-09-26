@@ -1,6 +1,9 @@
 module Bautzen.SExp
 
 import Data.Vect
+import Prelude.WellFounded
+
+%default total
 
 public export
 data SExp : Type where
@@ -96,3 +99,25 @@ Eq SExp where
   (SSym x) == (SSym x') = x == x'
   (SInt x) == (SInt x') = x == x'
   _ == _ = True
+
+mutual
+  private
+  step : (x1 : List SExp) -> ((y : List SExp) -> Smaller y x1 -> Either String (List String)) -> Either String (List String)
+  step []        f = Right []
+  step (x :: xs) f with (isLTE (length xs) (length xs))
+    | Yes prf = do s <- toStrings x
+                   ss <- f xs $ LTESucc prf
+                   pure $ s ++ ss
+    | No contra = absurd (contra lteRefl)
+
+  ||| Convert a s-expression into a list of strings
+  |||
+  ||| * A single string is converted as a singleton
+  ||| * A list of strings is converted as a list
+  ||| * Any other type raises an error
+  export
+  toStrings : SExp -> Either String (List String)
+  toStrings (SStr x) = pure [ x ]
+  toStrings (SSym x) = Left $ "Unexpected symbol "++ x ++ ", wanted a string"
+  toStrings (SInt x) = Left $ "Unexpected int "++ show x ++ ", wanted a string"
+  toStrings (SList x) = sizeRec step x

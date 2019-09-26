@@ -1,5 +1,6 @@
 module Bautzen.Game
 
+import public Bautzen.Combats
 import public Bautzen.GameUnit
 import public Bautzen.Game.Combat
 import public Bautzen.Game.Core
@@ -20,15 +21,21 @@ import Data.Fin
 %default total
 
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event
-act (MkGame events (MkGameState turn side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to
-act (MkGame events (MkGameState turn side (Combat NoCombat) units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
+act (MkGame _ (MkGameState _ side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to
+act (MkGame _ (MkGameState _ side (Combat NoCombat) units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
 act game NextSegment = nextSegment game
+act (MkGame _ (MkGameState _ side (Combat (AssignTacticalSupport combatSide combat)) units) gameMap) (TacticalSupport unitNames) =
+  supportWith side combatSide units gameMap unitNames combat
 
 applyEvent : Event -> GameState -> GameState
 applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
   MkGameState turn side segment (updateMovedUnit unit to (toNat cost) units)
 applyEvent (CombatEngaged atk def tgt) game =
-  record { segment = Combat (AssignTacticalSupport (side game) (MkCombatState atk Nothing def Nothing Nothing)) } game
+  record { segment = Combat (AssignTacticalSupport (side game)
+                     (MkCombatState tgt
+                       (MkEngagedUnits atk [] 0)
+                       (MkEngagedUnits def [] 0)
+                       Nothing)) } game
 applyEvent (SegmentChanged from to) game =
   record { segment = to } game
 applyEvent AxisTurnDone game =

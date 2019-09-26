@@ -24,31 +24,26 @@ makePos col row with (fromIntegerNat (cast col), fromIntegerNat (cast row))
 makeMoveCommand : (unitName : String) -> (col : Int) -> (row : Int) -> Either String (Command Move)
 makeMoveCommand unitName col row = MoveTo unitName <$> makePos col row
 
-foldM : (Monad m) => (b -> a -> m a) -> a -> List b -> m a
-foldM f x [] = pure x
-foldM f x (y :: xs) = f y x >>= \ a => foldM f a xs
-
-hole : Command (Combat NoCombat) -> SExp -> Either String (Command (Combat NoCombat))
-hole (AttackWith unitNames target) (SStr x) = Right $ AttackWith (x :: unitNames) target
-hole (AttackWith unitNames target) x = Left $ "Invalid s-expression " ++ show x ++ ", should be a string"
-hole cmd _ = Left $ "Unexpected command " ++ show cmd ++ ", should be :attack-with"   -- TODO make it impossible?
-
-makeAttackWithCommand : (unitNames : List SExp) -> (col : Int) -> (row : Int) -> Either String (Command $ Combat NoCombat)
+makeAttackWithCommand : (unitNames : SExp) -> (col : Int) -> (row : Int) -> Either String (Command $ Combat NoCombat)
 makeAttackWithCommand unitNames col row = do
   pos <- makePos col row
-  let command = AttackWith [] pos
-  foldlM hole command unitNames
+  units <- toStrings unitNames
+  pure $ AttackWith units pos
 
+makeSupportCommand : (unitNames : SExp) -> (side : Side) -> (combatState : CombatState)
+                   -> Either String (Command $ Combat (AssignTacticalSupport side combatState))
+makeSupportCommand unitNames side state =
+  toStrings unitNames >>= Right . TacticalSupport
 
 makeCommand : (game : Game) -> SExp -> Either String (CmdREPL (curSegment game))
 makeCommand game (SList [ SSym "move!", SStr unitName, SList [ SInt col, SInt row] ] ) with (curSegment game)
   | Move = Cmd <$> makeMoveCommand unitName col row
   | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym "attack!", SList unitNames, SList [ SInt col, SInt row] ] ) with (curSegment game)
+makeCommand game (SList [ SSym "attack!", unitNames, SList [ SInt col, SInt row] ] ) with (curSegment game)
   | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames col row
   | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym "attack!", SStr unitName, SList [ SInt col, SInt row] ] ) with (curSegment game)
-  | Combat NoCombat = Cmd <$> makeAttackWithCommand [ SStr unitName ] col row
+makeCommand game (SList [ SSym "support!", unitNames ] ) with (curSegment game)
+  | Combat (AssignTacticalSupport side combatState) = Cmd <$> makeSupportCommand unitNames side combatState
   | other = Left $ "Invalid command for segment " ++ show other
 makeCommand game (SList [ SSym "next!" ] ) = pure $ Cmd NextSegment
 makeCommand game (SList [ SSym "supply-path?", SStr unitName ] ) = Right $ Qry $ SupplyPath unitName

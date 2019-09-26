@@ -1,5 +1,6 @@
 module Bautzen.REPL.SExpInstances
 
+import Bautzen.Combats
 import Bautzen.GameUnit
 import Bautzen.Game.Core
 import Bautzen.Pos
@@ -102,13 +103,20 @@ ToSExp GameError where
 ToSExp Losses where
   toSExp (attackerLoss /> defenderLoss) = SList [ toSExp attackerLoss, toSExp defenderLoss ]
 
+ToSExp EngagedUnits where
+  toSExp (MkEngagedUnits base tacticalSupport strategicSupport) =
+    SList [ SSym ":engaged"
+          , SSym ":base", toSExp base
+          , SSym ":tactical-support", toSExp tacticalSupport
+          , SSym ":strategic-support", toSExp strategicSupport
+          ]
+
 ToSExp CombatState where
-  toSExp (MkCombatState attackers attackerSupport defenders defenderSupport losses) =
+  toSExp (MkCombatState hex attackers defenders losses) =
     SList [ SSym ":combat-state"
+          , SSym ":combat-hex", toSExp hex
           , SSym ":attackers", toSExp attackers
-          , SSym ":attacker-support", toSExp attackerSupport
           , SSym ":defenders", toSExp defenders
-          , SSym ":defender-support", toSExp defenderSupport
           , SSym ":losses", toSExp losses
           ]
 
@@ -116,7 +124,7 @@ ToSExp CombatPhase where
   toSExp NoCombat = SSym "NoCombat"
   toSExp (AssignTacticalSupport side combat) = SList [ SSym "AssignTacticalSupport",  toSExp side, toSExp combat ]
   toSExp (AssignStrategicSupport side combat) = SList [ SSym "AssignStrategicSupport",  toSExp side, toSExp combat ]
-  toSExp (ApplyLosses side losses combat) = SList [ SSym "ApplyLosses",  toSExp side, toSExp losses, toSExp combat ]
+  toSExp (ApplyLosses side combat) = SList [ SSym "ApplyLosses",  toSExp side, toSExp combat ]
 
 ToSExp GameSegment where
   toSExp Supply = SSym "Supply"
