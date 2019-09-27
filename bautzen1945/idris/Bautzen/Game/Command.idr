@@ -24,7 +24,7 @@ withinCommandDistance unit hqs pos =
 
 ||| Find the HQ for a given formation
 findHQ : GameUnit -> List (GameUnit, Pos) -> List GameUnit
-findHQ unit units = map fst $ filter (isHQFor unit . fst) units
+findHQ unit units = map fst $ filter (flip isHQFor unit . fst) units
 
 
 ||| Check given `unit` is under command of its HQ or a corps/army HQ

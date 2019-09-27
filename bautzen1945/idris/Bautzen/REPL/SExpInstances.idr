@@ -97,6 +97,9 @@ ToSExp GameError where
   toSExp (NotAdjacentTo units to) = SList [ SSym ":error", SSym "NotAdjacentTo", toSExp units , toSExp to ]
   toSExp (NothingToAttack target) = SList [ SSym ":error", SSym "NothingToAttack", toSExp target ]
   toSExp (AttackingOwnUnits units target) = SList [ SSym ":error", SSym "AttackingOwnUnits", toSExp units , toSExp target ]
+  toSExp (NotInSupportRange units) = SList [ SSym ":error", SSym "NotInSupportRange", toSExp units ]
+  toSExp (NotSupportingUnits units) = SList [ SSym ":error", SSym "NotSupportingUnits", toSExp units ]
+  toSExp (NotInChainOfCommand units) = SList [ SSym ":error", SSym "NotInChainOfCommand", toSExp units ]
   toSExp (CombatInProgress side) = SList [ SSym ":error", SSym "CombatInProgress", toSExp side ]
   toSExp GameHasEnded = SList [ SSym ":error", SSym "GameHasEnded" ]
 

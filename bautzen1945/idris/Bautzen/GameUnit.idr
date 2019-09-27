@@ -161,9 +161,12 @@ fullName u = name u ++ maybe "" (\ n => "/" ++ n) (parent u)
 ||| * be a `HQ` type of unit
 ||| * be part of the same formation than the given unit
 ||| * _or_ be an army/group HQ
-isHQFor : GameUnit -> GameUnit -> Bool
-isHQFor unit (MkGameUnit nationality HQ _ Nothing Army _ _ _ _) = nation unit == nationality
-isHQFor unit (MkGameUnit _ HQ _ formation _ _ _ _ _) = parent unit == formation
+|||
+||| @hq the HQ we test command for
+||| @unit the possibly commanded unit
+isHQFor : (hq : GameUnit) -> (unit : GameUnit) -> Bool
+isHQFor (MkGameUnit nationality HQ _ Nothing Army _ _ _ _) unit = nation unit == nationality
+isHQFor (MkGameUnit _ HQ _ formation _ _ _ _ _) unit = parent unit == formation
 isHQFor _ _ = False
 
 ||| Attack factor of a `unit` when directly involved
@@ -256,3 +259,6 @@ g59_20pz = MkGameUnit German MechInfantry "59" (Just "20Pz") Regiment 10 10 Fals
 
 g20pz : GameUnit
 g20pz = MkGameUnit German HQ "HQ" (Just "20Pz") Division 8 8 False (MkArty 6 3)
+
+gBrgPzG : GameUnit
+gBrgPzG = MkGameUnit German HQ "HQ" (Just "BrgPzG") Division 8 8 False (MkArty 7 3)
