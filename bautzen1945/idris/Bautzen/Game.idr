@@ -103,6 +103,9 @@ data Query : (result : Type) -> Type where
   ||| Retrieve positions of all units
   Positions : Query (List (GameUnit, Pos))
 
+  ||| Retrieve the stage (turn, side, segment) the game is currently at
+  GameStage : Query (Fin 6, Side, GameSegment)
+
 covering
 query : (ToSExp result) => (game : Game) -> (qry : Query result) -> result
 query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
@@ -114,3 +117,4 @@ query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
         x  => Right x
 query (MkGame _ (MkGameState _ side _ units) gameMap) TerrainMap = gameMap
 query (MkGame _ (MkGameState _ side _ positions) _) Positions = positions
+query (MkGame _ (MkGameState turn side segment _) _) GameStage = (turn, side, segment)

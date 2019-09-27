@@ -49,6 +49,7 @@ makeCommand game (SList [ SSym "next!" ] ) = pure $ Cmd NextSegment
 makeCommand game (SList [ SSym "supply-path?", SStr unitName ] ) = Right $ Qry $ SupplyPath unitName
 makeCommand game (SList [ SSym "map?" ] ) = Right $ Qry TerrainMap
 makeCommand game (SList [ SSym "positions?" ] ) = Right $ Qry Positions
+makeCommand game (SList [ SSym "stage?" ] ) = Right $ Qry GameStage
 makeCommand _ sexp = Left $ "Unknown command " ++ show sexp
 
 partial
