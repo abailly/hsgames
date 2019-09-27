@@ -107,6 +107,12 @@ data Event : Type where
   ||| @target the attacked position
   CombatEngaged : (attackers : List (GameUnit, Pos)) -> (defenders : List (GameUnit, Pos)) -> (target : Pos) -> Event
 
+  ||| Units provide tactical support for some side in current combat
+  |||
+  ||| @supportedSide the side which is given support
+  ||| @supportUnits units and positions that provide support
+  TacticalSupportProvided : (supportedSide : Side) -> (supportUnits : List (GameUnit, Pos)) -> Event
+
   ||| The segment has been advanced one step.
   |||
   ||| @from the previous segment
@@ -125,6 +131,7 @@ data Event : Type where
 Show Event where
   show (Moved unit from to cost) = "Moved " ++ name unit ++ " from " ++ show from ++ " to " ++ show to ++ " for "  ++ show (toNat cost) ++ " mps"
   show (CombatEngaged atk def tgt) = "CombatEngaged " ++ show (map (GameUnit.name . fst) atk) ++ " -> " ++ show (map (GameUnit.name . fst) def) ++ " @ " ++ show tgt
+  show (TacticalSupportProvided side units) = "TacticalSupportProvided " ++ show (map (GameUnit.name . fst) units) ++ " -> " ++ show side
   show (SegmentChanged from to) = "Segment Changed " ++ show from ++ " -> " ++ show to
   show AxisTurnDone = "Axis Turn Over"
   show (TurnEnded n) = "Turn Ended: " ++ show (finToNat n)

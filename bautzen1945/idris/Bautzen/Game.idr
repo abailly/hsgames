@@ -27,6 +27,20 @@ act game NextSegment = nextSegment game
 act (MkGame _ (MkGameState _ side (Combat (AssignTacticalSupport combatSide combat)) units) gameMap) (TacticalSupport unitNames) =
   supportWith side combatSide units gameMap unitNames combat
 
+applyTacticalSupportEvent : Side -> CombatState -> List (GameUnit, Pos) -> GameState -> GameState
+applyTacticalSupportEvent supportedSide (MkCombatState combatHex attackers defenders losses) units game =
+  if side game == supportedSide
+  then record { segment = Combat (AssignTacticalSupport (flipSide supportedSide)
+                                       (MkCombatState combatHex
+                                        (record { tacticalSupport = units } attackers)
+                                        defenders
+                                        losses)) } game
+  else record { segment = Combat (AssignStrategicSupport (flipSide supportedSide)
+                                       (MkCombatState combatHex
+                                        attackers
+                                        (record { tacticalSupport = units } defenders)
+                                        losses)) } game
+
 applyEvent : Event -> GameState -> GameState
 applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
   MkGameState turn side segment (updateMovedUnit unit to (toNat cost) units)
@@ -36,6 +50,10 @@ applyEvent (CombatEngaged atk def tgt) game =
                        (MkEngagedUnits atk [] 0)
                        (MkEngagedUnits def [] 0)
                        Nothing)) } game
+applyEvent (TacticalSupportProvided _ units) game =
+  case segment game of
+    (Combat (AssignTacticalSupport supSide combat)) => applyTacticalSupportEvent supSide combat units game
+    _ => game -- TODO make this impossible to happen
 applyEvent (SegmentChanged from to) game =
   record { segment = to } game
 applyEvent AxisTurnDone game =

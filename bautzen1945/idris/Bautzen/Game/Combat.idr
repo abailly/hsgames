@@ -132,9 +132,12 @@ checkSupportInRange base supporters =
 
 checkChainOfCommand : (base : List (GameUnit, Pos)) -> (supporters : List (GameUnit, Pos)) -> Either GameError (List (GameUnit, Pos))
 checkChainOfCommand base supporters =
-  case filter (\ (u, _) => not (any (isHQFor u) $ map fst base)) supporters of
+  case filter (\ (u, _) => not (any (isHQFor u) $ map fst base)) hqs of
     [] => Right supporters
     xs => Left $ NotInChainOfCommand (map fst xs)
+  where
+    hqs : List (GameUnit, Pos)
+    hqs = filter (isHQ . fst) supporters
 
 validateSupport :  (supported : EngagedUnits)
                 -> (supporters : List (GameUnit, Pos))
@@ -171,7 +174,7 @@ supportWith : (currentSide : Side) -> (supportSide : Side)
            -> Either GameError Event
 supportWith currentSide supportSide units gameMap unitNames state = do
   supportUnits <- findUnits unitNames units >>= validateSupportUnits currentSide supportSide state
-  ?hole
+  pure $ TacticalSupportProvided supportSide supportUnits
 
 namespace CombatTest
   %access private
@@ -223,3 +226,7 @@ namespace CombatTest
   fail_support_if_hq_cannot_command_unit :
     supportWith Axis Axis ((GameUnit.gBrgPzG, Hex 3 3) :: CombatTest.positions) TestMap [ "HQ/BrgPzG" ] CombatTest.combatState = Left (NotInChainOfCommand [ GameUnit.gBrgPzG ])
   fail_support_if_hq_cannot_command_unit = Refl
+
+  can_support_with_arty_given_its_in_range :
+    supportWith Axis Axis ((GameUnit.g777Arty, Hex 1 1) :: CombatTest.positions) TestMap [ "777" ] CombatTest.combatState = Right (TacticalSupportProvided Axis [ (GameUnit.g777Arty, Hex 1 1) ])
+  can_support_with_arty_given_its_in_range = Refl

@@ -149,6 +149,11 @@ ToSExp Event where
             , SSym ":defenders", toSExp def
             , SSym ":target", toSExp target
             ]
+  toSExp (TacticalSupportProvided side units) =
+      SList [ SSym ":tactical-support-provided"
+            , SSym ":supported-side", toSExp side
+            , SSym ":supporting-units", toSExp units
+            ]
   toSExp (SegmentChanged from to) =
       SList [ SSym ":segment-changed"
             , SSym ":from", toSExp from

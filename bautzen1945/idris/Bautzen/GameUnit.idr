@@ -38,6 +38,10 @@ Eq Side where
   Allies == Allies = True
   _ == _ = False
 
+flipSide : Side -> Side
+flipSide Axis = Allies
+flipSide Allies = Axis
+
 side : Nation -> Side
 side German = Axis
 side Polish = Allies
@@ -56,6 +60,18 @@ data UnitType : Type where
   AntiTank : UnitType
   HQ : UnitType
   SupplyColumn : UnitType
+
+Eq UnitType where
+  Armored == Armored = True
+  HeavyArmored == HeavyArmored = True
+  MechInfantry == MechInfantry = True
+  Infantry == Infantry = True
+  HeavyEngineer == HeavyEngineer = True
+  Artillery == Artillery = True
+  AntiTank == AntiTank = True
+  HQ == HQ = True
+  SupplyColumn == SupplyColumn = True
+  _ == _ = False
 
 Show UnitType where
   show Armored = "Armored"
@@ -154,6 +170,9 @@ Eq GameUnit where
 
 fullName : GameUnit -> String
 fullName u = name u ++ maybe "" (\ n => "/" ++ n) (parent u)
+
+isHQ : GameUnit -> Bool
+isHQ unit = unitType unit == HQ
 
 ||| Check if given `unit` is a HQ for the given formation name
 ||| To provide valid command for a unit, another unit:
@@ -262,3 +281,6 @@ g20pz = MkGameUnit German HQ "HQ" (Just "20Pz") Division 8 8 False (MkArty 6 3)
 
 gBrgPzG : GameUnit
 gBrgPzG = MkGameUnit German HQ "HQ" (Just "BrgPzG") Division 8 8 False (MkArty 7 3)
+
+g777Arty : GameUnit
+g777Arty = MkGameUnit German Artillery "777" Nothing Brigade 5 5 False (MkArty 6 4)
