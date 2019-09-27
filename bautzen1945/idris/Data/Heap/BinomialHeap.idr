@@ -50,12 +50,12 @@ link left@(MkTree elem subs) right@(MkTree elem' subs') =
 |||      is a tree at index `i` if the corresponding bit is `B1`
 ||| @a the type of elements contained in this forest
 data Forest : (rank : Nat) -> (bin : Binary v) -> (a : Type) -> Type where
-  FEnd : Forest rank BEnd a
+  FEnd : Forest rank BZero a
   F0   :                   Forest (S rank) b a -> Forest rank (B0 b) a
   F1   : BinTree rank a -> Forest (S rank) b a -> Forest rank (B1 b) a
 
 
-emptyForest : Forest rank BEnd a
+emptyForest : Forest rank BZero a
 emptyForest = FEnd
 
 insertTree : (Ord a) => BinTree rank a -> Forest rank b a -> Forest rank (inc b) a
@@ -63,8 +63,11 @@ insertTree tree FEnd              = F1 tree FEnd
 insertTree tree (F0 forest)       = F1 tree forest
 insertTree tree (F1 tree' forest) = F0 (insertTree (link tree tree') forest)
 
-mergeForests : (Ord a) => Forest rank b a -> Forest rank b' a
+mergeForests : (Ord a)
+             => Forest rank b a -> Forest rank b' a
              -> Forest rank (add b b') a
-mergeForests FEnd right {b'}   = rewrite sym (natIsBinary b') in right
-mergeForests left FEnd {b} = ?hole
-mergeForests _  _  = ?hole
+mergeForests FEnd right {b'} = right
+mergeForests left FEnd  {b}  = rewrite bZeroRightNeutral b in left
+mergeForests (F0 next {b} ) (F0 next' {b=b'}) = ?hole -- F0 (mergeForests next next')
+mergeForests (F0 next)      (F1 tree next')    = ?hole
+mergeForests (F1 x y) right  = ?hole_3

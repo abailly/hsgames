@@ -160,7 +160,20 @@ add (B1 l {n=v})  (B1 r {n=w}) = rewrite sym (lemmaB1plusB1 v w) in B0 (inc (add
 
 
 -- Properties
-bZeroRightNeutral : (b : Binary n) -> (add b BZero = b)
-bZeroRightNeutral BZero = Refl
-bZeroRightNeutral (B0 bin) = ?bZeroRightNeutral_rhs_2
-bZeroRightNeutral (B1 bin) = ?bZeroRightNeutral_rhs_3
+binaryInversion : (n : Nat) -> (bin : Binary n) ->
+                  Either (n = 0, bin = BZero)  $
+                  Either (k : Nat **
+                          (bin' : Binary (S k) ** (n = mult (S k) 2, bin = B0 bin' )))
+                         (k : Nat **
+                          (bin' : Binary k ** (n = S (mult k 2), bin = B1 bin' )))
+binaryInversion Z                       BZero      = Left (Refl, Refl)
+binaryInversion (S _)                   BZero      impossible
+binaryInversion ((S k) * fromInteger 2) (B0 bin)   = Right (Left (k ** (bin ** (Refl, Refl))))
+binaryInversion (S (Z * fromInteger 2)) (B1 BZero) = Right (Right (0 ** (BZero ** (Refl, Refl))))
+binaryInversion (S (k * fromInteger 2)) (B1 bin)   = Right (Right (k ** (bin ** (Refl, Refl))))
+
+injectivity : (n1, n2 : Nat) -> (n1 = n2) -> (b1 : Binary n1) -> (b2 : Binary n2) -> b1 = b2
+injectivity n n Refl b1 b2 = trans (natIsBinary b1) (sym $ natIsBinary b2)
+
+bZeroRightNeutral : {n : Nat} -> (b : Binary n) -> (add b BZero = b)
+bZeroRightNeutral {n} b = injectivity (n + 0) n (plusZeroRightNeutral n) (add b BZero) b
