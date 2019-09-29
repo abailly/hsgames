@@ -176,6 +176,29 @@ supportWith currentSide supportSide units gameMap unitNames state = do
   supportUnits <- findUnits unitNames units >>= validateSupportUnits currentSide supportSide state
   pure $ TacticalSupportProvided supportSide supportUnits
 
+--- section 7.2.1
+
+findSupportColumn : (supportSide : Side) -> (hex : Pos) -> (units : List (GameUnit, Pos)) -> Either GameError GameUnit
+findSupportColumn supportSide hex units =
+  Left (NoSupplyColumnThere hex)
+
+||| Use a `SupplyColumn` type of unit as "Strategic" support fort the combat
+|||
+||| @currentSide the side whose turn it is to play, e.g the attacker's side
+||| @supportSide the side which is expected to provide support
+||| @units the positions and state of units on the map
+||| @gameMap the map
+||| @scLocation location of the supply column
+||| @state overall state of the combat
+useSupplyColumn : (currentSide : Side) -> (supportSide : Side)
+           -> (units : List (GameUnit, Pos)) -> (gameMap : Map)
+           -> (scLocation : Pos)
+           -> (state : CombatState)
+           -> Either GameError Event
+useSupplyColumn currentSide supportSide units gameMap scLocation state = do
+  unit <- findSupportColumn supportSide scLocation units
+  ?hole
+
 namespace CombatTest
   %access private
 
@@ -230,3 +253,7 @@ namespace CombatTest
   can_support_with_arty_given_its_in_range :
     supportWith Axis Axis ((GameUnit.g777Arty, Hex 1 1) :: CombatTest.positions) TestMap [ "777" ] CombatTest.combatState = Right (TacticalSupportProvided Axis [ (GameUnit.g777Arty, Hex 1 1) ])
   can_support_with_arty_given_its_in_range = Refl
+
+  fail_to_use_supply_column_if_no_sc_at_location :
+    useSupplyColumn Axis Axis ((GameUnit.gSupplyColumn, Hex 5 3) :: CombatTest.positions) TestMap (Hex 5 4) CombatTest.combatState = Left (NoSupplyColumnThere (Hex 5 4))
+  fail_to_use_supply_column_if_no_sc_at_location = Refl

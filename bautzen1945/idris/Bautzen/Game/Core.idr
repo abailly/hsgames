@@ -58,6 +58,7 @@ data GameError : Type where
   NotSupportingUnits: (units : List GameUnit) -> GameError
   NotInSupportRange: (units : List GameUnit) -> GameError
   NotInChainOfCommand : (units : List GameUnit) -> GameError
+  NoSupplyColumnThere : (hex : Pos) -> GameError
   CombatInProgress : (side : Side) -> GameError
   GameHasEnded : GameError
 
@@ -73,6 +74,7 @@ Show GameError where
   show (NotInSupportRange units) = "Units are not in support range: " ++ show units
   show (NotSupportingUnits units) = "Units are not support units (HQ or Artillery): " ++ show units
   show (NotInChainOfCommand units) = "HQ cannot provide support to other formation's units: " ++ show units
+  show (NoSupplyColumnThere hex) = "No supply column there: " ++ show hex
   show (NothingToAttack target) = "Attacked hex is empty: " ++ show target
   show (AttackingOwnUnits units target) = "Attacking own units: " ++ show units ++ " -> " ++ show target
   show (CombatInProgress side) = "Combat in progress for: " ++ show side

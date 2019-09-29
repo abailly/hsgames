@@ -284,3 +284,6 @@ gBrgPzG = MkGameUnit German HQ "HQ" (Just "BrgPzG") Division 8 8 False (MkArty 7
 
 g777Arty : GameUnit
 g777Arty = MkGameUnit German Artillery "777" Nothing Brigade 5 5 False (MkArty 6 4)
+
+gSupplyColumn : GameUnit
+gSupplyColumn = MkGameUnit German SupplyColumn "SC" Nothing Brigade 4 4 False ()
