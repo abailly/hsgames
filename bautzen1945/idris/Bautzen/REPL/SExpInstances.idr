@@ -101,6 +101,7 @@ ToSExp GameError where
   toSExp (NotSupportingUnits units) = SList [ SSym ":error", SSym "NotSupportingUnits", toSExp units ]
   toSExp (NotInChainOfCommand units) = SList [ SSym ":error", SSym "NotInChainOfCommand", toSExp units ]
   toSExp (NoSupplyColumnThere hex) = SList [ SSym ":error", SSym "NoSupplyColumnThere", toSExp hex ]
+  toSExp (NoStepsToLose side) = SList [ SSym ":error", SSym "NoStepsToLose", toSExp side ]
   toSExp (CombatInProgress side) = SList [ SSym ":error", SSym "CombatInProgress", toSExp side ]
   toSExp GameHasEnded = SList [ SSym ":error", SSym "GameHasEnded" ]
 
@@ -165,6 +166,12 @@ ToSExp Event where
       SList [ SSym ":combat-resolved"
             , SSym ":state", toSExp state
             , SSym ":losses", toSExp losses
+            ]
+  toSExp (StepLost side unit remain) =
+      SList [ SSym ":step-lost"
+            , SSym ":side", toSExp side
+            , SSym ":unit", toSExp unit
+            , SSym ":remaining-losses", toSExp remain
             ]
   toSExp (SegmentChanged from to) =
       SList [ SSym ":segment-changed"

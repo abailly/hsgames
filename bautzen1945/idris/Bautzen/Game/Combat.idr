@@ -16,6 +16,7 @@ import Data.Vect as V
 %access export
 %default total
 
+
 -- section 8.1
 -- Those are generalities about the combat that cannot be implemented alone
 
@@ -59,17 +60,17 @@ support attackSupport defenseSupport baseOdds@(MkRawOdds atk def) = baseOdds <+>
 resolve : (odds : Odds) -> (modifiedDiceRoll : Fin 8) -> Losses
 resolve odds dice = dice `index` (odds `index` CombatTable)
 
-findUnits : List String -> List (GameUnit, Pos) -> Either GameError (List (GameUnit, Pos))
+findUnit : String -> { positions : List (GameUnit, Pos) } -> Maybe (GameUnit, Pos)
+findUnit n {positions} = find (\ (u, p) => fullName u == n) positions
+
+findUnits : List String -> (positions : List (GameUnit, Pos)) -> Either GameError (List (GameUnit, Pos))
 findUnits names positions =
   case partitionEithers units of
        ([], us) => Right us
        (errs, _) => Left $ NoSuchUnits errs
   where
-    findUnit : String -> Maybe (GameUnit, Pos)
-    findUnit n = find (\ (u, p) => fullName u == n) positions
-
     units : List (Either String (GameUnit, Pos))
-    units = map (\ n => case findUnit n of
+    units = map (\ n => case findUnit n {positions} of
                              Nothing => Left n
                              Just up => Right up) names
 
@@ -244,10 +245,26 @@ resolveCombat currentSide state@(MkCombatState combatHex (MkEngagedUnits atk tac
       shiftedOdds = (unmodOdds >>> strat) <<<  strat'
   in Right (CombatResolved state (resolve shiftedOdds 3)) -- need to handle dice rolling => store seed in game state
 
-loseStep : (lossSide : Side) -> (combat : CombatState)
-         -> (units : List (GameUnit, Pos))
+
+doLoseStep : (side : Side) -> (units : EngagedUnits) -> (losses : Nat) -> (unitName : String) -> Either GameError (GameUnit, Nat)
+doLoseStep side (MkEngagedUnits base _ _) Z unitName = Left $ NoStepsToLose side
+doLoseStep side (MkEngagedUnits base _ _) (S k) unitName = do
+  case findUnit unitName {positions=base} of
+    Nothing => Left $ NoSuchUnits [ unitName ]
+    Just (u,p) => Right (u, k)
+
+loseStep : (currentSide : Side) -> (lossSide : Side) -> (combat : CombatState)
          -> (unitName : String)
          -> Either GameError Event
+loseStep _ side (MkCombatState _ _ _ Nothing) _ = Left $ NotYourTurn side -- TODO should never happen, error is a placeholder
+loseStep currentSide lossSide (MkCombatState _ atk def (Just (al /> dl))) unitName =
+  if currentSide == lossSide
+  then do
+    (u, k) <- doLoseStep lossSide atk al unitName
+    pure $ StepLost lossSide u (k /> dl)
+  else do
+    (u, k) <- doLoseStep lossSide def dl unitName
+    pure $ StepLost lossSide u (al /> k)
 
 namespace CombatTest
   %access private
@@ -319,3 +336,18 @@ namespace CombatTest
   use_supply_column_returns_supply_column_used_event :
       useSupplyColumn Axis Axis ((GameUnit.g20pz, Hex 2 2) :: (GameUnit.gSupplyColumn, Hex 4 3) :: CombatTest.positions) TestMap (Hex 4 3) CombatTest.combatState = Right (SupplyColumnUsed Axis (Hex 4 3))
   use_supply_column_returns_supply_column_used_event = Refl
+
+  lossState : CombatState
+  lossState = record { losses = Just (1 /> 0) } CombatTest.combatState
+
+  fail_to_lose_step_if_unit_is_not_engaged :
+    loseStep Axis Axis CombatTest.lossState "foo" = Left $ NoSuchUnits ["foo"]
+  fail_to_lose_step_if_unit_is_not_engaged = Refl
+
+  fail_to_lose_step_if_no_steps_to_lose :
+    loseStep Axis Allies CombatTest.lossState "13/5DP" = Left $ NoStepsToLose Allies
+  fail_to_lose_step_if_no_steps_to_lose = Refl
+
+  lose_steps_returns_step_loss_event :
+    loseStep Axis Axis CombatTest.lossState "21/20Pz" = Right $ StepLost Axis GameUnit.g21_20pz (0 /> 0)
+  lose_steps_returns_step_loss_event = Refl

@@ -60,6 +60,7 @@ data GameError : Type where
   NotInSupportRange: (units : List GameUnit) -> GameError
   NotInChainOfCommand : (units : List GameUnit) -> GameError
   NoSupplyColumnThere : (hex : Pos) -> GameError
+  NoStepsToLose : (side : Side) -> GameError
   CombatInProgress : (side : Side) -> GameError
   GameHasEnded : GameError
 
@@ -76,6 +77,7 @@ Show GameError where
   show (NotSupportingUnits units) = "Units are not support units (HQ or Artillery): " ++ show units
   show (NotInChainOfCommand units) = "HQ cannot provide support to other formation's units: " ++ show units
   show (NoSupplyColumnThere hex) = "No supply column there: " ++ show hex
+  show (NoStepsToLose side) = "No steps to lose for " ++ show side
   show (NothingToAttack target) = "Attacked hex is empty: " ++ show target
   show (AttackingOwnUnits units target) = "Attacking own units: " ++ show units ++ " -> " ++ show target
   show (CombatInProgress side) = "Combat in progress for: " ++ show side
@@ -132,6 +134,17 @@ data Event : Type where
   ||| @losses losses to apply on engaged units
   CombatResolved : (state : CombatState) -> (losses : Losses) -> Event
 
+  ||| Given unit has lost a step
+  |||
+  ||| Depending on the current state of the unit, this can either
+  ||| either reduce the unit or destroy it.
+  |||
+  ||| @side the side the unit is part of (useful to look for the unit in
+  ||| the combat state
+  ||| @unit the unit to apply a step loss to
+  ||| @remainingLosses  losses  remaining to apply
+  StepLost : (side : Side) -> (unit : GameUnit) -> (remainingLosses : Losses) -> Event
+
   ||| The segment has been advanced one step.
   |||
   ||| @from the previous segment
@@ -153,6 +166,7 @@ Show Event where
   show (TacticalSupportProvided side units) = "TacticalSupportProvided " ++ show (map (GameUnit.name . fst) units) ++ " -> " ++ show side
   show (SupplyColumnUsed side hex) = "SupplyColumnUsed " ++ show side ++ " @ " ++ show hex
   show (CombatResolved state losses) = "CombatResolved " ++ show state ++ " : " ++ show losses
+  show (StepLost side unit remain) = "Step Lost " ++ show unit ++ " @ " ++ show side ++  " (" ++ show remain++")"
   show (SegmentChanged from to) = "Segment Changed " ++ show from ++ " -> " ++ show to
   show AxisTurnDone = "Axis Turn Over"
   show (TurnEnded n) = "Turn Ended: " ++ show (finToNat n)

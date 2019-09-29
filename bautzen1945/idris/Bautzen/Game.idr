@@ -29,7 +29,7 @@ act (MkGame _ (MkGameState _ side (Combat (AssignTacticalSupport combatSide comb
 act (MkGame _ (MkGameState _ side (Combat (Resolve combat)) units) gameMap) (ResolveCombat combat) =
   resolveCombat side combat
 act (MkGame _ (MkGameState _ side (Combat (ApplyLosses lossSide combat)) units) gameMap) (LoseStep unitName) =
-  loseStep lossSide combat units unitName
+  loseStep side lossSide combat unitName
 
 applyTacticalSupportEvent : Side -> CombatState -> List (GameUnit, Pos) -> GameState -> GameState
 applyTacticalSupportEvent supportedSide (MkCombatState combatHex attackers defenders losses) units game =
@@ -59,6 +59,21 @@ applySupplyColumnUsedEvent supportedSide (MkCombatState combatHex attackers defe
                                         (record { strategicSupport $= (+1) } defenders)
                                         losses)) } game
 
+applyStepLostEvent :
+  Side -> GameUnit -> Losses -> CombatState -> GameState -> GameState
+applyStepLostEvent lossSide unit newLosses state game@(MkGameState turn side segment units) =
+  record { segment = newSegment, units = reduced } game
+  where
+    reduced = reduce unit units
+
+    newState : CombatState
+    newState = record { losses = Just newLosses } state
+
+    newSegment = case newLosses of
+                  (Z /> Z) => Combat NoCombat -- combat is completely resolved
+                  (Z /> def) => Combat $ ApplyLosses (flipSide side) newState
+                  (atk /> _) => Combat $ ApplyLosses side newState
+
 
 applyEvent : Event -> GameState -> GameState
 applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
@@ -80,6 +95,10 @@ applyEvent (SupplyColumnUsed side pos) game =
 applyEvent (CombatResolved state losses) game =
   case segment game of
     (Combat (Resolve _)) => record { segment = (Combat $ ApplyLosses (side game) (record { losses = Just losses } state)) } game
+    _ => game -- TODO make this impossible to happen
+applyEvent (StepLost unitSide unit newLosses) game =
+  case segment game of
+    (Combat (ApplyLosses lossSide combatState)) => applyStepLostEvent unitSide unit newLosses combatState game
     _ => game -- TODO make this impossible to happen
 applyEvent (SegmentChanged from to) game =
   record { segment = to } game
