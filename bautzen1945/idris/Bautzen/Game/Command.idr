@@ -21,9 +21,10 @@ withinCommandDistance unit hqs pos =
   any (atCommandDistance (lookup unit pos)) (catMaybes $ map positionAndDistance hqs)
   where
     positionAndDistance : GameUnit -> Maybe (Pos, Nat)
-    positionAndDistance u@(MkGameUnit nation HQ name parent size move currentMP hit (MkArty support distance)) =
-      (\ p => (p, distance)) <$> lookup u pos
-    positionAndDistance _ = Nothing
+    positionAndDistance unit =
+      case unitType unit of
+        HQ => (\ p => (p, supportDistance unit)) <$> lookup unit pos
+        _ => Nothing
 
 ||| Find the HQ for a given formation
 findHQ : GameUnit -> List (GameUnit, Pos) -> List GameUnit

@@ -105,7 +105,7 @@ namespace MoveTest
   moving_out_of_ZoC_adds_one_PM_to_move = Refl
 
   g21_20pz_no_mp : GameUnit
-  g21_20pz_no_mp = MkGameUnit German Armored "21" (Just "20Pz") Regiment 10 3 False (MkStdFactors 6 4)
+  g21_20pz_no_mp = record { currentMP = 3 } GameUnit.g21_20pz
 
   unit_cannot_move_if_not_enough_MP : moveTo Axis [ (MoveTest.g21_20pz_no_mp, Hex 3 4) ] TestMap "21/20Pz" (Hex 3 5) = Left (NotEnoughMPs MoveTest.g21_20pz_no_mp (Hex 3 4) (Hex 3 5) 4)
   unit_cannot_move_if_not_enough_MP = Refl

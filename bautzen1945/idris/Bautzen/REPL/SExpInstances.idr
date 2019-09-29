@@ -8,6 +8,7 @@ import Bautzen.Terrain
 import Bautzen.SExp
 
 import Data.Fin
+import Data.Vect
 
 %access export
 %default total
@@ -55,7 +56,7 @@ ToSExp Pak where
   toSExp (MkPak antitank) = toSExp antitank
 
 ToSExp GameUnit where
-  toSExp (MkGameUnit nation unitType name parent size move currentMP hit combat) =
+  toSExp (MkGameUnit nation unitType name parent size move currentMP steps hits combat) =
     SList [ SSym ":unit"
           , toSExp nation
           , toSExp unitType
@@ -64,7 +65,8 @@ ToSExp GameUnit where
           , toSExp size
           , toSExp move
           , toSExp currentMP
-          , toSExp hit
+          , toSExp steps
+          , toSExp hits
           , case unitType of
               Armored       => toSExp combat
               HeavyArmored  => toSExp combat

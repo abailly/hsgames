@@ -29,7 +29,7 @@ inZoC : Side -> List (GameUnit, Pos) -> Pos -> ZoC
 inZoC curSide units pos =
   case find (inZoCOf pos curSide) units of
     Nothing => Free
-    (Just (MkGameUnit nation _ _ _ _ _ _ _ _, _)) => InZoC (side nation)
+    (Just (unit, _)) => InZoC (side $ nation unit)
 
 -- ZoC tests
 
