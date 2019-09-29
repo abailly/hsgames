@@ -59,6 +59,7 @@ applySupplyColumnUsedEvent supportedSide (MkCombatState combatHex attackers defe
                                         (record { strategicSupport $= (+1) } defenders)
                                         losses)) } game
 
+-- TODO handle case where there are more losses to applies than units
 applyStepLostEvent :
   Side -> GameUnit -> Losses -> CombatState -> GameState -> GameState
 applyStepLostEvent lossSide unit newLosses state game@(MkGameState turn side segment units) =

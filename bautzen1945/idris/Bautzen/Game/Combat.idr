@@ -111,6 +111,8 @@ attackWith side units gameMap unitNames target = do
   defenders <- validateDefenders side units gameMap target
   pure $ CombatEngaged attackers defenders target
 
+-- TODO units cannot be part of an attack twice
+
 -- Support
 
 checkSupportingUnits : (units : List (GameUnit, Pos))

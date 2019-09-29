@@ -68,4 +68,12 @@ CombatTable =
 
 ||| Reduce given unit by one step, updating its state
 reduce : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> List (GameUnit, Pos)
-reduce unit units = ?reduce_rhs
+reduce unit = catMaybes . map (uncurry reduceUnit)
+  where
+    reduceUnit : GameUnit -> Pos -> Maybe (GameUnit, Pos)
+    reduceUnit u@(MkGameUnit nation unitType name parent size move currentMP steps hits combat) pos =
+      if u /= unit
+      then Just (u, pos)
+      else case strengthen (FS hits) of
+             Left  _ => Nothing
+             Right h => Just (MkGameUnit nation unitType name parent size move currentMP steps h combat, pos)
