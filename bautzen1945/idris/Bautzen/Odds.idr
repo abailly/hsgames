@@ -106,6 +106,25 @@ odds (MkRawOdds attackFactor Z) = maxBound -- by convention, should not happen
 odds (MkRawOdds attackFactor (S def)) with (attackFactor `divMod` def)
   odds (MkRawOdds (r + (q * (S def))) (S def)) | (MkDivMod q r _) = fromNat q
 
+infixl 6 >>>
+infixl 6 <<<
+
+||| Shift odds by a given number of steps "up".
+|||
+||| @odds original odds
+||| @steps number of steps to shift odds
+(>>>) : (odds : Odds) -> (steps : Nat) -> Odds
+c >>> Z = c
+c >>> (S k) = foldl (const . succ) c [0.. k]
+
+||| Shift odds by a given number of steps "down".
+|||
+||| @odds original odds
+||| @steps number of steps to shift odds
+(<<<) : (odds : Odds) -> (steps : Nat) -> Odds
+c <<< Z = c
+c <<< (S k) = foldl (const . pred) c [0.. k]
+
 namespace OddsTest
   %access private
 

@@ -87,6 +87,7 @@ data Command : (segment : GameSegment) -> Type where
   NextSegment : Command segment
   TacticalSupport : (unitNames : List String) -> Command (Combat $ AssignTacticalSupport side combatState)
   ResolveCombat : (combatState : CombatState) -> Command (Combat $ Resolve combatState)
+  LoseStep : (unitName : String) -> Command (Combat $ ApplyLosses side combatState)
 
 Show (Command segment) where
   show (MoveTo unitName to) = "MoveTo " ++ unitName ++ " -> " ++ show to
@@ -94,6 +95,7 @@ Show (Command segment) where
   show NextSegment = "NextSegment"
   show (TacticalSupport unitNames) = "TacticalSupport " ++ show unitNames
   show (ResolveCombat state) = "ResolveCombat " ++ show state
+  show (LoseStep unitName) = "LoseStep " ++ show unitName
 
 data Event : Type where
 

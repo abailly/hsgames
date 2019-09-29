@@ -28,6 +28,8 @@ act (MkGame _ (MkGameState _ side (Combat (AssignTacticalSupport combatSide comb
   supportWith side combatSide units gameMap unitNames combat
 act (MkGame _ (MkGameState _ side (Combat (Resolve combat)) units) gameMap) (ResolveCombat combat) =
   resolveCombat side combat
+act (MkGame _ (MkGameState _ side (Combat (ApplyLosses lossSide combat)) units) gameMap) (LoseStep unitName) =
+  loseStep lossSide combat units unitName
 
 applyTacticalSupportEvent : Side -> CombatState -> List (GameUnit, Pos) -> GameState -> GameState
 applyTacticalSupportEvent supportedSide (MkCombatState combatHex attackers defenders losses) units game =

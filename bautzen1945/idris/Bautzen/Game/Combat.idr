@@ -241,8 +241,13 @@ resolveCombat currentSide state@(MkCombatState combatHex (MkEngagedUnits atk tac
   let baseOdds = Combat.attack (map fst atk) (map fst def)
       supOdds = Combat.support (map fst tac) (map fst tac') baseOdds
       unmodOdds = odds supOdds
-      shiftedOdds = unmodOdds -- need to apply strategic support => need to know which side is atk/def
+      shiftedOdds = (unmodOdds >>> strat) <<<  strat'
   in Right (CombatResolved state (resolve shiftedOdds 3)) -- need to handle dice rolling => store seed in game state
+
+loseStep : (lossSide : Side) -> (combat : CombatState)
+         -> (units : List (GameUnit, Pos))
+         -> (unitName : String)
+         -> Either GameError Event
 
 namespace CombatTest
   %access private

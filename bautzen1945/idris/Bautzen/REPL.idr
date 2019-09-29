@@ -30,10 +30,14 @@ makeAttackWithCommand unitNames col row = do
   units <- toStrings unitNames
   pure $ AttackWith units pos
 
-makeSupportCommand : (unitNames : SExp) -> (side : Side) -> (combatState : CombatState)
+makeSupportCommand : (unitNames : SExp) -> {side : Side} -> {combatState : CombatState}
                    -> Either String (Command $ Combat (AssignTacticalSupport side combatState))
-makeSupportCommand unitNames side state =
+makeSupportCommand unitNames =
   toStrings unitNames >>= Right . TacticalSupport
+
+makeLoseStepCommand : (unitName : String) -> {side : Side} -> {combatState : CombatState}
+                   -> Either String (Command $ Combat (ApplyLosses side combatState))
+makeLoseStepCommand unitName = pure $ LoseStep unitName
 
 makeCommand : (game : Game) -> SExp -> Either String (CmdREPL (curSegment game))
 makeCommand game (SList [ SSym "move!", SStr unitName, SList [ SInt col, SInt row] ] ) with (curSegment game)
@@ -43,10 +47,13 @@ makeCommand game (SList [ SSym "attack!", unitNames, SList [ SInt col, SInt row]
   | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames col row
   | other = Left $ "Invalid command for segment " ++ show other
 makeCommand game (SList [ SSym "support!", unitNames ] ) with (curSegment game)
-  | Combat (AssignTacticalSupport side combatState) = Cmd <$> makeSupportCommand unitNames side combatState
+  | Combat (AssignTacticalSupport side combatState) = Cmd <$> makeSupportCommand unitNames
   | other = Left $ "Invalid command for segment " ++ show other
 makeCommand game (SList [ SSym "resolve!" ] ) with (curSegment game)
   | Combat (Resolve combatState) = pure $ Cmd (ResolveCombat combatState)
+  | other = Left $ "Invalid command for segment " ++ show other
+makeCommand game (SList [ SSym "lose-step!", SStr unitName ] ) with (curSegment game)
+  | Combat (ApplyLosses side state) = Cmd <$> makeLoseStepCommand unitName
   | other = Left $ "Invalid command for segment " ++ show other
 makeCommand game (SList [ SSym "next!" ] ) = pure $ Cmd NextSegment
 makeCommand game (SList [ SSym "supply-path?", SStr unitName ] ) = Right $ Qry $ SupplyPath unitName
