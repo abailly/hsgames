@@ -4,6 +4,7 @@ module Bautzen.Game.Combat
 
 import Bautzen.Combats
 import Bautzen.GameUnit
+import Bautzen.Game.Command
 import Bautzen.Game.Core
 import Bautzen.Odds
 import Bautzen.Pos
@@ -178,9 +179,40 @@ supportWith currentSide supportSide units gameMap unitNames state = do
 
 --- section 7.2.1
 
-findSupportColumn : (supportSide : Side) -> (hex : Pos) -> (units : List (GameUnit, Pos)) -> Either GameError GameUnit
+findSupportColumn : (supportSide : Side) -> (hex : Pos) -> (units : List (GameUnit, Pos)) -> Either GameError (GameUnit, Pos)
 findSupportColumn supportSide hex units =
-  Left (NoSupplyColumnThere hex)
+  case find (\ (u, p) => p == hex &&  unitType u == SupplyColumn) units of
+    Nothing => Left (NoSupplyColumnThere hex)
+    Just sc => Right sc
+
+checkSCNeighboursEngagedUnits :
+  List (GameUnit, Pos) -> (GameUnit, Pos) -> Either GameError (GameUnit, Pos)
+checkSCNeighboursEngagedUnits base sc@(unit, hex) =
+  if any (\ (u, p) => p == hex || (hex  `elem` neighbours p)) base
+  then Right sc
+  else Left (NotInSupportRange [unit] )
+
+checkSomeUnitsAreInCommand :
+  List (GameUnit, Pos) -> List (GameUnit, Pos) -> (GameUnit, Pos) -> Either GameError (GameUnit, Pos)
+checkSomeUnitsAreInCommand base units sc =
+  if any (underCommand units) (map fst base)
+  then Right sc
+  else Left (NotInChainOfCommand [fst sc])
+
+validateSC : EngagedUnits -> List (GameUnit, Pos) -> (GameUnit, Pos) -> Either GameError (GameUnit, Pos)
+validateSC (MkEngagedUnits base _ _) units sc =
+  checkSCNeighboursEngagedUnits base sc >>=
+  checkSomeUnitsAreInCommand base units
+
+validateSupportFromSC : (currentSide : Side) -> (supportSide : Side)
+                      -> (state : CombatState)
+                      -> (units : List (GameUnit, Pos))
+                      -> (unit : (GameUnit, Pos))
+                      -> Either GameError (GameUnit, Pos)
+validateSupportFromSC currentSide supportSide (MkCombatState _ atk def _) units unit =
+  if currentSide == supportSide
+  then validateSC atk units unit
+  else validateSC def units unit
 
 ||| Use a `SupplyColumn` type of unit as "Strategic" support fort the combat
 |||
@@ -196,8 +228,8 @@ useSupplyColumn : (currentSide : Side) -> (supportSide : Side)
            -> (state : CombatState)
            -> Either GameError Event
 useSupplyColumn currentSide supportSide units gameMap scLocation state = do
-  unit <- findSupportColumn supportSide scLocation units
-  ?hole
+  unit <- findSupportColumn supportSide scLocation units >>= validateSupportFromSC currentSide supportSide state units
+  pure $ SupplyColumnUsed supportSide scLocation
 
 namespace CombatTest
   %access private
@@ -257,3 +289,15 @@ namespace CombatTest
   fail_to_use_supply_column_if_no_sc_at_location :
     useSupplyColumn Axis Axis ((GameUnit.gSupplyColumn, Hex 5 3) :: CombatTest.positions) TestMap (Hex 5 4) CombatTest.combatState = Left (NoSupplyColumnThere (Hex 5 4))
   fail_to_use_supply_column_if_no_sc_at_location = Refl
+
+  fail_to_use_supply_column_if_sc_not_neighbour_to_support_hex :
+    useSupplyColumn Axis Axis ((GameUnit.gSupplyColumn, Hex 5 2) :: CombatTest.positions) TestMap (Hex 5 2) CombatTest.combatState = Left (NotInSupportRange [GameUnit.gSupplyColumn])
+  fail_to_use_supply_column_if_sc_not_neighbour_to_support_hex = Refl
+
+  fail_to_use_supply_column_if_units_are_not_commanded :
+      useSupplyColumn Axis Axis ((GameUnit.gSupplyColumn, Hex 5 3) :: CombatTest.positions) TestMap (Hex 5 3) CombatTest.combatState = Left (NotInChainOfCommand [GameUnit.gSupplyColumn])
+  fail_to_use_supply_column_if_units_are_not_commanded = Refl
+
+  use_supply_column_returns_supply_column_used_event :
+      useSupplyColumn Axis Axis ((GameUnit.g20pz, Hex 2 2) :: (GameUnit.gSupplyColumn, Hex 4 3) :: CombatTest.positions) TestMap (Hex 4 3) CombatTest.combatState = Right (SupplyColumnUsed Axis (Hex 4 3))
+  use_supply_column_returns_supply_column_used_event = Refl

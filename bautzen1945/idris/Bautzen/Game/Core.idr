@@ -115,6 +115,12 @@ data Event : Type where
   ||| @supportUnits units and positions that provide support
   TacticalSupportProvided : (supportedSide : Side) -> (supportUnits : List (GameUnit, Pos)) -> Event
 
+  ||| A supply column is used to provide support to units engaged in a combat
+  |||
+  ||| @supportedSide the side which is given support
+  ||| @hex the position of the supply column
+  SupplyColumnUsed : (supportedSide : Side) -> (hex : Pos) -> Event
+
   ||| The segment has been advanced one step.
   |||
   ||| @from the previous segment
@@ -134,6 +140,7 @@ Show Event where
   show (Moved unit from to cost) = "Moved " ++ name unit ++ " from " ++ show from ++ " to " ++ show to ++ " for "  ++ show (toNat cost) ++ " mps"
   show (CombatEngaged atk def tgt) = "CombatEngaged " ++ show (map (GameUnit.name . fst) atk) ++ " -> " ++ show (map (GameUnit.name . fst) def) ++ " @ " ++ show tgt
   show (TacticalSupportProvided side units) = "TacticalSupportProvided " ++ show (map (GameUnit.name . fst) units) ++ " -> " ++ show side
+  show (SupplyColumnUsed side hex) = "SupplyColumnUsed " ++ show side ++ " @ " ++ show hex
   show (SegmentChanged from to) = "Segment Changed " ++ show from ++ " -> " ++ show to
   show AxisTurnDone = "Axis Turn Over"
   show (TurnEnded n) = "Turn Ended: " ++ show (finToNat n)
