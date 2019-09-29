@@ -15,6 +15,7 @@ data CombatPhase : Type where
   NoCombat : CombatPhase
   AssignTacticalSupport : (side : Side) -> (combat : CombatState) -> CombatPhase
   AssignStrategicSupport : (side : Side) -> (combat : CombatState) -> CombatPhase
+  Resolve : (combat : CombatState) -> CombatPhase
   ApplyLosses : (side : Side) -> (combat : CombatState) -> CombatPhase
 
 data GameSegment : Type where
@@ -85,12 +86,14 @@ data Command : (segment : GameSegment) -> Type where
   AttackWith : (unitNames : List String) -> (target : Pos) -> Command (Combat NoCombat)
   NextSegment : Command segment
   TacticalSupport : (unitNames : List String) -> Command (Combat $ AssignTacticalSupport side combatState)
+  ResolveCombat : (combatState : CombatState) -> Command (Combat $ Resolve combatState)
 
 Show (Command segment) where
   show (MoveTo unitName to) = "MoveTo " ++ unitName ++ " -> " ++ show to
   show (AttackWith unitNames target) = "AttackWith " ++ show unitNames ++ " -> " ++ show target
   show NextSegment = "NextSegment"
   show (TacticalSupport unitNames) = "TacticalSupport " ++ show unitNames
+  show (ResolveCombat state) = "ResolveCombat " ++ show state
 
 data Event : Type where
 
@@ -121,6 +124,12 @@ data Event : Type where
   ||| @hex the position of the supply column
   SupplyColumnUsed : (supportedSide : Side) -> (hex : Pos) -> Event
 
+  ||| Combat has been resolved yielding the given losses
+  |||
+  ||| @state the state of the combat (before any loss has been applied)
+  ||| @losses losses to apply on engaged units
+  CombatResolved : (state : CombatState) -> (losses : Losses) -> Event
+
   ||| The segment has been advanced one step.
   |||
   ||| @from the previous segment
@@ -141,6 +150,7 @@ Show Event where
   show (CombatEngaged atk def tgt) = "CombatEngaged " ++ show (map (GameUnit.name . fst) atk) ++ " -> " ++ show (map (GameUnit.name . fst) def) ++ " @ " ++ show tgt
   show (TacticalSupportProvided side units) = "TacticalSupportProvided " ++ show (map (GameUnit.name . fst) units) ++ " -> " ++ show side
   show (SupplyColumnUsed side hex) = "SupplyColumnUsed " ++ show side ++ " @ " ++ show hex
+  show (CombatResolved state losses) = "CombatResolved " ++ show state ++ " : " ++ show losses
   show (SegmentChanged from to) = "Segment Changed " ++ show from ++ " -> " ++ show to
   show AxisTurnDone = "Axis Turn Over"
   show (TurnEnded n) = "Turn Ended: " ++ show (finToNat n)

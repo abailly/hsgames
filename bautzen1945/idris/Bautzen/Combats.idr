@@ -21,11 +21,21 @@ record Losses where
 
 infix 1 />
 
+Show Losses  where
+  show (attackerLoss /> defenderLoss) =
+    show attackerLoss ++ "/" ++ show defenderLoss
+
 record EngagedUnits where
   constructor MkEngagedUnits
   base : List (GameUnit, Pos)
   tacticalSupport : List (GameUnit, Pos)
   strategicSupport : Nat
+
+Show EngagedUnits where
+  show (MkEngagedUnits base tacticalSupport strategicSupport) =
+    "MkEngagedUnits base="++ show base ++
+    ", tacticalSupport=" ++ show tacticalSupport ++
+    ", strategicSupport=" ++ show strategicSupport
 
 record CombatState where
   constructor MkCombatState
@@ -34,6 +44,12 @@ record CombatState where
   defenders : EngagedUnits
   losses : Maybe Losses
 
+Show CombatState where
+  show (MkCombatState combatHex attackers defenders losses) =
+    "MkCombatState hex=" ++ show combatHex ++
+    ", attacker=" ++ show attackers ++
+    ", defender="++ show defenders ++
+    ", losses=" ++ show losses
 
 ||| Combat resolution table.
 |||

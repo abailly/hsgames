@@ -100,6 +100,7 @@ ToSExp GameError where
   toSExp (NotInSupportRange units) = SList [ SSym ":error", SSym "NotInSupportRange", toSExp units ]
   toSExp (NotSupportingUnits units) = SList [ SSym ":error", SSym "NotSupportingUnits", toSExp units ]
   toSExp (NotInChainOfCommand units) = SList [ SSym ":error", SSym "NotInChainOfCommand", toSExp units ]
+  toSExp (NoSupplyColumnThere hex) = SList [ SSym ":error", SSym "NoSupplyColumnThere", toSExp hex ]
   toSExp (CombatInProgress side) = SList [ SSym ":error", SSym "CombatInProgress", toSExp side ]
   toSExp GameHasEnded = SList [ SSym ":error", SSym "GameHasEnded" ]
 
@@ -128,6 +129,7 @@ ToSExp CombatPhase where
   toSExp (AssignTacticalSupport side combat) = SList [ SSym "AssignTacticalSupport",  toSExp side, toSExp combat ]
   toSExp (AssignStrategicSupport side combat) = SList [ SSym "AssignStrategicSupport",  toSExp side, toSExp combat ]
   toSExp (ApplyLosses side combat) = SList [ SSym "ApplyLosses",  toSExp side, toSExp combat ]
+  toSExp (Resolve combat) = SList [ SSym "Resolve", toSExp combat ]
 
 ToSExp GameSegment where
   toSExp Supply = SSym "Supply"
@@ -153,6 +155,16 @@ ToSExp Event where
       SList [ SSym ":tactical-support-provided"
             , SSym ":supported-side", toSExp side
             , SSym ":supporting-units", toSExp units
+            ]
+  toSExp (SupplyColumnUsed side hex) =
+      SList [ SSym ":supply-column-used"
+            , SSym ":supported-side", toSExp side
+            , SSym ":position", toSExp hex
+            ]
+  toSExp (CombatResolved state losses) =
+      SList [ SSym ":combat-resolved"
+            , SSym ":state", toSExp state
+            , SSym ":losses", toSExp losses
             ]
   toSExp (SegmentChanged from to) =
       SList [ SSym ":segment-changed"

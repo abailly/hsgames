@@ -177,13 +177,14 @@ supportWith currentSide supportSide units gameMap unitNames state = do
   supportUnits <- findUnits unitNames units >>= validateSupportUnits currentSide supportSide state
   pure $ TacticalSupportProvided supportSide supportUnits
 
---- section 7.2.1
-
+-- section 7.2
 findSupportColumn : (supportSide : Side) -> (hex : Pos) -> (units : List (GameUnit, Pos)) -> Either GameError (GameUnit, Pos)
 findSupportColumn supportSide hex units =
   case find (\ (u, p) => p == hex &&  unitType u == SupplyColumn) units of
     Nothing => Left (NoSupplyColumnThere hex)
     Just sc => Right sc
+
+--- section 7.2.1
 
 checkSCNeighboursEngagedUnits :
   List (GameUnit, Pos) -> (GameUnit, Pos) -> Either GameError (GameUnit, Pos)
@@ -191,6 +192,8 @@ checkSCNeighboursEngagedUnits base sc@(unit, hex) =
   if any (\ (u, p) => p == hex || (hex  `elem` neighbours p)) base
   then Right sc
   else Left (NotInSupportRange [unit] )
+
+--- section 7.2.2
 
 checkSomeUnitsAreInCommand :
   List (GameUnit, Pos) -> List (GameUnit, Pos) -> (GameUnit, Pos) -> Either GameError (GameUnit, Pos)
@@ -230,6 +233,16 @@ useSupplyColumn : (currentSide : Side) -> (supportSide : Side)
 useSupplyColumn currentSide supportSide units gameMap scLocation state = do
   unit <- findSupportColumn supportSide scLocation units >>= validateSupportFromSC currentSide supportSide state units
   pure $ SupplyColumnUsed supportSide scLocation
+
+resolveCombat :
+  (currentSide  : Side) -> (combat : CombatState)
+  -> Either GameError Event
+resolveCombat currentSide state@(MkCombatState combatHex (MkEngagedUnits atk tac strat) (MkEngagedUnits def tac' strat') losses) =
+  let baseOdds = Combat.attack (map fst atk) (map fst def)
+      supOdds = Combat.support (map fst tac) (map fst tac') baseOdds
+      unmodOdds = odds supOdds
+      shiftedOdds = unmodOdds -- need to apply strategic support => need to know which side is atk/def
+  in Right (CombatResolved state (resolve shiftedOdds 3)) -- need to handle dice rolling => store seed in game state
 
 namespace CombatTest
   %access private

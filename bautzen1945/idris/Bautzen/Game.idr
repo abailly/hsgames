@@ -26,6 +26,8 @@ act (MkGame _ (MkGameState _ side (Combat NoCombat) units) gameMap) (AttackWith 
 act game NextSegment = nextSegment game
 act (MkGame _ (MkGameState _ side (Combat (AssignTacticalSupport combatSide combat)) units) gameMap) (TacticalSupport unitNames) =
   supportWith side combatSide units gameMap unitNames combat
+act (MkGame _ (MkGameState _ side (Combat (Resolve combat)) units) gameMap) (ResolveCombat combat) =
+  resolveCombat side combat
 
 applyTacticalSupportEvent : Side -> CombatState -> List (GameUnit, Pos) -> GameState -> GameState
 applyTacticalSupportEvent supportedSide (MkCombatState combatHex attackers defenders losses) units game =
@@ -41,6 +43,21 @@ applyTacticalSupportEvent supportedSide (MkCombatState combatHex attackers defen
                                         (record { tacticalSupport = units } defenders)
                                         losses)) } game
 
+applySupplyColumnUsedEvent :  Side -> CombatState -> Pos -> GameState -> GameState
+applySupplyColumnUsedEvent supportedSide (MkCombatState combatHex attackers defenders losses) hex game =
+  if side game == supportedSide
+  then record { segment = Combat (AssignStrategicSupport supportedSide
+                                       (MkCombatState combatHex
+                                        (record { strategicSupport $= (+1) } attackers)
+                                        defenders
+                                        losses)) } game
+  else record { segment = Combat (AssignStrategicSupport supportedSide
+                                       (MkCombatState combatHex
+                                        attackers
+                                        (record { strategicSupport $= (+1) } defenders)
+                                        losses)) } game
+
+
 applyEvent : Event -> GameState -> GameState
 applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
   MkGameState turn side segment (updateMovedUnit unit to (toNat cost) units)
@@ -53,6 +70,14 @@ applyEvent (CombatEngaged atk def tgt) game =
 applyEvent (TacticalSupportProvided _ units) game =
   case segment game of
     (Combat (AssignTacticalSupport supSide combat)) => applyTacticalSupportEvent supSide combat units game
+    _ => game -- TODO make this impossible to happen
+applyEvent (SupplyColumnUsed side pos) game =
+  case segment game of
+    (Combat (AssignStrategicSupport supSide combat)) => applySupplyColumnUsedEvent supSide combat pos game
+    _ => game -- TODO make this impossible to happen
+applyEvent (CombatResolved state losses) game =
+  case segment game of
+    (Combat (Resolve _)) => record { segment = (Combat $ ApplyLosses (side game) (record { losses = Just losses } state)) } game
     _ => game -- TODO make this impossible to happen
 applyEvent (SegmentChanged from to) game =
   record { segment = to } game

@@ -45,6 +45,9 @@ makeCommand game (SList [ SSym "attack!", unitNames, SList [ SInt col, SInt row]
 makeCommand game (SList [ SSym "support!", unitNames ] ) with (curSegment game)
   | Combat (AssignTacticalSupport side combatState) = Cmd <$> makeSupportCommand unitNames side combatState
   | other = Left $ "Invalid command for segment " ++ show other
+makeCommand game (SList [ SSym "resolve!" ] ) with (curSegment game)
+  | Combat (Resolve combatState) = pure $ Cmd (ResolveCombat combatState)
+  | other = Left $ "Invalid command for segment " ++ show other
 makeCommand game (SList [ SSym "next!" ] ) = pure $ Cmd NextSegment
 makeCommand game (SList [ SSym "supply-path?", SStr unitName ] ) = Right $ Qry $ SupplyPath unitName
 makeCommand game (SList [ SSym "map?" ] ) = Right $ Qry TerrainMap
