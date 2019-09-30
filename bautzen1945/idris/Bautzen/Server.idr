@@ -25,6 +25,8 @@ padWith0 k =
 
 handleClient : Socket -> SocketAddress -> Game -> IO ()
 handleClient socket addr game = do
+  Just channel <- Channels.listen 30
+    | Nothing => do putStrLn ("failed to retrieve channel to parent, giving up") ; close socket
   Right (str, _) <- recv socket 6 -- receive 6 characters representing the length of message to read
     | Left err => do putStrLn ("failed to receive length of message " ++ show err) ; close socket -- TODO error handling
   case parseInteger (unpack str) 0 of
@@ -44,6 +46,9 @@ serve sock = do
   Just pid <- spawn (handleClient s addr initialGame)
     | Nothing => do close s
                     pure (Left "Failed to spawn process to handle client, giving up ")
+  Just channel <- connect pid
+    | Nothing => do close s
+                    pure (Left "Failed to connect to spawned process, giving up ")
   serve sock
 
 export
