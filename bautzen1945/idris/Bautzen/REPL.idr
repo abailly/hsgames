@@ -1,6 +1,7 @@
 module Bautzen.REPL
 
 import Bautzen.Game
+import Bautzen.Options
 import Bautzen.REPL.SExpParser
 import Bautzen.REPL.SExpInstances
 import Bautzen.SExp
@@ -95,5 +96,5 @@ initialGame = MkGame [] initialState FullGameMap
 
 export
 partial
-repl : IO ()
-repl = processStdin initialGame commandHandler eoiHandler
+repl : Options -> IO ()
+repl _ = processStdin initialGame commandHandler eoiHandler
