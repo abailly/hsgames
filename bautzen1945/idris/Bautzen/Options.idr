@@ -3,6 +3,8 @@ module Bautzen.Options
 
 import Network.Socket.Data
 
+import Data.String.Extra
+
 %default total
 
 export
@@ -12,19 +14,18 @@ record Options where
   ||| Can be 0 in which case the server listens on a random port
   port : Port
 
+  ||| The host to bind server to
+  ||| defaults to `localhost` which will only allow local connections
+  host : String
+
 export
 defaultOptions : Options
-defaultOptions = MkOptions 34567
-
-parseInteger : List Char -> Integer -> Maybe Integer
-parseInteger []        acc = Just acc
-parseInteger (c :: cs) acc =
-  if (c >= '0' && c <= '9')
-  then parseInteger cs ((acc * 10) + (cast ((ord c) - (ord '0'))))
-  else Nothing
+defaultOptions = MkOptions 34567 "localhost"
 
 doProcessOptions : List String -> Options -> Either String Options
 doProcessOptions []                        opts = Right opts
+doProcessOptions ("--host" :: arg :: args) opts =
+  doProcessOptions args (record { host = arg } opts)
 doProcessOptions ("--port" :: arg :: args) opts =
   case parseInteger (unpack arg) 0 of
     Nothing => Left $ "cannot parse " ++ arg ++ " as a port number"
@@ -45,5 +46,9 @@ namespace OptionsTest
   %access private
 
   can_parse_port_option :
-    doProcessOptions [ "--port" , "123" ] Options.defaultOptions = Right (MkOptions 123)
+    doProcessOptions [ "--port" , "123" ] Options.defaultOptions = Right (MkOptions 123 "localhost")
   can_parse_port_option = Refl
+
+  can_parse_host_option :
+    doProcessOptions [ "--host" , "foo" ] Options.defaultOptions = Right (MkOptions 34567 "foo")
+  can_parse_host_option = Refl

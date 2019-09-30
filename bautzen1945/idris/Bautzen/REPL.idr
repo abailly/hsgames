@@ -70,6 +70,7 @@ parseCommand game input = do
   makeCommand game sexp
 
 partial
+export
 commandHandler : Game -> String -> (String, Game)
 commandHandler game command =
   case parseCommand game command of
@@ -91,6 +92,7 @@ initialPositions = [ (Bautzen.GameUnit.p13_5dp, Hex 1 9)
 initialState : GameState
 initialState = MkGameState 5 Axis Move initialPositions
 
+export
 initialGame : Game
 initialGame = MkGame [] initialState FullGameMap
 
