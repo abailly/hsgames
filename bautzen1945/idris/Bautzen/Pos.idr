@@ -8,9 +8,6 @@ import Decidable.Order
 
 import public Data.ZZ.Extra
 
-%access public export
-%default total
-
 -- Positions & Map
 
 ||| A position/hex of the game board encoded as a pair of `Nat`
@@ -82,8 +79,8 @@ shiftPos Z prf Dec = Nothing
 shiftPos (S k) prf Dec = Just (k ** lteSuccLeft prf)
 shiftPos x prf Neut = Just (x ** prf)
 shiftPos x prf Inc {bound} with (isLTE (S x) bound)
-  | (Yes y) = Just (S x ** y)
-  | (No contra) = Nothing
+  shiftPos x prf Inc | (Yes y) = Just (S x ** y)
+  shiftPos x prf Inc | (No contra) = Nothing
 
 
 makePos : (pos : Pos) -> (Mvmt, Mvmt) -> Maybe Pos
@@ -123,7 +120,7 @@ neighbours (Hex col row) with (col `divMod` 1)
   neighbours (Hex ((S (S _)) + (_ * fromInteger 2)) _)   | (MkDivMod _ (S (S _)) (LTESucc lte)) = absurd $ succNotLTEzero (fromLteSucc lte)
 
 namespace PosTest
-  %access private
+
 
   neighbours1_test : (neighbours (Hex 3 3) = [ Hex 2 3, Hex 3 2, Hex 4 3, Hex 4 4, Hex 3 4, Hex 2 4] )
   neighbours1_test = Refl

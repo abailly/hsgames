@@ -16,9 +16,9 @@ import Bautzen.REPL.SExpInstances
 
 import Data.Fin
 
-%access export
 
-%default total
+
+
 
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event
 act (MkGame _ (MkGameState _ side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to

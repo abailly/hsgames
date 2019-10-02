@@ -4,8 +4,8 @@ module Bautzen.Odds
 import Data.Fin
 import Data.Nat.DivMod
 
-%access public export
-%default total
+
+
 
 ||| The raw odds in a combat, basically a glorified pair.
 record RawOdds where
@@ -126,7 +126,7 @@ c <<< Z = c
 c <<< (S k) = foldl (const . pred) c [0.. k]
 
 namespace OddsTest
-  %access private
+
 
   odds_are_rounded_down : odds (MkRawOdds 3 2) = OneVsOne
   odds_are_rounded_down = Refl

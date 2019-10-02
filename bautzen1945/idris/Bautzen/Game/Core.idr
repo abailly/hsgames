@@ -7,8 +7,8 @@ import Bautzen.Terrain
 
 import Data.Fin
 
-%access public export
-%default total
+
+
 
 ||| * see section 8.2
 data CombatPhase : Type where

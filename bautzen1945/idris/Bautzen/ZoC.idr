@@ -3,7 +3,7 @@ module Bautzen.ZoC
 import Bautzen.GameUnit
 import Bautzen.Pos
 
-%access public export
+
 
 -- section 3
 -- zones of control

@@ -9,7 +9,7 @@ import Bautzen.SExp
 import Data.Fin
 import Prelude.Interactive
 
-%default total
+
 %flag C "-O3"
 
 data CmdREPL : (segment : GameSegment) -> Type where

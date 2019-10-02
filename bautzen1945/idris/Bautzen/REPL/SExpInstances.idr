@@ -10,8 +10,8 @@ import Bautzen.SExp
 import Data.Fin
 import Data.Vect
 
-%access export
-%default total
+
+
 
 ToSExp Side where
   toSExp Axis = SSym "Axis"

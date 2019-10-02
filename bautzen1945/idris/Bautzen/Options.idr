@@ -5,7 +5,7 @@ import Network.Socket.Data
 
 import Data.String.Extra
 
-%default total
+
 
 export
 record Options where
@@ -43,7 +43,7 @@ processOptions args = doProcessOptions args defaultOptions
 
 
 namespace OptionsTest
-  %access private
+
 
   can_parse_port_option :
     doProcessOptions [ "--port" , "123" ] Options.defaultOptions = Right (MkOptions 123 "localhost")

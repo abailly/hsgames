@@ -6,8 +6,8 @@ import Bautzen.Pos
 import Bautzen.Terrain
 import Bautzen.ZoC
 
-%access export
-%default total
+
+
 
 updateMovedUnit : (unit : GameUnit) -> Pos -> (mps : Nat) -> { auto prf : LTE mps (currentMP unit) } -> List (GameUnit, Pos) -> List (GameUnit, Pos)
 updateMovedUnit unit newPosition mps = foldr updateUnit []
@@ -55,7 +55,7 @@ moveTo sideToPlay units gameMap unitName to =
                                                             else Left (EnemyInHex other to)
 
 namespace MoveTest
-  %access private
+
   cannot_move_if_unit_does_not_exist : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "foo" (Hex 3 5) = Left (NoSuchUnits [ "foo" ])
   cannot_move_if_unit_does_not_exist = Refl
 

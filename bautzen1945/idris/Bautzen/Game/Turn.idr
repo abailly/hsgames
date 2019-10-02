@@ -9,8 +9,8 @@ import Bautzen.Terrain
 
 import Data.Fin
 
-%access export
-%default total
+
+
 
 newTurn : Game -> Either GameError Event
 newTurn (MkGame _ (MkGameState FZ _ _ _) _) = Right GameEnded

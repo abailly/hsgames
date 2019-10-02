@@ -5,9 +5,6 @@ module Data.ZZ.Extra
 import Data.Sign
 import public Data.ZZ
 
-%access public export
-%default total
-
 ||| Proof that if the absolute value of a number is 0, then this number is 0
 ||| @y: a relative number which we take absolute value of
 absZIsPosZ : (absZ y = 0) -> (y = Pos 0)

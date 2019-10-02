@@ -6,8 +6,8 @@ import Bautzen.Pos
 
 import Data.Vect
 
-%access public export
-%default total
+
+
 
 ||| Combat result as steps lost by attacker and defender.
 record Losses where

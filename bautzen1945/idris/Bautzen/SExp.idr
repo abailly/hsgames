@@ -1,9 +1,10 @@
 module Bautzen.SExp
 
+import Data.List
+import Data.Nat
 import Data.Vect
-import Prelude.WellFounded
+import Control.WellFounded
 
-%default total
 
 public export
 data SExp : Type where
@@ -73,7 +74,6 @@ export
   toSExp (Right r) = SList [ SSym ":ok", toSExp r ]
 
 export
-total
 Show SExp where
   show (SList xs) = "(" ++ showList xs ++ ")"
     where
@@ -105,10 +105,10 @@ mutual
   step : (x1 : List SExp) -> ((y : List SExp) -> Smaller y x1 -> Either String (List String)) -> Either String (List String)
   step []        f = Right []
   step (x :: xs) f with (isLTE (length xs) (length xs))
-    | Yes prf = do s <- toStrings x
-                   ss <- f xs $ LTESucc prf
-                   pure $ s ++ ss
-    | No contra = absurd (contra lteRefl)
+    step (x :: xs) f | Yes prf = do s <- toStrings x
+                                    ss <- f xs $ LTESucc prf
+                                    pure $ s ++ ss
+    step (x :: xs) f | No contra = absurd (contra lteRefl)
 
   ||| Convert a s-expression into a list of strings
   |||

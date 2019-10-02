@@ -5,8 +5,8 @@ import Bautzen.Pos
 
 import Data.Vect
 
-%access public export
-%default total
+
+
 
 -- Map & Terrain types
 

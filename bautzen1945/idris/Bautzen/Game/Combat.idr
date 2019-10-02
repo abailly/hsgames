@@ -13,8 +13,8 @@ import Bautzen.Terrain
 import Data.Nat.DivMod
 import Data.Vect as V
 
-%access export
-%default total
+
+
 
 
 -- section 8.1
@@ -269,7 +269,7 @@ loseStep currentSide lossSide (MkCombatState _ atk def (Just (al /> dl))) unitNa
     pure $ StepLost lossSide u (al /> k)
 
 namespace CombatTest
-  %access private
+
 
   positions : List (GameUnit, Pos)
   positions = [ (GameUnit.p13_5dp, Hex 5 4)

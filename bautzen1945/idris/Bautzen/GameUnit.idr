@@ -3,9 +3,9 @@ module Bautzen.GameUnit
 import Data.Fin
 import Data.Vect
 
-%access public export
 
-%default total
+
+
 
 -- Base Types
 -- Section 1.1

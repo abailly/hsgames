@@ -14,8 +14,8 @@ import Data.Heap.LeftistHeap as L
 
 import Data.SortedMap as SMap
 
-%access export
-%default total
+
+
 
 -- section 7.1.2
 

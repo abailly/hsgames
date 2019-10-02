@@ -5,8 +5,8 @@ module Bautzen.Game.Stacking
 import Bautzen.GameUnit
 import Bautzen.Terrain
 
-%access public export
-%default total
+
+
 
 -- section 5.1
 
@@ -63,7 +63,7 @@ stacking units terrain =
     sps (MkGameUnit nation unitType name parent size move currentMP hit combat) = stackingPoints nation size unitType
 
 namespace StackingTest
-  %access private
+
 
   stacking_of_a_single_unit : stacking [ GameUnit.p13_5dp ] Clear = Stacked 2
   stacking_of_a_single_unit = Refl
