@@ -8,14 +8,17 @@ import Data.Sign
 ||| For example, 3 is `Pos 3` and -2 is `NegS 1`. Zero is arbitrarily chosen
 ||| to be positive.
 |||
+public export
 data ZZ = Pos Nat | NegS Nat
 
+public export
 implementation Signed ZZ where
   sign (Pos Z) = Zero
   sign (Pos _) = Plus
   sign (NegS _) = Minus
 
 ||| Take the absolute value of a `ZZ`
+public export
 absZ : ZZ -> Nat
 absZ (Pos n) = n
 absZ (NegS n) = S n
@@ -24,33 +27,39 @@ showParens : (b : Bool) -> String -> String
 showParens False s = s
 showParens True  s = "(" ++ s ++ ")"
 
+export
 implementation Show ZZ where
   showPrec d (Pos n) = showPrec d n
   showPrec d (NegS n) = showParens (d >= PrefixMinus) $ "-" ++ showPrec PrefixMinus (S n)
 
+public export
 negNat : Nat -> ZZ
 negNat Z = Pos Z
 negNat (S n) = NegS n
 
 
 ||| Construct a `ZZ` as the difference of two `Nat`s
+public export
 minusNatZ : Nat -> Nat -> ZZ
 minusNatZ n Z = Pos n
 minusNatZ Z (S m) = NegS m
 minusNatZ (S n) (S m) = minusNatZ n m
 
 ||| Add two `ZZ`s. Consider using `(+) {a=ZZ}`.
+public export
 plusZ : ZZ -> ZZ -> ZZ
 plusZ (Pos n) (Pos m) = Pos (n + m)
 plusZ (NegS n) (NegS m) = NegS (S (n + m))
 plusZ (Pos n) (NegS m) = minusNatZ n (S m)
 plusZ (NegS n) (Pos m) = minusNatZ m (S n)
 
+export
 implementation Eq ZZ where
   (Pos n) == (Pos m) = n == m
   (NegS n) == (NegS m) = n == m
   _ == _ = False
 
+export
 implementation Ord ZZ where
   compare (Pos n) (Pos m) = compare n m
   compare (NegS n) (NegS m) = compare m n
@@ -58,6 +67,7 @@ implementation Ord ZZ where
   compare (NegS _) (Pos _) = LT
 
 ||| Multiply two `ZZ`s. Consider using `(*) {a=ZZ}`.
+public export
 multZ : ZZ -> ZZ -> ZZ
 multZ (Pos n) (Pos m) = Pos $ n * m
 multZ (NegS n) (NegS m) = Pos $ (S n) * (S m)
@@ -65,23 +75,28 @@ multZ (NegS n) (Pos m) = negNat $ (S n) * m
 multZ (Pos n) (NegS m) = negNat $ n * (S m)
 
 ||| Convert an `Integer` to an inductive representation.
+public export
 fromInt : Integer -> ZZ
 fromInt n = if n < 0
             then NegS $ fromInteger ((-n) - 1)
             else Pos $ fromInteger n
 
+export
 implementation Cast Nat ZZ where
   cast n = Pos n
 
+export
 implementation Num ZZ where
   (+) = plusZ
   (*) = multZ
   fromInteger = fromInt
 
+export
 implementation Abs ZZ where
     abs = cast . absZ
 
 mutual
+  export
   implementation Neg ZZ where
     negate (Pos Z)     = Pos Z
     negate (Pos (S n)) = NegS n
@@ -90,13 +105,16 @@ mutual
     (-) = subZ
 
   ||| Subtract two `ZZ`s. Consider using `(-) {a=ZZ}`.
+  public export
   subZ : ZZ -> ZZ -> ZZ
   subZ n m = plusZ n (negate m)
 
+export
 implementation Cast ZZ Integer where
   cast (Pos n) = cast n
   cast (NegS n) = (-1) * (cast n + 1)
 
+export
 implementation Cast Integer ZZ where
   cast = fromInteger
 
