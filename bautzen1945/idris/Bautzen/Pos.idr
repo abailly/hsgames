@@ -85,12 +85,40 @@ data Mvmt : Type where
   Neut : Mvmt
   Inc : Mvmt
 
+
+public export
+succNotLTEZ : Not (LTE (S m) Z)
+succNotLTEZ LTEZero impossible
+
+public export
+fromLTESucc : LTE (S m) (S n) -> LTE m n
+fromLTESucc (LTESucc x) = x
+
+public export
+lteSuccR : LTE n m -> LTE n (S m)
+lteSuccR LTEZero     = LTEZero
+lteSuccR (LTESucc x) = LTESucc (lteSuccR x)
+
+public export
+lteSuccL : LTE (S n) m -> LTE n m
+lteSuccL (LTESucc x) = lteSuccR x
+
+public export
+isLte : (m, n : Nat) -> Dec (LTE m n)
+isLte Z n = Yes LTEZero
+isLte (S k) Z = No succNotLTEZ
+isLte (S k) (S j)
+    = case isLte k j of
+           No contra => No (contra . fromLTESucc)
+           Yes prf => Yes (LTESucc prf)
+
+
 public export
 shiftPos : (x : Nat) -> {bound : Nat} -> (prf : LTE x bound) -> Mvmt -> Maybe (n : Nat ** LTE n bound)
 shiftPos Z prf Dec = Nothing
-shiftPos (S k) prf Dec = Just (k ** lteSuccLeft prf)
+shiftPos (S k) prf Dec = Just (k ** lteSuccL prf)
 shiftPos x prf Neut = Just (x ** prf)
-shiftPos x prf Inc {bound} with (isLTE (S x) bound)
+shiftPos x prf Inc {bound} with (isLte (S x) bound)
   shiftPos x prf Inc | (Yes y) = Just (S x ** y)
   shiftPos x prf Inc | (No contra) = Nothing
 
@@ -133,7 +161,7 @@ neighbours (Hex col row) with (col `divMod` (S Z))
   neighbours (Hex col@(Z + (q * (S(S Z)))) row)     | (MkDivMod q Z remainderSmall) = catMaybes $ map (makePos (Hex col row)) evenShifts
   neighbours (Hex col@((S Z) + (q * (S(S Z)))) row) | (MkDivMod q (S Z) remainderSmall) = catMaybes $ map (makePos (Hex col row)) oddShifts
   neighbours (Hex ((S (S r)) + (q * (S(S Z)))) _)   | (MkDivMod q (S (S r)) LTEZero) impossible
-  neighbours (Hex ((S (S r)) + (q * (S(S Z)))) _)   | (MkDivMod q (S (S r)) (LTESucc lte)) = absurd $ succNotLTEzero (fromLteSucc lte)
+  neighbours (Hex ((S (S r)) + (q * (S(S Z)))) _)   | (MkDivMod q (S (S r)) (LTESucc lte)) = absurd $ succNotLTEZ (fromLTESucc lte)
 
 namespace PosTest
 

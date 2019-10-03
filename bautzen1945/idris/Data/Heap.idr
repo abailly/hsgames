@@ -11,8 +11,6 @@
 ||| data structures
 module Data.Heap
 
-%access public export
-
 ||| Interface to Heap/Priority Queue
 interface Heap (heap : Type -> Type) where
 

@@ -1,4 +1,4 @@
 package xxi
-depends = contrib
+depends = contrib, network
 main = bautzen1945
 executable = bautzen1945

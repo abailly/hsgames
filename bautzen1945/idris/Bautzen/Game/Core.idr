@@ -6,11 +6,10 @@ import Bautzen.Pos
 import Bautzen.Terrain
 
 import Data.Fin
-
-
-
+import Data.Nat
 
 ||| * see section 8.2
+public export
 data CombatPhase : Type where
   NoCombat : CombatPhase
   AssignTacticalSupport : (side : Side) -> (combat : CombatState) -> CombatPhase
@@ -18,18 +17,21 @@ data CombatPhase : Type where
   Resolve : (combat : CombatState) -> CombatPhase
   ApplyLosses : (side : Side) -> (combat : CombatState) -> CombatPhase
 
+public export
 data GameSegment : Type where
   Supply : GameSegment
   Move : GameSegment
   Combat : (phase : CombatPhase) -> GameSegment
   GameEnd : GameSegment
 
+public export
 Show GameSegment where
   show Supply = "Supply"
   show Move = "Move"
-  show Combat = "Combat"
+  show (Combat _) = "Combat"
   show GameEnd = "GameEnd"
 
+public export
 record GameState where
   constructor MkGameState
   turn : Fin 6
@@ -37,6 +39,7 @@ record GameState where
   segment : GameSegment
   units : List (GameUnit, Pos)
 
+public export
 Show GameState where
   show (MkGameState turn side segment units) =
     "GameState: turn=" ++
@@ -45,6 +48,7 @@ Show GameState where
     ", " ++ show segment ++
     ", units=" ++ show units
 
+public export
 data GameError : Type where
   NoSuchUnits : (unitName : List String) -> GameError
   NotYourTurn : (side : Side) -> GameError
@@ -64,6 +68,7 @@ data GameError : Type where
   CombatInProgress : (side : Side) -> GameError
   GameHasEnded : GameError
 
+public export
 Show GameError where
   show (NoSuchUnits unitNames) = "No such units: " ++ show unitNames
   show (NotYourTurn side) = "Not your turn: " ++ show side
@@ -83,6 +88,7 @@ Show GameError where
   show (CombatInProgress side) = "Combat in progress for: " ++ show side
   show GameHasEnded = "Game has ended"
 
+public export
 data Command : (segment : GameSegment) -> Type where
   MoveTo : (unitName : String) -> (to : Pos) -> Command Move
   AttackWith : (unitNames : List String) -> (target : Pos) -> Command (Combat NoCombat)
@@ -91,6 +97,7 @@ data Command : (segment : GameSegment) -> Type where
   ResolveCombat : (combatState : CombatState) -> Command (Combat $ Resolve combatState)
   LoseStep : (unitName : String) -> Command (Combat $ ApplyLosses side combatState)
 
+public export
 Show (Command segment) where
   show (MoveTo unitName to) = "MoveTo " ++ unitName ++ " -> " ++ show to
   show (AttackWith unitNames target) = "AttackWith " ++ show unitNames ++ " -> " ++ show target
@@ -99,6 +106,7 @@ Show (Command segment) where
   show (ResolveCombat state) = "ResolveCombat " ++ show state
   show (LoseStep unitName) = "LoseStep " ++ show unitName
 
+public export
 data Event : Type where
 
   ||| Unit has moved from some position to some other position
@@ -160,6 +168,7 @@ data Event : Type where
   ||| Game has ended
   GameEnded : Event
 
+public export
 Show Event where
   show (Moved unit from to cost) = "Moved " ++ name unit ++ " from " ++ show from ++ " to " ++ show to ++ " for "  ++ show (toNat cost) ++ " mps"
   show (CombatEngaged atk def tgt) = "CombatEngaged " ++ show (map (GameUnit.name . fst) atk) ++ " -> " ++ show (map (GameUnit.name . fst) def) ++ " @ " ++ show tgt
@@ -172,11 +181,14 @@ Show Event where
   show (TurnEnded n) = "Turn Ended: " ++ show (finToNat n)
   show GameEnded = "Game Ended"
 
+public export
 data Game : Type where
   MkGame : (events : List Event) -> (curState : GameState) -> (gameMap : Map) -> Game
 
+public export
 Show Game where
   show (MkGame events state gameMap) = "Game: " ++ show events ++ "\n" ++ show state ++ "\n" ++ show gameMap
 
+public export
 curSegment : Game -> GameSegment
 curSegment (MkGame _ (MkGameState _ _  segment _) _) = segment

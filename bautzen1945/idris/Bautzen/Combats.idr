@@ -4,12 +4,15 @@ module Bautzen.Combats
 import Bautzen.GameUnit
 import Bautzen.Pos
 
+import Data.Maybe.Extra
+
+import Data.Fin
+import Data.List
+import Data.Nat
 import Data.Vect
 
-
-
-
 ||| Combat result as steps lost by attacker and defender.
+public export
 record Losses where
   constructor (/>)
 
@@ -21,22 +24,26 @@ record Losses where
 
 infix 1 />
 
+public export
 Show Losses  where
   show (attackerLoss /> defenderLoss) =
     show attackerLoss ++ "/" ++ show defenderLoss
 
+public export
 record EngagedUnits where
   constructor MkEngagedUnits
   base : List (GameUnit, Pos)
   tacticalSupport : List (GameUnit, Pos)
   strategicSupport : Nat
 
+public export
 Show EngagedUnits where
   show (MkEngagedUnits base tacticalSupport strategicSupport) =
     "MkEngagedUnits base="++ show base ++
     ", tacticalSupport=" ++ show tacticalSupport ++
     ", strategicSupport=" ++ show strategicSupport
 
+public export
 record CombatState where
   constructor MkCombatState
   combatHex : Pos
@@ -44,6 +51,7 @@ record CombatState where
   defenders : EngagedUnits
   losses : Maybe Losses
 
+public export
 Show CombatState where
   show (MkCombatState combatHex attackers defenders losses) =
     "MkCombatState hex=" ++ show combatHex ++
@@ -54,6 +62,7 @@ Show CombatState where
 ||| Combat resolution table.
 |||
 ||| The table is transposed w.r.t. the actual rules booklet
+public export
 CombatTable : Vect 8 (Vect 8 Losses)
 CombatTable =
   [ [ 3 /> 0, 3 /> 0, 3 /> 0, 2 /> 0 , 2 /> 1 , 2 /> 1 , 1 /> 1 , 0 /> 1 ]
@@ -67,8 +76,9 @@ CombatTable =
   ]
 
 ||| Reduce given unit by one step, updating its state
+public export
 reduce : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> List (GameUnit, Pos)
-reduce unit = catMaybes . map (uncurry reduceUnit)
+reduce unit = catMaybes . map (\ (u,p) => reduceUnit u p)
   where
     reduceUnit : GameUnit -> Pos -> Maybe (GameUnit, Pos)
     reduceUnit u@(MkGameUnit nation unitType name parent size move currentMP steps hits combat) pos =

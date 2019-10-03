@@ -4,13 +4,13 @@ module Data.Sign
 public export
 data Sign = Plus | Zero | Minus
 
-export
+public export
 opposite : Sign -> Sign
 opposite Plus  = Minus
 opposite Zero  = Zero
 opposite Minus = Plus
 
-export
+public export
 multiply : Sign -> Sign -> Sign
 multiply Zero  _    = Zero
 multiply _     Zero = Zero
@@ -22,21 +22,21 @@ public export
 interface Signed t where
   sign : t -> Sign
 
-export
+public export
 Signed Int where
   sign x with (compare x 0)
     sign x | LT = Minus
     sign x | EQ = Zero
     sign x | GT = Plus
 
-export
+public export
 Signed Integer where
   sign x with (compare x 0)
     sign x | LT = Minus
     sign x | EQ = Zero
     sign x | GT = Plus
 
-export
+public export
 Signed Double where
   sign x with (compare x 0.0)
     sign x | LT = Minus

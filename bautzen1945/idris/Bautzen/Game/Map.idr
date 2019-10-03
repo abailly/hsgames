@@ -4,7 +4,10 @@ import Bautzen.Terrain
 import Bautzen.GameUnit
 import Bautzen.Pos
 
-import Data.Vect as V
+import Data.Maybe.Extra
+
+import Data.Nat
+import Data.Vect
 
 V : Terrain -> Terrain
 V = Village
@@ -60,6 +63,7 @@ export
 PartialGameMap : Map
 PartialGameMap = MkMap positions []
   where
+    positions : List (Pos, Terrain)
     positions = [(Hex 0 0, Clear),
                  (Hex 0 1, Clear),
                  (Hex 0 2, Clear),
@@ -92,9 +96,10 @@ FullGameMap = MkMap positions []
   where
     mkPosition : (c : Nat) -> (r : Nat) -> Maybe ( Pos, Terrain)
     mkPosition c r with (natToFin c 23, natToFin r 13, isLTE c 22, isLTE r 12)
-      | (Just col, Just row, Yes cprf, Yes rprf) =
-           let terrain = V.index col $ V.index row terrains
+      mkPosition c r | (Just col, Just row, Yes cprf, Yes rprf) =
+           let terrain = index col $ index row terrains
            in Just (Hex c r, terrain)
-      | (_, _, _, _) = Nothing
+      mkPosition c r | (_, _, _, _) = Nothing
 
-    positions = catMaybes $ map (uncurry mkPosition) [ (c, r) | c <- [ 0 .. 22 ], r <- [ 0 .. 12 ]]
+    positions : List (Pos, Terrain)
+    positions = catMaybes $ [ mkPosition c r | c <- [ 0 .. 22 ], r <- [ 0 .. 12 ]]

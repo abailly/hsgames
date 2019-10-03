@@ -24,6 +24,20 @@ public export
 notPosZIsNotAbsZ : ((y = Pos 0) -> Void) -> ((absZ y = 0) -> Void)
 notPosZIsNotAbsZ = contrapositive absZIsPosZ
 
+public export
+divNatNZ' : Nat -> (y: Nat) -> Not (y = Z) -> Nat
+divNatNZ' left Z         p = void (p Refl)
+divNatNZ' left (S right) _ = div' left left right
+  where
+    div' : Nat -> Nat -> Nat -> Nat
+    div' Z        centre right = Z
+    div' (S left) centre right =
+      if lte centre right then
+        Z
+      else
+        S (div' left (minus centre (S right)) right)
+
+
 ||| Euclidean division of 2 `ZZ` numbers ensuring divisor is not 0
 ||| We compute using `Nat`'s division and checking the `multiply` of the signs
 ||| of both numbers, observing that if the sign is  `Zero` then this implis `x`
@@ -37,8 +51,8 @@ divZZNZ : (x : ZZ) -> (y : ZZ) -> (divisorNotZ : Not (y = Pos Z)) -> ZZ
 divZZNZ x (Pos Z) z = absurd (z Refl)
 divZZNZ x y z with (sign x `multiply` sign y)
   divZZNZ x y z | Zero = Pos Z
-  divZZNZ x y z | Plus = Pos $ divNatNZ (absZ x) (absZ y) (notPosZIsNotAbsZ z)
-  divZZNZ x y z | Minus = NegS $ divNatNZ (absZ x) (absZ y) (notPosZIsNotAbsZ  z)
+  divZZNZ x y z | Plus = Pos $ divNatNZ' (absZ x) (absZ y) (notPosZIsNotAbsZ z)
+  divZZNZ x y z | Minus = NegS $ divNatNZ' (absZ x) (absZ y) (notPosZIsNotAbsZ  z)
 
 ||| A strictly Positive `ZZ` is not 0
 public export

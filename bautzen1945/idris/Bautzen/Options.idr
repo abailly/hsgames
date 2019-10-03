@@ -3,9 +3,7 @@ module Bautzen.Options
 
 import Network.Socket.Data
 
-import Data.String.Extra
-
-
+import Data.Strings.Extra
 
 export
 record Options where
@@ -47,7 +45,7 @@ namespace OptionsTest
 
   can_parse_port_option :
     doProcessOptions [ "--port" , "123" ] Options.defaultOptions = Right (MkOptions 123 "localhost")
-  can_parse_port_option = Refl
+  can_parse2_port_option = Refl
 
   can_parse_host_option :
     doProcessOptions [ "--host" , "foo" ] Options.defaultOptions = Right (MkOptions 34567 "foo")

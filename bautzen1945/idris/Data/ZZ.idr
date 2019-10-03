@@ -27,7 +27,7 @@ showParens : (b : Bool) -> String -> String
 showParens False s = s
 showParens True  s = "(" ++ s ++ ")"
 
-export
+public export
 implementation Show ZZ where
   showPrec d (Pos n) = showPrec d n
   showPrec d (NegS n) = showParens (d >= PrefixMinus) $ "-" ++ showPrec PrefixMinus (S n)
@@ -53,13 +53,13 @@ plusZ (NegS n) (NegS m) = NegS (S (n + m))
 plusZ (Pos n) (NegS m) = minusNatZ n (S m)
 plusZ (NegS n) (Pos m) = minusNatZ m (S n)
 
-export
+public export
 implementation Eq ZZ where
   (Pos n) == (Pos m) = n == m
   (NegS n) == (NegS m) = n == m
   _ == _ = False
 
-export
+public export
 implementation Ord ZZ where
   compare (Pos n) (Pos m) = compare n m
   compare (NegS n) (NegS m) = compare m n
@@ -77,26 +77,26 @@ multZ (Pos n) (NegS m) = negNat $ n * (S m)
 ||| Convert an `Integer` to an inductive representation.
 public export
 fromInt : Integer -> ZZ
-fromInt n = if n < 0
-            then NegS $ fromInteger ((-n) - 1)
-            else Pos $ fromInteger n
+fromInt n with (n < 0)
+  fromInt n | True = NegS $ fromInteger ((-n) - 1)
+  fromInt n | False = Pos $ fromInteger n
 
-export
+public export
 implementation Cast Nat ZZ where
   cast n = Pos n
 
-export
+public export
 implementation Num ZZ where
   (+) = plusZ
   (*) = multZ
   fromInteger = fromInt
 
-export
+public export
 implementation Abs ZZ where
     abs = cast . absZ
 
 mutual
-  export
+  public export
   implementation Neg ZZ where
     negate (Pos Z)     = Pos Z
     negate (Pos (S n)) = NegS n
@@ -109,12 +109,12 @@ mutual
   subZ : ZZ -> ZZ -> ZZ
   subZ n m = plusZ n (negate m)
 
-export
+public export
 implementation Cast ZZ Integer where
   cast (Pos n) = cast n
   cast (NegS n) = (-1) * (cast n + 1)
 
-export
+public export
 implementation Cast Integer ZZ where
   cast = fromInteger
 

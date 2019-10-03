@@ -11,9 +11,8 @@
 module Data.Heap.LeftistHeap
 
 import public Data.Heap
-import Decidable.Order
 
-%default total
+import Data.Nat
 
 namespace RawTree
 
@@ -85,16 +84,18 @@ namespace Tree
          -> { auto prfLeftist : LTE n k }
          -> LeftistBinTree (S (k + n)) a
 
-  makeNode : (elem : a) -> LeftistBinTree r a -> LeftistBinTree q a -> LeftistBinTree (S (r + q)) a
-  makeNode elem x y {r} {q} with (order {to=LTE} r q)
-    makeNode elem x y {r = r} {q = q} | (Left l)  = rewrite plusCommutative r q in Node elem y x
-    makeNode elem x y {r = r} {q = q} | (Right z) = Node elem x y
+  notLTEImpliesLTE : {a,b : _ } -> Not (LTE a b) -> LTE b a
+
+  makeNode : {r, q : Nat} -> (elem : a) -> LeftistBinTree r a -> LeftistBinTree q a -> LeftistBinTree (S (r + q)) a
+  makeNode elem x y {r} {q} with (isLTE r q)
+    makeNode elem x y {r = r} {q = q} | (Yes l) = rewrite plusCommutative r q in Node elem y x
+    makeNode elem x y {r = r} {q = q} | (No z) = Node elem x y { prfLeftist = notLTEImpliesLTE z }
 
   ||| Merge 2 `LeftistBinTree`s while preserving properties.
   |||
   ||| @left first tree to merge
   ||| @right second tree to merge
-  mergeTree : (Ord a) => (left : LeftistBinTree r a) -> (right : LeftistBinTree q a) -> LeftistBinTree (r + q) a
+  mergeTree : (Ord a) => {r, q: Nat} -> (left : LeftistBinTree r a) -> (right : LeftistBinTree q a) -> LeftistBinTree (r + q) a
   mergeTree Empty right = right
   mergeTree left  Empty {r} = rewrite plusZeroRightNeutral r in left
   mergeTree (Node elem left right {k} {n}) (Node elem' left' right' {k=k1} {n=n1}) with (elem < elem')
@@ -142,7 +143,7 @@ Heap BinaryHeap where
   isEmpty (BinHeap (Z ** _)) = True
   isEmpty (BinHeap _) = False
 
-  push elem (BinHeap (n ** tree)) = BinHeap (S n ** insert elem tree)
+  push elem (BinHeap (n ** tree)) = BinHeap (S n ** Tree.insert elem tree)
 
   peek (BinHeap (n ** tree)) = findMin tree
 

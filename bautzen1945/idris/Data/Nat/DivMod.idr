@@ -38,7 +38,7 @@ stepLT : {n : Nat} -> {m : Nat} -> (mLten : m `LTE` n) -> Either (m = n) (LT m n
 stepLT {m = Z} {n = Z} LTEZero = Left Refl
 stepLT {m = Z} {n = (S n)} LTEZero = Right (LTESucc LTEZero)
 stepLT {m = (S m)} {n = (S n)} (LTESucc mLten) with (stepLT mLten)
-  stepLT {m = (S m)} {n = (S n)} (LTESucc mLten) | (Left mEqn) = Left $ ?hole --cong mEqn
+  stepLT {m = (S m)} {n = (S n)} (LTESucc mLten) | (Left mEqn) = Left $ cong S mEqn
   stepLT {m = (S m)} {n = (S n)} (LTESucc mLten) | (Right mLtn) = Right $ LTESucc mLtn
 
 ||| The inductive step, taking a division of `m` to a division of `S m`
