@@ -6,19 +6,27 @@ import Bautzen.Pos
 import Bautzen.Terrain
 import Bautzen.ZoC
 
+import Data.List.Extra as List
+import Data.Nat.Extra
 
+import Data.List
+import Data.Maybe
+import Data.Nat
 
-
+public export
 updateMovedUnit : (unit : GameUnit) -> Pos -> (mps : Nat) -> { auto prf : LTE mps (currentMP unit) } -> List (GameUnit, Pos) -> List (GameUnit, Pos)
 updateMovedUnit unit newPosition mps = foldr updateUnit []
   where
-    updateUnit : (GameUnit, Pos) -> List (GameUnit, Pos) -> List (GameUnit, Pos)
-    updateUnit u@(gu, pos) acc =
-      if fullName unit == fullName gu
-      then let unit' = record { currentMP = currentMP unit - mps } unit
-           in (unit', newPosition) :: acc
-      else u :: acc
+    newMP : Nat
+    newMP = currentMP unit - mps
 
+    updateUnit : (GameUnit, Pos) -> List (GameUnit, Pos) -> List (GameUnit, Pos)
+    updateUnit (gu, pos) acc =
+      if fullName unit == fullName gu
+      then (record { currentMP = newMP } unit, newPosition) :: acc
+      else (gu, pos) :: acc
+
+public export
 movementCost : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos)
              -> Bool
              -> Either GameError (cost : Cost ** LTE (toNat cost) (currentMP unit))
@@ -32,27 +40,36 @@ movementCost unit units gameMap from to leavingZoC with (cost (unitType unit) (t
                                                            Yes prf => Right (cost ** prf)
                                                            No _    => Left (NotEnoughMPs unit from to (toNat cost))
 
+public export
 moreMoveTo : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos) -> Either GameError Event
 moreMoveTo unit units gameMap from to with (inZoC (side (nation unit)) units from, inZoC (side (nation unit)) units to)
-  | (InZoC _, Free) = do (c ** _) <- movementCost unit units gameMap from to True
-                         pure (Moved unit from to c)
-  | (Free, _) = do (c ** _) <- movementCost unit units gameMap from to False
-                   pure (Moved unit from to c)
-  | (_, _) = Left (MoveFromZocToZoc unit to)
+  moreMoveTo unit units gameMap from to | (InZoC _, Free) = do (c ** _) <- movementCost unit units gameMap from to True
+                                                               pure (Moved unit from to c)
+  moreMoveTo unit units gameMap from to | (Free, _) = do (c ** _) <- movementCost unit units gameMap from to False
+                                                         pure (Moved unit from to c)
+  moreMoveTo unit units gameMap from to | (_, _) = Left (MoveFromZocToZoc unit to)
 
+public export
 moveTo : (side : Side) -> (units : List (GameUnit, Pos)) -> Map -> (unitName : String) -> (to : Pos) -> Either GameError Event
 moveTo sideToPlay units gameMap unitName to =
-  case find (\ (u,_) => fullName u == unitName) units of
-    Nothing => Left (NoSuchUnits [unitName])
+  case find sameName units of
     (Just (unit, b)) => if side (nation unit) /= sideToPlay
                         then Left (NotYourTurn (side (nation unit)))
                         else if not (to `elem` (neighbours b))
                              then Left (InvalidMove b to)
-                             else case find (\ (u,p) => p == to) units of
+                             else case find samePosition units of
                                        Nothing => moreMoveTo unit units gameMap b to
                                        (Just (other, _)) => if friendly (nation unit) (nation other)
                                                             then moreMoveTo unit units gameMap b to
                                                             else Left (EnemyInHex other to)
+    Nothing => Left (NoSuchUnits [unitName])
+  where
+    sameName : (GameUnit, Pos) -> Bool
+    sameName (u,_) = fullName u == unitName
+
+    samePosition : (GameUnit, Pos) -> Bool
+    samePosition (_,p) = p == to
+
 
 namespace MoveTest
 

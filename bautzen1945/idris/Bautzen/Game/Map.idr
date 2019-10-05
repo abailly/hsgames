@@ -59,7 +59,7 @@ terrains = [-- 01      02     03          04    05     06     07     08     09  
  {- 13 -}  , [ T     , N    , SX (V Cl) , N   , Cl   , N    , Cl   , N     , Cl   , N    , Cl   , N    , Cl   , N        , Cl   , N    , Cl   , N     , Cl   , N         , Cl   , N    , Cl    ]
            ]
 
-export
+public export
 PartialGameMap : Map
 PartialGameMap = MkMap positions []
   where
@@ -90,7 +90,7 @@ PartialGameMap = MkMap positions []
                  (Hex 4 3, Clear),
                  (Hex 4 4, Clear)]
 
-export
+public export
 FullGameMap : Map
 FullGameMap = MkMap positions []
   where

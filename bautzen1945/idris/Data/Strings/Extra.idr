@@ -16,7 +16,7 @@ parseInteger (c :: cs) acc =
 ||| ```idris example
 ||| unlines' [['l','i','n','e'], ['l','i','n','e','2'], ['l','n','3'], ['D']]
 ||| ```
-export
+public export
 unlines' : List (List Char) -> List Char
 unlines' [] = []
 unlines' (l::ls) = l ++ '\n' :: unlines' ls
@@ -26,6 +26,6 @@ unlines' (l::ls) = l ++ '\n' :: unlines' ls
 ||| ```idris example
 ||| unlines ["line", "line2", "ln3", "D"]
 ||| ```
-export
+public export
 unlines : List String -> String
 unlines = pack . unlines' . map unpack

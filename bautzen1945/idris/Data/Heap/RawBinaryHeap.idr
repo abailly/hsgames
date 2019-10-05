@@ -8,13 +8,9 @@
 module Data.Heap.RawBinaryHeap
 
 import public Data.Heap
-import Decidable.Order
-
-%access export
-%default total
-%flag C "-O3"
 
 ||| A implementation of a leftist binary tree which is not `Nat`-indexed
+public export
 data BinaryTree : (a : Type) -> Type where
   Empty : BinaryTree a
   Node : (elem : a) -> (rank : Int) -> (left : BinaryTree a) -> (right : BinaryTree a)
@@ -22,7 +18,7 @@ data BinaryTree : (a : Type) -> Type where
 
 rank : BinaryTree a -> Int
 rank Empty = 0
-rank (Node _ rank _ _) = rank
+rank (Node _ rk _ _) = rk
 
 makeNode : (elem : a) -> BinaryTree a -> BinaryTree a -> BinaryTree a
 makeNode elem left right =

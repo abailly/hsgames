@@ -262,6 +262,7 @@ supportCapacity (MkGameUnit _ AntiTank _ _ _ _ _ _ hits combat) = antitank (inde
 supportCapacity (MkGameUnit _ HQ _ _ _ _ _ _ hits combat) = support (index hits combat)
 supportCapacity _ = 0
 
+public export
 supportDistance : (unit : GameUnit) -> Nat
 supportDistance (MkGameUnit _ Artillery _ _ _ _ _ _ hits combat) = distance (index hits combat)
 supportDistance (MkGameUnit _ AntiTank _ _ _ _ _ _ _ _) = 0
