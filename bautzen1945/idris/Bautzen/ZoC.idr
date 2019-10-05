@@ -3,7 +3,7 @@ module Bautzen.ZoC
 import Bautzen.GameUnit
 import Bautzen.Pos
 
-import Data.List.Extra as List
+import Data.List.Extra
 
 import Data.List
 import Data.Vect
@@ -35,7 +35,7 @@ inZocOf pos curSide (unit, location) with (curSide == side (nation unit))
 public export
 inZoC : Side -> List (GameUnit, Pos) -> Pos -> ZoC
 inZoC curSide units pos =
-  case List.find (inZocOf pos curSide) units of
+  case find' (inZocOf pos curSide) units of
     Nothing => Free
     (Just (unit, _)) => InZoC (side $ nation unit)
 
