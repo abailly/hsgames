@@ -12,6 +12,7 @@
 module Data.Heap
 
 ||| Interface to Heap/Priority Queue
+public export
 interface Heap (heap : Type -> Type) where
 
   ||| Create a new, empty `Heap`

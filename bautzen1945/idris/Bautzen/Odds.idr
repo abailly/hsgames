@@ -1,11 +1,11 @@
 ||| Logic for manipulating combat odds
 module Bautzen.Odds
 
+import Prelude.Bound
+import Prelude.Enum
+
 import Data.Fin
 import Data.Nat.DivMod
-
-
-
 
 ||| The raw odds in a combat, basically a glorified pair.
 record RawOdds where
@@ -84,7 +84,8 @@ MinBound Odds where
 MaxBound Odds where
   maxBound = SevenVsOne
 
-implicit toFin : Odds -> Fin 8
+public export
+toFin : Odds -> Fin 8
 toFin OneVsTwo = 0
 toFin OneVsOne = 1
 toFin TwoVsOne = 2

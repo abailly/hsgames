@@ -6,10 +6,10 @@ import public Bautzen.GameUnit
 import Bautzen.Game.Core
 import Bautzen.Pos
 
+import Data.Maybe.Extra
+
 import Data.Fin
-
-
-
+import Data.List
 
 atCommandDistance : Maybe Pos -> (Pos, Nat) -> Bool
 atCommandDistance Nothing y = False
