@@ -11,11 +11,13 @@ import Data.Maybe.Extra
 import Data.Fin
 import Data.List
 
+public export
 atCommandDistance : Maybe Pos -> (Pos, Nat) -> Bool
 atCommandDistance Nothing y = False
 atCommandDistance (Just posUnit) (posHQ, commandDistance) =
   distance posUnit posHQ <= commandDistance
 
+public export
 withinCommandDistance : (unit : GameUnit) -> (hqs : List GameUnit) -> (pos : List (GameUnit, Pos)) -> Bool
 withinCommandDistance unit hqs pos =
   any (atCommandDistance (lookup unit pos)) (catMaybes $ map positionAndDistance hqs)
@@ -27,11 +29,13 @@ withinCommandDistance unit hqs pos =
         _ => Nothing
 
 ||| Find the HQ for a given formation
+public export
 findHQ : GameUnit -> List (GameUnit, Pos) -> List GameUnit
 findHQ unit units = map fst $ filter (flip isHQFor unit . fst) units
 
 
 ||| Check given `unit` is under command of its HQ or a corps/army HQ
+public export
 underCommand : (units : List (GameUnit, Pos)) -> (unit : GameUnit) -> Bool
 underCommand units unit =
   withinCommandDistance unit hqs units

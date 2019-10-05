@@ -9,13 +9,12 @@ import Bautzen.Terrain
 
 import Data.Fin
 
-
-
-
+public export
 newTurn : Game -> Either GameError Event
 newTurn (MkGame _ (MkGameState FZ _ _ _) _) = Right GameEnded
 newTurn (MkGame _ (MkGameState (FS x) _ _ _) _) = Right $ TurnEnded (weaken x)
 
+public export
 nextSegment : Game -> Either GameError Event
 nextSegment (MkGame _ (MkGameState _ _ Supply _) _) = Right (SegmentChanged Supply Move)
 nextSegment (MkGame _ (MkGameState _ _  Move _) _) = Right (SegmentChanged Move (Combat NoCombat))

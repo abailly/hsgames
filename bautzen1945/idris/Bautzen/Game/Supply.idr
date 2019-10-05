@@ -112,6 +112,7 @@ computeShortestPath (S fuel) units gameMap unit costsMap queue =
 ||| free of enemies and ZoCs
 ||| @gameMap the terrain map
 ||| @srcs target supply sources, to trace a path to
+export
 supplyPathTo : (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (srcs : List Pos) -> (from: (GameUnit, Pos)) -> List Pos
 supplyPathTo units gameMap srcs (unit, pos) = supplyPathToAcc startStates
 
@@ -141,6 +142,7 @@ supplyPathTo units gameMap srcs (unit, pos) = supplyPathToAcc startStates
 ||| @unit: the unit to check supply for along with its position
 ||| @units: position of all units on the `map`
 ||| @gameMap: the terrain
+export
 isInSupply : (unit : (GameUnit, Pos)) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> Bool
 isInSupply (unit, pos) units gameMap =
   let sources = supplySources (nation unit) gameMap -- get all possible supply sources for unit

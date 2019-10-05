@@ -8,6 +8,7 @@ import Data.Fin
 import Data.Nat.DivMod
 
 ||| The raw odds in a combat, basically a glorified pair.
+public export
 record RawOdds where
   constructor MkRawOdds
 
@@ -19,10 +20,12 @@ record RawOdds where
   ||| happening
   defenseFactor : Nat
 
+public export
 Semigroup RawOdds where
   (<+>) (MkRawOdds atk def) (MkRawOdds atk' def') = MkRawOdds (atk + atk') (def + def')
 
 ||| The actual odds representing a column in the combat table
+public export
 data Odds : Type where
   OneVsTwo : Odds
   OneVsOne : Odds
@@ -33,6 +36,7 @@ data Odds : Type where
   SixVsOne : Odds
   SevenVsOne : Odds
 
+public export
 Eq Odds where
   OneVsTwo == OneVsTwo = True
   OneVsOne == OneVsOne = True
@@ -44,6 +48,7 @@ Eq Odds where
   SevenVsOne == SevenVsOne = True
   _ == _ = False
 
+public export
 Enum Odds where
   pred OneVsTwo = OneVsTwo
   pred OneVsOne = OneVsTwo
@@ -75,12 +80,15 @@ Enum Odds where
   fromNat Z = OneVsTwo
   fromNat (S k) = succ (fromNat k)
 
+public export
 Ord Odds where
   compare x y = compare (toNat x) (toNat y)
 
+public export
 MinBound Odds where
   minBound = OneVsTwo
 
+public export
 MaxBound Odds where
   maxBound = SevenVsOne
 
@@ -102,6 +110,7 @@ toFin SevenVsOne = 7
 ||| should not happen
 |||
 ||| @odds raw odds to transform into a column
+public export
 odds : (odds: RawOdds) -> Odds
 odds (MkRawOdds attackFactor Z) = maxBound -- by convention, should not happen
 odds (MkRawOdds attackFactor (S def)) with (attackFactor `divMod` def)
@@ -114,6 +123,7 @@ infixl 6 <<<
 |||
 ||| @odds original odds
 ||| @steps number of steps to shift odds
+public export
 (>>>) : (odds : Odds) -> (steps : Nat) -> Odds
 c >>> Z = c
 c >>> (S k) = foldl (const . succ) c [0.. k]
@@ -122,6 +132,7 @@ c >>> (S k) = foldl (const . succ) c [0.. k]
 |||
 ||| @odds original odds
 ||| @steps number of steps to shift odds
+public export
 (<<<) : (odds : Odds) -> (steps : Nat) -> Odds
 c <<< Z = c
 c <<< (S k) = foldl (const . pred) c [0.. k]

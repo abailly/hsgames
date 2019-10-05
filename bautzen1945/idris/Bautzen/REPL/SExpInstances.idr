@@ -11,17 +11,18 @@ import Data.Fin
 import Data.Vect
 
 
-
-
+export
 ToSExp Side where
   toSExp Axis = SSym "Axis"
   toSExp Allies = SSym "Allies"
 
+export
 ToSExp Nation where
   toSExp German = SSym "German"
   toSExp Russian = SSym "Russian"
   toSExp Polish = SSym "Polish"
 
+export
 ToSExp UnitType where
   toSExp Armored = SSym "Armored"
   toSExp HeavyArmored = SSym "HeavyArmored"
@@ -33,6 +34,7 @@ ToSExp UnitType where
   toSExp HQ = SSym "HQ"
   toSExp SupplyColumn = SSym "SupplyColumn"
 
+export
 ToSExp UnitSize where
   toSExp Regiment = SSym "Regiment"
   toSExp Brigade = SSym "Brigade"
@@ -40,21 +42,25 @@ ToSExp UnitSize where
   toSExp Corps = SSym "Corps"
   toSExp Army = SSym "Army"
 
+export
 ToSExp StdFactors where
   toSExp (MkStdFactors attack defense) =
     SList [ toSExp attack
           , toSExp defense
           ]
 
+export
 ToSExp Arty where
   toSExp (MkArty support distance) =
     SList [ toSExp support
           , toSExp distance
           ]
 
+export
 ToSExp Pak where
   toSExp (MkPak antitank) = toSExp antitank
 
+export
 ToSExp GameUnit where
   toSExp (MkGameUnit nation unitType name parent size move currentMP steps hits combat) =
     SList [ SSym ":unit"
@@ -79,15 +85,18 @@ ToSExp GameUnit where
               SupplyColumn  => toSExp combat
           ]
 
+export
 ToSExp Pos where
   toSExp (Hex col row) =
     SList [ toSExp col
           , toSExp row
           ]
 
+export
 ToSExp Cost where
   toSExp = toSExp . toNat
 
+export
 ToSExp GameError where
   toSExp (NoSuchUnits unitNames) = SList [ SSym ":error", SSym "NoSuchUnit", toSExp unitNames ]
   toSExp (NotYourTurn side) = SList [ SSym ":error", SSym "NotYourTurn", toSExp side ]
@@ -107,9 +116,11 @@ ToSExp GameError where
   toSExp (CombatInProgress side) = SList [ SSym ":error", SSym "CombatInProgress", toSExp side ]
   toSExp GameHasEnded = SList [ SSym ":error", SSym "GameHasEnded" ]
 
+export
 ToSExp Losses where
   toSExp (attackerLoss /> defenderLoss) = SList [ toSExp attackerLoss, toSExp defenderLoss ]
 
+export
 ToSExp EngagedUnits where
   toSExp (MkEngagedUnits base tacticalSupport strategicSupport) =
     SList [ SSym ":engaged"
@@ -118,6 +129,7 @@ ToSExp EngagedUnits where
           , SSym ":strategic-support", toSExp strategicSupport
           ]
 
+export
 ToSExp CombatState where
   toSExp (MkCombatState hex attackers defenders losses) =
     SList [ SSym ":combat-state"
@@ -127,6 +139,7 @@ ToSExp CombatState where
           , SSym ":losses", toSExp losses
           ]
 
+export
 ToSExp CombatPhase where
   toSExp NoCombat = SSym "NoCombat"
   toSExp (AssignTacticalSupport side combat) = SList [ SSym "AssignTacticalSupport",  toSExp side, toSExp combat ]
@@ -134,12 +147,14 @@ ToSExp CombatPhase where
   toSExp (ApplyLosses side combat) = SList [ SSym "ApplyLosses",  toSExp side, toSExp combat ]
   toSExp (Resolve combat) = SList [ SSym "Resolve", toSExp combat ]
 
+export
 ToSExp GameSegment where
   toSExp Supply = SSym "Supply"
   toSExp Move = SSym "Move"
   toSExp (Combat phase) = SList [ SSym "Combat", toSExp phase ]
   toSExp GameEnd = SSym "GameEnd"
 
+export
 ToSExp Event where
   toSExp (Moved unit from to cost) =
       SList [ SSym ":moved"
@@ -189,11 +204,12 @@ ToSExp Event where
   toSExp GameEnded =
       SList [ SSym ":game-ended" ]
 
-
+export
 splice : SExp -> SExp -> SExp
 splice first (SList xs) = SList $ first :: xs
 splice first s  = SList [ first, s ]
 
+export
 ToSExp Terrain where
   toSExp Clear = SSym "Clear"
   toSExp Wood = SSym "Wood"
@@ -204,13 +220,19 @@ ToSExp Terrain where
   toSExp Town = SSym "Town"
   toSExp (SupplySource side base) = splice (SList [ SSym "Supply", toSExp side] ) (toSExp base)
 
+export
 ToSExp Connection where
   toSExp Plain = SSym "Plain"
   toSExp (Road base) = splice (SSym "Road") (toSExp base)
   toSExp (River base) = splice (SSym "River") (toSExp base)
   toSExp Lake = SSym "Lake"
 
+export
 ToSExp Map where
   toSExp (MkMap hexes edges) = SList [ SList [ SSym ":hexes", toSExp (tabulate hexes) ]
                                      , SList [ SSym ":edges", toSExp edges ]
                                      ]
+export
+ToSExp QueryError where
+  toSExp (NoSupplyPathFor unitName pos) = SList [ SSym "NoSupplyPathFor", SStr unitName, toSExp pos ]
+  toSExp (UnitDoesNotExist unitName) = SList [ SSym "UnitDoesNotExist", SStr unitName ]

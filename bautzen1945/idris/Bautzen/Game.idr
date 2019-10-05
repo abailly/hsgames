@@ -12,14 +12,12 @@ import public Bautzen.Terrain
 import public Bautzen.Game.Map
 
 import Bautzen.SExp
-import Bautzen.REPL.SExpInstances
+
+import Data.List.Extra
 
 import Data.Fin
 
-
-
-
-
+export
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event
 act (MkGame _ (MkGameState _ side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to
 act (MkGame _ (MkGameState _ side (Combat NoCombat) units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
@@ -65,11 +63,13 @@ applyStepLostEvent :
 applyStepLostEvent lossSide unit newLosses state game@(MkGameState turn side segment units) =
   record { segment = newSegment, units = reduced } game
   where
+    reduced : List (GameUnit, Pos)
     reduced = reduce unit units
 
     newState : CombatState
     newState = record { losses = Just newLosses } state
 
+    newSegment : GameSegment
     newSegment = case newLosses of
                   (Z /> Z) => Combat NoCombat -- combat is completely resolved
                   (Z /> def) => Combat $ ApplyLosses (flipSide side) newState
@@ -78,7 +78,7 @@ applyStepLostEvent lossSide unit newLosses state game@(MkGameState turn side seg
 
 applyEvent : Event -> GameState -> GameState
 applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
-  MkGameState turn side segment (updateMovedUnit unit to (toNat cost) units)
+  MkGameState turn side segment (updateMovedUnit unit to (Terrain.toNat cost) units)
 applyEvent (CombatEngaged atk def tgt) game =
   record { segment = Combat (AssignTacticalSupport (side game)
                      (MkCombatState tgt
@@ -110,20 +110,13 @@ applyEvent (TurnEnded n) game =
 applyEvent GameEnded game =
   record { segment = GameEnd } game
 
+export
 apply : Event -> Game -> Game
 apply event (MkGame events curState gameMap) =
   MkGame (event :: events) (applyEvent event curState) gameMap
 
 
 -- Queries
-
-data QueryError : Type where
-  NoSupplyPathFor : (unitName: String) -> (pos : Pos) -> QueryError
-  UnitDoesNotExist : (unitName: String) -> QueryError
-
-ToSExp QueryError where
-  toSExp (NoSupplyPathFor unitName pos) = SList [ SSym "NoSupplyPathFor", SStr unitName, toSExp pos ]
-  toSExp (UnitDoesNotExist unitName) = SList [ SSym "UnitDoesNotExist", SStr unitName ]
 
 ||| Query interface to retrieve information from a `Game`.
 |||
@@ -153,10 +146,10 @@ data Query : (result : Type) -> Type where
   ||| Retrieve the stage (turn, side, segment) the game is currently at
   GameStage : Query (Fin 6, Side, GameSegment)
 
-covering
+export
 query : (ToSExp result) => (game : Game) -> (qry : Query result) -> result
 query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
-  case find ( \ (u, _) => fullName u == unitName) units of
+  case find' (sameName unitName) units of
     Nothing => Left (UnitDoesNotExist unitName)
     (Just (unit, pos)) =>
       case supplyPathTo units gameMap (supplySources (nation unit) gameMap) (unit, pos) of

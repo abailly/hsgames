@@ -6,21 +6,20 @@ import Bautzen.REPL.SExpParser
 import Bautzen.REPL.SExpInstances
 import Bautzen.SExp
 
+import System.REPL.Extra
+
 import Data.Fin
-import Prelude.Interactive
-
-
-%flag C "-O3"
+import Data.Nat
 
 data CmdREPL : (segment : GameSegment) -> Type where
   Cmd : (cmd : Command segment) -> CmdREPL segment
   Qry : (ToSExp res) => (qry : Query res) -> CmdREPL segment
 
 makePos : (col : Int) -> (row : Int) -> Either String Pos
-makePos col row with (fromIntegerNat (cast col), fromIntegerNat (cast row))
-  | (c , r) with (isLTE c 22, isLTE r 12)
-    | (Yes _, Yes _) = Right $ Hex c r
-    | _              = Left $ "position should be between (0,0) and (22, 12): " ++ show col ++ ", " ++ show row
+makePos col row with (integerToNat (cast col), integerToNat (cast row))
+  makePos col row | (c , r) with (isLTE c 22, isLTE r 12)
+  makePos col row | (c , r)  | (Yes _, Yes _) = Right $ Hex c r
+  makePos col row | (c , r)  | _              = Left $ "position should be between (0,0) and (22, 12): " ++ show col ++ ", " ++ show row
 
 makeMoveCommand : (unitName : String) -> (col : Int) -> (row : Int) -> Either String (Command Move)
 makeMoveCommand unitName col row = MoveTo unitName <$> makePos col row
@@ -41,26 +40,27 @@ makeLoseStepCommand : (unitName : String) -> {side : Side} -> {combatState : Com
 makeLoseStepCommand unitName = pure $ LoseStep unitName
 
 makeCommand : (game : Game) -> SExp -> Either String (CmdREPL (curSegment game))
-makeCommand game (SList [ SSym "move!", SStr unitName, SList [ SInt col, SInt row] ] ) with (curSegment game)
-  | Move = Cmd <$> makeMoveCommand unitName col row
-  | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym "attack!", unitNames, SList [ SInt col, SInt row] ] ) with (curSegment game)
-  | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames col row
-  | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym "support!", unitNames ] ) with (curSegment game)
-  | Combat (AssignTacticalSupport side combatState) = Cmd <$> makeSupportCommand unitNames
-  | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym "resolve!" ] ) with (curSegment game)
-  | Combat (Resolve combatState) = pure $ Cmd (ResolveCombat combatState)
-  | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym "lose-step!", SStr unitName ] ) with (curSegment game)
-  | Combat (ApplyLosses side state) = Cmd <$> makeLoseStepCommand unitName
-  | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym "next!" ] ) = pure $ Cmd NextSegment
-makeCommand game (SList [ SSym "supply-path?", SStr unitName ] ) = Right $ Qry $ SupplyPath unitName
-makeCommand game (SList [ SSym "map?" ] ) = Right $ Qry TerrainMap
-makeCommand game (SList [ SSym "positions?" ] ) = Right $ Qry Positions
-makeCommand game (SList [ SSym "stage?" ] ) = Right $ Qry GameStage
+-- with clause does not match parent ...
+-- makeCommand game (SList [ SSym "move!", SStr unitName, SList [ SInt col, SInt row] ] ) with (curSegment game)
+--   makeCommand game (SList [ SSym "move!", SStr unitName, SList [ SInt col, SInt row] ] ) | Move = Cmd <$> makeMoveCommand unitName col row
+--   makeCommand game (SList [ SSym "move!", SStr unitName, SList [ SInt col, SInt row] ] ) | other = Left $ "Invalid command for segment " ++ show other
+-- makeCommand game (SList [ SSym "attack!", unitNames, SList [ SInt col, SInt row] ] ) with (curSegment game)
+--   makeCommand game (SList [ SSym "attack!", unitNames, SList [ SInt col, SInt row] ] ) | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames col row
+--   makeCommand game (SList [ SSym "attack!", unitNames, SList [ SInt col, SInt row] ] ) | other = Left $ "Invalid command for segment " ++ show other
+-- makeCommand game (SList [ SSym "support!", unitNames ] ) with (curSegment game)
+--   makeCommand game (SList [ SSym "support!", unitNames ] ) | Combat (AssignTacticalSupport side combatState) = Cmd <$> makeSupportCommand unitNames
+--   makeCommand game (SList [ SSym "support!", unitNames ] ) | other = Left $ "Invalid command for segment " ++ show other
+-- makeCommand game (SList [ SSym "resolve!" ] ) with (curSegment game)
+--   makeCommand game (SList [ SSym "resolve!" ] ) | Combat (Resolve combatState) = pure $ Cmd (ResolveCombat combatState)
+--   makeCommand game (SList [ SSym "resolve!" ] ) | other = Left $ "Invalid command for segment " ++ show other
+-- makeCommand game (SList [ SSym "lose-step!", SStr unitName ] ) with (curSegment game)
+--   makeCommand game (SList [ SSym "lose-step!", SStr unitName ] ) | Combat (ApplyLosses side state) = Cmd <$> makeLoseStepCommand unitName
+--   makeCommand game (SList [ SSym "lose-step!", SStr unitName ] ) | other = Left $ "Invalid command for segment " ++ show other
+-- makeCommand game (SList [ SSym "next!" ] ) = pure $ Cmd NextSegment
+-- makeCommand game (SList [ SSym "supply-path?", SStr unitName ] ) = Right $ Qry $ SupplyPath unitName
+-- makeCommand game (SList [ SSym "map?" ] ) = Right $ Qry TerrainMap
+-- makeCommand game (SList [ SSym "positions?" ] ) = Right $ Qry Positions
+-- makeCommand game (SList [ SSym "stage?" ] ) = Right $ Qry GameStage
 makeCommand _ sexp = Left $ "Unknown command " ++ show sexp
 
 partial

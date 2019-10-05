@@ -192,3 +192,8 @@ Show Game where
 public export
 curSegment : Game -> GameSegment
 curSegment (MkGame _ (MkGameState _ _  segment _) _) = segment
+
+public export
+data QueryError : Type where
+  NoSupplyPathFor : (unitName: String) -> (pos : Pos) -> QueryError
+  UnitDoesNotExist : (unitName: String) -> QueryError

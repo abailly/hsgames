@@ -10,12 +10,12 @@ import Bautzen.Odds
 import Bautzen.Pos
 import Bautzen.Terrain
 
+import Data.List.Extra
+import Prelude.Either
+
 import Data.Nat.DivMod
+import Data.List as L
 import Data.Vect as V
-
-
-
-
 
 -- section 8.1
 -- Those are generalities about the combat that cannot be implemented alone
@@ -33,7 +33,10 @@ import Data.Vect as V
 attack : (attackers : List GameUnit) -> (defenders : List GameUnit) -> RawOdds
 attack attackers defenders = MkRawOdds atk def
   where
+    atk : Nat
     atk = sum $ map attackCapacity attackers
+
+    def : Nat
     def = sum $ map defenseCapacity defenders
 
 ||| Update some `odds` with all relevant support factors.
@@ -47,7 +50,10 @@ attack attackers defenders = MkRawOdds atk def
 support : (attackSupport : List GameUnit) -> (defenseSupport : List GameUnit) -> (baseOdds : RawOdds) -> RawOdds
 support attackSupport defenseSupport baseOdds@(MkRawOdds atk def) = baseOdds <+> MkRawOdds atkSupport defSupport
   where
+    atkSupport : Nat
     atkSupport = min atk $ sum (map supportCapacity attackSupport)
+
+    defSupport : Nat
     defSupport = min def $ sum (map supportCapacity defenseSupport)
 
 ||| Given some odds and the result of 6-sided dice, provide combat outcome in the form of
@@ -58,10 +64,10 @@ support attackSupport defenseSupport baseOdds@(MkRawOdds atk def) = baseOdds <+>
 ||| @odds the final odds of the combat
 ||| @modifiedDiceRoll the result of the dice, with modifiers applied
 resolve : (odds : Odds) -> (modifiedDiceRoll : Fin 8) -> Losses
-resolve odds dice = dice `index` (odds `index` CombatTable)
+resolve odds dice = dice `index` (toFin odds `index` CombatTable)
 
 findUnit : String -> { positions : List (GameUnit, Pos) } -> Maybe (GameUnit, Pos)
-findUnit n {positions} = find (\ (u, p) => fullName u == n) positions
+findUnit n {positions} = find' (\ (u, p) => fullName u == n) positions
 
 findUnits : List String -> (positions : List (GameUnit, Pos)) -> Either GameError (List (GameUnit, Pos))
 findUnits names positions =
@@ -74,32 +80,42 @@ findUnits names positions =
                              Nothing => Left n
                              Just up => Right up) names
 
+sameSide : Side -> (GameUnit, Pos) -> Bool
+sameSide curSide (u, _) = side (nation u) == curSide
+
 validateAttackers : (side : Side) -> (units : List (GameUnit, Pos)) -> (gameMap : Map)
                   -> (attackers : List (GameUnit, Pos)) -> (target : Pos)
                   -> Either GameError (List (GameUnit, Pos))
 validateAttackers curSide units gameMap attackers target =
-  if not (all (\ (u, _) => side (nation u) == curSide) attackers)
+  if not (all (sameSide curSide) attackers)
   then Left (NotYourTurn curSide)
   else Right attackers
+
+adjacentTo : Pos -> (GameUnit, Pos) -> Bool
+adjacentTo target (_, p) = distance p target /= 1
 
 checkAttackersAreAdjacentToTarget : (attackers : List (GameUnit, Pos)) -> (target : Pos)
                                   -> Either GameError (List (GameUnit, Pos))
 checkAttackersAreAdjacentToTarget attackers target =
-  case filter (\ (_, p) => distance p target /= 1) attackers of
+  case filter (adjacentTo target) attackers of
     [] => Right attackers
     errs => Left (NotAdjacentTo (map fst errs) target)
+
+samePosition : Pos -> (GameUnit, Pos) -> Bool
+samePosition target (_, p) = p == target
 
 validateDefenders : (side : Side) -> (positions : List (GameUnit, Pos)) -> (gameMap : Map)
                   -> (target : Pos)
                   -> Either GameError (List (GameUnit, Pos))
 validateDefenders attackerSide positions gameMap target =
-  case filter (\ (u, p) => p == target) positions of
+  case filter (samePosition target) positions of
     [] => Left $ NothingToAttack target
-    defenders => if any (\ (u, _) => side (nation u) == attackerSide) defenders
+    defenders => if any (sameSide attackerSide) defenders
                  then Left $ AttackingOwnUnits (map fst defenders) target
                  else Right defenders
 
 ||| Start a combat with given units attacking given hex.
+export
 attackWith : (side : Side) -> (units : List (GameUnit, Pos)) -> (gameMap : Map)
            -> (unitNames : List String) -> (target : Pos)
            -> Either GameError Event
@@ -134,9 +150,12 @@ checkSupportInRange base supporters =
     [] => Right supporters
     xs => Left $ NotInSupportRange (map fst xs)
 
+hasNoHQ : List (GameUnit, Pos) -> (GameUnit, Pos) -> Bool
+hasNoHQ base (u, _) = not (any (isHQFor u) $ map fst base)
+
 checkChainOfCommand : (base : List (GameUnit, Pos)) -> (supporters : List (GameUnit, Pos)) -> Either GameError (List (GameUnit, Pos))
 checkChainOfCommand base supporters =
-  case filter (\ (u, _) => not (any (isHQFor u) $ map fst base)) hqs of
+  case filter (hasNoHQ base) hqs of
     [] => Right supporters
     xs => Left $ NotInChainOfCommand (map fst xs)
   where
@@ -171,6 +190,7 @@ validateSupportUnits currentSide supportedSide (MkCombatState _ atk def _) units
 ||| @gameMap the map
 ||| @unitNames names of units providing support
 ||| @state overall state of the combat
+export
 supportWith : (currentSide : Side) -> (supportSide : Side)
            -> (units : List (GameUnit, Pos)) -> (gameMap : Map)
            -> (unitNames : List String)
@@ -181,18 +201,24 @@ supportWith currentSide supportSide units gameMap unitNames state = do
   pure $ TacticalSupportProvided supportSide supportUnits
 
 -- section 7.2
+isSupportIn : Pos -> (GameUnit, Pos) -> Bool
+isSupportIn hex (u, p) = p == hex &&  unitType u == SupplyColumn
+
 findSupportColumn : (supportSide : Side) -> (hex : Pos) -> (units : List (GameUnit, Pos)) -> Either GameError (GameUnit, Pos)
 findSupportColumn supportSide hex units =
-  case find (\ (u, p) => p == hex &&  unitType u == SupplyColumn) units of
+  case find' (isSupportIn hex) units of
     Nothing => Left (NoSupplyColumnThere hex)
     Just sc => Right sc
 
 --- section 7.2.1
 
+neighboursUnits : Pos -> (GameUnit, Pos) -> Bool
+neighboursUnits hex (u, p) = p == hex || (hex  `elem` neighbours p)
+
 checkSCNeighboursEngagedUnits :
   List (GameUnit, Pos) -> (GameUnit, Pos) -> Either GameError (GameUnit, Pos)
 checkSCNeighboursEngagedUnits base sc@(unit, hex) =
-  if any (\ (u, p) => p == hex || (hex  `elem` neighbours p)) base
+  if any (neighboursUnits hex) base
   then Right sc
   else Left (NotInSupportRange [unit] )
 
@@ -201,7 +227,7 @@ checkSCNeighboursEngagedUnits base sc@(unit, hex) =
 checkSomeUnitsAreInCommand :
   List (GameUnit, Pos) -> List (GameUnit, Pos) -> (GameUnit, Pos) -> Either GameError (GameUnit, Pos)
 checkSomeUnitsAreInCommand base units sc =
-  if any (underCommand units) (map fst base)
+  if any (underCommand units) (map Builtin.fst base)
   then Right sc
   else Left (NotInChainOfCommand [fst sc])
 
@@ -237,6 +263,7 @@ useSupplyColumn currentSide supportSide units gameMap scLocation state = do
   unit <- findSupportColumn supportSide scLocation units >>= validateSupportFromSC currentSide supportSide state units
   pure $ SupplyColumnUsed supportSide scLocation
 
+export
 resolveCombat :
   (currentSide  : Side) -> (combat : CombatState)
   -> Either GameError Event
@@ -255,6 +282,7 @@ doLoseStep side (MkEngagedUnits base _ _) (S k) unitName = do
     Nothing => Left $ NoSuchUnits [ unitName ]
     Just (u,p) => Right (u, k)
 
+export
 loseStep : (currentSide : Side) -> (lossSide : Side) -> (combat : CombatState)
          -> (unitName : String)
          -> Either GameError Event
@@ -343,13 +371,13 @@ namespace CombatTest
   lossState = record { losses = Just (1 /> 0) } CombatTest.combatState
 
   fail_to_lose_step_if_unit_is_not_engaged :
-    loseStep Axis Axis CombatTest.lossState "foo" = Left $ NoSuchUnits ["foo"]
+    loseStep Axis Axis CombatTest.lossState "foo" = Left (NoSuchUnits ["foo"])
   fail_to_lose_step_if_unit_is_not_engaged = Refl
 
   fail_to_lose_step_if_no_steps_to_lose :
-    loseStep Axis Allies CombatTest.lossState "13/5DP" = Left $ NoStepsToLose Allies
+    loseStep Axis Allies CombatTest.lossState "13/5DP" = Left (NoStepsToLose Allies)
   fail_to_lose_step_if_no_steps_to_lose = Refl
 
   lose_steps_returns_step_loss_event :
-    loseStep Axis Axis CombatTest.lossState "21/20Pz" = Right $ StepLost Axis GameUnit.g21_20pz (0 /> 0)
+    loseStep Axis Axis CombatTest.lossState "21/20Pz" = Right (StepLost Axis GameUnit.g21_20pz (0 /> 0))
   lose_steps_returns_step_loss_event = Refl
