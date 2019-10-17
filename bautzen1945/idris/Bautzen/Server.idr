@@ -6,35 +6,40 @@ import Bautzen.Options
 import Bautzen.Game
 import Bautzen.REPL
 
-import Data.String.Extra
+import Data.List.Extra
+import Data.Strings.Extra
 
-
+import Builtin
+import Prelude
+import Data.Nat
+import Data.List
 import Network.Socket
 import Network.Socket.Data
 import Network.Socket.Raw
 import System
-import System.Concurrency.Channels
 
 padWith0 : Nat -> String
 padWith0 k =
   let num = show k
-  in case isLTE (length num) 6 of
-       Yes _ =>  let padding = (pack $ replicate (6 - length num) '0')
+      len = Prelude.length num
+  in case isLTE len 6 of
+       Yes _ =>  let padding = Prelude.pack $ Data.List.Extra.replicate (6 - len) '0'
                  in padding ++ num
        No _ => num
 
 handleClient : Socket -> SocketAddress -> Game -> IO ()
 handleClient socket addr game = do
-  Just channel <- Channels.listen 30
-    | Nothing => do putStrLn ("failed to retrieve channel to parent, giving up") ; close socket
   Right (str, _) <- recv socket 6 -- receive 6 characters representing the length of message to read
     | Left err => do putStrLn ("failed to receive length of message " ++ show err) ; close socket -- TODO error handling
+  putStrLn ("received  " ++ str)
   case parseInteger (unpack str) 0 of
     Nothing => do putStrLn ("Fail to parse " ++ str ++ "to a number") ; close socket -- TODO should raise an error somewhere...
     Just len => do Right (msg, _) <- recv socket (fromInteger len)
                      | Left err => do putStrLn ("failed to read message " ++ show err) ; close socket
+                   putStrLn $ "received  " ++ msg
                    let (res, game') = commandHandler game msg
-                   let lens = padWith0 (Strings.length res)
+                   let lens = padWith0 (length res)
+                   putStrLn $ "sending  " ++ show res
                    send socket (lens ++ res)
                    handleClient socket addr game'
 
@@ -43,12 +48,7 @@ serve : Socket -> IO (Either String ())
 serve sock = do
   Right (s, addr) <- accept sock
     | Left err => pure (Left $ "Failed to accept on socket with error: " ++ show err)
-  Just pid <- spawn (handleClient s addr initialGame)
-    | Nothing => do close s
-                    pure (Left "Failed to spawn process to handle client, giving up ")
-  Just channel <- connect pid
-    | Nothing => do close s
-                    pure (Left "Failed to connect to spawned process, giving up ")
+  pid <- fork (handleClient s addr initialGame)
   serve sock
 
 export

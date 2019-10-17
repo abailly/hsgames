@@ -5,7 +5,7 @@ import Network.Socket.Data
 
 import Data.Strings.Extra
 
-export
+public export
 record Options where
   constructor MkOptions
   ||| The port to listen on for incoming connections
