@@ -147,6 +147,13 @@ data Query : (result : Type) -> Type where
   GameStage : Query (Fin 6, Side, GameSegment)
 
 export
+Show (Query a) where
+  show (SupplyPath u) = "SupplyPath " ++ show u
+  show TerrainMap = "TerrainMap"
+  show Positions = "Positions"
+  show GameStage = "GameStage"
+
+export
 query : (ToSExp result) => (game : Game) -> (qry : Query result) -> result
 query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
   case find' (sameName unitName) units of

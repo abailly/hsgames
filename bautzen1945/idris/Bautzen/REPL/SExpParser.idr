@@ -75,6 +75,7 @@ ident = pred startIdent <+> many (pred validIdent)
     validIdent '_' = True
     validIdent '-' = True
     validIdent '\'' = True
+    validIdent '?' = True
     validIdent x = isAlphaNum x
 
 ideTokens : TokenMap (Token SExpKind)
@@ -161,11 +162,7 @@ identPart
 
 sexp : Rule SExp
 sexp
-    = do symbol ":"; exactIdent "True"
-         pure (SSym "t")
-  <|> do symbol ":"; exactIdent "False"
-         pure (SSym "nil")
-  <|> do i <- fromInteger <$> intLit
+    = do i <- fromInteger <$> intLit
          pure (SInt i)
   <|> do str <- strLit
          pure (SStr str)

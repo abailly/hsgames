@@ -6,13 +6,13 @@ import Bautzen.Options
 import Bautzen.Game
 import Bautzen.REPL
 
-import Data.List.Extra
 import Data.Strings.Extra
 
 import Builtin
 import Prelude
 import Data.Nat
 import Data.List
+import Debug.Trace
 import Network.Socket
 import Network.Socket.Data
 import Network.Socket.Raw
@@ -22,14 +22,16 @@ import System
 padWith0 : Int -> String
 padWith0 k =
   let num = show k
-      len = Prelude.length num
-  in case isLTE len 6 of
-       Yes _ =>  let padding = Prelude.pack $ Data.List.Extra.replicate (6 - len) '0'
-                 in padding ++ num
-       No _ => num
+      len = prim__strLength num
+  in if len < 6
+       then  let padding = Prelude.pack $ replicate (cast $ 6 - len) '0'
+                 res = padding ++ num
+             in res
+       else num
 
 handleClient : Socket -> SocketAddress -> Game -> IO ()
 handleClient socket addr game = do
+  putStrLn $ "waiting for input"
   Right (str, _) <- recv socket 6 -- receive 6 characters representing the length of message to read
     | Left err => do putStrLn ("failed to receive length of message " ++ show err) ; close socket -- TODO error handling
   putStrLn ("received  " ++ str)
@@ -40,8 +42,9 @@ handleClient socket addr game = do
                    putStrLn $ "received  " ++ msg
                    let (res, game') = commandHandler game msg
                    let lens = padWith0 (prim__strLength res)
-                   putStrLn $ "sending  " ++ show res
-                   send socket (lens ++ res)
+                   putStrLn $ "sending " ++ lens ++ " chars"
+                   Right l <- send socket (lens ++ res)
+                     | Left err => do putStrLn ("failed to send message " ++ show err) ; close socket -- TODO error handling
                    handleClient socket addr game'
 
 

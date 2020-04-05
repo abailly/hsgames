@@ -1,5 +1,6 @@
 module Bautzen.REPL
 
+import Debug.Trace
 import Bautzen.Game
 import Bautzen.Options
 import Bautzen.REPL.SExpParser
@@ -80,9 +81,12 @@ commandHandler game command =
   case parseCommand game command of
     Left err => (err, game)
     Right (Cmd cmd) => case act game cmd of
-                         Left err => (show (toSExp err) ++ "\n", game)
-                         Right event => (show (toSExp event) ++ "\n", apply event game)
-    Right (Qry qry) => (show (toSExp $ query game qry) ++ "\n", game)
+                         Left err => (show (toSExp err), game)
+                         Right event => (show (toSExp event), apply event game)
+    Right (Qry qry) =>
+      let qryResult = toSExp $ query game qry
+      in trace ("query " ++ show qry ++ ", result " ++ show qryResult) $ (show qryResult, game)
+
 
 partial
 eoiHandler : Game -> String
