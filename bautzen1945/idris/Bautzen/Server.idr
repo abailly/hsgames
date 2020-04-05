@@ -25,8 +25,7 @@ padWith0 k =
       len = prim__strLength num
   in if len < 6
        then  let padding = Prelude.pack $ replicate (cast $ 6 - len) '0'
-                 res = padding ++ num
-             in res
+             in padding ++ num
        else num
 
 handleClient : Socket -> SocketAddress -> Game -> IO ()
@@ -36,9 +35,9 @@ handleClient socket addr game = do
     | Left err => do putStrLn ("failed to receive length of message " ++ show err) ; close socket -- TODO error handling
   putStrLn ("received  " ++ str)
   case parseInteger (unpack str) 0 of
-    Nothing => do putStrLn ("Fail to parse " ++ str ++ "to a number") ; close socket -- TODO should raise an error somewhere...
+    Nothing => do putStrLn ("fail to parse '" ++ str ++ "' to expected number of characters, ignoring") ; handleClient socket addr game
     Just len => do Right (msg, _) <- recv socket (fromInteger len)
-                     | Left err => do putStrLn ("failed to read message " ++ show err) ; close socket
+                     | Left err => do putStrLn ("failed to read message " ++ show err) ; handleClient socket addr game
                    putStrLn $ "received  " ++ msg
                    let (res, game') = commandHandler game msg
                    let lens = padWith0 (prim__strLength res)
