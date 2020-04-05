@@ -18,7 +18,8 @@ import Network.Socket.Data
 import Network.Socket.Raw
 import System
 
-padWith0 : Nat -> String
+
+padWith0 : Int -> String
 padWith0 k =
   let num = show k
       len = Prelude.length num
@@ -38,7 +39,7 @@ handleClient socket addr game = do
                      | Left err => do putStrLn ("failed to read message " ++ show err) ; close socket
                    putStrLn $ "received  " ++ msg
                    let (res, game') = commandHandler game msg
-                   let lens = padWith0 (length res)
+                   let lens = padWith0 (prim__strLength res)
                    putStrLn $ "sending  " ++ show res
                    send socket (lens ++ res)
                    handleClient socket addr game'
