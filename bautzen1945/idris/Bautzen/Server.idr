@@ -56,7 +56,7 @@ serve sock = do
 
 export
 server : Options -> IO (Either String ())
-server (MkOptions port host) = do
+server (MkOptions port host _) = do
   Right sock <- socket AF_INET Stream 0
         | Left fail => pure (Left $ "Failed to open socket: " ++ show fail)
   res <- bind sock (Just (Hostname host)) port
