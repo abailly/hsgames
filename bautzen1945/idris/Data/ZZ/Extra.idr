@@ -8,7 +8,7 @@ import public Data.ZZ
 ||| Proof that if the absolute value of a number is 0, then this number is 0
 ||| @y: a relative number which we take absolute value of
 public export
-absZIsPosZ : (absZ y = 0) -> (y = Pos 0)
+absZIsPosZ : {y : ZZ } -> (absZ y = 0) -> (y = Pos 0)
 absZIsPosZ {y = (Pos Z)}     Refl = Refl
 absZIsPosZ {y = (Pos (S _))} Refl impossible
 absZIsPosZ {y = (NegS _)}    Refl impossible
@@ -21,13 +21,13 @@ contrapositive = flip (.)
 ||| This is the contrapositive proof to `absZIsPosZ`
 ||| @y: a Relative number which is not 0
 public export
-notPosZIsNotAbsZ : ((y = Pos 0) -> Void) -> ((absZ y = 0) -> Void)
+notPosZIsNotAbsZ : {y : ZZ } -> ((y = Pos 0) -> Void) -> ((absZ y = 0) -> Void)
 notPosZIsNotAbsZ = contrapositive absZIsPosZ
 
 public export
-divNatNZ' : Nat -> (y: Nat) -> Not (y = Z) -> Nat
-divNatNZ' left Z         p = void (p Refl)
-divNatNZ' left (S right) _ = div' left left right
+divNatNZ' : Nat -> (y: Nat) -> { prf : Not (y = Z) } -> Nat
+divNatNZ' left Z         {prf} = void (prf Refl)
+divNatNZ' left (S right) = div' left left right
   where
     div' : Nat -> Nat -> Nat -> Nat
     div' Z        centre right = Z
@@ -47,12 +47,12 @@ divNatNZ' left (S right) _ = div' left left right
 ||| @y: divisor of euclidean division
 ||| @divisorNotZ: a proof the divisor is not null
 public export
-divZZNZ : (x : ZZ) -> (y : ZZ) -> (divisorNotZ : Not (y = Pos Z)) -> ZZ
-divZZNZ x (Pos Z) z = absurd (z Refl)
-divZZNZ x y z with (sign x `multiply` sign y)
-  divZZNZ x y z | Zero = Pos Z
-  divZZNZ x y z | Plus = Pos $ divNatNZ' (absZ x) (absZ y) (notPosZIsNotAbsZ z)
-  divZZNZ x y z | Minus = NegS $ divNatNZ' (absZ x) (absZ y) (notPosZIsNotAbsZ  z)
+divZZNZ : (x : ZZ) -> (y : ZZ) -> {z : Not (y = Pos Z) } -> ZZ
+divZZNZ x (Pos Z) {z} = absurd (z Refl)
+divZZNZ x y {z} with (sign x `multiply` sign y)
+  divZZNZ x y {z} | Zero = Pos Z
+  divZZNZ x y {z} | Plus = Pos $ divNatNZ' (absZ x) (absZ y) { prf = notPosZIsNotAbsZ z }
+  divZZNZ x y {z} | Minus = NegS $ divNatNZ' (absZ x) (absZ y) { prf = notPosZIsNotAbsZ  z }
 
 ||| A strictly Positive `ZZ` is not 0
 public export

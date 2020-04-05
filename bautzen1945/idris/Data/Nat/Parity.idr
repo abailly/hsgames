@@ -73,7 +73,7 @@ evenOrOdd (S k) = case evenOrOdd k of
 
 ||| No nat is both Even and Odd.
 public export
-notEvenAndOdd : Even n -> Odd n -> Void
+notEvenAndOdd : {n : Nat} -> Even n -> Odd n -> Void
 notEvenAndOdd {n = Z} _ (_ ** odd) = absurd odd
 notEvenAndOdd {n = (S k)} (half ** even) (haf ** odd) =
   notEvenAndOdd {n = k}

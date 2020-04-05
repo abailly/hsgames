@@ -69,7 +69,7 @@ posToCube : Pos -> Cube
 posToCube (Hex col row) =
   let x = cast col
       sign = if odd col then 1 else 0
-      z = cast row - divZZNZ (x - sign) 2 PosSIsNotZ
+      z = cast row - divZZNZ (x - sign) 2 {z = PosSIsNotZ }
   in MkCube x z
 
 public export
