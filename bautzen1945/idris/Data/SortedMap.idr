@@ -1,7 +1,5 @@
 module Data.SortedMap
 
-import Prelude.Extra
-
 import Data.Nat
 
 -- TODO: write split
