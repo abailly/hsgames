@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 23aeab7ff9483d844950dd8e42f3ad1af57818a33603af87f78b2c43329b6a23
+-- hash: 8ffac1ff3774325d0496f879477d193bf29836a30bbed82da4d135257c5e5663
 
 name:           game-server
 version:        0.1.0.0
@@ -36,7 +36,7 @@ library
       Paths_game_server
   hs-source-dirs:
       src
-  default-extensions: NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric NamedFieldPuns OverloadedStrings RecordWildCards
   build-depends:
       aeson
     , async
@@ -69,7 +69,7 @@ executable game-server-exe
       Paths_game_server
   hs-source-dirs:
       app
-  default-extensions: NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric NamedFieldPuns OverloadedStrings RecordWildCards
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
@@ -108,7 +108,7 @@ test-suite game-server-test
       Paths_game_server
   hs-source-dirs:
       test
-  default-extensions: NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric NamedFieldPuns OverloadedStrings RecordWildCards
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson

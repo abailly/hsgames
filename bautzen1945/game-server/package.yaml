@@ -20,6 +20,8 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/githubuser/game-server#readme>
 
 default-extensions:
+- DeriveAnyClass
+- DeriveGeneric
 - NamedFieldPuns
 - OverloadedStrings
 - RecordWildCards
