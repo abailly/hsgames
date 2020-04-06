@@ -76,4 +76,5 @@ tests:
     - game-server
     - hspec
     - hspec-discover
+    - hspec-wai
     - http-conduit

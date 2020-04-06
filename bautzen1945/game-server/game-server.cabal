@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2df656da6147d83c1bd83db47bd74e9d2f463124478394a932c46165396d8110
+-- hash: 23aeab7ff9483d844950dd8e42f3ad1af57818a33603af87f78b2c43329b6a23
 
 name:           game-server
 version:        0.1.0.0
@@ -102,6 +102,7 @@ test-suite game-server-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      GameServer.AppSpec
       GameServer.WSSpec
       GameServerSpec
       Paths_game_server
@@ -121,6 +122,7 @@ test-suite game-server-test
     , game-server
     , hspec
     , hspec-discover
+    , hspec-wai
     , http-conduit
     , http-types
     , mtl
