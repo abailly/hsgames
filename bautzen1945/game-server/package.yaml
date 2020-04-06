@@ -1,0 +1,79 @@
+name:                game-server
+version:             0.1.0.0
+github:              "githubuser/game-server"
+license:             BSD3
+author:              "Author name here"
+maintainer:          "example@example.com"
+copyright:           "2020 Author name here"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/githubuser/game-server#readme>
+
+default-extensions:
+- NamedFieldPuns
+- OverloadedStrings
+- RecordWildCards
+
+dependencies:
+- aeson
+- async
+- base
+- bytestring
+- data-default
+- directory
+- fast-logger
+- filepath
+- http-types
+- mtl
+- network
+- servant
+- servant-server
+- stm
+- text
+- time
+- unagi-chan
+- unix
+- wai
+- wai-extra
+- wai-app-static
+- warp
+- websockets
+
+
+library:
+  source-dirs: src
+
+executables:
+  game-server-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - game-server
+
+tests:
+  game-server-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - game-server
+    - hspec
+    - hspec-discover
+    - http-conduit

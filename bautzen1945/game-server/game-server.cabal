@@ -1,0 +1,140 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 2df656da6147d83c1bd83db47bd74e9d2f463124478394a932c46165396d8110
+
+name:           game-server
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/githubuser/game-server#readme>
+homepage:       https://github.com/githubuser/game-server#readme
+bug-reports:    https://github.com/githubuser/game-server/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2020 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/game-server
+
+library
+  exposed-modules:
+      GameServer
+      GameServer.App
+      GameServer.Log
+      GameServer.Types
+      Lib
+  other-modules:
+      Paths_game_server
+  hs-source-dirs:
+      src
+  default-extensions: NamedFieldPuns OverloadedStrings RecordWildCards
+  build-depends:
+      aeson
+    , async
+    , base
+    , bytestring
+    , data-default
+    , directory
+    , fast-logger
+    , filepath
+    , http-types
+    , mtl
+    , network
+    , servant
+    , servant-server
+    , stm
+    , text
+    , time
+    , unagi-chan
+    , unix
+    , wai
+    , wai-app-static
+    , wai-extra
+    , warp
+    , websockets
+  default-language: Haskell2010
+
+executable game-server-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_game_server
+  hs-source-dirs:
+      app
+  default-extensions: NamedFieldPuns OverloadedStrings RecordWildCards
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , async
+    , base
+    , bytestring
+    , data-default
+    , directory
+    , fast-logger
+    , filepath
+    , game-server
+    , http-types
+    , mtl
+    , network
+    , servant
+    , servant-server
+    , stm
+    , text
+    , time
+    , unagi-chan
+    , unix
+    , wai
+    , wai-app-static
+    , wai-extra
+    , warp
+    , websockets
+  default-language: Haskell2010
+
+test-suite game-server-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      GameServer.WSSpec
+      GameServerSpec
+      Paths_game_server
+  hs-source-dirs:
+      test
+  default-extensions: NamedFieldPuns OverloadedStrings RecordWildCards
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      aeson
+    , async
+    , base
+    , bytestring
+    , data-default
+    , directory
+    , fast-logger
+    , filepath
+    , game-server
+    , hspec
+    , hspec-discover
+    , http-conduit
+    , http-types
+    , mtl
+    , network
+    , servant
+    , servant-server
+    , stm
+    , text
+    , time
+    , unagi-chan
+    , unix
+    , wai
+    , wai-app-static
+    , wai-extra
+    , warp
+    , websockets
+  default-language: Haskell2010
