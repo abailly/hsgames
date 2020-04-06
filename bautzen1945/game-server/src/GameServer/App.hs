@@ -14,10 +14,17 @@ data GameState
 instance Semigroup GameState
 instance Monoid GameState
 
-type API = Raw
+data Game = Game
+
+type API = "games" :> Get '[JSON] [Game]
+           :<|> Raw
 
 api :: Proxy API
 api = Proxy
 
 runApp :: LoggerEnv IO -> TVar GameState -> Application -> Application
-runApp _logger _state statics = serve api (Tagged statics)
+runApp _logger _state statics = serve api handlers
+  where
+    handlers = listGames :<|> Tagged statics
+
+    listGames = pure []
