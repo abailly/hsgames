@@ -3,8 +3,7 @@ module Bautzen.Client
 
 import Bautzen.Options
 
-import Bautzen.Game
-import Bautzen.REPL
+import Bautzen.Network
 
 import Data.Strings.Extra
 
@@ -17,57 +16,50 @@ import Network.Socket
 import Network.Socket.Data
 import Network.Socket.Raw
 import System
+import System.File
 
+sendCommand : Socket -> SExp -> IO (Either String String)
+sendCommand socket command = do
+  let cmd = toWire command
+  Right l <- send socket cmd
+    | Left err => pure $ Left ("failed to send message " ++ show err)
+  Right (str, _) <- recv socket 6
+    | Left err => pure $ Left ("failed to receive length of message " ++ show err)
+  case parseInteger (unpack str) 0 of
+    Nothing => pure $ Left ("fail to parse '" ++ str ++ "' to expected number of characters, ignoring")
+    Just len => do Right (msg, _) <- recv socket (fromInteger len)
+                     | Left err => pure $ Left ("failed to read message " ++ show err)
+                   pure (Right msg)
 
--- padWith0 : Int -> String
--- padWith0 k =
---   let num = show k
---       len = prim__strLength num
---   in if len < 6
---        then  let padding = Prelude.pack $ replicate (cast $ 6 - len) '0'
---              in padding ++ num
---        else num
+export
+openConnection : (host:String) -> (port: Int) -> IO (Either String Socket)
+openConnection host port = do
+  Right sock <- socket AF_INET Stream 0
+        | Left fail => pure (Left $ "Failed to open socket: " ++ show fail)
+  res <- connect sock (Hostname host) port
+  if res /= 0
+    then pure (Left $ "Failed to connect socket with error: " ++ show res)
+    else pure (Right sock)
 
--- handleClient : Socket -> SocketAddress -> Game -> IO ()
--- handleClient socket addr game = do
---   putStrLn $ "waiting for input"
---   Right (str, _) <- recv socket 6 -- receive 6 characters representing the length of message to read
---     | Left err => do putStrLn ("failed to receive length of message " ++ show err) ; close socket -- TODO error handling
---   putStrLn ("received  " ++ str)
---   case parseInteger (unpack str) 0 of
---     Nothing => do putStrLn ("fail to parse '" ++ str ++ "' to expected number of characters, ignoring") ; handleClient socket addr game
---     Just len => do Right (msg, _) <- recv socket (fromInteger len)
---                      | Left err => do putStrLn ("failed to read message " ++ show err) ; handleClient socket addr game
---                    putStrLn $ "received  " ++ msg
---                    let (res, game') = commandHandler game msg
---                    let lens = padWith0 (prim__strLength res)
---                    putStrLn $ "sending " ++ lens ++ " chars"
---                    Right l <- send socket (lens ++ res)
---                      | Left err => do putStrLn ("failed to send message " ++ show err) ; close socket -- TODO error handling
---                    handleClient socket addr game'
-
-
--- serve : Socket -> IO (Either String ())
--- serve sock = do
---   Right (s, addr) <- accept sock
---     | Left err => pure (Left $ "Failed to accept on socket with error: " ++ show err)
---   pid <- fork (handleClient s addr initialGame)
---   serve sock
-
--- export
--- server : Options -> IO (Either String ())
--- server (MkOptions port host) = do
---   Right sock <- socket AF_INET Stream 0
---         | Left fail => pure (Left $ "Failed to open socket: " ++ show fail)
---   res <- bind sock (Just (Hostname host)) port
---   if res /= 0
---     then pure (Left $ "Failed to bind socket with error: " ++ show res)
---     else do
---       res <- listen sock
---       if res /= 0
---         then pure (Left $ "Failed to listen on socket with error: " ++ show res)
---         else serve sock
+runREPL : Socket -> IO ()
+runREPL sock =
+  do putStr "> "
+     eof <- fEOF stdin
+     if eof
+       then pure ()
+       else do x <- getLine
+               case parseSExp x of
+                    Right out =>
+                        do Right result <- sendCommand sock out
+                                 | Left err => do putStrLn ("Error sending command: " ++ err) ; runREPL sock
+                           putStrLn result
+                           runREPL sock
+                    Left err => do putStrLn ("Invalid command: " ++ err) ; runREPL sock
 
 export
 client : Options -> IO (Either String ())
-client (MkOptions port host _)  = pure $ Left "Not implemented"
+client (MkOptions port host _)  = do
+  Right cnx <- openConnection host port
+        | Left err => pure (Left err)
+  runREPL cnx
+  pure (Right ())

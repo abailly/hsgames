@@ -4,6 +4,7 @@ module Bautzen.Server
 import Bautzen.Options
 
 import Bautzen.Game
+import Bautzen.Network
 import Bautzen.REPL
 
 import Data.Strings.Extra
@@ -17,16 +18,6 @@ import Network.Socket
 import Network.Socket.Data
 import Network.Socket.Raw
 import System
-
-
-padWith0 : Int -> String
-padWith0 k =
-  let num = show k
-      len = prim__strLength num
-  in if len < 6
-       then  let padding = Prelude.pack $ replicate (cast $ 6 - len) '0'
-             in padding ++ num
-       else num
 
 handleClient : Socket -> SocketAddress -> Game -> IO ()
 handleClient socket addr game = do

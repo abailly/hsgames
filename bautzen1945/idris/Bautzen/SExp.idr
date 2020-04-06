@@ -82,7 +82,7 @@ Show SExp where
       showList [x] = show x
       showList (x :: xs) = show x ++ " " ++ showList xs
   show (SStr x)   = show x
-  show (SSym x)   = x
+  show (SSym x)   = ":" ++ x
   show (SInt x)   = show x
 
 export
