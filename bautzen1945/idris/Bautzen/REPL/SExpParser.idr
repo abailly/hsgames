@@ -76,6 +76,7 @@ ident = pred startIdent <+> many (pred validIdent)
     validIdent '-' = True
     validIdent '\'' = True
     validIdent '?' = True
+    validIdent '!' = True
     validIdent x = isAlphaNum x
 
 ideTokens : TokenMap (Token SExpKind)
