@@ -7,7 +7,7 @@ module GameServer.App
 
 import Control.Concurrent.STM (TVar)
 import Control.Monad.Trans (lift)
-import Data.Aeson (FromJSON, ToJSON)
+import Data.Aeson (encode, FromJSON, ToJSON)
 import Data.Text (Text)
 import GameServer.Log (LoggerEnv)
 import GHC.Generics
@@ -29,11 +29,12 @@ api :: Proxy API
 api = Proxy
 
 runApp :: LoggerEnv IO -> GameState -> Application -> Application
-runApp _logger state statics = serve api ((listGames :<|> createGameH) :<|> Tagged statics)
+runApp _logger state statics = serve api ((listGamesH :<|> createGameH) :<|> Tagged statics)
   where
-    listGames = pure []
+    listGamesH = withState state listGames
 
     createGameH game = do
       result <- withState state (createGame game)
       case result of
         GameCreated{gameId} -> pure $ addHeader ("/games" </> ungameId gameId) NoContent
+        d -> throwError err400 { errBody = encode (GameError d) }

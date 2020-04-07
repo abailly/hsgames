@@ -23,6 +23,7 @@ default-extensions:
 - DeriveAnyClass
 - DeriveGeneric
 - DerivingStrategies
+- FlexibleContexts
 - NamedFieldPuns
 - OverloadedStrings
 - RecordWildCards
