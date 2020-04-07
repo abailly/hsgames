@@ -27,7 +27,7 @@ aPlayer :: Player
 aPlayer = Player { playerName = "Alice" }
 
 anEmptyGame :: Game
-anEmptyGame = Game "mygame" []
+anEmptyGame = Game Bautzen1945 []
 
 anotherEmptyGame :: Game
-anotherEmptyGame = Game "othergame" []
+anotherEmptyGame = Game Acquire []

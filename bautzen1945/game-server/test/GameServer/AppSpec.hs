@@ -56,12 +56,6 @@ spec =
       postJSON "/games" anotherEmptyGame
         `shouldRespondWith` ResponseMatcher 201 (locationDifferentFrom location) ""
 
-    it "on POST /games returns 400 given game name already exists" $ do
-      postJSON "/games" (anEmptyGame)
-
-      postJSON "/games" (anEmptyGame)
-        `shouldRespondWith` 400
-
     it "on GET /games/<gameId> returns created game started" $ do
       gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" anEmptyGame
 
@@ -104,12 +98,12 @@ spec =
       "Alice" `joinsGame` gameId
         `shouldRespondWith` 400
 
-    -- it "on PUT /games/<id>/players returns 303 with Location header given player fills the game" $ do
-    --   postJSON "/players" aPlayer
-    --   gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
+    it "on PUT /games/<id>/players returns 303 with Location header given player fills the game" $ do
+      postJSON "/players" aPlayer
+      gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
 
-    --   putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName "Alice")
-    --     `shouldRespondWith` 200
+      putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName "Alice")
+        `shouldRespondWith` 200
 
 
 joinsGame :: Text -> Text -> WaiSession () SResponse
