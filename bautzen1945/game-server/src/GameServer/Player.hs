@@ -1,9 +1,8 @@
-module GameServer.Game where
+module GameServer.Player where
 
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Text (Text, pack)
 import GHC.Generics
-import System.Random (StdGen, randomRs)
 
-data Game = Game { gameName :: Text }
+data Player = Player { playerName :: Text }
   deriving (Eq, Show, Generic, ToJSON, FromJSON)

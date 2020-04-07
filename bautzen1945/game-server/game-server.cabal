@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 311af4ae8ed8480963401d77672faca37204d69692e0be433212e79c2a304b72
+-- hash: e19b20de61319d56a28d44e9f4b6257d29e0abcafde53c3f64c9685d67b6d9ab
 
 name:           game-server
 version:        0.1.0.0
@@ -31,6 +31,7 @@ library
       GameServer.App
       GameServer.Game
       GameServer.Log
+      GameServer.Player
       GameServer.State
       GameServer.Types
       GameServer.Utils
