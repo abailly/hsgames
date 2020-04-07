@@ -12,22 +12,22 @@ The purpose of the server is twofold:
 -}
 module GameServer where
 
-import           Control.Concurrent.Async
-import           Control.Concurrent.STM.TVar
-import           Data.Aeson                                (Value, decode,
-                                                            object, (.=))
-import           Data.ByteString.Lazy                      (fromStrict)
-import           Data.Default
-import           Data.Text                                 (Text)
-import           GameServer.Log
+import Control.Concurrent.Async
+import Control.Concurrent.STM.TVar
+import Data.Aeson (Value, decode, object, (.=))
+import Data.ByteString.Lazy (fromStrict)
+import Data.Default
+import Data.Text (Text)
 import GameServer.App
-import           GameServer.Types
-import           Network.Wai
-import           Network.Wai.Application.Static
-import           Network.Wai.Handler.Warp                  as Warp
-import           Network.Wai.Middleware.RequestLogger
-import           Network.Wai.Middleware.RequestLogger.JSON
-import           System.Log.FastLogger                     (fromLogStr)
+import GameServer.Log
+import GameServer.Types
+import Network.Wai
+import Network.Wai.Application.Static
+import Network.Wai.Handler.Warp as Warp
+import Network.Wai.Middleware.RequestLogger
+import Network.Wai.Middleware.RequestLogger.JSON
+import System.Log.FastLogger (fromLogStr)
+import System.Random
 
 -- |Starts HTTP server on given port.
 --
@@ -36,7 +36,8 @@ import           System.Log.FastLogger                     (fromLogStr)
 -- exposes a WebSocket-based REPL under `/repl` path.
 startServer :: Int -> IO Server
 startServer serverPort = do
-  envs <- newTVarIO mempty
+  seed <- getStdGen
+  envs <- newTVarIO (initialState seed)
   logger <- newLog "minilang"
   loggerMiddleware <- runHTTPLog logger
   let app = loggerMiddleware $ runApp logger envs staticResources

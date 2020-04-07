@@ -1,31 +1,39 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE TypeOperators #-}
-module GameServer.App where
+module GameServer.App
+  ( module GameServer.Game
+  , initialState, runApp
+  ) where
 
 import Control.Concurrent.STM (TVar)
 import Control.Monad.Trans (lift)
 import Data.Aeson (FromJSON, ToJSON)
+import Data.Text (Text)
 import GameServer.Log (LoggerEnv)
 import GHC.Generics
 import Network.Wai (Application)
 import Servant
 import Servant.Server
+import System.Random
 
-data GameState
+import GameServer.Game
+import GameServer.Utils
+import GameServer.State
 
-instance Semigroup GameState
-instance Monoid GameState
-
-data Game = Game
-  deriving (Eq, Show, Generic, ToJSON, FromJSON)
-
-type API = "games" :> Get '[JSON] [Game]
+type API = "games" :> ( Get '[JSON] [Game]
+                      :<|> ReqBody '[JSON] Game :> PostCreated '[ JSON] (Headers '[Header "Location" Text] NoContent)
+                      )
            :<|> Raw
 
 api :: Proxy API
 api = Proxy
 
-runApp :: LoggerEnv IO -> TVar GameState -> Application -> Application
-runApp _logger _state statics = serve api (listGames :<|> Tagged statics)
+runApp :: LoggerEnv IO -> GameState -> Application -> Application
+runApp _logger state statics = serve api ((listGames :<|> createGameH) :<|> Tagged statics)
   where
     listGames = pure []
+
+    createGameH game = do
+      result <- withState state (createGame game)
+      case result of
+        GameCreated{gameId} -> pure $ addHeader ("/games" </> ungameId gameId) NoContent

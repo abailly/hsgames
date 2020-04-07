@@ -22,6 +22,7 @@ description:         Please see the README on GitHub at <https://github.com/gith
 default-extensions:
 - DeriveAnyClass
 - DeriveGeneric
+- DerivingStrategies
 - NamedFieldPuns
 - OverloadedStrings
 - RecordWildCards
@@ -31,6 +32,7 @@ dependencies:
 - async
 - base
 - bytestring
+- containers
 - data-default
 - directory
 - fast-logger
@@ -38,6 +40,7 @@ dependencies:
 - http-types
 - mtl
 - network
+- random
 - servant
 - servant-server
 - stm

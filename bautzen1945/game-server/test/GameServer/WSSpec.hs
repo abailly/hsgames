@@ -7,9 +7,6 @@ import           Control.Concurrent.STM.TVar
 import           Control.Exception           (bracket)
 import           Control.Monad               (forM)
 import           Data.Aeson                  (eitherDecode, encode)
-import           GameServer.Types
-import           GameServer.App (runApp)
-import           GameServer.Log
 import           Network.HTTP.Types          (status400)
 import           Network.Wai                 (responseLBS)
 import           Network.Wai.Handler.Warp    as Warp
@@ -21,10 +18,15 @@ import           System.IO                   (hClose)
 import           System.Posix.Temp           (mkstemp)
 import           Test.Hspec
 
+import           GameServer.Types
+import           GameServer.App (runApp, initialState)
+import           GameServer.Log
+import GameServer.Builder
+
 startServer :: IO Server
 startServer = do
   (port, socket) <- openFreePort
-  envs <- newTVarIO mempty
+  envs <- newTVarIO $ initialState testSeed
   logger <- newLog "test"
   let app = runApp logger envs (\ _ resp -> resp $ responseLBS status400 [] "Not a WebSocket request")
       settings = setGracefulShutdownTimeout (Just 0) defaultSettings

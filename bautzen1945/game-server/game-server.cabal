@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8ffac1ff3774325d0496f879477d193bf29836a30bbed82da4d135257c5e5663
+-- hash: 89596bcc443703622860a0570dff1ad66693ebc61c7c0ba93d204b3ec306e7ed
 
 name:           game-server
 version:        0.1.0.0
@@ -29,19 +29,23 @@ library
   exposed-modules:
       GameServer
       GameServer.App
+      GameServer.Game
       GameServer.Log
+      GameServer.State
       GameServer.Types
+      GameServer.Utils
       Lib
   other-modules:
       Paths_game_server
   hs-source-dirs:
       src
-  default-extensions: DeriveAnyClass DeriveGeneric NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies NamedFieldPuns OverloadedStrings RecordWildCards
   build-depends:
       aeson
     , async
     , base
     , bytestring
+    , containers
     , data-default
     , directory
     , fast-logger
@@ -49,6 +53,7 @@ library
     , http-types
     , mtl
     , network
+    , random
     , servant
     , servant-server
     , stm
@@ -69,13 +74,14 @@ executable game-server-exe
       Paths_game_server
   hs-source-dirs:
       app
-  default-extensions: DeriveAnyClass DeriveGeneric NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies NamedFieldPuns OverloadedStrings RecordWildCards
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , async
     , base
     , bytestring
+    , containers
     , data-default
     , directory
     , fast-logger
@@ -84,6 +90,7 @@ executable game-server-exe
     , http-types
     , mtl
     , network
+    , random
     , servant
     , servant-server
     , stm
@@ -103,18 +110,20 @@ test-suite game-server-test
   main-is: Spec.hs
   other-modules:
       GameServer.AppSpec
+      GameServer.Builder
       GameServer.WSSpec
       GameServerSpec
       Paths_game_server
   hs-source-dirs:
       test
-  default-extensions: DeriveAnyClass DeriveGeneric NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies NamedFieldPuns OverloadedStrings RecordWildCards
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , async
     , base
     , bytestring
+    , containers
     , data-default
     , directory
     , fast-logger
@@ -127,6 +136,7 @@ test-suite game-server-test
     , http-types
     , mtl
     , network
+    , random
     , servant
     , servant-server
     , stm
