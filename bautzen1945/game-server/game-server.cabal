@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: e19b20de61319d56a28d44e9f4b6257d29e0abcafde53c3f64c9685d67b6d9ab
+-- hash: 4e2981f84e49a3c33a1304d08da37c91f3335a0f1d4510268136ac971abf82d6
 
 name:           game-server
 version:        0.1.0.0
@@ -40,7 +40,7 @@ library
       Paths_game_server
   hs-source-dirs:
       src
-  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies FlexibleContexts NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts NamedFieldPuns OverloadedStrings RecordWildCards
   build-depends:
       aeson
     , async
@@ -75,7 +75,7 @@ executable game-server-exe
       Paths_game_server
   hs-source-dirs:
       app
-  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies FlexibleContexts NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts NamedFieldPuns OverloadedStrings RecordWildCards
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
@@ -117,7 +117,7 @@ test-suite game-server-test
       Paths_game_server
   hs-source-dirs:
       test
-  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies FlexibleContexts NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts NamedFieldPuns OverloadedStrings RecordWildCards
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson

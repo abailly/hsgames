@@ -23,6 +23,8 @@ default-extensions:
 - DeriveAnyClass
 - DeriveGeneric
 - DerivingStrategies
+- DuplicateRecordFields
+- DisambiguateRecordFields
 - FlexibleContexts
 - NamedFieldPuns
 - OverloadedStrings

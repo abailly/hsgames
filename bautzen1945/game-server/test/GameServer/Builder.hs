@@ -20,5 +20,14 @@ testSeed = mkStdGen 42
 postJSON :: (A.ToJSON a) => ByteString -> a -> WaiSession () SResponse
 postJSON path payload = request "POST" path [("Content-type", "application/json")] (A.encode payload)
 
+putJSON :: (A.ToJSON a) => ByteString -> a -> WaiSession () SResponse
+putJSON path payload = request "PUT" path [("Content-type", "application/json")] (A.encode payload)
+
 aPlayer :: Player
 aPlayer = Player { playerName = "Alice" }
+
+anEmptyGame :: Game
+anEmptyGame = Game "mygame" []
+
+anotherEmptyGame :: Game
+anotherEmptyGame = Game "othergame" []

@@ -6,3 +6,6 @@ import GHC.Generics
 
 data Player = Player { playerName :: Text }
   deriving (Eq, Show, Generic, ToJSON, FromJSON)
+
+data PlayerName = PlayerName { pName :: Text }
+  deriving (Eq, Show, Generic, ToJSON, FromJSON)
