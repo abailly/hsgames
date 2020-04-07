@@ -40,6 +40,7 @@ data Event = GameCreated { gameId :: Id }
            | PlayerAlreadyJoinedGame { gameId :: Id, playerName :: Text }
            | PlayerRegistered { registeredName :: Text }
            | DuplicatePlayer { duplicateName :: Text }
+           | PlayerDoesNotExist { playerName :: Text }
            | UnknownGame { gameId :: Id }
   deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
@@ -64,13 +65,13 @@ applyCommand JoinGame{gameId,pName} = do
   gs <- get
   case Map.lookup gameId (games gs) of
     Nothing -> pure $ Left $ GameError $ UnknownGame gameId
-    Just game -> do
-      if pName `elem` gamePlayers game
-        then  pure $ Left $ GameError $ PlayerAlreadyJoinedGame gameId pName
-        else do
-        let game' = game { gamePlayers = pName : gamePlayers game }
-        put (gs { games = Map.insert gameId game' (games gs) })
-        pure $ Right $ PlayerJoined gameId pName
+    Just game -> if
+      | pName `elem` gamePlayers game -> pure $ Left $ GameError $ PlayerAlreadyJoinedGame gameId pName
+      | Map.lookup pName (players gs) == Nothing -> pure $ Left $ GameError $ PlayerDoesNotExist pName
+      | otherwise -> do
+          let game' = game { gamePlayers = pName : gamePlayers game }
+          put (gs { games = Map.insert gameId game' (games gs) })
+          pure $ Right $ PlayerJoined gameId pName
 
 
 createGame :: Game -> State Games Event

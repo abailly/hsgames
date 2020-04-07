@@ -86,17 +86,31 @@ spec =
       postJSON "/players" aPlayer
       gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
 
-      putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName "alice")
+      putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName "Alice")
         `shouldRespondWith` 200
 
     it "on PUT /games/<id>/players returns 400 given player already joined game" $ do
       postJSON "/players" aPlayer
       gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
 
-      "alice" `joinsGame` gameId
+      "Alice" `joinsGame` gameId
 
-      "alice" `joinsGame` gameId
+      "Alice" `joinsGame` gameId
         `shouldRespondWith` 400
+
+    it "on PUT /games/<id>/players returns 400 given player is not registered" $ do
+      gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
+
+      "Alice" `joinsGame` gameId
+        `shouldRespondWith` 400
+
+    -- it "on PUT /games/<id>/players returns 303 with Location header given player fills the game" $ do
+    --   postJSON "/players" aPlayer
+    --   gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
+
+    --   putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName "Alice")
+    --     `shouldRespondWith` 200
+
 
 joinsGame :: Text -> Text -> WaiSession () SResponse
 joinsGame pName gameId = putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName pName)
