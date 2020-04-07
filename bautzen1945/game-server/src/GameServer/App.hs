@@ -24,6 +24,7 @@ import GameServer.State
 
 type API = "games" :> ( Get '[JSON] [Game]
                       :<|> ReqBody '[JSON] Game :> PostCreated '[ JSON] (Headers '[Header "Location" Text] NoContent)
+                      :<|> Capture "gameId" Id :> Get '[JSON] Game
                       :<|> Capture "gameId" Id :> "players" :> ReqBody '[JSON] PlayerName :> Put '[JSON] NoContent
                       )
            :<|> "players" :> ( Get '[JSON] [Player]
@@ -35,7 +36,7 @@ api :: Proxy API
 api = Proxy
 
 runApp :: LoggerEnv IO -> GameState -> Application -> Application
-runApp _logger state statics = serve api ((listGamesH :<|> createGameH :<|> joinPlayerH) :<|> (listPlayersH :<|> registerPlayerH) :<|> Tagged statics)
+runApp _logger state statics = serve api ((listGamesH :<|> createGameH :<|> lookupGameH :<|> joinPlayerH) :<|> (listPlayersH :<|> registerPlayerH) :<|> Tagged statics)
   where
     listGamesH = withState state listGames
 
@@ -44,6 +45,11 @@ runApp _logger state statics = serve api ((listGamesH :<|> createGameH :<|> join
       case result of
         GameCreated{gameId} -> pure $ addHeader ("/games" </> unId gameId) NoContent
         d -> throwError err400 { errBody = encode (GameError d) }
+
+    lookupGameH gameId = do
+      result <- withState state (lookupGame gameId)
+      maybe (throwError err404) pure result
+
 
     joinPlayerH gameId PlayerName{pName} = do
       result <- withState state (applyCommand (JoinGame gameId pName))

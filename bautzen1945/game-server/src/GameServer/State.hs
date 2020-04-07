@@ -51,6 +51,9 @@ newtype GameError = GameError { reason :: Event }
 listGames :: State Games [Game]
 listGames = Map.elems <$> gets games
 
+lookupGame :: Id -> State Games (Maybe Game)
+lookupGame gameId  = Map.lookup gameId  <$> gets games
+
 listPlayers :: State Games [Player]
 listPlayers = Map.elems <$> gets players
 

@@ -62,6 +62,12 @@ spec =
       postJSON "/games" (anEmptyGame)
         `shouldRespondWith` 400
 
+    it "on GET /games/<gameId> returns created game started" $ do
+      gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" anEmptyGame
+
+      get (encodeUtf8 $ "/games" </> gameId)
+        `shouldRespondWith` ResponseMatcher 200 [] (W.bodyEquals $ A.encode anEmptyGame)
+
   describe "Players" $ do
 
     it "on POST /players returns 201 given input player is valid" $ do
@@ -76,14 +82,14 @@ spec =
 
   describe "Players & Games" $ do
 
-    it "on POST /games/<id>/players returns 200 given player can join game" $ do
+    it "on PUT /games/<id>/players returns 200 given player can join game" $ do
       postJSON "/players" aPlayer
       gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
 
       putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName "alice")
         `shouldRespondWith` 200
 
-    it "on POST /games/<id>/players returns 400 given player already joined game" $ do
+    it "on PUT /games/<id>/players returns 400 given player already joined game" $ do
       postJSON "/players" aPlayer
       gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
 
