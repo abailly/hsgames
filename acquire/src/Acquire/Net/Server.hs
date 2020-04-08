@@ -74,10 +74,11 @@ playHuman p@Player{..} game hin hout = do let plays = possiblePlay game
                                            Left  _    -> return Cancel
                                            Right line -> return (plays !! (read line - 1))
 
-data GameThreads = GameThreads { activeGame  :: ActiveGame
-                               , threads     :: [ThreadId]
-                               , connections :: [Connection]
-                               }
+data GameThreads = GameThreads
+    { activeGame  :: ActiveGame
+    , threads     :: [ThreadId]
+    , connections :: [Connection]
+    }
 
 -- | Starts a server
 --  A single `Server` can handle any number of games.
@@ -87,7 +88,13 @@ runServer :: PortNumber -> IO (Socket, Async ())
 runServer port = do
   sock <- socket AF_INET Stream defaultProtocol
   setSocketOption sock ReuseAddr 1
-  bind sock (SockAddrInet port iNADDR_ANY)
+  let hints = defaultHints { addrFlags = [AI_PASSIVE]
+                           , addrSocketType = Stream
+                           , addrFamily = AF_INET
+                           }
+  addr:_ <- getAddrInfo (Just hints) Nothing (Just $ show port)
+  putStrLn $ "using address: " ++ show addr
+  bind sock (addrAddress addr)
   listen sock 5
   existingGames <- readSavedGames
   server <- newTVarIO existingGames
@@ -107,6 +114,7 @@ readSavedGames = do
   where
     isSaveFile f = ".acquire" `isPrefixOf` f && ".bak" `isSuffixOf` f
     loadSaved f = do
+      trace $ "reading data from file " ++ f
       g <- read <$> readFile f
       let gid = gameId g
           nh = length $ filter isHuman (M.elems $ players g)
@@ -128,7 +136,7 @@ garbageCollector server = forever $ do
     writeTVar server (M.fromList $ map ((\ g -> (activeGameId g, g)) . activeGame) cleanedGames)
     return cleanedGames
   forM_ tids doCleanupGame
-  threadDelay $ 10 * 1000 * 1000
+  threadDelay $ 60 * 1000 * 1000
     where
 
       doCleanupGame :: GameThreads -> IO ()

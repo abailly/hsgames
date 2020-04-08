@@ -94,7 +94,7 @@ makeMessages : String -> Json.Decoder Messages
 makeMessages tag =
     case tag of
         "PlayerRegistered" ->
-            field "contents" (Json.map2 PlayerRegistered Json.string Json.string)
+            field "contents" (tuple2 PlayerRegistered Json.string Json.string)
 
         "NewGameStarted" ->
             field "contents" (Json.map NewGameStarted Json.string)
@@ -186,7 +186,7 @@ decodeStock =
     field "stock"
         (Json.map Dict.fromList <|
             Json.list <|
-                Json.map2 toPair Json.string Json.int
+                tuple2 toPair Json.string Json.int
         )
 
 
@@ -298,7 +298,7 @@ type alias GameBoard =
 decodeBoard : Json.Decoder GameBoard
 decodeBoard =
     Json.map Dict.fromList
-        (Json.list <| Json.map2 toPair decodeTile decodeCell)
+        (Json.list <| Json.map2 toPair (Json.index 0 decodeTile) (Json.index 1 decodeCell))
 
 
 type alias Cell =
@@ -465,26 +465,41 @@ decodeOrder =
     andThen makeOrder (field "tag" Json.string)
 
 
+tuple2 : (a -> b -> c) -> Json.Decoder a -> Json.Decoder b -> Json.Decoder c
+tuple2 ctor decodea decodeb =
+    Json.map2 ctor (Json.index 0 decodea) (Json.index 1 decodeb)
+
+
+tuple3 : (a -> b -> c -> d) -> Json.Decoder a -> Json.Decoder b -> Json.Decoder c -> Json.Decoder d
+tuple3 ctor decodea decodeb decodec =
+    Json.map3 ctor (Json.index 0 decodea) (Json.index 1 decodeb) (Json.index 2 decodec)
+
+
+tuple4 : (a -> b -> c -> d -> e) -> Json.Decoder a -> Json.Decoder b -> Json.Decoder c -> Json.Decoder d -> Json.Decoder e
+tuple4 ctor decodea decodeb decodec decoded =
+    Json.map4 ctor (Json.index 0 decodea) (Json.index 1 decodeb) (Json.index 2 decodec) (Json.index 3 decoded)
+
+
 makeOrder : String -> Json.Decoder Order
 makeOrder tag =
     case tag of
         "Place" ->
-            field "contents" (Json.map2 Place Json.string decodeTile)
+            field "contents" (tuple2 Place Json.string decodeTile)
 
         "Merge" ->
-            field "contents" (Json.map4 Merge Json.string decodeTile Json.string Json.string)
+            field "contents" (tuple4 Merge Json.string decodeTile Json.string Json.string)
 
         "Fund" ->
-            field "contents" (Json.map3 Fund Json.string Json.string decodeTile)
+            field "contents" (tuple3 Fund Json.string Json.string decodeTile)
 
         "BuyStock" ->
-            field "contents" (Json.map2 BuyStock Json.string Json.string)
+            field "contents" (tuple2 BuyStock Json.string Json.string)
 
         "SellStock" ->
-            field "contents" (Json.map4 SellStock Json.string Json.string Json.int Json.int)
+            field "contents" (tuple4 SellStock Json.string Json.string Json.int Json.int)
 
         "ExchangeStock" ->
-            field "contents" (Json.map4 ExchangeStock Json.string Json.string Json.string Json.int)
+            field "contents" (tuple4 ExchangeStock Json.string Json.string Json.string Json.int)
 
         "Pass" ->
             Json.succeed Pass

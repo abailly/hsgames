@@ -17,7 +17,7 @@
       {
           console.log("receiving: "  + JSON.stringify(message));
           if(message.data) {
-              app.ports.websocketIn.send(JSON.stringify(message.data));
+              app.ports.websocketIn.send(message.data);
           }
       };
       app.ports.websocketOut.subscribe(function(msg) {

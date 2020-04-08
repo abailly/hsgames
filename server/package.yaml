@@ -33,6 +33,7 @@ executables:
       - src
     main: client.hs
     dependencies:
+      - aeson
       - acquire
       - base
       - bytestring

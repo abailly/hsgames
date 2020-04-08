@@ -1,5 +1,6 @@
 module Example exposing (..)
 
+import Dict
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Json.Decode as Json
@@ -30,4 +31,14 @@ suite =
                 \_ ->
                     Expect.equal (Ok gamesListObj) (Json.decodeString decodeMessages gamesListMsg)
             ]
+        , test "can decode cell content" <|
+            \_ ->
+                let
+                    json =
+                        "[[{\"row\":\"A\",\"col\":1},{\"cellContent\":{\"tag\":\"Empty\"},\"cellCoord\":{\"row\":\"A\",\"col\":1}}]]"
+
+                    expectedBoard =
+                        Dict.fromList [ ( ( 'A', 1 ), { cellCoord = ( 'A', 1 ), cellContent = Empty } ) ]
+                in
+                Expect.equal (Ok expectedBoard) (Json.decodeString decodeBoard json)
         ]

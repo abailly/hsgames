@@ -41,7 +41,7 @@ import           Network.WebSockets             (Connection,
                                                  pendingRequest, receive,
                                                  receiveDataMessage,
                                                  sendBinaryData, sendClose,
-                                                 sendTextData)
+                                                 sendTextData, withPingThread)
 import           System.Environment
 
 newtype CommandError = CommandError { reason :: String }
@@ -49,12 +49,13 @@ newtype CommandError = CommandError { reason :: String }
 
 instance ToJSON CommandError
 
-data ClientConnection = ClientConnection { inChan           :: InChan String
-                                         , outChan          :: OutChan String
-                                         , clientConnection :: Connection
-                                         , serverPump       :: Maybe (Async ())
-                                         , clientPump       :: Maybe (Async ())
-                                         }
+data ClientConnection = ClientConnection
+    { inChan           :: InChan String
+    , outChan          :: OutChan String
+    , clientConnection :: Connection
+    , serverPump       :: Maybe (Async ())
+    , clientPump       :: Maybe (Async ())
+    }
 
 handleWS :: TVar (M.Map SBS.ByteString (IORef ClientConnection)) -> Socket -> PendingConnection -> IO ()
 handleWS cnxs serverSocket pending = do
@@ -63,7 +64,8 @@ handleWS cnxs serverSocket pending = do
   trace $ "got websocket request with key: " ++ show key
   connection <- acceptRequest pending
   ref <- getOrMakeChannels key connection
-  handleClient ref p connection
+  withPingThread connection 30 (pure ()) $
+    handleClient ref p connection
   where
     -- This code is unfortunately rather complicated because
     -- we are storing connections and channels mapping client WS connections, based
@@ -90,7 +92,7 @@ handleWS cnxs serverSocket pending = do
 handleClient :: IORef ClientConnection -> PortNumber -> Connection ->  IO ()
 handleClient channels p connection =
   let clientLoop = do
-        Text message <- receiveDataMessage connection
+        Text message _ <- receiveDataMessage connection
         trace $ "received message: " ++ show message
         case eitherDecode message of
           Left e  -> sendTextData connection (encode $ CommandError e)

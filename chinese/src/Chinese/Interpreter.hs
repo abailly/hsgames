@@ -79,8 +79,10 @@ interpretAnswer (FrenchToChinese _) reply = Chinese reply
 
 runGame :: Game -> Prompt PlayerInput Game
 runGame game = do
-  Selected typ <- prompt $ SelectGame game
-  interpretCommand (game { gameType = typ })
+  inp <- prompt $ SelectGame game
+  case inp of
+    Selected typ -> interpretCommand (game { gameType = typ })
+    _            -> pure game
 
 interpretCommand :: Game -> Prompt PlayerInput Game
 interpretCommand game@Game{..} = do
@@ -88,4 +90,3 @@ interpretCommand game@Game{..} = do
   if answer == Cancel
     then prompt (Quit game) >> return game
     else prompt (CorrectAnswer (checkAnswer game answer) game) >>= interpretCommand
-
