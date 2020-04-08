@@ -79,7 +79,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model.game ) of
         ( Output s, _ ) ->
-            handleMessages model s
+            Debug.log ("receiving: " ++ s) <| handleMessages model s
 
         ( UseKey k, _ ) ->
             let
@@ -158,33 +158,34 @@ update msg model =
 
 handleMessages : Model -> String -> ( Model, Cmd Msg )
 handleMessages model s =
-    case Json.decodeString decodeMessages s of
-        Ok (GamesList l) ->
-            gamesList model l
+    Debug.log ("handling message " ++ s) <|
+        case Json.decodeString decodeMessages s of
+            Ok (GamesList l) ->
+                Debug.log "listing games" <| gamesList model l
 
-        Ok (NewGameStarted _) ->
-            ( model, sendCommand model List )
+            Ok (NewGameStarted _) ->
+                Debug.log "new game started" <| ( model, sendCommand model List )
 
-        Ok (PlayerRegistered n gid) ->
-            ( model, sendCommand model List )
+            Ok (PlayerRegistered n gid) ->
+                ( model, sendCommand model List )
 
-        Ok (GameStarts gid) ->
-            gameStarts gid model
+            Ok (GameStarts gid) ->
+                gameStarts gid model
 
-        Ok (ErrorMessage m) ->
-            ( { model | errors = m :: model.errors }, Cmd.none )
+            Ok (ErrorMessage m) ->
+                ( { model | errors = m :: model.errors }, Cmd.none )
 
-        Ok (GameUpdated gs) ->
-            gameState gs model
+            Ok (GameUpdated gs) ->
+                gameState gs model
 
-        Ok (Played pl) ->
-            played pl model
+            Ok (Played pl) ->
+                played pl model
 
-        Ok (GameEnds g) ->
-            gameEnds g model
+            Ok (GameEnds g) ->
+                gameEnds g model
 
-        _ ->
-            ( { model | strings = s :: model.strings }, Cmd.none )
+            _ ->
+                Debug.log "ignoring message" <| ( { model | strings = s :: model.strings }, Cmd.none )
 
 
 gameStarts : GameId -> Model -> ( Model, Cmd Msg )

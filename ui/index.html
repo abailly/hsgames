@@ -10,7 +10,19 @@
     <div id="acquire"></div>
     <script src="acquire.js"></script>
     <script>
-      var node = document.getElementById('acquire');
-      var app = Elm.Acquire.embed(node, [window.location.hostname, window.location.port]);
+      const node = document.getElementById('acquire');
+      const app = Elm.Acquire.init({node: node, flags: [window.location.hostname, window.location.port]});
+      const ws = new WebSocket("ws://" + window.location.hostname + ":" + window.location.port +"/ABCDE");
+      ws.onmessage = function(message)
+      {
+          console.log("receiving: "  + JSON.stringify(message));
+          if(message.data) {
+              app.ports.websocketIn.send(JSON.stringify(message.data));
+          }
+      };
+      app.ports.websocketOut.subscribe(function(msg) {
+          console.log("sending: "  + msg);
+          ws.send(msg);
+      });
     </script>
 </body></html>
