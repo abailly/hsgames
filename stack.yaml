@@ -3,5 +3,6 @@ packages:
   - '.'
   - 'acquire'
   - 'server'
+  - 'game-server'
   - 'chinese'
 resolver: lts-15.6
