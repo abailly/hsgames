@@ -107,6 +107,19 @@ spec =
       get (encodeUtf8 $ "/games" </> gameId </> "players" </> unId playerKey)
         `shouldRespondWith` ResponseMatcher 200 [] (W.bodyEquals $ A.encode $ PlayerState playerKey "Alice")
 
+    it "on GET /games/<id>/players/<playerKey> returns 303 with location to actual game given game is full" $ do
+      postJSON "/players" aPlayer
+      postJSON "/players" anotherPlayer
+      gameId <- newGame
+
+      aliceKey <- P.playerKey . fromJust . A.decode . W.simpleBody <$> "Alice" `joinsGame` gameId
+      bobKey <- P.playerKey . fromJust . A.decode . W.simpleBody <$> "Bob" `joinsGame` gameId
+
+      get (encodeUtf8 $ "/games" </> gameId </> "players" </> unId aliceKey)
+        `shouldRespondWith`
+        ResponseMatcher 303 [("Location" <:> encodeUtf8 ("/games/Bautzen1945" </> gameId </> "players" </> unId aliceKey))]
+        (W.bodyEquals $ A.encode $ PlayerState aliceKey "Alice")
+
 
 joinsGame :: Text -> Text -> WaiSession () SResponse
 joinsGame pName gameId = putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName pName)

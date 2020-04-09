@@ -41,7 +41,7 @@ data Event = GameCreated { gameId :: Id }
            | PlayerDoesNotExist { playerName :: Text }
            | PlayerNotInGame { gameId :: Id, pKey :: Id }
            | UnknownGame { gameId :: Id }
-           | CanStartPlaying { gameId :: Id, pKey :: Id }
+           | CanStartPlaying { game :: Game, player :: PlayerState }
            | WaitingForPlayers { gameId :: Id, pState :: PlayerState }
   deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
@@ -100,7 +100,7 @@ canStartGame gameId playerKey = runExceptT $ do
   case lookupPlayerState playerKey game of
     Nothing -> throwError $ GameError $ PlayerNotInGame gameId playerKey
     Just player -> if canStart game
-                   then pure $ CanStartPlaying gameId playerKey
+                   then pure $ CanStartPlaying game player
                    else pure $ WaitingForPlayers gameId player
 
 -- * Generic State functions

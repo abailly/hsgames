@@ -10,6 +10,7 @@ import Control.Concurrent.STM (TVar)
 import Control.Monad.Trans (lift)
 import Data.Aeson (encode, FromJSON, ToJSON)
 import Data.Text (Text)
+import Data.Text.Encoding (encodeUtf8)
 import GameServer.Log (LoggerEnv)
 import GHC.Generics
 import Network.Wai (Application)
@@ -60,7 +61,13 @@ runApp _logger state statics = serve api ((listGamesH :<|> createGameH :<|> look
     startGameH gameId PlayerKey{playerKey} = do
       res <- withState state (canStartGame gameId playerKey)
       case res of
-        Right (WaitingForPlayers _ pstate) -> pure $ addHeader ("/games" </> unId gameId </> "players" </> unId playerKey) pstate
+        Right (WaitingForPlayers _ pstate) ->
+          pure $ addHeader ("/games" </> unId gameId </> "players" </> unId playerKey) pstate
+
+        Right (CanStartPlaying game player) ->
+          let redirect = encodeUtf8 $ "/games" </> asText (gameType game) </> unId gameId </> "players" </> unId playerKey
+          in throwError $ err303 { errHeaders = [("Location", redirect)], errBody = encode player }
+
         Left err -> throwError err400 { errBody = encode err }
 
     listPlayersH = withState state listPlayers

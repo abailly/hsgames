@@ -16,6 +16,10 @@ maxNumberOfPlayers :: GameType -> Natural
 maxNumberOfPlayers Bautzen1945 = 2
 maxNumberOfPlayers Acquire = 6
 
+asText :: GameType -> Text
+asText Bautzen1945 = "Bautzen1945"
+asText Acquire = "Acquire"
+
 data Game = Game { gameType :: GameType
                  , numHumanPlayers :: Natural
                  , numRobotPlayers :: Natural
