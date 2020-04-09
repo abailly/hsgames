@@ -26,8 +26,11 @@ putJSON path payload = request "PUT" path [("Content-type", "application/json")]
 aPlayer :: Player
 aPlayer = Player { playerName = "Alice" }
 
+anotherPlayer :: Player
+anotherPlayer = Player { playerName = "Bob" }
+
 anEmptyGame :: Game
-anEmptyGame = Game Bautzen1945 []
+anEmptyGame = makeNewGame Bautzen1945 0
 
 anotherEmptyGame :: Game
-anotherEmptyGame = Game Acquire []
+anotherEmptyGame = makeNewGame Acquire 0

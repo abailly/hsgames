@@ -1,13 +1,14 @@
 module GameServer.Utils where
 
-import Data.Aeson (FromJSON, ToJSON)
+import Data.Aeson (FromJSONKey, ToJSONKey, FromJSON, ToJSON)
+import Data.String (IsString)
 import Data.Text (Text, pack)
 import GHC.Generics
 import Servant.API (FromHttpApiData(..))
 import System.Random (StdGen, randomRs)
 
 newtype Id = Id { unId :: Text }
-  deriving (Eq, Ord, Show, Generic, ToJSON, FromJSON)
+  deriving newtype (Eq, Ord, Show, IsString, ToJSON, ToJSONKey, FromJSON, FromJSONKey)
 
 instance FromHttpApiData Id where
   parseUrlPiece = Right . Id

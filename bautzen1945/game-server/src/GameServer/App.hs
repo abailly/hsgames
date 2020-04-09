@@ -25,10 +25,11 @@ import GameServer.State
 type API = "games" :> ( Get '[JSON] [Game]
                       :<|> ReqBody '[JSON] Game :> PostCreated '[ JSON] (Headers '[Header "Location" Text] NoContent)
                       :<|> Capture "gameId" Id :> Get '[JSON] Game
-                      :<|> Capture "gameId" Id :> "players" :> ReqBody '[JSON] PlayerName :> Put '[JSON] NoContent
+                      :<|> Capture "gameId" Id :> "players" :> ReqBody '[JSON] PlayerName :> Put '[JSON] PlayerKey
+                      :<|> Capture "gameId" Id :> "players" :> Capture "playerKey" PlayerKey :> Get '[JSON] (Headers '[Header "Location" Text] PlayerState)
                       )
            :<|> "players" :> ( Get '[JSON] [Player]
-                               :<|> ReqBody '[JSON] Player :> PostCreated '[ JSON] (Headers '[Header "Location" Text] NoContent)
+                               :<|> ReqBody '[JSON] Player :> PostCreated '[JSON] (Headers '[Header "Location" Text] NoContent)
                              )
            :<|> Raw
 
@@ -36,7 +37,7 @@ api :: Proxy API
 api = Proxy
 
 runApp :: LoggerEnv IO -> GameState -> Application -> Application
-runApp _logger state statics = serve api ((listGamesH :<|> createGameH :<|> lookupGameH :<|> joinPlayerH) :<|> (listPlayersH :<|> registerPlayerH) :<|> Tagged statics)
+runApp _logger state statics = serve api ((listGamesH :<|> createGameH :<|> lookupGameH :<|> joinPlayerH :<|> startGameH) :<|> (listPlayersH :<|> registerPlayerH) :<|> Tagged statics)
   where
     listGamesH = withState state listGames
 
@@ -48,13 +49,18 @@ runApp _logger state statics = serve api ((listGamesH :<|> createGameH :<|> look
 
     lookupGameH gameId = do
       result <- withState state (lookupGame gameId)
-      maybe (throwError err404) pure result
+      either (const $ throwError err404) pure result
 
-
-    joinPlayerH gameId PlayerName{pName} = do
+    joinPlayerH gameId PlayerName{P.pName} = do
       result <- withState state (applyCommand (JoinGame gameId pName))
       case result of
-        Right PlayerJoined{gameId,playerName} -> pure NoContent
+        Right PlayerJoined{gameId,playerName,playerKey} -> pure $ PlayerKey playerKey
+        Left err -> throwError err400 { errBody = encode err }
+
+    startGameH gameId PlayerKey{playerKey} = do
+      res <- withState state (canStartGame gameId playerKey)
+      case res of
+        Right (WaitingForPlayers _ pstate) -> pure $ addHeader ("/games" </> unId gameId </> "players" </> unId playerKey) pstate
         Left err -> throwError err400 { errBody = encode err }
 
     listPlayersH = withState state listPlayers

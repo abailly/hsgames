@@ -76,16 +76,16 @@ spec =
 
   describe "Players & Games" $ do
 
-    it "on PUT /games/<id>/players returns 200 given player can join game" $ do
+    it "on PUT /games/<id>/players returns 200 and player's key given player can join game" $ do
       postJSON "/players" aPlayer
-      gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
+      gameId <- newGame
 
       putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName "Alice")
-        `shouldRespondWith` 200
+        `shouldRespondWith` ResponseMatcher 200 [] (W.bodyEquals $ A.encode $ PlayerKey "KNMYUEOH")
 
     it "on PUT /games/<id>/players returns 400 given player already joined game" $ do
       postJSON "/players" aPlayer
-      gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
+      gameId <- newGame
 
       "Alice" `joinsGame` gameId
 
@@ -93,21 +93,26 @@ spec =
         `shouldRespondWith` 400
 
     it "on PUT /games/<id>/players returns 400 given player is not registered" $ do
-      gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
+      gameId <- newGame
 
       "Alice" `joinsGame` gameId
         `shouldRespondWith` 400
 
-    it "on PUT /games/<id>/players returns 303 with Location header given player fills the game" $ do
+    it "on GET /games/<id>/players/<playerKey> returns 200 with player info given game is not full" $ do
       postJSON "/players" aPlayer
-      gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
+      gameId <- newGame
 
-      putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName "Alice")
-        `shouldRespondWith` 200
+      PlayerKey{playerKey} <- fromJust . A.decode . W.simpleBody <$> "Alice" `joinsGame` gameId
+
+      get (encodeUtf8 $ "/games" </> gameId </> "players" </> unId playerKey)
+        `shouldRespondWith` ResponseMatcher 200 [] (W.bodyEquals $ A.encode $ PlayerState playerKey "Alice")
 
 
 joinsGame :: Text -> Text -> WaiSession () SResponse
 joinsGame pName gameId = putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName pName)
+
+newGame :: WaiSession () Text
+newGame = Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" (anEmptyGame)
 
 locationDifferentFrom :: ByteString -> [MatchHeader]
 locationDifferentFrom loc =

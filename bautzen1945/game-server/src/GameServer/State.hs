@@ -34,43 +34,46 @@ data Command = JoinGame { gameId :: Id, pName :: Text }
   deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 data Event = GameCreated { gameId :: Id }
-           | PlayerJoined { gameId :: Id, playerName :: Text }
+           | PlayerJoined { gameId :: Id, playerName :: Text, playerKey :: Id }
            | PlayerAlreadyJoinedGame { gameId :: Id, playerName :: Text }
            | PlayerRegistered { registeredName :: Text }
            | DuplicatePlayer { duplicateName :: Text }
            | PlayerDoesNotExist { playerName :: Text }
+           | PlayerNotInGame { gameId :: Id, pKey :: Id }
            | UnknownGame { gameId :: Id }
+           | CanStartPlaying { gameId :: Id, pKey :: Id }
+           | WaitingForPlayers { gameId :: Id, pState :: PlayerState }
   deriving (Eq, Show, Generic, ToJSON, FromJSON)
 
 newtype GameError = GameError { reason :: Event }
-  deriving (Eq, Show, Generic, ToJSON, FromJSON)
+  deriving newtype (Eq, Show, ToJSON, FromJSON)
 
 -- * Queries
 
 listGames :: State Games [Game]
 listGames = Map.elems <$> gets games
 
-lookupGame :: Id -> State Games (Maybe Game)
-lookupGame gameId  = Map.lookup gameId  <$> gets games
+lookupGame :: Id -> State Games (Either GameError Game)
+lookupGame gameId  = maybe (Left $ GameError $ UnknownGame gameId) Right . Map.lookup gameId <$> gets games
 
 listPlayers :: State Games [Player]
 listPlayers = Map.elems <$> gets players
 
+lookupPlayer :: Text -> State Games (Either GameError Player)
+lookupPlayer pName = maybe (Left $ GameError $ PlayerDoesNotExist pName) Right . Map.lookup pName  <$> gets players
+
+
 -- * Commands
 
 applyCommand :: Command -> State Games (Either GameError Event)
-applyCommand JoinGame{gameId,pName} = do
-  gs <- get
-  case Map.lookup gameId (games gs) of
-    Nothing -> pure $ Left $ GameError $ UnknownGame gameId
-    Just game -> if
-      | pName `elem` gamePlayers game -> pure $ Left $ GameError $ PlayerAlreadyJoinedGame gameId pName
-      | Map.lookup pName (players gs) == Nothing -> pure $ Left $ GameError $ PlayerDoesNotExist pName
-      | otherwise -> do
-          let game' = game { gamePlayers = pName : gamePlayers game }
-          put (gs { games = Map.insert gameId game' (games gs) })
-          pure $ Right $ PlayerJoined gameId pName
-
+applyCommand JoinGame{gameId,pName} = runExceptT $ do
+  game <- ExceptT $ lookupGame gameId
+  when (hasJoinedGame pName game) $ throwError $ GameError $ PlayerAlreadyJoinedGame gameId pName
+  player <- ExceptT $ lookupPlayer pName
+  pkey <- lift mkRandomId
+  let game' = joinPlayer pName pkey game
+  modify' $ \ gs -> gs { games = Map.insert gameId game' (games gs) }
+  pure $ PlayerJoined gameId pName pkey
 
 createGame :: Game -> State Games Event
 createGame game = do
@@ -90,3 +93,24 @@ registerPlayer player@Player{playerName} = do
     Nothing -> do
       put (gs { players = Map.insert playerName player (players gs) })
       pure $ PlayerRegistered playerName
+
+canStartGame :: Id -> Id -> State Games (Either GameError Event)
+canStartGame gameId playerKey = runExceptT $ do
+  game <- ExceptT $ lookupGame gameId
+  case lookupPlayerState playerKey game of
+    Nothing -> throwError $ GameError $ PlayerNotInGame gameId playerKey
+    Just player -> if canStart game
+                   then pure $ CanStartPlaying gameId playerKey
+                   else pure $ WaitingForPlayers gameId player
+
+-- * Generic State functions
+
+-- | Generate a new random Id from the current `Games` state seed
+-- this function also updates the current seed
+mkRandomId :: State Games Id
+mkRandomId = do
+  gs <- get
+  let gid = randomId (seed gs)
+      (_,newSeed) = split (seed gs)
+  put gs { seed = newSeed}
+  pure gid

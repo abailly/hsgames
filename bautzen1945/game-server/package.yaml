@@ -26,6 +26,7 @@ default-extensions:
 - DuplicateRecordFields
 - DisambiguateRecordFields
 - FlexibleContexts
+- GeneralizedNewtypeDeriving
 - MultiWayIf
 - NamedFieldPuns
 - OverloadedStrings
