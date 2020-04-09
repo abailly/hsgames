@@ -181,7 +181,6 @@ interpretClientCommand handle = do
 handleCommand :: Handle -> Command -> ReaderT Server IO (Maybe Result)
 handleCommand _ (NewGame numHumans numRobots) = startNewGame numHumans numRobots
 handleCommand h (JoinGame player game)        = joinGame h player game
-handleCommand _ (StartingGame _)              = return Nothing
 handleCommand _ ListGames                     = do
   activeGames <- ask
   games <- liftIO $ atomically $ readTVar activeGames

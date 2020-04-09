@@ -1,48 +1,44 @@
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE OverloadedStrings   #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 module Main where
 
-import           Acquire.Net                    (InOut (..), listGames,
-                                                 runNewGame, runPlayer,
-                                                 runServer)
-import           Acquire.Trace
-import           Control.Concurrent             (forkIO)
-import           Control.Concurrent.Async       (Async, async, cancel)
-import           Control.Concurrent.Chan.Unagi  (InChan, OutChan, newChan,
-                                                 readChan, writeChan)
-import           Control.Concurrent.STM
-import           Control.Exception              (SomeException, catch)
-import           Control.Monad                  (forever)
-import           Data.Aeson
-import qualified Data.ByteString                as SBS
-import qualified Data.ByteString.Lazy           as BS
-import           Data.Functor
-import           Data.IORef
-import qualified Data.Map                       as M
-import           Data.Monoid
-import           Data.Text.Lazy                 (Text, pack, unpack)
-import           Data.Text.Lazy.Encoding        (decodeUtf8)
-import           GHC.Generics
-import           Messages
-import           Network.HTTP.Types.Status
-import           Network.Socket
-import           Network.Wai                    (Application, responseLBS)
-import           Network.Wai.Handler.Warp       (run)
-import           Network.Wai.Handler.WebSockets as WaiWS
-import           Network.Wai.Middleware.Static
-import           Network.WebSockets             (Connection,
-                                                 ConnectionException,
-                                                 DataMessage (..),
-                                                 PendingConnection,
-                                                 RequestHead (..),
-                                                 acceptRequest,
-                                                 defaultConnectionOptions,
-                                                 pendingRequest, receive,
-                                                 receiveDataMessage,
-                                                 sendBinaryData, sendClose,
-                                                 sendTextData, withPingThread)
-import           System.Environment
+import Acquire.Net (InOut(..), listGames, runNewGame, runPlayer, runServer)
+import Acquire.Trace
+import Control.Concurrent.Async (Async, async, cancel)
+import Control.Concurrent.Chan.Unagi (InChan, OutChan, newChan, readChan, writeChan)
+import Control.Concurrent.STM
+import Control.Exception (catch)
+import Control.Monad (forever)
+import Data.Aeson
+import qualified Data.ByteString as SBS
+import Data.Functor
+import Data.IORef
+import qualified Data.Map as M
+import Data.Text.Lazy (Text)
+import GHC.Generics
+import Messages
+import Network.HTTP.Types.Status
+import Network.Socket
+import Network.Wai (Application, responseLBS)
+import Network.Wai.Handler.Warp (run)
+import Network.Wai.Handler.WebSockets as WaiWS
+import Network.Wai.Middleware.Static
+import Network.WebSockets
+       ( Connection
+       , ConnectionException
+       , DataMessage(..)
+       , PendingConnection
+       , RequestHead(..)
+       , acceptRequest
+       , defaultConnectionOptions
+       , pendingRequest
+       , receiveDataMessage
+       , sendClose
+       , sendTextData
+       , withPingThread
+       )
+import System.Environment
 
 newtype CommandError = CommandError { reason :: String }
                      deriving (Generic)
@@ -107,13 +103,13 @@ handleClient channels p connection =
     -- I/O manager for WS connections
     -- We use a pair of `Chan` to read from and write to, encoding
     -- to JSON on the output
-    io (w,r) = InOut (input r) (output w) (outputResult w)
+    io (w,r') = InOut (input r') (output w) (outputResult w)
       where
         input             = readChan  -- should probably use decode to be symetric, but we send raw strings...
         output       chan = writeChan chan . encode
         outputResult chan = writeChan chan . encode
 
-    startGame p playerName gameId = do
+    startGame sPort playerName gameId = do
       (w,r)   <- newChan
       (w',r') <- newChan
 
@@ -128,7 +124,7 @@ handleClient channels p connection =
       -- instead of wrapping the CLI server.
       toServer <- async $ do
         trace $ "starting game loop for player " ++ playerName ++ " @" ++ gameId
-        runPlayer "localhost" p playerName gameId (io (w,r'))
+        runPlayer "localhost" sPort playerName gameId (io (w,r'))
         trace $ "stopping game loop for player " ++ playerName ++ " @" ++ gameId
 
       toClient <- async $ do
@@ -143,10 +139,12 @@ handleClient channels p connection =
       -- reading. This channel will be used by subsequent commands sent by client and
       -- "pumped" to server
       modifyIORef channels ( \ c -> c { inChan = w'
-                                      , serverPump = Just toServer, clientPump = Just toClient })
+                                      , serverPump = Just toServer
+                                      , clientPump = Just toClient
+                                      })
 
     cleanup = do
-      ClientConnection w r cnx sp cp <- readIORef channels
+      ClientConnection _ _ cnx sp cp <- readIORef channels
       sendClose cnx ("Bye" :: Text)
       maybe (return ()) cancel sp
       maybe (return ()) cancel cp
