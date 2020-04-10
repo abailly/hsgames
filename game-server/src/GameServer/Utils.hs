@@ -8,7 +8,7 @@ import Servant.API (FromHttpApiData(..))
 import System.Random (StdGen, randomRs)
 
 newtype Id = Id { unId :: Text }
-  deriving newtype (Eq, Ord, Show, IsString, ToJSON, ToJSONKey, FromJSON, FromJSONKey)
+  deriving newtype (Eq, Ord, Show, Read, IsString, ToJSON, ToJSONKey, FromJSON, FromJSONKey)
 
 instance FromHttpApiData Id where
   parseUrlPiece = Right . Id

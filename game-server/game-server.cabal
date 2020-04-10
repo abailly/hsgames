@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5394a72719f4303402c486088ba2b1b2ad0653f6715401b6eb888e9b3478c630
+-- hash: b4d56b6e6eaaa15d24665c1a5c697361a78e8c815bd770d0ef39a9bcbebd0dd4
 
 name:           game-server
 version:        0.1.0.0
@@ -29,6 +29,10 @@ library
   exposed-modules:
       GameServer
       GameServer.App
+      GameServer.Clients
+      GameServer.Clients.IO
+      GameServer.Clients.Messages
+      GameServer.Clients.Player
       GameServer.Game
       GameServer.Log
       GameServer.Player
@@ -40,11 +44,12 @@ library
       Paths_game_server
   hs-source-dirs:
       src
-  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts GeneralizedNewtypeDeriving MultiWayIf NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts GeneralizedNewtypeDeriving MultiWayIf NamedFieldPuns OverloadedStrings RecordWildCards ScopedTypeVariables
   build-depends:
       aeson
     , async
     , base
+    , binary
     , bytestring
     , containers
     , data-default
@@ -75,12 +80,13 @@ executable game-server-exe
       Paths_game_server
   hs-source-dirs:
       app
-  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts GeneralizedNewtypeDeriving MultiWayIf NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts GeneralizedNewtypeDeriving MultiWayIf NamedFieldPuns OverloadedStrings RecordWildCards ScopedTypeVariables
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
     , async
     , base
+    , binary
     , bytestring
     , containers
     , data-default
@@ -112,17 +118,21 @@ test-suite game-server-test
   other-modules:
       GameServer.AppSpec
       GameServer.Builder
+      GameServer.Clients.Echo
+      GameServer.Clients.IOSpec
       GameServer.WSSpec
       GameServerSpec
       Paths_game_server
   hs-source-dirs:
       test
-  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts GeneralizedNewtypeDeriving MultiWayIf NamedFieldPuns OverloadedStrings RecordWildCards
+  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts GeneralizedNewtypeDeriving MultiWayIf NamedFieldPuns OverloadedStrings RecordWildCards ScopedTypeVariables
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson
+      QuickCheck
+    , aeson
     , async
     , base
+    , binary
     , bytestring
     , containers
     , data-default

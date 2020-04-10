@@ -31,11 +31,13 @@ default-extensions:
 - NamedFieldPuns
 - OverloadedStrings
 - RecordWildCards
+- ScopedTypeVariables
 
 dependencies:
 - aeson
 - async
 - base
+- binary
 - bytestring
 - containers
 - data-default
@@ -88,3 +90,4 @@ tests:
     - hspec-discover
     - hspec-wai
     - http-conduit
+    - QuickCheck
