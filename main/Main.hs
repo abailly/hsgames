@@ -1,26 +1,26 @@
-{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TupleSections #-}
 
 module Main where
 
-import           Acquire.Game
-import           Acquire.Net
-import           Acquire.Pretty           hiding ((<$>), (<>))
-import           Acquire.Trace
-import           Control.Concurrent
-import           Control.Concurrent.Async (wait)
-import           Control.Concurrent.MVar
-import           Control.Monad.Prompt
-import           Control.Monad.Reader
-import           Data.List                (isPrefixOf)
-import qualified Data.Map                 as M
-import           Data.Monoid
-import           Network.Socket           (socketPort)
-import           Options.Applicative
-import           System.Environment
-import           System.IO
-import           System.Random
+import Acquire.Game
+import Acquire.Net
+import Acquire.Pretty hiding ((<$>), (<>))
+import Acquire.Trace
+import Control.Concurrent
+import Control.Concurrent.Async (wait)
+import Control.Concurrent.MVar
+import Control.Monad.Prompt
+import Control.Monad.Reader
+import Data.List (isPrefixOf)
+import qualified Data.Map as M
+import Data.Monoid
+import Network.Socket (socketPort)
+import Options.Applicative
+import System.Environment
+import System.IO
+import System.Random
 
 data Configuration = Server { serverPort :: PortNumber }
                    | ClientPlayer { serverHost :: String
@@ -118,11 +118,11 @@ start Server{..}          = do
 start ClientPlayer{..}    = runPlayer  serverHost serverPort playerName playGameId consoleIO
 start ClientNewGame{..}   = do
   res <- runNewGame serverHost serverPort numberOfHumanPlayers numberOfRobotPlayers
-  putDoc $ pretty res
+  either putStrLn (putDoc . pretty) res
   putStrLn ""
 start ClientListGames{..} = do
-  r <- listGames  serverHost serverPort
-  putDoc $ pretty r
+  r <- listGames serverHost serverPort
+  either putStrLn (putDoc . pretty) r
   putStrLn ""
 
 

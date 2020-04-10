@@ -1,10 +1,11 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TupleSections #-}
 module Acquire.Net.Game where
 
-import           Acquire.Net.Types
-import           Network.Socket
-import           System.IO
+import Acquire.Net.IO
+import Acquire.Net.Types
+import Network.Socket
+import System.IO
 
 connectTo :: String -> PortNumber -> IO Handle
 connectTo host port = do
@@ -16,19 +17,19 @@ connectTo host port = do
   hSetBuffering h NoBuffering
   return h
 
-runNewGame :: String -> PortNumber -> Int -> Int -> IO Result
+runNewGame :: String -> PortNumber -> Int -> Int -> IO (Either String Result)
 runNewGame host port numHumans numRobots = do
   h <- connectTo host port
   let command = NewGame numHumans numRobots
-  hPrint h command
-  res :: Result <- read `fmap` hGetLine h
+  send h command
+  res <- receive h
   hClose h
   return res
 
-listGames :: String -> PortNumber -> IO Result
+listGames :: String -> PortNumber -> IO (Either String Result)
 listGames host port = do
   h <- connectTo host port
-  hPrint h ListGames
-  res :: Result <- read `fmap` hGetLine h
+  send h ListGames
+  res <- receive h
   hClose h
   return res

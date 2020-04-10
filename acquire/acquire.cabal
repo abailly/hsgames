@@ -20,6 +20,8 @@ library
                      , aeson
                      , ansi-wl-pprint
                      , array
+                     , binary
+                     , bytestring
                      , containers
                      , random
                      , random-shuffle
@@ -28,6 +30,7 @@ library
                      , mtl
                      , network
                      , stm
+                     , text
                      , time
                      , old-locale
                      , async
@@ -39,7 +42,7 @@ library
                  , Acquire.Pretty
                  , Acquire.Net
                  , Acquire.Robot
-                 , Acquire.Net.Player, Acquire.Net.Server, Acquire.Net.Types, Acquire.Net.Game
+                 , Acquire.Net.Player, Acquire.Net.Server, Acquire.Net.Types, Acquire.Net.Game, Acquire.Net.IO
                  , Acquire.Trace
   other-modules:  Acquire.Game.Player
                 , Acquire.Game.Core, Acquire.Game.Turn, Acquire.Game.Play

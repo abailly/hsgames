@@ -1,15 +1,15 @@
-{-# LANGUAGE DeriveGeneric        #-}
-{-# LANGUAGE FlexibleInstances    #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeSynonymInstances #-}
 module Acquire.Game.Cells where
 
-import           Acquire.Game.Hotels
-import           Acquire.Game.Tiles
-import           Data.Aeson          (ToJSON (..))
-import           Data.Array
-import           Data.Maybe
-import qualified Data.Set            as S
-import           GHC.Generics
+import Acquire.Game.Hotels
+import Acquire.Game.Tiles
+import Data.Aeson (FromJSON(..), ToJSON(..))
+import Data.Array
+import Data.Maybe
+import qualified Data.Set as S
+import GHC.Generics
 
 data Content = Empty
              | Playable  -- ^Used for highlighting purpose
@@ -18,6 +18,7 @@ data Content = Empty
              deriving (Eq, Show, Read, Generic)
 
 instance ToJSON Content
+instance FromJSON Content
 
 isEmpty :: Content -> Bool
 isEmpty Empty = True
@@ -36,6 +37,7 @@ data Cell = Cell { cellCoord   :: Tile
                  } deriving (Eq, Show ,Read, Generic)
 
 instance ToJSON Cell
+instance FromJSON Cell
 
 instance Ord Cell where
   (Cell t _) `compare` (Cell t' _) = t `compare` t'
@@ -44,6 +46,10 @@ type GameBoard = Array Tile Cell
 
 instance ToJSON GameBoard where
   toJSON board = toJSON $ assocs board
+
+instance FromJSON GameBoard where
+  parseJSON v = array (Tile ('A', 1), Tile ('Z', 50)) <$> parseJSON v
+
 
 adjacentCells :: (Cell -> Bool) -> GameBoard -> Tile -> [Cell]
 adjacentCells p board (Tile (x,y)) = let (Tile (lr,lc), Tile (ur,uc)) = bounds board
@@ -63,4 +69,3 @@ linkedCells gameBoard coord = S.toList $ buildLinked gameBoard (S.singleton coor
                                                          next = adj `S.difference` done
                                                      in buildLinked board next (c `S.insert` adj `S.union` done)
                                 | otherwise       = S.foldl' (\ d c -> buildLinked board (S.singleton c) d) done todo
-

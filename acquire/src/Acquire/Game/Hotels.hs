@@ -1,14 +1,14 @@
-{-# LANGUAGE DeriveGeneric        #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE RecordWildCards      #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeSynonymInstances #-}
-{-# LANGUAGE ViewPatterns         #-}
+{-# LANGUAGE ViewPatterns #-}
 module Acquire.Game.Hotels where
 
-import           Acquire.Game.Tiles
-import           Data.Aeson         (FromJSON, ToJSON (..), ToJSONKey)
-import qualified Data.Map           as M
-import           GHC.Generics
+import Acquire.Game.Tiles
+import Data.Aeson (FromJSON, FromJSONKey, ToJSON(..), ToJSONKey)
+import qualified Data.Map as M
+import GHC.Generics
 
 data ChainName = American | Continental | Festival | Imperial | Luxor | Tower | Worldwide
                 deriving (Eq, Enum, Ord, Show, Read, Generic)
@@ -16,6 +16,7 @@ data ChainName = American | Continental | Festival | Imperial | Luxor | Tower | 
 instance ToJSON ChainName
 instance ToJSONKey ChainName
 instance FromJSON ChainName
+instance FromJSONKey ChainName
 
 data HotelChain = HotelChain { chainName  :: ChainName
                              , chainTiles :: [ Tile ]

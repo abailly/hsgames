@@ -38,7 +38,7 @@ startServer :: Int -> IO Server
 startServer serverPort = do
   seed <- getStdGen
   envs <- newTVarIO (initialState seed)
-  logger <- newLog "minilang"
+  logger <- newLog "game-server"
   loggerMiddleware <- runHTTPLog logger
   let app = loggerMiddleware $ runApp logger envs staticResources
   (port, action) <- startWarp serverPort app

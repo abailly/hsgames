@@ -1,18 +1,18 @@
-{-# LANGUAGE DeriveGeneric   #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE RecordWildCards #-}
 module Acquire.Game.Core where
 
-import           Data.Aeson            (ToJSON)
-import           Data.Array
-import qualified Data.Map              as M
-import           GHC.Generics
-import           System.Random
-import           System.Random.Shuffle
+import Data.Aeson (FromJSON, ToJSON)
+import Data.Array
+import qualified Data.Map as M
+import GHC.Generics
+import System.Random
+import System.Random.Shuffle
 
-import           Acquire.Game.Cells
-import           Acquire.Game.Hotels
-import           Acquire.Game.Player
-import           Acquire.Game.Tiles
+import Acquire.Game.Cells
+import Acquire.Game.Hotels
+import Acquire.Game.Player
+import Acquire.Game.Tiles
 
 
 data MergerPhase = TakeOver Tile [ChainName]
@@ -25,6 +25,7 @@ data MergerPhase = TakeOver Tile [ChainName]
                  deriving (Eq,Show,Read,Generic)
 
 instance ToJSON MergerPhase
+instance FromJSON MergerPhase
 
 data Phase = PlaceTile
            | FundChain Tile
@@ -34,6 +35,7 @@ data Phase = PlaceTile
            deriving (Eq, Show, Read, Generic)
 
 instance ToJSON Phase
+instance FromJSON Phase
 
 type Turn = (PlayerName, Phase)
 
@@ -49,6 +51,7 @@ data Order = Place PlayerName Tile
            deriving (Eq, Show, Read, Generic)
 
 instance ToJSON Order
+instance FromJSON Order
 
 type GameId = String
 
@@ -61,6 +64,7 @@ data Game = Game { gameId       :: GameId
                  } deriving (Eq, Show, Read, Generic)
 
 instance ToJSON Game
+instance FromJSON Game
 
 numberOfTilesPerPlayer :: Int
 numberOfTilesPerPlayer = 6
@@ -101,4 +105,3 @@ nextPlayer game = let (p,_) = turn game
                   in case M.lookupGT p (players game) of
                       Nothing     -> fst $ M.findMin (players game)
                       Just (p',_) -> p'
-

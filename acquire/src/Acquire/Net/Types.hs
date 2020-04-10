@@ -1,33 +1,32 @@
-{-# LANGUAGE DeriveGeneric     #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE RecordWildCards   #-}
+{-# LANGUAGE RecordWildCards #-}
 module Acquire.Net.Types(Game,
                          Command(..), GameId, Connection(..), Connections, ActiveGame(..), GameDescription(..), Result(..),
                          gamesList) where
 
-import           Acquire.Game
-import           Acquire.Pretty           hiding ((<$>))
-import           Control.Concurrent
-import           Control.Concurrent.Async
-import           Data.Aeson               (ToJSON)
-import qualified Data.Map                 as M
-import           Data.Maybe               (isJust)
-import           GHC.Generics
-import           System.IO                (Handle)
+import Acquire.Game
+import Acquire.Pretty hiding ((<$>))
+import Control.Concurrent
+import Control.Concurrent.Async
+import Data.Aeson (FromJSON, ToJSON)
+import qualified Data.Map as M
+import Data.Maybe (isJust)
+import GHC.Generics
+import System.IO (Handle)
 
 data Command = NewGame Int Int
     | JoinGame PlayerName GameId
     | ListGames
-    deriving (Show, Read, Generic)
+    deriving (Show, Read, Generic, FromJSON, ToJSON)
 
 data Result = PlayerRegistered PlayerName GameId
     | NewGameStarted GameId
     | GameStarts GameId
     | GamesList [GameDescription]
     | ErrorMessage String
-    deriving (Show, Read, Generic)
-
-instance ToJSON Result
+    deriving (Show, Read, Generic, FromJSON, ToJSON)
 
 data Connection = Cnx
     { hIn  :: Handle
@@ -53,9 +52,7 @@ data GameDescription = GameDescription
     , descRegisteredHumans :: [PlayerName]
     , descLive             :: Bool
     }
-    deriving (Show, Read, Eq, Generic)
-
-instance ToJSON GameDescription
+    deriving (Show, Read, Eq, Generic, ToJSON, FromJSON)
 
 gamesList :: ActiveGame -> GameDescription
 gamesList ActiveGame{..} = GameDescription activeGameId numberOfHumans numberOfRobots (M.keys registeredHumans) (isJust gameThread)

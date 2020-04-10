@@ -1,27 +1,28 @@
-{-# LANGUAGE FlexibleInstances   #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TupleSections #-}
 module Acquire.Net.Server(runServer, PortNumber) where
 
-import           Acquire.Game
-import           Acquire.Net.Types
-import           Acquire.Robot
-import           Acquire.Trace
-import           Control.Concurrent
-import           Control.Concurrent.Async
-import           Control.Concurrent.STM
-import           Control.Exception        (try, tryJust)
-import           Control.Monad.Prompt
-import           Control.Monad.Reader
-import           Data.List
-import qualified Data.Map                 as M
-import           Network.Socket
-import           System.Directory
-import           System.IO
-import           System.IO.Error
-import           System.Random
+import Acquire.Game
+import Acquire.Net.IO
+import Acquire.Net.Types
+import Acquire.Robot
+import Acquire.Trace
+
+import GHC.Stack(HasCallStack)
+import Control.Concurrent
+import Control.Concurrent.Async
+import Control.Concurrent.STM
+import Control.Monad.Prompt
+import Control.Monad.Reader
+import Data.List
+import qualified Data.Map as M
+import Network.Socket
+import System.Directory
+import System.IO
+import System.Random
 
 type Server = TVar (M.Map GameId ActiveGame)
 
@@ -44,7 +45,7 @@ playerInputHandler (PlayedOrder p g o) = do
   broadcast (\ n (Cnx _ hout) -> when (n /= "Console" &&
                                         n /= playerName p &&
                                         playerType (players g M.! n) /= Robot)
-                                 (liftIO $ (hPutStrLn hout $ show $ Played (playerName p) (gameBoard g) o) >> hFlush hout))
+                                 (liftIO $ (send hout $ Played (playerName p) (gameBoard g) o)))
 playerInputHandler (LoadGame gid) = do
   trace $ "loading game " ++ gid
   let gameFile = ".acquire." ++ gid ++ ".bak"
@@ -56,23 +57,21 @@ playerInputHandler (Quit game) = do
   trace $ "quitting game " ++ gameId game
   broadcast (\ n (Cnx _ hout) -> (liftIO $
                                    trace ("ending game for player " ++ n) >>
-                                   (hPutStrLn hout $ show $ GameEnds game) >>
-                                   hFlush hout))
+                                   (send hout $ GameEnds game)))
 
-broadcast :: (Monad m) => (PlayerName -> Connection -> m ()) -> ReaderT Connections m ()
+broadcast :: (HasCallStack, Monad m) => (PlayerName -> Connection -> m ()) -> ReaderT Connections m ()
 broadcast f = ask >>= mapM_ (lift . uncurry f) . M.assocs
 
 playHuman :: Player -> Game -> Handle -> Handle -> IO Order
 playHuman p@Player{..} game hin hout = do let plays = possiblePlay game
                                               currentState = GameState p (gameBoard game) plays
                                           trace $ "sending state to user " ++ playerName
-                                          hPutStrLn hout $ show $ currentState
-                                          hFlush hout
-                                          r <- tryJust (guard . isEOFError) $ hGetLine hin
+                                          send hout currentState
+                                          r <- receive hin
                                           trace $ "read from user: " ++ show r
                                           case r of
                                            Left  _    -> return Cancel
-                                           Right line -> return (plays !! (read line - 1))
+                                           Right line -> return (plays !! (line - 1))
 
 data GameThreads = GameThreads
     { activeGame  :: ActiveGame
@@ -167,16 +166,13 @@ interpretCommands handle = do
   res <- interpretClientCommand handle
   case res of
    Nothing -> trace ("terminating commands loop for "  ++ show handle)
-   Just s  -> liftIO (trace ("sending " ++ show s) >> hPutStrLn handle (show s)) >> interpretCommands handle
+   Just s  -> liftIO (trace ("sending " ++ show s) >> send handle s) >> interpretCommands handle
 
-interpretClientCommand :: Handle -> ReaderT Server IO (Maybe Result)
+interpretClientCommand :: HasCallStack => Handle -> ReaderT Server IO (Maybe Result)
 interpretClientCommand handle = do
-  ln <- liftIO $ readClientCommand handle
+  ln <- liftIO $ receive handle
   trace ("received command from: " ++ show handle ++ ", " ++ show ln)
-  either (const $ return Nothing) (handleCommand handle . read) ln
-  where
-    readClientCommand :: Handle -> IO (Either IOError String)
-    readClientCommand = try . hGetLine
+  either (const $ return Nothing) (handleCommand handle) ln
 
 handleCommand :: Handle -> Command -> ReaderT Server IO (Maybe Result)
 handleCommand _ (NewGame numHumans numRobots) = startNewGame numHumans numRobots
@@ -232,6 +228,14 @@ runFilledGame ActiveGame{..} = do
   liftIO $ atomically $ modifyTVar' activeGames (M.adjust (\ g -> g { gameThread = Just asyncGame}) activeGameId)
   return Nothing
 
+notifyStartup :: GameId -> Connections -> [ ThreadId ]  -> IO ()
+notifyStartup gid cnx threads = do
+  mytid <- myThreadId
+  forM_ (M.elems cnx) (\ (Cnx _ hout) -> send hout (GameStarts gid))
+  forM_ threads (\ tid -> when (tid /= mytid) $  -- we don't kill the thread we are running in...
+                          trace ("killing thread " ++ show tid ++ " for game " ++ gid) >> killThread tid)
+
+-- | The main loop for running a single game when all players joined
 runGameServer :: GameId -> Int -> Connections -> IO Game
 runGameServer gid numRobots clients  = do
   g <- getStdGen
@@ -240,10 +244,3 @@ runGameServer gid numRobots clients  = do
   forM_ (M.elems connections) (\ (Cnx _ hout) -> hFlush hout)
   runReaderT (runPromptM playerInputHandler $
               initialisedGame gid g (map (\ (p,_) -> (p,Human)) (M.toList clients) ++ robots) >>= interpretCommand) connections
-
-notifyStartup :: GameId -> Connections -> [ ThreadId ]  -> IO ()
-notifyStartup gid cnx threads = do
-  mytid <- myThreadId
-  forM_ (M.elems cnx) (\ (Cnx _ hout) -> hPutStrLn hout $ show (GameStarts gid))
-  forM_ threads (\ tid -> when (tid /= mytid) $  -- we don't kill the thread we are running in...
-                          trace ("killing thread " ++ show tid ++ " for game " ++ gid) >> killThread tid)

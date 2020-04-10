@@ -29,7 +29,7 @@ runNewGame host port numHumans numRobots = do
 listGames :: String -> PortNumber -> IO Result
 listGames host port = do
   h <- connectTo host port
-  send h (encode List)
+  send h (encode ListGames)
   res :: Result <- (fromJust . decode) `fmap` receive h
   disconnect h
   return res

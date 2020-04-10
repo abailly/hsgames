@@ -13,7 +13,7 @@ withServer =
   bracket (startServer 0) stopServer
 
 spec :: Spec
-spec = around withServer $ describe "MiniLang Server" $ do
+spec = around withServer $ describe "GameServer Server" $ do
 
     it "serves index.html page" $ \ Server{serverPort} -> do
       response <- httpBS (fromString $ "http://localhost:" <> show serverPort <> "/index.html")

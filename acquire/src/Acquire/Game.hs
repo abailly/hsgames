@@ -1,7 +1,8 @@
-{-# LANGUAGE DeriveGeneric   #-}
-{-# LANGUAGE ExplicitForAll  #-}
-{-# LANGUAGE GADTs           #-}
-{-# LANGUAGE RankNTypes      #-}
+{-# LANGUAGE DeriveAnyClass #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ExplicitForAll #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RecordWildCards #-}
 
 -- |
@@ -28,18 +29,18 @@ module Acquire.Game (
   PlayerInput(..), Handler, Message(..), initialisedGame, interpretCommand
     ) where
 
-import           Acquire.Game.Cells
-import           Acquire.Game.Core
-import           Acquire.Game.Hotels
-import           Acquire.Game.Play
-import           Acquire.Game.Player
-import           Acquire.Game.Tiles
-import           Acquire.Game.Turn
-import           Control.Monad.Prompt
-import           Data.Aeson           (ToJSON)
-import           Data.Array           ((//))
-import           GHC.Generics
-import           System.Random
+import Acquire.Game.Cells
+import Acquire.Game.Core
+import Acquire.Game.Hotels
+import Acquire.Game.Play
+import Acquire.Game.Player
+import Acquire.Game.Tiles
+import Acquire.Game.Turn
+import Control.Monad.Prompt
+import Data.Aeson (FromJSON, ToJSON)
+import Data.Array ((//))
+import GHC.Generics
+import System.Random
 
 
 data PlayerInput a where
@@ -51,12 +52,10 @@ data PlayerInput a where
 
 type Handler m a = PlayerInput a -> m a
 
-data Message = GameState { gsPlayer :: Player, gsBoard :: GameBoard, gsPlayables ::  [Order] }
+data Message = GameState { gsPlayer :: Player, gsBoard :: GameBoard, gsPlayables :: [Order] }
              | Played { gsPlayerName :: PlayerName, gsBoard ::  GameBoard, gsPlayed :: Order }
              | GameEnds { gsEndGame :: Game }
-             deriving (Eq, Show, Read, Generic)
-
-instance ToJSON Message
+             deriving (Eq, Show, Read, Generic, ToJSON, FromJSON)
 
 initialisedGame :: GameId -> StdGen -> [(PlayerName,PlayerType)] -> Prompt PlayerInput Game
 initialisedGame gid g num = do

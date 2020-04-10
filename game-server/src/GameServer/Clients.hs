@@ -143,7 +143,7 @@ handleClient logger channels p connection =
       maybe (return ()) cancel cp
       modifyIORef channels ( \ c -> c { serverPump = Nothing, clientPump = Nothing })
 
-    handleCommand List = do
+    handleCommand ListGames = do
       r <- listGames "localhost" p
       sendTextData connection (encode r)
     handleCommand (NewGame numHumans numRobots) = do

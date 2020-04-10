@@ -7,7 +7,7 @@ import GHC.Generics
 import GHC.Natural
 
 data Message =
-  List
+  ListGames
   | NewGame { numHumans :: Natural, numRobots :: Natural }
   | JoinGame { playerKey :: Id, gameId :: Id }
   | Action { selectedPlay :: Natural }

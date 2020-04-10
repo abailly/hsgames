@@ -1,15 +1,20 @@
-{-# LANGUAGE RecordWildCards     #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TupleSections       #-}
+{-# LANGUAGE TupleSections #-}
 module Acquire.Net.Player where
 
-import           Acquire.Game
-import           Acquire.Net.Types
-import           Acquire.Pretty
-import           Acquire.Trace
-import           Control.Monad.Reader
-import           Network.Socket
-import           System.IO
+import Data.Text.Lazy.Encoding(encodeUtf8)
+import Data.Text.Lazy(pack)
+import qualified Data.Aeson as A
+import GHC.Stack(HasCallStack)
+import Acquire.Game
+import Acquire.Net.IO
+import Acquire.Net.Types
+import Acquire.Pretty
+import Acquire.Trace
+import Control.Monad.Reader
+import Network.Socket
+import System.IO
 
 -- | High-level encapsulation of I/O exchanges with player
 data InOut = InOut { input        :: IO String
@@ -49,32 +54,40 @@ runPlayer host port player game io = do
   connect sock  (addrAddress server)
   h <- socketToHandle sock ReadWriteMode
   hSetBuffering h NoBuffering
-  hPutStrLn h (show $ JoinGame player game)
+  send h (JoinGame player game)
   trace $ "registering " ++ player ++ " with server at address " ++ show (addrAddress server)
   readResult h player io
 
-readResult :: Handle -> PlayerName -> InOut -> IO ()
+readResult :: HasCallStack => Handle -> PlayerName -> InOut -> IO ()
 readResult h player io@InOut{..} = do
-  ln <- hGetLine h
-  let res :: Result = read  ln
-  outputResult res
-  case res of
-   GameStarts _ -> hFlush h >> askForPlay player h io
-   _            -> readResult h player io
+  ln <- receive h
+  case ln of
+    Left err -> outputResult (ErrorMessage err)
+    Right (GameStarts _) -> askForPlay player h io
+    _            -> readResult h player io
 
-askForPlay :: PlayerName -> Handle -> InOut -> IO ()
-askForPlay player handle io = do
-  dat <- hGetLine handle
-  m <- handleMessage (read dat) io
-  case m of
-   Just response -> void $ hPutStrLn handle response
-   Nothing       -> return ()
-  askForPlay player handle io
+askForPlay :: HasCallStack => PlayerName -> Handle -> InOut -> IO ()
+askForPlay player handle io@InOut{..} = do
+  ln <- receive handle
+  case ln of
+    Left err -> outputResult (ErrorMessage err)
+    Right dat -> do
+      m <- handleMessage dat io
+      case m of
+        Just response -> void $ send handle response
+        Nothing       -> return ()
+      askForPlay player handle io
 
-handleMessage :: Message -> InOut -> IO (Maybe String)
+handleMessage :: Message -> InOut -> IO (Maybe Int)
 handleMessage g@(GameState _ _ _) InOut{..} = do
   output g
-  Just `fmap` input
+  readInput
+  where
+    readInput = do
+      s <- input
+      case A.eitherDecode $ encodeUtf8 $ pack s of
+        Left err -> outputResult (ErrorMessage err) >> readInput
+        Right v -> pure (Just v)
 handleMessage m (InOut _ output _) = do
   output m
   return Nothing
