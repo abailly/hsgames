@@ -1,27 +1,28 @@
+{-# LANGUAGE NamedFieldPuns #-}
 module GameServer.WSSpec where
 
 --import           Control.Concurrent          (threadDelay)
-import Data.Aeson(ToJSON, FromJSON)
-import           Control.Concurrent.Async
-import           Control.Concurrent.STM.TVar
-import           Control.Exception           (bracket)
-import           Control.Monad               (forM)
-import           Data.Aeson                  (eitherDecode, encode)
-import           Network.HTTP.Types          (status400)
-import           Network.Wai                 (responseLBS)
-import           Network.Wai.Handler.Warp    as Warp
-import           Network.WebSockets          as WS
-import           Prelude                     hiding (lines, readFile, writeFile)
-import           System.Directory
-import           System.FilePath             ((</>))
-import           System.IO                   (hClose)
-import           System.Posix.Temp           (mkstemp)
-import           Test.Hspec
+import Control.Concurrent.Async
+import Control.Concurrent.STM.TVar
+import Control.Exception (bracket)
+import Control.Monad (forM)
+import Data.Aeson (FromJSON, ToJSON)
+import Data.Aeson (eitherDecode, encode)
+import Network.HTTP.Types (status400)
+import Network.Wai (responseLBS)
+import Network.Wai.Handler.Warp as Warp
+import Network.WebSockets as WS
+import Prelude hiding (lines, readFile, writeFile)
+import System.Directory
+import System.FilePath ((</>))
+import System.IO (hClose)
+import System.Posix.Temp (mkstemp)
+import Test.Hspec
 
-import           GameServer.Types
-import           GameServer.App (runApp, initialState)
-import           GameServer.Log
+import GameServer.App (initialState, runApp)
 import GameServer.Builder
+import GameServer.Log
+import GameServer.Types
 
 startServer :: IO Server
 startServer = do

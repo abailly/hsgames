@@ -45,15 +45,19 @@ data ClientConnection = ClientConnection
     , clientPump       :: Maybe (Async ())
     }
 
-handleWS :: LoggerEnv IO -> TVar (M.Map SBS.ByteString (IORef ClientConnection)) -> Socket -> PendingConnection -> IO ()
-handleWS logger cnxs serverSocket pending = do
-  p <- socketPort serverSocket
+handleWS ::
+  LoggerEnv IO ->
+  TVar (M.Map SBS.ByteString (IORef ClientConnection)) ->
+  String -> PortNumber ->
+  PendingConnection ->
+  IO ()
+handleWS logger cnxs host port  pending = do
   let key = requestPath $ pendingRequest pending
   logInfo logger $ "got websocket request with key: " ++ show key
   connection <- acceptRequest pending
   ref <- getOrMakeChannels key connection
   withPingThread connection 30 (pure ()) $
-    handleClient logger ref p connection
+    handleClient logger ref host port connection
   where
     -- This code is unfortunately rather complicated because
     -- we are storing connections and channels mapping client WS connections, based
@@ -77,8 +81,8 @@ handleWS logger cnxs serverSocket pending = do
             return r
 
 
-handleClient :: LoggerEnv IO -> IORef ClientConnection -> PortNumber -> Connection ->  IO ()
-handleClient logger channels p connection =
+handleClient :: LoggerEnv IO -> IORef ClientConnection -> String -> PortNumber -> Connection ->  IO ()
+handleClient logger channels host port connection =
   let clientLoop = do
         Text message _ <- receiveDataMessage connection
         logInfo logger  $ "received message: " ++ show message
@@ -101,8 +105,8 @@ handleClient logger channels p connection =
         output       chan = writeChan chan . encode
         outputResult chan = writeChan chan . encode
 
-    startPlayer :: PortNumber -> Id -> Id -> IO ()
-    startPlayer sPort playerName gameId = do
+    startPlayer :: String -> PortNumber -> Id -> Id -> IO ()
+    startPlayer host port playerName gameId = do
       (w,r)   <- newChan
       (w',r') <- newChan
 
@@ -117,7 +121,7 @@ handleClient logger channels p connection =
       -- instead of wrapping the CLI server.
       toServer <- async $ do
         logInfo logger  $ "starting game loop for player " ++ show playerName ++ " @" ++ show gameId
-        runPlayer logger "localhost" sPort playerName gameId (io (w,r'))
+        runPlayer logger host port playerName gameId (io (w,r'))
         logInfo logger  $ "stopping game loop for player " ++ show playerName ++ " @" ++ show gameId
 
       toClient <- async $ do
@@ -144,13 +148,13 @@ handleClient logger channels p connection =
       modifyIORef channels ( \ c -> c { serverPump = Nothing, clientPump = Nothing })
 
     handleCommand ListGames = do
-      r <- listGames "localhost" p
+      r <- listGames host port
       sendTextData connection (encode r)
     handleCommand (NewGame numHumans numRobots) = do
-      r <- runNewGame "localhost" p numHumans numRobots
+      r <- runNewGame host port numHumans numRobots
       sendTextData connection (encode r)
     handleCommand (JoinGame playerName gameId) =
-      startPlayer p playerName gameId
+      startPlayer host port playerName gameId
     handleCommand (Action n) = do
       w <- inChan <$> readIORef channels
       writeChan w (show n)

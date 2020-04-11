@@ -36,8 +36,7 @@ import System.Random
 -- exposes a WebSocket-based REPL under `/repl` path.
 startServer :: Int -> IO Server
 startServer serverPort = do
-  seed <- getStdGen
-  envs <- newTVarIO (initialState seed)
+  envs <- getStdGen >>= newTVarIO . initialState
   logger <- newLog "game-server"
   loggerMiddleware <- runHTTPLog logger
   let app = loggerMiddleware $ runApp logger envs staticResources
@@ -48,13 +47,15 @@ startServer serverPort = do
   where
     startWarp 0 app = do
       (port, socket) <- openFreePort
-      pure (port , Warp.runSettingsSocket defaultSettings socket app)
+      pure (port, Warp.runSettingsSocket defaultSettings socket app)
     startWarp port app = pure (port, Warp.run port app)
 
     runHTTPLog logger = mkRequestLogger $ def { outputFormat = CustomOutputFormatWithDetails formatAsJSON
                                               , destination = Callback (\ str -> logInfo logger (decode @Value $ fromStrict $ fromLogStr str))
                                               }
 
+  -- cnxs <- newTVarIO M.empty
+  -- void $ run (read port) (WaiWS.websocketsOr defaultConnectionOptions (handleWS cnxs s) serveUI)
 
 stopServer :: Server -> IO ()
 stopServer (Server (Just th) _) = cancel th
