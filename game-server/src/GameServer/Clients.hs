@@ -18,6 +18,7 @@ import Network.HTTP.Types.Status
 import Network.Socket
 import Network.WebSockets
        ( Connection
+       , rejectRequest
        , ConnectionException
        , DataMessage(..)
        , PendingConnection
@@ -32,10 +33,13 @@ import Network.WebSockets
        )
 import System.Environment
 
+import GameServer.Types
+import GameServer.Game
 import GameServer.Log
 import GameServer.Utils
 import GameServer.Clients.Player
 import GameServer.Clients.Messages
+import Debug.Trace
 
 data ClientConnection = ClientConnection
     { inChan           :: InChan String
@@ -45,19 +49,38 @@ data ClientConnection = ClientConnection
     , clientPump       :: Maybe (Async ())
     }
 
+findBackend ::
+  [ GameBackend ] -> SBS.ByteString -> Maybe (String, PortNumber)
+findBackend backends url = do
+  let parts = SBS.split (toEnum $ fromEnum '/') url
+  backend <- selectBackend backends =<< case parts of
+    ("": "games": "Acquire" :_) -> Just Acquire
+    ("": "games": "Bautzen1945" :_) -> Just Bautzen1945
+    _ -> Nothing
+  pure (gameHost backend, fromIntegral $ gamePort backend)
+
+
 handleWS ::
   LoggerEnv IO ->
   TVar (M.Map SBS.ByteString (IORef ClientConnection)) ->
-  String -> PortNumber ->
+  [ GameBackend ] ->
   PendingConnection ->
   IO ()
-handleWS logger cnxs host port  pending = do
+handleWS logger cnxs backends pending = do
   let key = requestPath $ pendingRequest pending
+      backend = findBackend backends key
   logInfo logger $ "got websocket request with key: " ++ show key
-  connection <- acceptRequest pending
-  ref <- getOrMakeChannels key connection
-  withPingThread connection 30 (pure ()) $
-    handleClient logger ref host port connection
+  case backend of
+    Just (host, port) -> do
+      connection <- acceptRequest pending
+      ref <- getOrMakeChannels key connection
+      withPingThread connection 30 (pure ()) $ do
+        logInfo logger $ "starting client for backend at (" ++ host ++ "," ++ show port ++ ")"
+        handleClient logger ref host port connection
+    Nothing -> do
+      logError logger $ "no backend found for URL " ++ show key
+      rejectRequest pending "Invalid backend in URL"
+
   where
     -- This code is unfortunately rather complicated because
     -- we are storing connections and channels mapping client WS connections, based
@@ -79,7 +102,6 @@ handleWS logger cnxs host port  pending = do
             modifyIORef r (\ c -> c { clientConnection = connection })
             logInfo logger  $ "reusing old channels with key " ++ show key
             return r
-
 
 handleClient :: LoggerEnv IO -> IORef ClientConnection -> String -> PortNumber -> Connection ->  IO ()
 handleClient logger channels host port connection =

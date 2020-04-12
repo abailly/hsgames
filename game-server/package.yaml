@@ -58,6 +58,7 @@ dependencies:
 - wai
 - wai-extra
 - wai-app-static
+- wai-websockets
 - warp
 - websockets
 

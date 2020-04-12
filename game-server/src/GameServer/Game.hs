@@ -10,7 +10,7 @@ import System.Random (StdGen, randomRs)
 import GameServer.Utils
 
 data GameType = Bautzen1945 | Acquire
-  deriving (Eq, Show, Generic, ToJSON, FromJSON)
+  deriving (Eq, Ord, Show, Generic, ToJSON, FromJSON)
 
 maxNumberOfPlayers :: GameType -> Natural
 maxNumberOfPlayers Bautzen1945 = 2

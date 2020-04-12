@@ -18,28 +18,36 @@ import Data.Aeson (Value, decode, object, (.=))
 import Data.ByteString.Lazy (fromStrict)
 import Data.Default
 import Data.Text (Text)
-import GameServer.App
-import GameServer.Log
-import GameServer.Types
 import Network.Wai
 import Network.Wai.Application.Static
 import Network.Wai.Handler.Warp as Warp
+import Network.Wai.Handler.WebSockets as WS
+import Network.WebSockets as WS
 import Network.Wai.Middleware.RequestLogger
 import Network.Wai.Middleware.RequestLogger.JSON
 import System.Log.FastLogger (fromLogStr)
 import System.Random
+
+import GameServer.App
+import GameServer.Log
+import GameServer.Types
+import GameServer.Clients
 
 -- |Starts HTTP server on given port.
 --
 -- This server serves static files from @public/@ directory, API calls
 -- from @api/@  endpoint and also
 -- exposes a WebSocket-based REPL under `/repl` path.
-startServer :: Int -> IO Server
-startServer serverPort = do
+startServer :: ServerConfiguration -> IO Server
+startServer ServerConfiguration{serverPort,backends} = do
   envs <- getStdGen >>= newTVarIO . initialState
   logger <- newLog "game-server"
+--  let logger = fakeLogger
+  cnxs <- newTVarIO mempty
   loggerMiddleware <- runHTTPLog logger
-  let app = loggerMiddleware $ runApp logger envs staticResources
+  let app = loggerMiddleware $
+            WS.websocketsOr WS.defaultConnectionOptions (handleWS logger cnxs backends) $
+            runApp logger envs staticResources
   (port, action) <- startWarp serverPort app
   thread <- async action
   logInfo logger $ object [ "action" .= ("Started" :: Text), "port" .= port ]

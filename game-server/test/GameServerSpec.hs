@@ -10,7 +10,7 @@ import           Test.Hspec
 
 withServer :: (Server -> IO c) -> IO c
 withServer =
-  bracket (startServer 0) stopServer
+  bracket (startServer (ServerConfiguration 0 [])) stopServer
 
 spec :: Spec
 spec = around withServer $ describe "GameServer Server" $ do
