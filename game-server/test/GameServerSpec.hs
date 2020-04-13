@@ -8,9 +8,11 @@ import           Network.HTTP.Simple
 import           Network.HTTP.Types
 import           Test.Hspec
 
+import GameServer.Log
+
 withServer :: (Server -> IO c) -> IO c
 withServer =
-  bracket (startServer (ServerConfiguration 0 [])) stopServer
+  bracket (startServer fakeLogger (ServerConfiguration 0 [])) stopServer
 
 spec :: Spec
 spec = around withServer $ describe "GameServer Server" $ do

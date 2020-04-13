@@ -38,11 +38,9 @@ import GameServer.Clients
 -- This server serves static files from @public/@ directory, API calls
 -- from @api/@  endpoint and also
 -- exposes a WebSocket-based REPL under `/repl` path.
-startServer :: ServerConfiguration -> IO Server
-startServer ServerConfiguration{serverPort,backends} = do
+startServer :: LoggerEnv IO -> ServerConfiguration -> IO Server
+startServer logger ServerConfiguration{serverPort,backends} = do
   envs <- getStdGen >>= newTVarIO . initialState
-  logger <- newLog "game-server"
---  let logger = fakeLogger
   cnxs <- newTVarIO mempty
   loggerMiddleware <- runHTTPLog logger
   let app = loggerMiddleware $

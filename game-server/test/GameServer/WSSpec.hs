@@ -8,8 +8,9 @@ import Control.Exception (bracket)
 import Control.Monad (forM)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Aeson (eitherDecode, encode)
-import Data.ByteString.Lazy (ByteString)
+import Data.ByteString.Lazy (ByteString, fromStrict)
 import Data.Text (unpack)
+import Data.Text.Encoding (encodeUtf8)
 import Network.HTTP.Types (status400)
 import Network.Socket (PortNumber)
 import Network.Wai (responseLBS)
@@ -25,6 +26,7 @@ import GameServer
 import GameServer.App (initialState, runApp)
 import GameServer.Builder
 import GameServer.Clients.Echo
+import GameServer.Clients.Messages
 import GameServer.Game
 import GameServer.Log
 import GameServer.Types
@@ -35,26 +37,28 @@ testConfig backendPort =
   ServerConfiguration { serverPort = 0
                       , backends = [ GameBackend Acquire "localhost" (fromIntegral backendPort) ] }
 
-withServer :: ((Server, Async ()) -> IO c) -> IO c
+withServer :: ((Server, LoggerEnv IO, Async ()) -> IO c) -> IO c
 withServer = bracket startServers stopServers
   where
     startServers = do
-      (bport, bthread) <- runEchoServer
-      srv <- startServer (testConfig bport)
-      pure (srv, bthread)
+      logger <- newLog "test-server"
+      (bport, bthread) <- runEchoServer logger (fmap encode [ GameStarts "ABDC", ErrorMessage "error" ])
+      srv <- startServer logger (testConfig bport)
+      pure (srv, logger, bthread)
 
-    stopServers (server, backendThread) = do
+    stopServers (server, _, backendThread) = do
       stopServer server
       cancel backendThread
 
-runTestClient :: Int -> Id -> Id -> [ByteString] -> IO [ByteString]
-runTestClient port gameId playerKey inputs =
+runTestClient :: LoggerEnv IO -> Int -> Id -> Id -> [ByteString] -> IO [ByteString]
+runTestClient logger port gameId playerKey inputs =
   runClient "127.0.0.1" port (unpack $ "/games/Acquire" </> unId gameId </> "players" </> unId playerKey) client
   where
     client cnx = do
       outs <- forM inputs $ \ inp -> do
         WS.sendTextData cnx inp
         Text o _ <- WS.receiveDataMessage cnx
+        logInfo logger $  "client received " <> show o
         pure o
       WS.sendTextData cnx ("EOF"::ByteString)
       WS.sendClose cnx (""::ByteString)
@@ -63,8 +67,9 @@ runTestClient port gameId playerKey inputs =
 spec :: Spec
 spec = around withServer $ describe "Game Server WS Interface" $ do
 
-  it "connects to game server backend when frontend connects to websocket at specific URL" $ \ (Server{serverPort}, _) -> do
-    let inp = [ "{\"tag\":\"ListGames\"}" , "message 2" ]
-    res <- runTestClient serverPort "ABCD" "EFGH" inp
+  it "connects to game server backend when frontend connects to websocket at specific URL" $ \ (Server{serverPort},logger, _) -> do
+    let inp = [ JoinGame "ABDC"  "EFGH", Action "message 1" ]
+        msgs = fmap encode inp
+    res <- runTestClient logger serverPort "ABCD" "EFGH" msgs
 
-    res `shouldBe` inp
+    res `shouldBe` fmap encode [ GameStarts "ABDC", ErrorMessage "error" ]

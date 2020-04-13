@@ -10,7 +10,7 @@ data Message =
   ListGames
   | NewGame { numHumans :: Natural, numRobots :: Natural }
   | JoinGame { playerKey :: Id, gameId :: Id }
-  | Action { selectedPlay :: Natural }
+  | Action { payload :: Text }
   | Bye
   deriving stock (Eq, Show, Read, Generic)
   deriving anyclass( ToJSON, FromJSON)

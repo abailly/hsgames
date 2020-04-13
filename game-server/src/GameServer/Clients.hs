@@ -12,7 +12,7 @@ import Data.Functor
 import Data.IORef
 import qualified Data.Map as M
 import Data.Text.Lazy (Text)
-import Data.Text(pack)
+import Data.Text(pack, unpack)
 import GHC.Generics
 import Network.HTTP.Types.Status
 import Network.Socket
@@ -127,11 +127,12 @@ handleClient logger channels host port connection =
         output       chan = writeChan chan . encode
         outputResult chan = writeChan chan . encode
 
-    startPlayer :: String -> PortNumber -> Id -> Id -> IO ()
-    startPlayer host port playerName gameId = do
+    startPlayer :: Id -> Id -> IO ()
+    startPlayer playerName gameId = do
       (w,r)   <- newChan
       (w',r') <- newChan
 
+      logInfo logger  $ "start player threads for " ++ show playerName ++ " @" ++ show gameId
       -- we run 2 asyncs, one for handling player commands and general game play,
       -- the other to pump server's response to WS connection. This seems necessary because
       -- we have 2 connections to handle:
@@ -150,6 +151,7 @@ handleClient logger channels host port connection =
         logInfo logger  $ "starting response sender for player " ++ show playerName ++ " @" ++ show gameId
         forever $ do
           v <- readChan r
+          logInfo logger  $ "sending response to player " ++ show v
           cnx <- clientConnection <$> readIORef channels
           sendTextData cnx v
             `catch` (\ (e :: ConnectionException) -> logInfo logger  $ "response sender error: " ++ (show e))
@@ -172,13 +174,16 @@ handleClient logger channels host port connection =
     handleCommand ListGames = do
       r <- listGames host port
       sendTextData connection (encode r)
+      logInfo logger ("listing games" :: String)
     handleCommand (NewGame numHumans numRobots) = do
       r <- runNewGame host port numHumans numRobots
       sendTextData connection (encode r)
-    handleCommand (JoinGame playerName gameId) =
-      startPlayer host port playerName gameId
+      logInfo logger  $ "created new game " ++ show r
+    handleCommand (JoinGame playerName gameId) = do
+      startPlayer playerName gameId
+      logInfo logger  $ "player joined game " ++ show gameId
     handleCommand (Action n) = do
       w <- inChan <$> readIORef channels
-      writeChan w (show n)
+      writeChan w (unpack n)
       logInfo logger  $ "action " ++ show n
     handleCommand Bye = sendClose connection ("Bye" :: Text)

@@ -42,31 +42,36 @@ runPlayer :: LoggerEnv IO
 runPlayer logger host port player game io = do
   h <- connectTo host port
   send h (encode $ JoinGame player game)
-  logInfo logger  $ "registering " ++ show player ++ " with server"
-  waitForStart h player io
-  playerLoop h player io
+  logInfo logger  $ "registering " ++ show player ++ " with server, waiting for GameStarts"
+  waitForStart logger h player io
+  logInfo logger $ "start playing " <> show player <> "@" <> show game
+  playerLoop logger h player io
 
-waitForStart :: ServerConnection IO -> Id -> InOut IO -> IO ()
-waitForStart handle player io@InOut{..} = do
+waitForStart :: LoggerEnv IO -> ServerConnection IO -> Id -> InOut IO -> IO ()
+waitForStart logger handle player io@InOut{..} = do
   res :: Result <- (fromJust . decode) `fmap` receive handle
+  logInfo logger $ "[waiting] received message " <> show res <> " from server"
   outputResult res
   case res of
    GameStarts _ -> pure ()
-   _            -> waitForStart handle player io
+   _            -> waitForStart logger handle player io
 
-playerLoop :: ServerConnection IO -> Id -> InOut IO -> IO ()
-playerLoop handle player io = do
+playerLoop :: LoggerEnv IO -> ServerConnection IO -> Id -> InOut IO -> IO ()
+playerLoop logger handle player io = do
   dat <- (fromJust . decode) `fmap` receive handle
+  logInfo logger $ "[playing] received message " <> show dat <> " from server"
   m <- handleCommand dat io
   case m of
-   Just response -> send handle (encode response)
+   Just response -> do
+     logInfo logger $ "[playing] sending message " <> show response <> " to server"
+     send handle (encode response)
    Nothing       -> return ()
-  playerLoop handle player io
+  playerLoop logger handle player io
 
-handleCommand :: Message -> InOut IO -> IO (Maybe String)
+handleCommand :: Result -> InOut IO -> IO (Maybe String)
 -- handleCommand msg@(GameState _ _ _) InOut{..} = do
 --   output msg
 --   Just `fmap` input
-handleCommand msg (InOut _ output _) = do
-  output msg
-  return Nothing
+handleCommand msg (InOut input _ outputResult) = do
+  outputResult msg
+  Just `fmap` input
