@@ -14,8 +14,7 @@ import GameServer.Clients.IO
 
 -- | High-level encapsulation of I/O exchanges with player
 data InOut m = InOut { input        :: m String
-                     , output       :: Message -> m ()
-                     , outputResult :: Result -> m ()
+                     , output       :: Result -> m ()
                      }
 
 runNewGame :: String -> PortNumber -> Natural -> Natural -> IO Result
@@ -51,7 +50,7 @@ waitForStart :: LoggerEnv IO -> ServerConnection IO -> Id -> InOut IO -> IO ()
 waitForStart logger handle player io@InOut{..} = do
   res :: Result <- (fromJust . decode) `fmap` receive handle
   logInfo logger $ "[waiting] received message " <> show res <> " from server"
-  outputResult res
+  output res
   case res of
    GameStarts _ -> pure ()
    _            -> waitForStart logger handle player io
@@ -62,16 +61,16 @@ playerLoop logger handle player io = do
   logInfo logger $ "[playing] received message " <> show dat <> " from server"
   m <- handleCommand dat io
   case m of
-   Just response -> do
-     logInfo logger $ "[playing] sending message " <> show response <> " to server"
-     send handle (encode response)
-   Nothing       -> return ()
+    Just response -> do
+      logInfo logger $ "[playing] sending message " <> show response <> " to server"
+      send handle (encode response)
+    Nothing       -> return ()
   playerLoop logger handle player io
 
 handleCommand :: Result -> InOut IO -> IO (Maybe String)
--- handleCommand msg@(GameState _ _ _) InOut{..} = do
---   output msg
---   Just `fmap` input
-handleCommand msg (InOut input _ outputResult) = do
-  outputResult msg
-  Just `fmap` input
+handleCommand msg@(InputRequired payload) InOut{..} = do
+   output msg
+   Just `fmap` input
+handleCommand msg InOut{output} = do
+  output msg
+  pure Nothing

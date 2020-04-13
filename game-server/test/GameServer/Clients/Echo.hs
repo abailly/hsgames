@@ -2,7 +2,7 @@ module GameServer.Clients.Echo where
 
 import Control.Concurrent.Async
 import Control.Exception (bracket)
-import Control.Monad (forM_, forever)
+import Control.Monad (forM_, forever, when)
 import Data.Binary.Get
 import Data.Binary.Put
 import Data.ByteString.Lazy (ByteString)
@@ -14,7 +14,7 @@ import System.IO (BufferMode(NoBuffering), IOMode(..), hSetBuffering)
 import GameServer.Clients.IO
 import GameServer.Log
 
-runEchoServer :: LoggerEnv IO -> [ByteString] -> IO (PortNumber, Async ())
+runEchoServer :: LoggerEnv IO -> [(Bool, ByteString)] -> IO (PortNumber, Async ())
 runEchoServer logger outputs = do
   sock <- socket AF_INET Stream defaultProtocol
   setSocketOption sock ReuseAddr 1
@@ -35,7 +35,7 @@ runEchoServer logger outputs = do
 
   return (port, srvThread)
     where
-      handleClient h [] = do
+      handleClient h [] = forever $ do
         -- read bytes
         len <- runGet getInt64be <$> LBS.hGet h 8
         bs <- LBS.hGet h (fromIntegral len)
@@ -46,16 +46,18 @@ runEchoServer logger outputs = do
         logInfo logger $ "sent response " <> decodeUtf8 bs
 
       handleClient h outputs =
-        forM_ outputs $ \ out -> do
-        -- read bytes
-        len <- runGet getInt64be <$> LBS.hGet h 8
-        bs <- LBS.hGet h (fromIntegral len)
-        logInfo logger $ "received payload " <> decodeUtf8 bs
-          -- echo bytes
-        let len' = LBS.length out
-        LBS.hPut h (runPut $ putInt64be len')
-        LBS.hPut h out
-        logInfo logger $ "sent response " <> decodeUtf8 out
+        forM_ outputs $ \ (waitInput, out) -> do
+          -- read bytes
+          when waitInput $ do
+            len <- runGet getInt64be <$> LBS.hGet h 8
+            bs <- LBS.hGet h (fromIntegral len)
+            logInfo logger $ "received payload " <> decodeUtf8 bs
+
+            -- echo bytes
+          let len' = LBS.length out
+          LBS.hPut h (runPut $ putInt64be len')
+          LBS.hPut h out
+          logInfo logger $ "sent response " <> decodeUtf8 out
 
 
 echoServer = bracket startEcho stopEcho

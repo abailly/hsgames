@@ -121,11 +121,10 @@ handleClient logger channels host port connection =
     -- I/O manager for WS connections
     -- We use a pair of `Chan` to read from and write to, encoding
     -- to JSON on the output
-    io (w,r') = InOut (input r') (output w) (outputResult w)
+    io (w,r') = InOut (input r') (output w)
       where
-        input             = readChan  -- should probably use decode to be symetric, but we send raw strings...
-        output       chan = writeChan chan . encode
-        outputResult chan = writeChan chan . encode
+        input = readChan  -- should probably use decode to be symetric, but we send raw strings...
+        output chan = writeChan chan . encode
 
     startPlayer :: Id -> Id -> IO ()
     startPlayer playerName gameId = do

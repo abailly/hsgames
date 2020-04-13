@@ -8,6 +8,7 @@ import Control.Exception (bracket)
 import Control.Monad (forM)
 import Data.Aeson (FromJSON, ToJSON)
 import Data.Aeson (eitherDecode, encode)
+import Data.Bifunctor (second)
 import Data.ByteString.Lazy (ByteString, fromStrict)
 import Data.Text (unpack)
 import Data.Text.Encoding (encodeUtf8)
@@ -42,7 +43,7 @@ withServer = bracket startServers stopServers
   where
     startServers = do
       logger <- newLog "test-server"
-      (bport, bthread) <- runEchoServer logger (fmap encode [ GameStarts "ABDC", ErrorMessage "error" ])
+      (bport, bthread) <- runEchoServer logger (fmap (second encode) [ (True, GameStarts "ABDC"), (False, InputRequired "ask for input") ])
       srv <- startServer logger (testConfig bport)
       pure (srv, logger, bthread)
 
@@ -72,4 +73,4 @@ spec = around withServer $ describe "Game Server WS Interface" $ do
         msgs = fmap encode inp
     res <- runTestClient logger serverPort "ABCD" "EFGH" msgs
 
-    res `shouldBe` fmap encode [ GameStarts "ABDC", ErrorMessage "error" ]
+    res `shouldBe` fmap encode [ GameStarts "ABDC", InputRequired "ask for input" ]
