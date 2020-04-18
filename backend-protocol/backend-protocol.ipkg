@@ -1,0 +1,4 @@
+package hsgames
+depends = contrib, network
+main = protocol
+executable = protocol
