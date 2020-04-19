@@ -22,6 +22,25 @@ Show Message where
   show (Action payload) = "Action " ++ payload
   show Bye = "Bye"
 
+
+public export
+data Result : Type where
+  PlayerRegistered : ( playerKey , gameId : String )  -> Result
+  NewGameStarted : (gameId : String ) -> Result
+  GameStarts : (gameId : String ) -> Result
+  GamesList : (games : List String) -> Result
+  InputRequired : ( payload : String ) -> Result
+  ErrorMessage : (reason : String ) -> Result
+
+export
+Show Result where
+  show (PlayerRegistered playerKey gameId) = "PlayerRegistered " ++ playerKey ++ " " ++ gameId
+  show (NewGameStarted gameId) = "NewGameStarted " ++ gameId
+  show (GameStarts gameId) = "GameStarts " ++ gameId
+  show (GamesList games) = "GamesList " ++ show games
+  show (InputRequired payload) = "InputRequired " ++ show payload
+  show (ErrorMessage reason) = "ErrorMessage " ++ show reason
+
 -- Encoder
 
 export
