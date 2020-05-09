@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 95e1ddd336d43606765af91edd517cc6f28ea0614d4c8e69e555ff0a5dd691d7
+-- hash: 5d4da356b61df8493ea36bf5c65ef61e5f2484be3444ff6a93cb2ad91d312307
 
 name:           game-server
 version:        0.1.0.0
@@ -35,6 +35,7 @@ library
       GameServer.Clients.Player
       GameServer.Game
       GameServer.Log
+      GameServer.Options
       GameServer.Player
       GameServer.State
       GameServer.Types
@@ -59,6 +60,7 @@ library
     , http-types
     , mtl
     , network
+    , optparse-applicative
     , random
     , servant
     , servant-server
@@ -98,6 +100,7 @@ executable game-server-exe
     , http-types
     , mtl
     , network
+    , optparse-applicative
     , random
     , servant
     , servant-server
@@ -149,6 +152,7 @@ test-suite game-server-test
     , http-types
     , mtl
     , network
+    , optparse-applicative
     , random
     , servant
     , servant-server

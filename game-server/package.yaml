@@ -47,6 +47,7 @@ dependencies:
 - http-types
 - mtl
 - network
+- optparse-applicative
 - random
 - servant
 - servant-server

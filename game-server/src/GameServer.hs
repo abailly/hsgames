@@ -60,9 +60,6 @@ startServer logger ServerConfiguration{serverPort,backends} = do
                                               , destination = Callback (\ str -> logInfo logger (decode @Value $ fromStrict $ fromLogStr str))
                                               }
 
-  -- cnxs <- newTVarIO M.empty
-  -- void $ run (read port) (WaiWS.websocketsOr defaultConnectionOptions (handleWS cnxs s) serveUI)
-
 stopServer :: Server -> IO ()
 stopServer (Server (Just th) _) = cancel th
 stopServer _                    = pure ()
