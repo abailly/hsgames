@@ -171,9 +171,10 @@ handleClient logger channels host port connection =
       modifyIORef channels ( \ c -> c { serverPump = Nothing, clientPump = Nothing })
 
     handleCommand ListGames = do
-      r <- listGames host port
-      sendTextData connection (encode r)
-      logInfo logger ("listing games" :: String)
+      r <- listGames logger host port
+      case r of
+        Left err -> sendTextData connection (encode err)
+        Right res -> sendTextData connection (encode res)
     handleCommand (NewGame numHumans numRobots) = do
       r <- runNewGame host port numHumans numRobots
       sendTextData connection (encode r)

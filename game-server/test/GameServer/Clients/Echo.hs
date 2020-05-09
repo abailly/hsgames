@@ -7,6 +7,7 @@ import Data.Binary.Get
 import Data.Binary.Put
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString as BS
 import Data.Text.Lazy.Encoding (decodeUtf8)
 import Network.Socket
 import System.IO (BufferMode(NoBuffering), IOMode(..), hSetBuffering)
@@ -37,26 +38,21 @@ runEchoServer logger outputs = do
     where
       handleClient h [] = forever $ do
         -- read bytes
-        len <- runGet getInt64be <$> LBS.hGet h 8
-        bs <- LBS.hGet h (fromIntegral len)
+        bs <- LBS.fromStrict <$> BS.hGetLine h
         logInfo logger $ "received payload " <> decodeUtf8 bs
           -- echo bytes
-        LBS.hPut h (runPut $ putInt64be len)
-        LBS.hPut h bs
+        BS.hPut h (LBS.toStrict bs <> "\n")
         logInfo logger $ "sent response " <> decodeUtf8 bs
 
       handleClient h outputs =
         forM_ outputs $ \ (waitInput, out) -> do
           -- read bytes
           when waitInput $ do
-            len <- runGet getInt64be <$> LBS.hGet h 8
-            bs <- LBS.hGet h (fromIntegral len)
+            bs <- LBS.fromStrict <$> BS.hGetLine h
             logInfo logger $ "received payload " <> decodeUtf8 bs
 
             -- echo bytes
-          let len' = LBS.length out
-          LBS.hPut h (runPut $ putInt64be len')
-          LBS.hPut h out
+          BS.hPut h (LBS.toStrict out <> "\n")
           logInfo logger $ "sent response " <> decodeUtf8 out
 
 

@@ -21,14 +21,14 @@ spec = describe "To-Server I/O Protocol" $ do
 
   around echoServer $ describe "given a compliant server" $ do
 
-    it "can send and receive arbitrary bytestrings over the wire" $ \ (cnx, _) ->
+    it "can send and receive arbitrary bytestrings not containing '\\n' over the wire" $ \ (cnx, _) ->
       property $ can_send_and_receive_arbitrary_data cnx
 
 newtype Exchange = Exchange { unExchange :: [ ByteString ] }
   deriving (Eq, Show)
 
 instance Arbitrary Exchange where
-  arbitrary = Exchange . fmap LBS.pack <$> arbitrary
+  arbitrary = Exchange . fmap LBS.pack . fmap (filter ((/= '\n') . toEnum . fromIntegral)) <$> arbitrary
 
 can_send_and_receive_arbitrary_data :: ServerConnection IO -> Exchange -> Property
 can_send_and_receive_arbitrary_data cnx (Exchange is) = monadicIO $ do

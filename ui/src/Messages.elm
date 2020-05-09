@@ -22,7 +22,7 @@ encodeRequest : Request -> Json.Value
 encodeRequest msg =
     case msg of
         List ->
-            Enc.object [ ( "tag", Enc.string "List" ), ( "contents", Enc.list Enc.int [] ) ]
+            Enc.object [ ( "tag", Enc.string "ListGames" ), ( "contents", Enc.list Enc.int [] ) ]
 
         Action n ->
             Enc.object

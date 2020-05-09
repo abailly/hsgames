@@ -1,6 +1,6 @@
 module GameServer.Clients.Player where
 
-import Data.Aeson (encode, decode)
+import Data.Aeson (encode, eitherDecode, decode)
 import GameServer.Log
 import Data.Maybe
 import Control.Monad.Reader
@@ -25,11 +25,12 @@ runNewGame host port numHumans numRobots = do
   disconnect h
   return res
 
-listGames :: String -> PortNumber -> IO Result
-listGames host port = do
+listGames :: LoggerEnv IO -> String -> PortNumber -> IO (Either String Result)
+listGames logger host port = do
   h <- connectTo host port
   send h (encode ListGames)
-  res :: Result <- (fromJust . decode) `fmap` receive h
+  res :: Either String Result <- eitherDecode `fmap` receive h
+  logInfo logger $ "[listGames] received message " <> either id show res
   disconnect h
   return res
 

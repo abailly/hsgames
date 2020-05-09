@@ -6,6 +6,7 @@ module GameServer.Clients.IO
 import Control.Monad.Reader
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as LBS
+import qualified Data.ByteString as BS
 import Network.Socket
 import Data.Binary.Get(runGet, getInt64be)
 import Data.Binary.Put(runPut, putInt64be)
@@ -34,14 +35,9 @@ connectTo host port = do
   connect sock (addrAddress server)
   serverHandle <- socketToHandle sock ReadWriteMode
   hSetBuffering serverHandle NoBuffering
-  let send bs = do
-        let len = LBS.length bs
-            binLen = runPut $ putInt64be len
-        LBS.hPut serverHandle binLen >> LBS.hPut serverHandle bs
+  let send bs = LBS.hPut serverHandle (bs <> "\n")
 
-      receive = do
-        len <- runGet getInt64be <$> LBS.hGet serverHandle 8
-        LBS.hGet serverHandle (fromIntegral len)
+      receive = LBS.fromStrict <$> BS.hGetLine serverHandle
 
   return $ ServerConnection {..}
 

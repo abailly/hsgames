@@ -22,7 +22,7 @@ data Result =
   PlayerRegistered { playerKey :: Id, gameId :: Id }
   | NewGameStarted { gameId :: Id }
   | GameStarts { gameId :: Id }
-  | GamesList { games :: [Id] }
+  | GamesList [GameDescription]
   | InputRequired { payload :: Text }
   | ErrorMessage { error :: Text }
   deriving (Show, Read, Generic, ToJSON, FromJSON)
