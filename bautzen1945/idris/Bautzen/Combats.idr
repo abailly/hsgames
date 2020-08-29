@@ -11,6 +11,8 @@ import Data.List
 import Data.Nat
 import Data.Vect
 
+%default total
+
 ||| Combat result as steps lost by attacker and defender.
 public export
 record Losses where

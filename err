@@ -1,0 +1,115 @@
+Stack has not been tested with GHC versions above 8.6, and using 8.8.3, this may fail
+Stack has not been tested with Cabal versions above 2.4, but version 3.0.1.0 was found, this may fail
+game-server-0.1.0.0: unregistering (local file changes: src/GameServer.hs)
+Progress 0/2            game-server> build (lib + exe + test)
+Progress 0/2            Preprocessing library for game-server-0.1.0.0..
+Progress 0/2            Building library for game-server-0.1.0.0..
+Progress 0/2            [14 of 14] Compiling GameServer
+Progress 0/2            Preprocessing executable 'game-server-exe' for game-server-0.1.0.0..
+Progress 0/2            Building executable 'game-server-exe' for game-server-0.1.0.0..
+Progress 0/2            Linking .stack-work/dist/x86_64-osx/Cabal-3.0.1.0/build/game-server-exe/game-server-exe ...
+Progress 0/2            Preprocessing test suite 'game-server-test' for game-server-0.1.0.0..
+Progress 0/2            Building test suite 'game-server-test' for game-server-0.1.0.0..
+Progress 0/2            Linking .stack-work/dist/x86_64-osx/Cabal-3.0.1.0/build/game-server-test/game-server-test ...
+Progress 0/2            game-server> copy/register
+Progress 0/2            Installing library in /Users/arnaud/projects/hsgames/.stack-work/install/x86_64-osx/fd6d43248893aa4b73c3c62a9ff5d86d83e66b59209d97963c536ab42b7432c2/8.8.3/lib/x86_64-osx-ghc-8.8.3/game-server-0.1.0.0-K8ToPFFectKIzvce1JyKJl
+Progress 0/2            Installing executable game-server-exe in /Users/arnaud/projects/hsgames/.stack-work/install/x86_64-osx/fd6d43248893aa4b73c3c62a9ff5d86d83e66b59209d97963c536ab42b7432c2/8.8.3/bin
+Progress 0/2            Registering library for game-server-0.1.0.0..
+Progress 0/2            game-server> test (suite: game-server-test, args: -m "server backend")
+Progress 0/2            
+Progress 1/2: game-serverus                         
+Progress 1/2: game-server                         game-server> Test suite game-server-test failed
+Progress 1/2: game-server                         Completed 2 action(s).
+Test suite failure for package game-server-0.1.0.0
+    game-server-test:  exited with: ExitFailure 1
+Logs printed to console
+
+Type help for available commands. Press enter to force a rebuild.
+Stack has not been tested with GHC versions above 8.6, and using 8.8.3, this may fail
+Stack has not been tested with Cabal versions above 2.4, but version 3.0.1.0 was found, this may fail
+game-server-0.1.0.0: unregistering (local file changes: src/GameServer/Clients.hs)
+Progress 0/2            game-server> build (lib + exe + test)
+Progress 0/2            Preprocessing library for game-server-0.1.0.0..
+Progress 0/2            Building library for game-server-0.1.0.0..
+Progress 0/2            [13 of 14] Compiling GameServer.Clients
+Progress 0/2            Preprocessing executable 'game-server-exe' for game-server-0.1.0.0..
+Progress 0/2            Building executable 'game-server-exe' for game-server-0.1.0.0..
+Progress 0/2            Linking .stack-work/dist/x86_64-osx/Cabal-3.0.1.0/build/game-server-exe/game-server-exe ...
+Progress 0/2            Preprocessing test suite 'game-server-test' for game-server-0.1.0.0..
+Progress 0/2            Building test suite 'game-server-test' for game-server-0.1.0.0..
+Progress 0/2            Linking .stack-work/dist/x86_64-osx/Cabal-3.0.1.0/build/game-server-test/game-server-test ...
+Progress 0/2            game-server> copy/register
+Progress 0/2            Installing library in /Users/arnaud/projects/hsgames/.stack-work/install/x86_64-osx/fd6d43248893aa4b73c3c62a9ff5d86d83e66b59209d97963c536ab42b7432c2/8.8.3/lib/x86_64-osx-ghc-8.8.3/game-server-0.1.0.0-K8ToPFFectKIzvce1JyKJl
+Progress 0/2            Installing executable game-server-exe in /Users/arnaud/projects/hsgames/.stack-work/install/x86_64-osx/fd6d43248893aa4b73c3c62a9ff5d86d83e66b59209d97963c536ab42b7432c2/8.8.3/bin
+Progress 0/2            Registering library for game-server-0.1.0.0..
+Progress 0/2            game-server> test (suite: game-server-test, args: -m "server backend")
+Progress 0/2            Progress 1/2: game-server                         
+us
+game-server> Test suite game-server-test failed
+Completed 2 action(s).
+Test suite failure for package game-server-0.1.0.0
+    game-server-test:  exited with: ExitFailure 1
+Logs printed to console
+
+Type help for available commands. Press enter to force a rebuild.
+Stack has not been tested with GHC versions above 8.6, and using 8.8.3, this may fail
+Stack has not been tested with Cabal versions above 2.4, but version 3.0.1.0 was found, this may fail
+game-server-0.1.0.0: unregistering (local file changes: test/GameServer/WSSpec.hs)
+Progress 0/2            game-server> build (lib + exe + test)
+Progress 0/2            Preprocessing library for game-server-0.1.0.0..
+Progress 0/2            Building library for game-server-0.1.0.0..
+Progress 0/2            Preprocessing executable 'game-server-exe' for game-server-0.1.0.0..
+Progress 0/2            Building executable 'game-server-exe' for game-server-0.1.0.0..
+Progress 0/2            Preprocessing test suite 'game-server-test' for game-server-0.1.0.0..
+Progress 0/2            Building test suite 'game-server-test' for game-server-0.1.0.0..
+Progress 0/2            [7 of 8] Compiling GameServer.WSSpec
+Progress 0/2            Linking .stack-work/dist/x86_64-osx/Cabal-3.0.1.0/build/game-server-test/game-server-test ...
+Progress 0/2            game-server> copy/register
+Progress 0/2            Installing library in /Users/arnaud/projects/hsgames/.stack-work/install/x86_64-osx/fd6d43248893aa4b73c3c62a9ff5d86d83e66b59209d97963c536ab42b7432c2/8.8.3/lib/x86_64-osx-ghc-8.8.3/game-server-0.1.0.0-K8ToPFFectKIzvce1JyKJl
+Progress 0/2            Installing executable game-server-exe in /Users/arnaud/projects/hsgames/.stack-work/install/x86_64-osx/fd6d43248893aa4b73c3c62a9ff5d86d83e66b59209d97963c536ab42b7432c2/8.8.3/bin
+Progress 0/2            Registering library for game-server-0.1.0.0..
+Progress 0/2            game-server> test (suite: game-server-test, args: -m "server backend")
+Progress 0/2            
+Progress 1/2: game-server                         
+Progress 1/2: game-server                         game-server> Test suite game-server-test failed
+Progress 1/2: game-server                         Completed 2 action(s).
+Test suite failure for package game-server-0.1.0.0
+    game-server-test:  exited with: ExitFailure 1
+Logs printed to console
+
+Type help for available commands. Press enter to force a rebuild.
+Stack has not been tested with GHC versions above 8.6, and using 8.8.3, this may fail
+Stack has not been tested with Cabal versions above 2.4, but version 3.0.1.0 was found, this may fail
+game-server-0.1.0.0: unregistering (local file changes: test/GameServer/WSSpec.hs)
+Progress 0/2            game-server> build (lib + exe + test)
+Progress 0/2            Preprocessing library for game-server-0.1.0.0..
+Progress 0/2            Building library for game-server-0.1.0.0..
+Progress 0/2            Preprocessing executable 'game-server-exe' for game-server-0.1.0.0..
+Progress 0/2            Building executable 'game-server-exe' for game-server-0.1.0.0..
+Progress 0/2            Preprocessing test suite 'game-server-test' for game-server-0.1.0.0..
+Progress 0/2            Building test suite 'game-server-test' for game-server-0.1.0.0..
+Progress 0/2            [7 of 8] Compiling GameServer.WSSpec
+Progress 0/2            Linking .stack-work/dist/x86_64-osx/Cabal-3.0.1.0/build/game-server-test/game-server-test ...
+Progress 0/2            game-server> copy/register
+Progress 0/2            Installing library in /Users/arnaud/projects/hsgames/.stack-work/install/x86_64-osx/fd6d43248893aa4b73c3c62a9ff5d86d83e66b59209d97963c536ab42b7432c2/8.8.3/lib/x86_64-osx-ghc-8.8.3/game-server-0.1.0.0-K8ToPFFectKIzvce1JyKJl
+Progress 0/2            Installing executable game-server-exe in /Users/arnaud/projects/hsgames/.stack-work/install/x86_64-osx/fd6d43248893aa4b73c3c62a9ff5d86d83e66b59209d97963c536ab42b7432c2/8.8.3/bin
+Progress 0/2            Registering library for game-server-0.1.0.0..
+Progress 0/2            game-server> test (suite: game-server-test, args: -m "server backend")
+Progress 0/2            
+Progress 1/2: game-server                         
+Progress 1/2: game-server                         game-server> Test suite game-server-test failed
+Progress 1/2: game-server                         Completed 2 action(s).
+Test suite failure for package game-server-0.1.0.0
+    game-server-test:  exited with: ExitFailure 1
+Logs printed to console
+
+Type help for available commands. Press enter to force a rebuild.
+Stack has not been tested with GHC versions above 8.6, and using 8.8.3, this may fail
+Stack has not been tested with Cabal versions above 2.4, but version 3.0.1.0 was found, this may fail
+game-server-0.1.0.0: unregistering (local file changes: test/GameServer/WSSpec.hs)
+Progress 0/2            game-server> build (lib + exe + test)
+Progress 0/2            Preprocessing library for game-server-0.1.0.0..
+Progress 0/2            Building library for game-server-0.1.0.0..
+Progress 0/2            Preprocessing executable 'game-server-exe' for game-server-0.1.0.0..
+Progress 0/2            Building executable 'game-server-exe' for game-server-0.1.0.0..
+Progress 0/2

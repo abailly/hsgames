@@ -3,6 +3,8 @@ module Data.ZZ
 import Decidable.Equality
 import Data.Sign
 
+%default total
+
 ||| An integer is either a positive `Nat` or the negated successor of a `Nat`.
 |||
 ||| For example, 3 is `Pos 3` and -2 is `NegS 1`. Zero is arbitrarily chosen
@@ -95,19 +97,13 @@ public export
 implementation Abs ZZ where
     abs = cast . absZ
 
-mutual
-  public export
-  implementation Neg ZZ where
-    negate (Pos Z)     = Pos Z
-    negate (Pos (S n)) = NegS n
-    negate (NegS n)    = Pos (S n)
+public export
+implementation Neg ZZ where
+  negate (Pos Z)     = Pos Z
+  negate (Pos (S n)) = NegS n
+  negate (NegS n)    = Pos (S n)
 
-    (-) = subZ
-
-  ||| Subtract two `ZZ`s. Consider using `(-) {a=ZZ}`.
-  public export
-  subZ : ZZ -> ZZ -> ZZ
-  subZ n m = plusZ n (negate m)
+  n - m = plusZ n (negate m)
 
 public export
 implementation Cast ZZ Integer where

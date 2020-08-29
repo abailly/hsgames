@@ -11,6 +11,8 @@ import Data.Maybe.Extra
 import Data.Fin
 import Data.List
 
+%default total
+
 public export
 atCommandDistance : Maybe Pos -> (Pos, Nat) -> Bool
 atCommandDistance Nothing y = False
@@ -44,7 +46,6 @@ underCommand units unit =
     hqs = findHQ unit units
 
 namespace CommandTest
-
 
   positions : List (GameUnit, Pos)
   positions = [ (Bautzen.GameUnit.p15_5dp, Hex 2 2)

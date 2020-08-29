@@ -1,0 +1,28 @@
+<!DOCTYPE HTML>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Acquire</title>
+    <link rel="stylesheet" href="acquire.css" >
+    <link rel="stylesheet" href="font-awesome.css" >
+  </head>
+  <body>
+    <div id="acquire"></div>
+    <script src="acquire.js"></script>
+    <script>
+      const node = document.getElementById('acquire');
+      const app = Elm.Acquire.init({node: node, flags: [window.location.hostname, window.location.port]});
+      const ws = new WebSocket("ws://" + window.location.hostname + ":" + window.location.port +"/games/Acquire/ABCDE");
+      ws.onmessage = function(message)
+      {
+          console.log("receiving: "  + JSON.stringify(message));
+          if(message.data) {
+              app.ports.websocketIn.send(message.data);
+          }
+      };
+      app.ports.websocketOut.subscribe(function(msg) {
+          console.log("sending: "  + msg);
+          ws.send(msg);
+      });
+    </script>
+</body></html>

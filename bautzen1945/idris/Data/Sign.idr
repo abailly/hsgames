@@ -1,5 +1,7 @@
 module Data.Sign
 
+%default total
+
 ||| A representation of signs for signed datatypes such as `ZZ`
 public export
 data Sign = Plus | Zero | Minus

@@ -11,6 +11,8 @@ import Data.Maybe
 import Data.Nat
 import Data.Vect
 
+%default total
+
 -- Map & Terrain types
 
 ||| Terrain types

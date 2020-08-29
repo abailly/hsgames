@@ -8,6 +8,8 @@ import Bautzen.Terrain
 import Data.Fin
 import Data.Nat
 
+%default total
+
 ||| * see section 8.2
 public export
 data CombatPhase : Type where

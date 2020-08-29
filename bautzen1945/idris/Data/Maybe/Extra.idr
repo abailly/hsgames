@@ -1,5 +1,7 @@
 module Data.Maybe.Extra
 
+%default total
+
 public export
 catMaybes : List (Maybe a) -> List a
 catMaybes [] = []

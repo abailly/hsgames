@@ -5,6 +5,8 @@ import Data.Maybe
 import Data.Nat
 import Data.Vect
 
+%default total
+
 -- Base Types
 -- Section 1.1
 public export

@@ -3,6 +3,8 @@ module Data.Nat.DivMod
 
 import Data.Nat
 
+%default total
+
 ||| The result of euclidean division of natural numbers
 |||
 ||| @ dividend the dividend
