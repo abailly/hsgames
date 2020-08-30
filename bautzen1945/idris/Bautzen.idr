@@ -1,4 +1,4 @@
-module Main
+module Bautzen
 
 import Bautzen.Options
 import Bautzen.REPL
@@ -8,6 +8,7 @@ import System
 
 %cg chez libidris_net.so
 
+partial
 main : IO ()
 main = do
   (_ :: args) <- getArgs
