@@ -16,6 +16,7 @@ import Bautzen.SExp
 import Data.List.Extra
 
 import Data.Fin
+import Data.Nat
 
 export
 act : (game : Game) -> Command (curSegment game) -> Either GameError Event

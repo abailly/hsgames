@@ -15,6 +15,7 @@ import Data.SortedMap
 import Data.List.Extra
 
 import Data.List
+import Data.Nat
 import Data.Vect
 
 -- section 7.1.2

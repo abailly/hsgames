@@ -31,18 +31,25 @@ handleClient socket addr game = do
                      | Left err => do putStrLn ("failed to read message " ++ show err) ; handleClient socket addr game
                    putStrLn $ "received  " ++ msg
                    let (res, game') = commandHandler game msg
-                   let lens = padWith0 (prim__strLength res)
+                   putStrLn $ "result is " ++ show res
+                   let lens = padWith0 (cast $ length res)
                    putStrLn $ "sending " ++ lens ++ " chars"
                    Right l <- send socket (lens ++ res)
                      | Left err => do putStrLn ("failed to send message " ++ show err) ; close socket -- TODO error handling
+                   putStrLn $ "sent result"
                    handleClient socket addr game'
 
 
 serve : Socket -> IO (Either String ())
 serve sock = do
+  putStrLn "awaiting clients"
   Right (s, addr) <- accept sock
     | Left err => pure (Left $ "Failed to accept on socket with error: " ++ show err)
-  pid <- fork (handleClient s addr initialGame)
+  putStrLn $ "client connecting " ++ show addr
+  pid <- do
+    putStrLn "before fork"
+    fork (handleClient s addr initialGame)
+  putStrLn "after fork"
   serve sock
 
 export

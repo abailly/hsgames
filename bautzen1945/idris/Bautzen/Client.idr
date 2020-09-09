@@ -2,8 +2,9 @@
 module Bautzen.Client
 
 import Bautzen.Options
-
 import Bautzen.Network
+import Bautzen.REPL.SExpParser
+import Bautzen.SExp
 
 import Data.Strings.Extra
 
@@ -21,8 +22,10 @@ import System.File
 sendCommand : Socket -> SExp -> IO (Either String String)
 sendCommand socket command = do
   let cmd = toWire command
+  putStrLn $ "sending message " ++ cmd
   Right l <- send socket cmd
     | Left err => pure $ Left ("failed to send message " ++ show err)
+  putStrLn $ "sent message, waiting answer"
   Right (str, _) <- recv socket 6
     | Left err => pure $ Left ("failed to receive length of message " ++ show err)
   case parseInteger (unpack str) 0 of

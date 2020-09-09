@@ -25,10 +25,6 @@ absZ : ZZ -> Nat
 absZ (Pos n) = n
 absZ (NegS n) = S n
 
-showParens : (b : Bool) -> String -> String
-showParens False s = s
-showParens True  s = "(" ++ s ++ ")"
-
 public export
 implementation Show ZZ where
   showPrec d (Pos n) = showPrec d n

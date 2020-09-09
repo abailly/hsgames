@@ -2,6 +2,7 @@
 ||| Re-exports all of `Data.ZZ` from contrib for convenience
 module Data.ZZ.Extra
 
+import Data.Nat
 import Data.Sign
 import public Data.ZZ
 
