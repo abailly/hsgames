@@ -13,7 +13,6 @@ import Builtin
 import Prelude
 import Data.Nat
 import Data.List
-import Debug.Trace
 import Network.Socket
 import Network.Socket.Data
 import Network.Socket.Raw

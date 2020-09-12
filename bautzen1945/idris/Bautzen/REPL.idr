@@ -85,7 +85,7 @@ commandHandler game command =
                          Right event => (show (toSExp event), apply event game)
     Right (Qry qry) =>
       let qryResult = toSExp $ query game qry
-      in trace ("query " ++ show qry ++ ", result " ++ show qryResult) $ (show qryResult, game)
+      in (show qryResult, game)
 
 
 partial

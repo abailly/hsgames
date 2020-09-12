@@ -6,8 +6,6 @@ import Bautzen.Server
 import Bautzen.Client
 import System
 
-%cg chez libidris_net.so
-
 partial
 main : IO ()
 main = do
