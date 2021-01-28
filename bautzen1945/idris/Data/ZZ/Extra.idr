@@ -2,8 +2,8 @@
 ||| Re-exports all of `Data.ZZ` from contrib for convenience
 module Data.ZZ.Extra
 
-import Data.Nat
-import Data.Sign
+import public Data.Nat
+import public Data.Sign
 import public Data.ZZ
 
 %default total

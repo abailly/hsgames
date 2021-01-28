@@ -2,32 +2,49 @@
 ||| https://www.redblobgames.com/grids/hexagons/
 module Bautzen.Pos
 
+import Data.Fin
 import Data.Nat
 import Data.Nat.DivMod
 import Data.Nat.Parity
-import Data.ZZ
+import Decidable.Equality
 
+import public Data.ZZ
 import public Data.ZZ.Extra
 import Data.Maybe.Extra
 
+
+%default total
+
 -- Positions & Map
 
-||| A position/hex of the game board encoded as a pair of `Nat`
-||| with bounds
+||| A position/hex of the game board encoded as a pair of `Fin`s.
+||| The type is indexed by the bounds on the number of rows and cols
+||| which are basically dependent on the size of the terrain.
 public export
-data Pos : Type where
-  Hex : (col : Nat) -> (row : Nat)
-      -> { auto cbound : LTE col 22 }
-      -> { auto rbound : LTE row 12 }
-      -> Pos
+data Pos : (c : Nat) -> (r : Nat) -> Type where
+  Hex : (col : Fin c) -> (row : Fin r) -> Pos c r
+
+colInjective : Hex c r = Hex col r' -> c = col
+colInjective Refl = Refl
+
+rowInjective : Hex c r = Hex c' row -> r = row
+rowInjective Refl = Refl
 
 public export
-Eq Pos where
+Eq (Pos c r) where
   (==) (Hex col row) (Hex col' row') = col == col' && row == row'
 
 public export
-Show Pos where
-  show (Hex c r) = show2Digits c ++ show2Digits r
+DecEq (Pos c r) where
+  decEq (Hex col row) (Hex k j ) with (decEq col k)
+    decEq (Hex col row) (Hex k j ) | No contra = No $ \ h => contra (colInjective h)
+    decEq (Hex col row) (Hex k j ) | Yes p with (decEq row j)
+    decEq (Hex col row) (Hex k j ) | Yes p | No contra = No $ \ h => contra (rowInjective h)
+    decEq (Hex col row) (Hex col row) | Yes Refl | Yes Refl = Yes Refl
+
+public export
+Show (Pos c r) where
+  show (Hex c r) = show2Digits (finToNat c) ++ show2Digits (finToNat r)
     where
       show2Digits : Nat -> String
       show2Digits n =
@@ -36,7 +53,7 @@ Show Pos where
         else show (n + 1)
 
 public export
-Ord Pos where
+Ord (Pos c r) where
   compare (Hex col row) (Hex col' row') =
     case compare col col' of
       LT => LT
@@ -65,19 +82,18 @@ cubeDistance (MkCube x z) (MkCube x' z') =
   in max (max (absZ (x - x')) (absZ (y - y'))) (absZ (z - z'))
 
 public export
-posToCube : Pos -> Cube
+posToCube : Pos c r -> Cube
 posToCube (Hex col row) =
-  let x = cast col
-      sign = if odd col then 1 else 0
-      z = cast row - divZZNZ (x - sign) 2 {z = PosSIsNotZ }
+  let x = Pos (finToNat col)
+      sign : ZZ
+      sign = if odd (finToNat col) then 1 else 0
+      z : ZZ
+      z = Pos (finToNat row) - divZZNZ (x - sign) 2 {z = PosSIsNotZ }
   in MkCube x z
 
 public export
-distance : Pos -> Pos -> Nat
-distance x y =
-  let c1 = posToCube x
-      c2 = posToCube y
-  in cubeDistance c1 c2
+distance : {c : Nat} -> {r : Nat} -> Pos c r -> Pos c r -> Nat
+distance x y = cubeDistance (posToCube x) (posToCube y)
 
 public export
 data Mvmt : Type where
@@ -114,21 +130,19 @@ isLte (S k) (S j)
 
 
 public export
-shiftPos : (x : Nat) -> {bound : Nat} -> (prf : LTE x bound) -> Mvmt -> Maybe (n : Nat ** LTE n bound)
-shiftPos Z prf Dec = Nothing
-shiftPos (S k) prf Dec = Just (k ** lteSuccL prf)
-shiftPos x prf Neut = Just (x ** prf)
-shiftPos x prf Inc {bound} with (isLte (S x) bound)
-  shiftPos x prf Inc | (Yes y) = Just (S x ** y)
-  shiftPos x prf Inc | (No contra) = Nothing
+shiftPos : {bound : Nat} -> (x : Nat) -> Mvmt -> Maybe (Fin bound)
+shiftPos Z Dec = Nothing
+shiftPos (S k) Dec = natToFin k bound
+shiftPos x Neut = natToFin x bound
+shiftPos x Inc {bound} = natToFin (S x) bound
 
 
 public export
-makePos : (pos : Pos) -> (Mvmt, Mvmt) -> Maybe Pos
-makePos (Hex col row {cbound} {rbound} ) (a, b) = do
-  (c' ** p1) <- shiftPos col cbound a
-  (r' ** p2) <- shiftPos row rbound b
-  pure $ Hex c' r' {cbound = p1} {rbound = p2}
+makePos : {c : Nat} -> {r : Nat} -> (x : Nat) -> (y : Nat) -> (Mvmt, Mvmt) -> Maybe (Pos c r)
+makePos col row (a, b) = do
+  c' <- shiftPos col a
+  r' <- shiftPos row b
+  pure $ Hex c' r'
 
 
 public export
@@ -152,30 +166,34 @@ evenShifts = [ (Dec, Dec)
             , (Dec, Neut)
             ]
 
+neighbours' : {col : Nat} -> {row : Nat} -> (x : Nat) -> (y : Nat) -> List (Pos col row)
+neighbours' x y with (x `divMod` (S Z))
+  neighbours' x@(Z + (q * (S(S Z)))) y     | (MkDivMod q Z remainderSmall) = catMaybes $ map (makePos x y) evenShifts
+  neighbours' x@((S Z) + (q * (S(S Z)))) y | (MkDivMod q (S Z) remainderSmall) = catMaybes $ map (makePos x y) oddShifts
+  neighbours' ((S (S r)) + (q * (S(S Z)))) _   | (MkDivMod q (S (S r)) LTEZero) impossible
+  neighbours' ((S (S r)) + (q * (S(S Z)))) _   | (MkDivMod q (S (S r)) (LTESucc lte)) = absurd $ succNotLTEZ (fromLTESucc lte)
+
 ||| Compute the neighbours of a given position
 ||| There are at most 6 neighbours, with side and corner hexes having of
 ||| course less.
 public export
-neighbours : (pos : Pos) -> List Pos
-neighbours (Hex col row) with (col `divMod` (S Z))
-  neighbours (Hex col@(Z + (q * (S(S Z)))) row)     | (MkDivMod q Z remainderSmall) = catMaybes $ map (makePos (Hex col row)) evenShifts
-  neighbours (Hex col@((S Z) + (q * (S(S Z)))) row) | (MkDivMod q (S Z) remainderSmall) = catMaybes $ map (makePos (Hex col row)) oddShifts
-  neighbours (Hex ((S (S r)) + (q * (S(S Z)))) _)   | (MkDivMod q (S (S r)) LTEZero) impossible
-  neighbours (Hex ((S (S r)) + (q * (S(S Z)))) _)   | (MkDivMod q (S (S r)) (LTESucc lte)) = absurd $ succNotLTEZ (fromLTESucc lte)
+neighbours : {c : Nat} -> {r : Nat} -> (pos : Pos c r) -> List (Pos c r)
+neighbours (Hex col row) = neighbours' (finToNat col) (finToNat row)
 
 namespace PosTest
 
-  neighbours1_test : (neighbours (Hex 3 3) = [ Hex 2 3, Hex 3 2, Hex 4 3, Hex 4 4, Hex 3 4, Hex 2 4] )
+  neighbours1_test : (neighbours {c=22} {r=12} (Hex 3 3) = [ Hex 2 3, Hex 3 2, Hex 4 3, Hex 4 4, Hex 3 4, Hex 2 4] )
   neighbours1_test = Refl
 
-  neighbours_test : (neighbours (Hex 2 2) = [ Hex 1 1, Hex 2 1, Hex 3 1, Hex 3 2, Hex 2 3, Hex 1 2] )
+  neighbours_test : (neighbours {c=22} {r=12} (Hex 2 2) = [ Hex 1 1, Hex 2 1, Hex 3 1, Hex 3 2, Hex 2 3, Hex 1 2] )
   neighbours_test = Refl
 
-  -- distance_to_odd_neighbours_is_1 : map (distance (Hex 3 2)) (neighbours (Hex 3 2)) = [ 1, 1, 1, 1, 1, 1 ]
-  -- distance_to_odd_neighbours_is_1 = Refl
 
-  -- distance_to_even_neighbours_is_1 : map (distance (Hex 2 2)) (neighbours (Hex 2 2)) = [ 1, 1, 1, 1, 1, 1 ]
-  -- distance_to_even_neighbours_is_1 = Refl
+  distance_to_odd_neighbours_is_1 : map (distance (Hex 3 2)) (neighbours {c=22} {r=12} (Hex 3 2)) = [ 1, 1, 1, 1, 1, 1 ]
+  distance_to_odd_neighbours_is_1 = Refl
 
-  -- distance_test : distance (Hex 3 2) (Hex 4 4) = 2
-  -- distance_test = Refl
+  distance_to_even_neighbours_is_1 : map (distance (Hex 2 2)) (neighbours {c=22} {r=12} (Hex 2 2)) = [ 1, 1, 1, 1, 1, 1 ]
+  distance_to_even_neighbours_is_1 = Refl
+
+  distance_test : distance {c=22} {r=12} (Hex 3 2) (Hex 4 4) = 2
+  distance_test = Refl

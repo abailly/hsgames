@@ -2,6 +2,7 @@ module Data.ZZ
 
 import Decidable.Equality
 import Data.Sign
+import public Data.Nat
 
 %default total
 
@@ -114,91 +115,91 @@ implementation Cast Integer ZZ where
 -- Properties
 --------------------------------------------------------------------------------
 
--- natPlusZPlus : (n : Nat) -> (m : Nat) -> (x : Nat)
---              -> n + m = x -> (Pos n) + (Pos m) = Pos x
--- natPlusZPlus n m x h = cong h
+natPlusZPlus : (n : Nat) -> (m : Nat) -> (x : Nat)
+             -> n + m = x -> (Pos n) + (Pos m) = Pos x
+natPlusZPlus n m x h = cong Pos h
 
--- natMultZMult : (n : Nat) -> (m : Nat) -> (x : Nat)
---              -> n * m = x -> (Pos n) * (Pos m) = Pos x
--- natMultZMult n m x h = cong h
+natMultZMult : (n : Nat) -> (m : Nat) -> (x : Nat)
+             -> n * m = x -> (Pos n) * (Pos m) = Pos x
+natMultZMult n m x h = cong Pos h
 
--- doubleNegElim : (z : ZZ) -> negate (negate z) = z
--- doubleNegElim (Pos Z) = Refl
--- doubleNegElim (Pos (S n)) = Refl
--- doubleNegElim (NegS Z) = Refl
--- doubleNegElim (NegS (S n)) = Refl
+doubleNegElim : (z : ZZ) -> negate (negate z) = z
+doubleNegElim (Pos Z) = Refl
+doubleNegElim (Pos (S n)) = Refl
+doubleNegElim (NegS Z) = Refl
+doubleNegElim (NegS (S n)) = Refl
 
--- -- Injectivity
--- posInjective : Pos n = Pos m -> n = m
--- posInjective Refl = Refl
+-- Injectivity
+posInjective : Pos n = Pos m -> n = m
+posInjective Refl = Refl
 
--- negSInjective : NegS n = NegS m -> n = m
--- negSInjective Refl = Refl
+negSInjective : NegS n = NegS m -> n = m
+negSInjective Refl = Refl
 
--- posNotNeg : Pos n = NegS m -> Void
--- posNotNeg Refl impossible
+posNotNeg : Pos n = NegS m -> Void
+posNotNeg Refl impossible
 
--- -- Decidable equality
--- implementation DecEq ZZ where
---   decEq (Pos n) (NegS m) = No posNotNeg
---   decEq (NegS n) (Pos m) = No $ negEqSym posNotNeg
---   decEq (Pos n) (Pos m) with (decEq n m)
---     decEq (Pos n) (Pos m) | Yes p = Yes $ cong p
---     decEq (Pos n) (Pos m) | No p = No $ \h => p $ posInjective h
---   decEq (NegS n) (NegS m) with (decEq n m)
---     decEq (NegS n) (NegS m) | Yes p = Yes $ cong p
---     decEq (NegS n) (NegS m) | No p = No $ \h => p $ negSInjective h
+-- Decidable equality
+implementation DecEq ZZ where
+  decEq (Pos n) (NegS m) = No posNotNeg
+  decEq (NegS n) (Pos m) = No $ negEqSym posNotNeg
+  decEq (Pos n) (Pos m) with (decEq n m)
+    decEq (Pos n) (Pos m) | Yes p = Yes $ cong Pos p
+    decEq (Pos n) (Pos m) | No p = No $ \h => p $ posInjective h
+  decEq (NegS n) (NegS m) with (decEq n m)
+    decEq (NegS n) (NegS m) | Yes p = Yes $ cong NegS p
+    decEq (NegS n) (NegS m) | No p = No $ \h => p $ negSInjective h
 
--- -- Plus
+-- Plus
 
--- plusZeroLeftNeutralZ : (right : ZZ) -> 0 + right = right
--- plusZeroLeftNeutralZ (Pos n) = Refl
--- plusZeroLeftNeutralZ (NegS n) = Refl
+plusZeroLeftNeutralZ : (right : ZZ) -> 0 + right = right
+plusZeroLeftNeutralZ (Pos n) = Refl
+plusZeroLeftNeutralZ (NegS n) = Refl
 
--- plusZeroRightNeutralZ : (left : ZZ) -> left + 0 = left
--- plusZeroRightNeutralZ (Pos n) = cong $ plusZeroRightNeutral n
--- plusZeroRightNeutralZ (NegS n) = Refl
+plusZeroRightNeutralZ : (left : ZZ) -> left + 0 = left
+plusZeroRightNeutralZ (Pos n) = cong Pos $ plusZeroRightNeutral n
+plusZeroRightNeutralZ (NegS n) = Refl
 
--- plusCommutativeZ : (left : ZZ) -> (right : ZZ) -> (left + right = right + left)
--- plusCommutativeZ (Pos n) (Pos m) = cong $ plusCommutative n m
--- plusCommutativeZ (Pos n) (NegS m) = Refl
--- plusCommutativeZ (NegS n) (Pos m) = Refl
--- plusCommutativeZ (NegS n) (NegS m) = cong {f=NegS} $ cong {f=S} $ plusCommutative n m
+plusCommutativeZ : (left : ZZ) -> (right : ZZ) -> (left + right = right + left)
+plusCommutativeZ (Pos n) (Pos m) = cong Pos $ plusCommutative n m
+plusCommutativeZ (Pos n) (NegS m) = Refl
+plusCommutativeZ (NegS n) (Pos m) = Refl
+plusCommutativeZ (NegS n) (NegS m) = cong NegS $ cong S $ plusCommutative n m
 
--- minusNatZAntiCommutative : (j, k : Nat) -> negate (minusNatZ j k) = minusNatZ k j
--- minusNatZAntiCommutative Z Z = Refl
--- minusNatZAntiCommutative Z (S k) = Refl
--- minusNatZAntiCommutative (S j) Z = Refl
--- minusNatZAntiCommutative (S j) (S k) = minusNatZAntiCommutative j k
+minusNatZAntiCommutative : (j, k : Nat) -> negate (minusNatZ j k) = minusNatZ k j
+minusNatZAntiCommutative Z Z = Refl
+minusNatZAntiCommutative Z (S k) = Refl
+minusNatZAntiCommutative (S j) Z = Refl
+minusNatZAntiCommutative (S j) (S k) = minusNatZAntiCommutative j k
 
--- negateDistributesPlus : (a, b : ZZ) -> negate (a + b) = (negate a) + (negate b)
--- negateDistributesPlus (Pos Z) b = rewrite plusZeroLeftNeutralZ b in
---                                   rewrite plusZeroLeftNeutralZ (negate b) in Refl
--- negateDistributesPlus (Pos (S k)) (Pos Z) = rewrite plusZeroRightNeutral k in Refl
--- negateDistributesPlus (Pos (S k)) (Pos (S j)) = rewrite plusCommutative k (S j) in
---                                                 rewrite plusCommutative j k in Refl
--- negateDistributesPlus (Pos (S k)) (NegS j) = minusNatZAntiCommutative k j
--- negateDistributesPlus (NegS k) (Pos Z) = rewrite plusZeroRightNeutral k in Refl
--- negateDistributesPlus (NegS k) (Pos (S j)) = minusNatZAntiCommutative j k
--- negateDistributesPlus (NegS k) (NegS j) = rewrite plusCommutative k (S j) in
---                                           rewrite plusCommutative k j in Refl
+negateDistributesPlus : (a, b : ZZ) -> negate (a + b) = (negate a) + (negate b)
+negateDistributesPlus (Pos Z) b = rewrite plusZeroLeftNeutralZ b in
+                                  rewrite plusZeroLeftNeutralZ (negate b) in Refl
+negateDistributesPlus (Pos (S k)) (Pos Z) = rewrite plusZeroRightNeutral k in Refl
+negateDistributesPlus (Pos (S k)) (Pos (S j)) = rewrite plusCommutative k (S j) in
+                                                rewrite plusCommutative j k in Refl
+negateDistributesPlus (Pos (S k)) (NegS j) = minusNatZAntiCommutative k j
+negateDistributesPlus (NegS k) (Pos Z) = rewrite plusZeroRightNeutral k in Refl
+negateDistributesPlus (NegS k) (Pos (S j)) = minusNatZAntiCommutative j k
+negateDistributesPlus (NegS k) (NegS j) = rewrite plusCommutative k (S j) in
+                                          rewrite plusCommutative k j in Refl
 
--- lemmaMinusSucc : (k, j, i : Nat) -> plusZ (minusNatZ k (S j)) (Pos i) = plusZ (minusNatZ k (S (S j))) (Pos (S i))
--- lemmaMinusSucc Z j i = Refl
--- lemmaMinusSucc (S Z) Z i = Refl
--- lemmaMinusSucc (S (S k)) Z i = rewrite plusCommutative k (S i) in
---                                rewrite plusCommutative i k in Refl
--- lemmaMinusSucc (S k) (S j) i = lemmaMinusSucc k j i
+lemmaMinusSucc : (k, j, i : Nat) -> plusZ (minusNatZ k (S j)) (Pos i) = plusZ (minusNatZ k (S (S j))) (Pos (S i))
+lemmaMinusSucc Z j i = Refl
+lemmaMinusSucc (S Z) Z i = Refl
+lemmaMinusSucc (S (S k)) Z i = rewrite plusCommutative k (S i) in
+                               rewrite plusCommutative i k in Refl
+lemmaMinusSucc (S k) (S j) i = lemmaMinusSucc k j i
 
--- lemmaAssocNegation : (k : Nat) -> (c, r : ZZ) -> (Pos (S k)) + (c + r) = ((Pos (S k)) + c) + r -> (NegS k) + ((negate c) + (negate r)) = ((NegS k) + (negate c)) + (negate r)
--- lemmaAssocNegation k c r prf = rewrite sym $ negateDistributesPlus c r in
---                                rewrite sym $ negateDistributesPlus (Pos (S k)) (plusZ c r) in
---                                rewrite sym $ negateDistributesPlus (Pos (S k)) c in
---                                rewrite sym $ negateDistributesPlus (plusZ (Pos (S k)) c) r in
---                                cong $ prf
+lemmaAssocNegation : (k : Nat) -> (c, r : ZZ) -> (Pos (S k)) + (c + r) = ((Pos (S k)) + c) + r -> (NegS k) + ((negate c) + (negate r)) = ((NegS k) + (negate c)) + (negate r)
+lemmaAssocNegation k c r prf = rewrite sym $ negateDistributesPlus c r in
+                               rewrite sym $ negateDistributesPlus (Pos (S k)) (plusZ c r) in
+                               rewrite sym $ negateDistributesPlus (Pos (S k)) c in
+                               rewrite sym $ negateDistributesPlus (plusZ (Pos (S k)) c) r in
+                               cong negate $ prf
 
 -- lemmaAssocPos : (k : Nat) -> (c, r : ZZ) -> (Pos k) + (c + r) = ((Pos k) + c) + r
--- lemmaAssocPos k (Pos j) (Pos i) = cong $ plusAssociative k j i
+-- lemmaAssocPos k (Pos j) (Pos i) = cong Pos $ plusAssociative k j i
 -- lemmaAssocPos k (Pos Z) (NegS i) = rewrite plusZeroRightNeutral k in Refl
 -- lemmaAssocPos k (Pos (S j)) (NegS Z) = rewrite plusCommutative k (S j) in
 --                                        rewrite plusCommutative j k in Refl

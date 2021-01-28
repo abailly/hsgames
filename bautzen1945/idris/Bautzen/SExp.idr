@@ -5,6 +5,9 @@ import Data.Nat
 import Data.Vect
 import Control.WellFounded
 
+-- It should be total but it is not due to the mutual recursion in the
+-- `toStrings` function
+-- %default total
 
 public export
 data SExp : Type where

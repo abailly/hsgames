@@ -4,8 +4,6 @@ module Bautzen.Combats
 import Bautzen.GameUnit
 import Bautzen.Pos
 
-import Data.Maybe.Extra
-
 import Data.Fin
 import Data.List
 import Data.Nat
@@ -32,29 +30,29 @@ Show Losses  where
     show attackerLoss ++ "/" ++ show defenderLoss
 
 public export
-record EngagedUnits where
+record EngagedUnits (c : Nat) (r : Nat) where
   constructor MkEngagedUnits
-  base : List (GameUnit, Pos)
-  tacticalSupport : List (GameUnit, Pos)
+  base : List (GameUnit, Pos c r)
+  tacticalSupport : List (GameUnit, Pos c r)
   strategicSupport : Nat
 
 public export
-Show EngagedUnits where
+Show (EngagedUnits c r) where
   show (MkEngagedUnits base tacticalSupport strategicSupport) =
     "MkEngagedUnits base="++ show base ++
     ", tacticalSupport=" ++ show tacticalSupport ++
     ", strategicSupport=" ++ show strategicSupport
 
 public export
-record CombatState where
+record CombatState  (c : Nat) (r : Nat) where
   constructor MkCombatState
-  combatHex : Pos
-  attackers : EngagedUnits
-  defenders : EngagedUnits
+  combatHex : Pos c r
+  attackers : EngagedUnits c r
+  defenders : EngagedUnits c r
   losses : Maybe Losses
 
 public export
-Show CombatState where
+Show (CombatState c r)  where
   show (MkCombatState combatHex attackers defenders losses) =
     "MkCombatState hex=" ++ show combatHex ++
     ", attacker=" ++ show attackers ++
@@ -79,10 +77,10 @@ CombatTable =
 
 ||| Reduce given unit by one step, updating its state
 public export
-reduce : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> List (GameUnit, Pos)
+reduce : {c,r : Nat} -> (unit : GameUnit) -> (units : List (GameUnit, Pos c r)) -> List (GameUnit, Pos c r)
 reduce unit = catMaybes . map (\ (u,p) => reduceUnit u p)
   where
-    reduceUnit : GameUnit -> Pos -> Maybe (GameUnit, Pos)
+    reduceUnit : GameUnit -> Pos c r -> Maybe (GameUnit, Pos c r)
     reduceUnit u@(MkGameUnit nation unitType name parent size move currentMP steps hits combat) pos =
       if u /= unit
       then Just (u, pos)
