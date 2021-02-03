@@ -4,9 +4,7 @@ module Bautzen.Game.Command
 
 import public Bautzen.GameUnit
 import Bautzen.Game.Core
-import Bautzen.Pos
-
-import Data.Maybe.Extra
+import Bautzen.Terrain
 
 import Data.Fin
 import Data.Nat
@@ -49,11 +47,11 @@ underCommand units unit =
 namespace CommandTest
 
   positions : List (GameUnit, Pos)
-  positions = [ (Bautzen.GameUnit.p15_5dp, Hex 2 2)
-              , (Bautzen.GameUnit.r857_294, Hex 2 3)
-              , (Bautzen.GameUnit.p13_5dp, Hex 3 4)
-              , (Bautzen.GameUnit.p5dp, Hex 3 6)
-              , (Bautzen.GameUnit.p2awp, Hex 4 6)
+  positions = [ (Bautzen.GameUnit.p15_5dp, hex 2 2)
+              , (Bautzen.GameUnit.r857_294, hex 2 3)
+              , (Bautzen.GameUnit.p13_5dp, hex 3 4)
+              , (Bautzen.GameUnit.p5dp, hex 3 6)
+              , (Bautzen.GameUnit.p2awp, hex 4 6)
               ]
 
   -- unit_is_under_command_if_with_command_distance_of_own_hq :

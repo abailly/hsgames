@@ -21,8 +21,8 @@ import Data.Maybe.Extra
 ||| The type is indexed by the bounds on the number of rows and cols
 ||| which are basically dependent on the size of the terrain.
 public export
-data Pos : (c : Nat) -> (r : Nat) -> Type where
-  Hex : (col : Fin c) -> (row : Fin r) -> Pos c r
+data Loc : (c : Nat) -> (r : Nat) -> Type where
+  Hex : (col : Fin c) -> (row : Fin r) -> Loc c r
 
 colInjective : Hex c r = Hex col r' -> c = col
 colInjective Refl = Refl
@@ -31,11 +31,11 @@ rowInjective : Hex c r = Hex c' row -> r = row
 rowInjective Refl = Refl
 
 public export
-Eq (Pos c r) where
+Eq (Loc c r) where
   (==) (Hex col row) (Hex col' row') = col == col' && row == row'
 
 public export
-DecEq (Pos c r) where
+DecEq (Loc c r) where
   decEq (Hex col row) (Hex k j ) with (decEq col k)
     decEq (Hex col row) (Hex k j ) | No contra = No $ \ h => contra (colInjective h)
     decEq (Hex col row) (Hex k j ) | Yes p with (decEq row j)
@@ -43,7 +43,7 @@ DecEq (Pos c r) where
     decEq (Hex col row) (Hex col row) | Yes Refl | Yes Refl = Yes Refl
 
 public export
-Show (Pos c r) where
+Show (Loc c r) where
   show (Hex c r) = show2Digits (finToNat c) ++ show2Digits (finToNat r)
     where
       show2Digits : Nat -> String
@@ -53,7 +53,7 @@ Show (Pos c r) where
         else show (n + 1)
 
 public export
-Ord (Pos c r) where
+Ord (Loc c r) where
   compare (Hex col row) (Hex col' row') =
     case compare col col' of
       LT => LT
@@ -82,7 +82,7 @@ cubeDistance (MkCube x z) (MkCube x' z') =
   in max (max (absZ (x - x')) (absZ (y - y'))) (absZ (z - z'))
 
 public export
-posToCube : Pos c r -> Cube
+posToCube : Loc c r -> Cube
 posToCube (Hex col row) =
   let x = Pos (finToNat col)
       sign : ZZ
@@ -92,7 +92,7 @@ posToCube (Hex col row) =
   in MkCube x z
 
 public export
-distance : {c : Nat} -> {r : Nat} -> Pos c r -> Pos c r -> Nat
+distance : {c : Nat} -> {r : Nat} -> Loc c r -> Loc c r -> Nat
 distance x y = cubeDistance (posToCube x) (posToCube y)
 
 public export
@@ -130,18 +130,18 @@ isLte (S k) (S j)
 
 
 public export
-shiftPos : {bound : Nat} -> (x : Nat) -> Mvmt -> Maybe (Fin bound)
-shiftPos Z Dec = Nothing
-shiftPos (S k) Dec = natToFin k bound
-shiftPos x Neut = natToFin x bound
-shiftPos x Inc {bound} = natToFin (S x) bound
+shiftLoc : {bound : Nat} -> (x : Nat) -> Mvmt -> Maybe (Fin bound)
+shiftLoc Z Dec = Nothing
+shiftLoc (S k) Dec = natToFin k bound
+shiftLoc x Neut = natToFin x bound
+shiftLoc x Inc {bound} = natToFin (S x) bound
 
 
 public export
-makePos : {c : Nat} -> {r : Nat} -> (x : Nat) -> (y : Nat) -> (Mvmt, Mvmt) -> Maybe (Pos c r)
-makePos col row (a, b) = do
-  c' <- shiftPos col a
-  r' <- shiftPos row b
+makeLoc : {c : Nat} -> {r : Nat} -> (x : Nat) -> (y : Nat) -> (Mvmt, Mvmt) -> Maybe (Loc c r)
+makeLoc col row (a, b) = do
+  c' <- shiftLoc col a
+  r' <- shiftLoc row b
   pure $ Hex c' r'
 
 
@@ -166,10 +166,10 @@ evenShifts = [ (Dec, Dec)
             , (Dec, Neut)
             ]
 
-neighbours' : {col : Nat} -> {row : Nat} -> (x : Nat) -> (y : Nat) -> List (Pos col row)
+neighbours' : {col : Nat} -> {row : Nat} -> (x : Nat) -> (y : Nat) -> List (Loc col row)
 neighbours' x y with (x `divMod` (S Z))
-  neighbours' x@(Z + (q * (S(S Z)))) y     | (MkDivMod q Z remainderSmall) = catMaybes $ map (makePos x y) evenShifts
-  neighbours' x@((S Z) + (q * (S(S Z)))) y | (MkDivMod q (S Z) remainderSmall) = catMaybes $ map (makePos x y) oddShifts
+  neighbours' x@(Z + (q * (S(S Z)))) y     | (MkDivMod q Z remainderSmall) = catMaybes $ map (makeLoc x y) evenShifts
+  neighbours' x@((S Z) + (q * (S(S Z)))) y | (MkDivMod q (S Z) remainderSmall) = catMaybes $ map (makeLoc x y) oddShifts
   neighbours' ((S (S r)) + (q * (S(S Z)))) _   | (MkDivMod q (S (S r)) LTEZero) impossible
   neighbours' ((S (S r)) + (q * (S(S Z)))) _   | (MkDivMod q (S (S r)) (LTESucc lte)) = absurd $ succNotLTEZ (fromLTESucc lte)
 
@@ -177,10 +177,10 @@ neighbours' x y with (x `divMod` (S Z))
 ||| There are at most 6 neighbours, with side and corner hexes having of
 ||| course less.
 public export
-neighbours : {c : Nat} -> {r : Nat} -> (pos : Pos c r) -> List (Pos c r)
+neighbours : {c : Nat} -> {r : Nat} -> (pos : Loc c r) -> List (Loc c r)
 neighbours (Hex col row) = neighbours' (finToNat col) (finToNat row)
 
-namespace PosTest
+namespace LocTest
 
   neighbours1_test : (neighbours {c=22} {r=12} (Hex 3 3) = [ Hex 2 3, Hex 3 2, Hex 4 3, Hex 4 4, Hex 3 4, Hex 2 4] )
   neighbours1_test = Refl

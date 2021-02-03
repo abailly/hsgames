@@ -2,7 +2,6 @@ module Bautzen.Game.Core
 
 import Bautzen.Combats
 import Bautzen.GameUnit
-import Bautzen.Pos
 import Bautzen.Terrain
 
 import Data.Fin

@@ -18,8 +18,8 @@ data CmdREPL : (segment : GameSegment) -> Type where
 
 makePos : (col : Int) -> (row : Int) -> Either String Pos
 makePos col row with (integerToNat (cast col), integerToNat (cast row))
-  makePos col row | (c , r) with (isLTE c 22, isLTE r 12)
-  makePos col row | (c , r)  | (Yes _, Yes _) = Right $ Hex c r
+  makePos col row | (c , r) with (natToFin c 23, natToFin r 13)
+  makePos col row | (c , r)  | (Just c', Just r') = Right $ hex c' r'
   makePos col row | (c , r)  | _              = Left $ "position should be between (0,0) and (22, 12): " ++ show col ++ ", " ++ show row
 
 makeMoveCommand : (unitName : String) -> (col : Int) -> (row : Int) -> Either String (Command Move)
@@ -93,8 +93,8 @@ eoiHandler : Game -> String
 eoiHandler = show
 
 initialPositions : List (GameUnit, Pos)
-initialPositions = [ (Bautzen.GameUnit.p13_5dp, Hex 1 9)
-                   , (Bautzen.GameUnit.g21_20pz, Hex 5 8)
+initialPositions = [ (Bautzen.GameUnit.p13_5dp, hex 1 9)
+                   , (Bautzen.GameUnit.g21_20pz, hex 5 8)
                    ]
 
 initialState : GameState

@@ -2,7 +2,6 @@ module Bautzen.Game.Move
 
 import Bautzen.Game.Core
 import Bautzen.GameUnit
-import Bautzen.Pos
 import Bautzen.Terrain
 import Bautzen.ZoC
 

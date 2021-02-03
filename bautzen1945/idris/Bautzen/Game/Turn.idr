@@ -4,7 +4,7 @@ module Bautzen.Game.Turn
 import Bautzen.Combats
 import Bautzen.GameUnit
 import Bautzen.Game.Core
-import Bautzen.Pos
+
 import Bautzen.Terrain
 
 import Data.Fin

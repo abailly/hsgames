@@ -1,9 +1,10 @@
 module Bautzen.Terrain
 
 import Bautzen.GameUnit
-import Bautzen.Pos
+import Bautzen.Pos as P
 
 import Data.Strings.Extra
+import Decidable.Equality
 
 import Data.Fin
 import Data.List
@@ -96,6 +97,45 @@ toNat (Half x)   = divNatNZ (toNat x) 2 SIsNotZ
 toNat (One x)    = S (toNat x)
 toNat (Two x)    = S (S (toNat x))
 
+||| The actual`Pos` type relevant for this game
+public export
+record Pos where
+  constructor MkPos
+  pos : Loc 23 13
+
+mkPosInjective : MkPos p = MkPos p' -> p = p'
+mkPosInjective Refl = Refl
+
+export
+hex : Fin 23 -> Fin 13 -> Pos
+hex c r = MkPos $ P.Hex c r
+
+export
+Show Pos where
+  show (MkPos p) = show p
+
+export
+Eq Pos where
+  MkPos p == MkPos p' = p == p'
+
+export
+DecEq Pos where
+  decEq (MkPos p) (MkPos p') with (decEq p p')
+    decEq (MkPos p) (MkPos p') | (Yes prf) = Yes $ cong MkPos prf
+    decEq (MkPos p) (MkPos p') | (No contra) = No $ \ p => contra (mkPosInjective p)
+
+export
+Ord Pos where
+  compare (MkPos p) (MkPos p') = compare p p'
+
+export
+distance : Pos -> Pos -> Nat
+distance (MkPos p) (MkPos p') = P.distance p p'
+
+export
+neighbours : Pos -> List Pos
+neighbours (MkPos p) = map MkPos $ P.neighbours p
+
 public export
 record Map where
   constructor MkMap
@@ -107,10 +147,9 @@ tabulate : List (Pos, a) -> Vect 13 (Vect 23 (Maybe a))
 tabulate = foldr append table
   where
     append : (Pos, a) -> Vect 13 (Vect 23 (Maybe a)) -> Vect 13 (Vect 23 (Maybe a))
-    append (Hex c r, z) vect with (natToFin c 23, natToFin r 13)
-      append (Hex c r, z) vect | (Just c', Just r') = let row = index r' vect
-                                                      in replaceAt r' (replaceAt c' (Just z) row) vect
-      append (Hex c r, a) vect | (_, _) = vect
+    append (MkPos (P.Hex c r), z) vect =
+      let row = index r vect
+      in replaceAt r (replaceAt c (Just z) row) vect
 
     table : Vect 13 (Vect 23 (Maybe a))
     table = replicate 13 (replicate 23 Nothing)
@@ -148,23 +187,23 @@ supplySources n (MkMap hexes edges) = map fst $ filter (isSupplyFor n . snd) hex
 public export
 TestMap : Map
 TestMap =
-  MkMap [ (Hex 3 4, Wood)
-        , (Hex 4 4, Clear)
-        , (Hex 4 5, Hill Rough)
-        , (Hex 5 4, Clear)
-        , (Hex 3 5, RoughWood)
-        , (Hex 2 4, Rough)
-        , (Hex 2 3, Hill (RoughWood))
-        , (Hex 3 3, Wood)
-        , (Hex 4 3, Town)
-        , (Hex 8 6, Clear)
-        , (Hex 8 7, Village Clear)
-        , (Hex 7 7, Hill Rough)
-        , (Hex 10 2, Village Wood)
-        , (Hex 10 3, Clear)
+  MkMap [ (hex 3 4, Wood)
+        , (hex 4 4, Clear)
+        , (hex 4 5, Hill Rough)
+        , (hex 5 4, Clear)
+        , (hex 3 5, RoughWood)
+        , (hex 2 4, Rough)
+        , (hex 2 3, Hill (RoughWood))
+        , (hex 3 3, Wood)
+        , (hex 4 3, Town)
+        , (hex 8 6, Clear)
+        , (hex 8 7, Village Clear)
+        , (hex 7 7, Hill Rough)
+        , (hex 10 2, Village Wood)
+        , (hex 10 3, Clear)
         ]
-        [ (Hex 4 4, [ (Hex 5 4, Road Plain) ])
-        , (Hex 8 6, [ (Hex 8 7, Lake) ])
-        , (Hex 8 7, [ (Hex 7 7, Road Plain) ])
-        , (Hex 10 3, [ (Hex 10 2, Road (River Plain)) ])
+        [ (hex 4 4, [ (hex 5 4, Road Plain) ])
+        , (hex 8 6, [ (hex 8 7, Lake) ])
+        , (hex 8 7, [ (hex 7 7, Road Plain) ])
+        , (hex 10 3, [ (hex 10 2, Road (River Plain)) ])
         ]

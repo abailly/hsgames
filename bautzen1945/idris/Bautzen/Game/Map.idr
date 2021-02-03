@@ -2,7 +2,6 @@ module Bautzen.Game.Map
 
 import Bautzen.Terrain
 import Bautzen.GameUnit
-import Bautzen.Pos
 
 import Data.Maybe.Extra
 
@@ -64,31 +63,31 @@ PartialGameMap : Map
 PartialGameMap = MkMap positions []
   where
     positions : List (Pos, Terrain)
-    positions = [(Hex 0 0, Clear),
-                 (Hex 0 1, Clear),
-                 (Hex 0 2, Clear),
-                 (Hex 0 3, SupplySource Axis $ Clear),
-                 (Hex 0 4, Clear),
-                 (Hex 1 0, Clear),
-                 (Hex 1 1, Clear),
-                 (Hex 1 2, Clear),
-                 (Hex 1 3, Clear),
-                 (Hex 1 4, Clear),
-                 (Hex 2 0, Clear),
-                 (Hex 2 1, Clear),
-                 (Hex 2 2, Clear),
-                 (Hex 2 3, Clear),
-                 (Hex 2 4, Clear),
-                 (Hex 3 0, Clear),
-                 (Hex 3 1, Clear),
-                 (Hex 3 2, Clear),
-                 (Hex 3 3, Clear),
-                 (Hex 3 4, Clear),
-                 (Hex 4 0, Clear),
-                 (Hex 4 1, Clear),
-                 (Hex 4 2, Clear),
-                 (Hex 4 3, Clear),
-                 (Hex 4 4, Clear)]
+    positions = [(hex 0 0, Clear),
+                 (hex 0 1, Clear),
+                 (hex 0 2, Clear),
+                 (hex 0 3, SupplySource Axis $ Clear),
+                 (hex 0 4, Clear),
+                 (hex 1 0, Clear),
+                 (hex 1 1, Clear),
+                 (hex 1 2, Clear),
+                 (hex 1 3, Clear),
+                 (hex 1 4, Clear),
+                 (hex 2 0, Clear),
+                 (hex 2 1, Clear),
+                 (hex 2 2, Clear),
+                 (hex 2 3, Clear),
+                 (hex 2 4, Clear),
+                 (hex 3 0, Clear),
+                 (hex 3 1, Clear),
+                 (hex 3 2, Clear),
+                 (hex 3 3, Clear),
+                 (hex 3 4, Clear),
+                 (hex 4 0, Clear),
+                 (hex 4 1, Clear),
+                 (hex 4 2, Clear),
+                 (hex 4 3, Clear),
+                 (hex 4 4, Clear)]
 
 public export
 FullGameMap : Map
@@ -98,7 +97,7 @@ FullGameMap = MkMap positions []
     mkPosition c r with (natToFin c 23, natToFin r 13, isLTE c 22, isLTE r 12)
       mkPosition c r | (Just col, Just row, Yes cprf, Yes rprf) =
            let terrain = index col $ index row terrains
-           in Just (Hex c r, terrain)
+           in Just (hex col row, terrain)
       mkPosition c r | (_, _, _, _) = Nothing
 
     positions : List (Pos, Terrain)

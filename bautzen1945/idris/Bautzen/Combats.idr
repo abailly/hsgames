@@ -2,7 +2,7 @@
 module Bautzen.Combats
 
 import Bautzen.GameUnit
-import Bautzen.Pos
+import Bautzen.Terrain
 
 import Data.Fin
 import Data.List
@@ -25,34 +25,34 @@ record Losses where
 infix 1 />
 
 public export
-Show Losses  where
+Show Losses where
   show (attackerLoss /> defenderLoss) =
     show attackerLoss ++ "/" ++ show defenderLoss
 
 public export
-record EngagedUnits (c : Nat) (r : Nat) where
+record EngagedUnits where
   constructor MkEngagedUnits
-  base : List (GameUnit, Pos c r)
-  tacticalSupport : List (GameUnit, Pos c r)
+  base : List (GameUnit, Pos)
+  tacticalSupport : List (GameUnit, Pos)
   strategicSupport : Nat
 
 public export
-Show (EngagedUnits c r) where
+Show EngagedUnits where
   show (MkEngagedUnits base tacticalSupport strategicSupport) =
     "MkEngagedUnits base="++ show base ++
     ", tacticalSupport=" ++ show tacticalSupport ++
     ", strategicSupport=" ++ show strategicSupport
 
 public export
-record CombatState  (c : Nat) (r : Nat) where
+record CombatState where
   constructor MkCombatState
-  combatHex : Pos c r
-  attackers : EngagedUnits c r
-  defenders : EngagedUnits c r
+  combatHex : Pos
+  attackers : EngagedUnits
+  defenders : EngagedUnits
   losses : Maybe Losses
 
 public export
-Show (CombatState c r)  where
+Show CombatState where
   show (MkCombatState combatHex attackers defenders losses) =
     "MkCombatState hex=" ++ show combatHex ++
     ", attacker=" ++ show attackers ++
@@ -77,10 +77,10 @@ CombatTable =
 
 ||| Reduce given unit by one step, updating its state
 public export
-reduce : {c,r : Nat} -> (unit : GameUnit) -> (units : List (GameUnit, Pos c r)) -> List (GameUnit, Pos c r)
+reduce : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> List (GameUnit, Pos)
 reduce unit = catMaybes . map (\ (u,p) => reduceUnit u p)
   where
-    reduceUnit : GameUnit -> Pos c r -> Maybe (GameUnit, Pos c r)
+    reduceUnit : GameUnit -> Pos -> Maybe (GameUnit, Pos)
     reduceUnit u@(MkGameUnit nation unitType name parent size move currentMP steps hits combat) pos =
       if u /= unit
       then Just (u, pos)

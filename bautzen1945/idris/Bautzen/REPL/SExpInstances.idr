@@ -3,7 +3,7 @@ module Bautzen.REPL.SExpInstances
 import Bautzen.Combats
 import Bautzen.GameUnit
 import Bautzen.Game.Core
-import Bautzen.Pos
+import Bautzen.Pos as P
 import Bautzen.Terrain
 import Bautzen.SExp
 
@@ -85,12 +85,16 @@ ToSExp GameUnit where
               SupplyColumn  => toSExp combat
           ]
 
-export
-ToSExp Pos where
-  toSExp (Hex col row) =
+public export
+ToSExp (P.Loc c r) where
+  toSExp (P.Hex col row) =
     SList [ toSExp col
           , toSExp row
           ]
+
+export
+ToSExp Pos where
+  toSExp (MkPos p) = toSExp p
 
 export
 ToSExp Cost where

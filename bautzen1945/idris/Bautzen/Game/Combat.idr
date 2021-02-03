@@ -301,9 +301,9 @@ namespace CombatTest
 
 
   positions : List (GameUnit, Pos)
-  positions = [ (GameUnit.p13_5dp, Hex 5 4)
-              , (GameUnit.g21_20pz, Hex 4 4)
-              , (GameUnit.g59_20pz, Hex 3 4)
+  positions = [ (GameUnit.p13_5dp, hex 5 4)
+              , (GameUnit.g21_20pz, hex 4 4)
+              , (GameUnit.g59_20pz, hex 3 4)
               ]
 
   basic_odds_are_Sum_of_attack_over_sum_of_defense : attack [ GameUnit.g21_20pz ] [ Bautzen.GameUnit.p13_5dp ] = (MkRawOdds 6 4)
@@ -315,25 +315,25 @@ namespace CombatTest
   support_factors_can_excede_to_raw_odds : support [ GameUnit.p6l ] [ GameUnit.g20pz ] (MkRawOdds 6 4) =  (MkRawOdds 10 8)
   support_factors_can_excede_to_raw_odds = Refl
 
-  fail_attack_if_names_do_not_exist : attackWith Axis CombatTest.positions TestMap [ "21/20Pz", "foo" ] (Hex 5 4) = Left (NoSuchUnits [ "foo" ])
+  fail_attack_if_names_do_not_exist : attackWith Axis CombatTest.positions TestMap [ "21/20Pz", "foo" ] (hex 5 4) = Left (NoSuchUnits [ "foo" ])
   fail_attack_if_names_do_not_exist = Refl
 
-  fail_attack_if_attacking_with_wrong_side : attackWith Axis CombatTest.positions TestMap [ "13/5DP" ] (Hex 5 4) = Left (NotYourTurn Axis)
+  fail_attack_if_attacking_with_wrong_side : attackWith Axis CombatTest.positions TestMap [ "13/5DP" ] (hex 5 4) = Left (NotYourTurn Axis)
   fail_attack_if_attacking_with_wrong_side = Refl
 
-  -- fail_attack_if_not_adjacent_to_target_hex : attackWith Axis CombatTest.positions TestMap [ "59/20Pz", "21/20Pz" ] (Hex 5 4) = Left (NotAdjacentTo [ GameUnit.g59_20pz ] (Hex 5 4))
+  -- fail_attack_if_not_adjacent_to_target_hex : attackWith Axis CombatTest.positions TestMap [ "59/20Pz", "21/20Pz" ] (hex 5 4) = Left (NotAdjacentTo [ GameUnit.g59_20pz ] (hex 5 4))
   -- fail_attack_if_not_adjacent_to_target_hex = Refl
 
-  -- fail_attack_if_attacked_hex_is_empty : attackWith Axis CombatTest.positions TestMap [ "21/20Pz" ] (Hex 4 5) = Left (NothingToAttack (Hex 4 5))
+  -- fail_attack_if_attacked_hex_is_empty : attackWith Axis CombatTest.positions TestMap [ "21/20Pz" ] (hex 4 5) = Left (NothingToAttack (hex 4 5))
   -- fail_attack_if_attacked_hex_is_empty = Refl
 
-  -- fail_attack_if_attacked_units_Are_of_same_side_than_attacker : attackWith Axis CombatTest.positions TestMap [ "21/20Pz" ] (Hex 3 4) = Left (AttackingOwnUnits [ GameUnit.g59_20pz ] (Hex 3 4))
+  -- fail_attack_if_attacked_units_Are_of_same_side_than_attacker : attackWith Axis CombatTest.positions TestMap [ "21/20Pz" ] (hex 3 4) = Left (AttackingOwnUnits [ GameUnit.g59_20pz ] (hex 3 4))
   -- fail_attack_if_attacked_units_Are_of_same_side_than_attacker = Refl
 
   combatState : CombatState
-  combatState = MkCombatState (Hex 5 4)
-                (MkEngagedUnits [ (GameUnit.g21_20pz, Hex 4 4) ] [] 0)
-                (MkEngagedUnits [ (GameUnit.p13_5dp, Hex 5 4) ] [] 0)
+  combatState = MkCombatState (hex 5 4)
+                (MkEngagedUnits [ (GameUnit.g21_20pz, hex 4 4) ] [] 0)
+                (MkEngagedUnits [ (GameUnit.p13_5dp, hex 5 4) ] [] 0)
                 Nothing
 
   fail_support_if_unit_not_HQ_or_arty :
@@ -341,31 +341,31 @@ namespace CombatTest
   fail_support_if_unit_not_HQ_or_arty = Refl
 
   -- fail_support_if_attacker_hq_not_in_support_range :
-  --   supportWith Axis Axis ((GameUnit.g20pz, Hex 1 1) :: CombatTest.positions) TestMap [ "HQ/20Pz" ] CombatTest.combatState = Left (NotInSupportRange [ GameUnit.g20pz ])
+  --   supportWith Axis Axis ((GameUnit.g20pz, hex 1 1) :: CombatTest.positions) TestMap [ "HQ/20Pz" ] CombatTest.combatState = Left (NotInSupportRange [ GameUnit.g20pz ])
   -- fail_support_if_attacker_hq_not_in_support_range = Refl
 
   -- fail_support_if_hq_cannot_command_unit :
-  --   supportWith Axis Axis ((GameUnit.gBrgPzG, Hex 3 3) :: CombatTest.positions) TestMap [ "HQ/BrgPzG" ] CombatTest.combatState = Left (NotInChainOfCommand [ GameUnit.gBrgPzG ])
+  --   supportWith Axis Axis ((GameUnit.gBrgPzG, hex 3 3) :: CombatTest.positions) TestMap [ "HQ/BrgPzG" ] CombatTest.combatState = Left (NotInChainOfCommand [ GameUnit.gBrgPzG ])
   -- fail_support_if_hq_cannot_command_unit = Refl
 
   -- can_support_with_arty_given_its_in_range :
-  --   supportWith Axis Axis ((GameUnit.g777Arty, Hex 1 1) :: CombatTest.positions) TestMap [ "777" ] CombatTest.combatState = Right (TacticalSupportProvided Axis [ (GameUnit.g777Arty, Hex 1 1) ])
+  --   supportWith Axis Axis ((GameUnit.g777Arty, hex 1 1) :: CombatTest.positions) TestMap [ "777" ] CombatTest.combatState = Right (TacticalSupportProvided Axis [ (GameUnit.g777Arty, hex 1 1) ])
   -- can_support_with_arty_given_its_in_range = Refl
 
-  fail_to_use_supply_column_if_no_sc_at_location :
-    useSupplyColumn Axis Axis ((GameUnit.gSupplyColumn, Hex 5 3) :: CombatTest.positions) TestMap (Hex 5 4) CombatTest.combatState = Left (NoSupplyColumnThere (Hex 5 4))
-  fail_to_use_supply_column_if_no_sc_at_location = Refl
+  -- fail_to_use_supply_column_if_no_sc_at_location :
+  --   useSupplyColumn Axis Axis ((GameUnit.gSupplyColumn, hex 5 3) :: CombatTest.positions) TestMap (hex 5 4) CombatTest.combatState = Left (NoSupplyColumnThere (hex 5 4))
+  -- fail_to_use_supply_column_if_no_sc_at_location = Refl
 
   -- fail_to_use_supply_column_if_sc_not_neighbour_to_support_hex :
-  --   useSupplyColumn Axis Axis ((GameUnit.gSupplyColumn, Hex 5 2) :: CombatTest.positions) TestMap (Hex 5 2) CombatTest.combatState = Left (NotInSupportRange [GameUnit.gSupplyColumn])
+  --   useSupplyColumn Axis Axis ((GameUnit.gSupplyColumn, hex 5 2) :: CombatTest.positions) TestMap (hex 5 2) CombatTest.combatState = Left (NotInSupportRange [GameUnit.gSupplyColumn])
   -- fail_to_use_supply_column_if_sc_not_neighbour_to_support_hex = Refl
 
   -- fail_to_use_supply_column_if_units_are_not_commanded :
-  --     useSupplyColumn Axis Axis ((GameUnit.gSupplyColumn, Hex 5 3) :: CombatTest.positions) TestMap (Hex 5 3) CombatTest.combatState = Left (NotInChainOfCommand [GameUnit.gSupplyColumn])
+  --     useSupplyColumn Axis Axis ((GameUnit.gSupplyColumn, hex 5 3) :: CombatTest.positions) TestMap (hex 5 3) CombatTest.combatState = Left (NotInChainOfCommand [GameUnit.gSupplyColumn])
   -- fail_to_use_supply_column_if_units_are_not_commanded = Refl
 
   -- use_supply_column_returns_supply_column_used_event :
-  --     useSupplyColumn Axis Axis ((GameUnit.g20pz, Hex 2 2) :: (GameUnit.gSupplyColumn, Hex 4 3) :: CombatTest.positions) TestMap (Hex 4 3) CombatTest.combatState = Right (SupplyColumnUsed Axis (Hex 4 3))
+  --     useSupplyColumn Axis Axis ((GameUnit.g20pz, hex 2 2) :: (GameUnit.gSupplyColumn, hex 4 3) :: CombatTest.positions) TestMap (hex 4 3) CombatTest.combatState = Right (SupplyColumnUsed Axis (hex 4 3))
   -- use_supply_column_returns_supply_column_used_event = Refl
 
   lossState : CombatState

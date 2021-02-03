@@ -6,8 +6,7 @@ import Bautzen.GameUnit
 import Bautzen.ZoC
 import Bautzen.Game.Core
 import Bautzen.Game.Move
-import Bautzen.Pos
-import Bautzen.Terrain
+import Bautzen.Terrain as T
 
 import Data.Heap.LeftistHeap
 
@@ -126,7 +125,7 @@ supplyPathTo units gameMap srcs (unit, pos) = supplyPathToAcc startStates
 
     startStates : List (BinaryHeap AState)
     startStates = map (\ st => Heap.push st Heap.empty) $
-                  sortBy (compare `on` (Pos.distance pos . tgt)) $
+                  sortBy (compare `on` (T.distance pos . tgt)) $
                   map startState srcs
 
     getFirstNonEmptyPath : List Pos -> BinaryHeap AState -> List Pos
