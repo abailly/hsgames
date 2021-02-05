@@ -44,13 +44,13 @@ DecEq (Loc c r) where
 
 public export
 Show (Loc c r) where
-  show (Hex c r) = show2Digits (finToNat c) ++ show2Digits (finToNat r)
+  show (Hex c r) = "Hex " ++ show2Digits (finToNat c) ++ " " ++ show2Digits (finToNat r)
     where
       show2Digits : Nat -> String
       show2Digits n =
-        if n < 9
-        then "0" ++ show (n + 1)
-        else show (n + 1)
+        if n <= 9
+        then "0" ++ show n
+        else show n
 
 public export
 Ord (Loc c r) where

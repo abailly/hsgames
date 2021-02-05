@@ -58,7 +58,7 @@ data Connection : Type where
 
 public export
 Show Connection where
-  show Plain       = ""
+  show Plain       = "Pl"
   show (Road base) = "Rd (" ++ show base ++ ")"
   show (River base)= "Rv (" ++ show base ++ ")"
   show Lake        = "Lk"
@@ -207,3 +207,15 @@ TestMap =
         , (hex 8 7, [ (hex 7 7, Road Plain) ])
         , (hex 10 3, [ (hex 10 2, Road (River Plain)) ])
         ]
+
+public export
+allPossibleConnections : List (Pos, List (Pos, Connection))
+allPossibleConnections = catMaybes [ mkPosAndNeighbours c r | c <- [0 .. 22], r <- [0 .. 12]]
+  where
+    mkPosAndNeighbours : (c : Nat) -> (r : Nat) -> Maybe (Pos, List (Pos, Connection))
+    mkPosAndNeighbours c r = do
+      col <- natToFin c 23
+      row <- natToFin r 13
+      let pos = hex col row
+          cnx = map (\ p => (p,Plain)) (neighbours pos)
+      pure $ (pos, cnx)
