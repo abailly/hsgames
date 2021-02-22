@@ -59,4 +59,3 @@ Test-Suite tests
    build-depends: base
                 , acquire
                 , QuickCheck
-                , HTF

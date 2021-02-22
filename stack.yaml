@@ -5,4 +5,5 @@ packages:
   - 'server'
   - 'game-server'
   - 'chinese'
-resolver: lts-15.6
+  - 'republic-of-rome'
+resolver: lts-17.4

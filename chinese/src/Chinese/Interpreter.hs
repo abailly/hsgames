@@ -30,26 +30,26 @@ type Handler m a = PlayerInput a -> m a
 
 playerInputHandler :: Handler (ReaderT Connections IO) a
 playerInputHandler (SelectGame Game{..}) = do
-  Cnx hin hout <- (M.! (playerName playerState)) <$> ask
+  Cnx hin hout <- asks (M.! (playerName playerState))
   liftIO $ selectGame hin hout
 playerInputHandler (GetAnswer g@Game{..}) = do
-  Cnx hin hout <- (M.! (playerName playerState)) <$> ask
+  Cnx hin hout <- asks (M.! (playerName playerState))
   liftIO $ getAnswer g hin hout
 playerInputHandler (CorrectAnswer w  g@Game{..}) = do
-  Cnx _ hout <- (M.! (playerName playerState)) <$> ask
+  Cnx _ hout <- asks (M.! (playerName playerState))
   liftIO $ hPutStrLn hout $ render $ pretty w
   return $ case w of
             Correct -> correctAnswer g
             _       -> wrongAnswer g
 playerInputHandler (Quit g) = do
-  broadcast (\ _ (Cnx _ hout) -> (liftIO $ (hPutStrLn hout $ render $ pretty $ GameEnds g) >> hFlush hout))
+  broadcast (\ _ (Cnx _ hout) -> liftIO $ (hPutStrLn hout $ render $ pretty $ GameEnds g) >> hFlush hout)
   liftIO $ withFile ".chinese.stats" AppendMode $ saveGame g
   liftIO exitSuccess
 
 saveGame :: Game -> Handle -> IO ()
 saveGame g h = do
   dt <- getCurrentTime
-  hPutStrLn h (show $ g { gameEndedAt = Just dt }) >> hFlush h
+  hPrint h g { gameEndedAt = Just dt } >> hFlush h
 
 broadcast :: (Monad m) => (PlayerName -> Connection -> m ()) -> ReaderT Connections m ()
 broadcast f = ask >>= mapM_ (lift . uncurry f) . M.assocs
@@ -85,7 +85,7 @@ runGame game = do
     _            -> pure game
 
 interpretCommand :: Game -> Prompt PlayerInput Game
-interpretCommand game@Game{..} = do
+interpretCommand game = do
   answer <- prompt $ GetAnswer game
   if answer == Cancel
     then prompt (Quit game) >> return game

@@ -82,12 +82,12 @@ checkAnswer (Game _ qs _ Theme _ _) (Chinese s) = let (Word s' p _) = head qs
                                                   in  if s' == s
                                                       then Correct
                                                       else Wrong [Chinese s', Pinyin p]
-checkAnswer Game{..} Cancel     = Correct
+checkAnswer Game{} Cancel     = Correct
 checkAnswer (Game _ qs _ Sound _ _)  _          = let (Word _ p _) = head qs
                                                 in Wrong [Pinyin p]
 checkAnswer (Game _ qs _ Theme _ _)  _          = let (Word zh p _) = head qs
                                                 in Wrong [Chinese zh, Pinyin p]
-checkAnswer Game{..} _     = undefined -- TODO
+checkAnswer Game{} _     = undefined -- TODO
 
 correctAnswer  :: Game -> Game
 correctAnswer g@Game{..} = g { playerState = successAnswer playerState
@@ -98,6 +98,3 @@ wrongAnswer  :: Game -> Game
 wrongAnswer g@Game{..} = g { playerState = failureAnswer playerState
                            , wordsList = tail wordsList
                            }
-
-
-
