@@ -6,4 +6,5 @@ packages:
   - 'game-server'
   - 'chinese'
   - 'republic-of-rome'
+  - 'empires'
 resolver: lts-17.4
