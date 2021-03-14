@@ -48,7 +48,7 @@ startServer logger ServerConfiguration{serverPort,backends} = do
             runApp logger envs staticResources
   (port, action) <- startWarp serverPort app
   thread <- async action
-  logInfo logger $ object [ "action" .= ("Started" :: Text), "port" .= port ]
+  logInfo logger $ object [ "action" .= ("Started" :: Text), "port" .= port, "backends" .= backends ]
   pure $ Server (Just thread) port
   where
     startWarp 0 app = do

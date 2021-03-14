@@ -6,6 +6,7 @@ import Data.ByteString.Lazy (readFile)
 import GHC.Generics
 import GameServer.Game (GameType)
 import Prelude hiding (readFile)
+import Data.Either (fromRight)
 
 data GameBackend
   = GameBackend
@@ -46,4 +47,4 @@ data Server
 
 readBackends :: Maybe FilePath -> IO [GameBackend]
 readBackends Nothing = pure []
-readBackends (Just backendFile) = either (const []) id . eitherDecode <$> readFile backendFile
+readBackends (Just backendFile) = fromRight [] . eitherDecode <$> readFile backendFile
