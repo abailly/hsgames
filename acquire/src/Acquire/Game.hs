@@ -65,7 +65,7 @@ initialisedGame gid g num = do
    Just  game -> return game
 
 interpretCommand :: Game -> Prompt PlayerInput Game
-interpretCommand game@Game{..} = do
+interpretCommand game = do
   prompt $ SaveGame game
   let player = currentPlayer game
   order <- prompt $ GetOrder player game

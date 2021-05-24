@@ -11,7 +11,6 @@ import Bautzen.Terrain as T
 import Data.Heap.LeftistHeap
 
 import Data.SortedMap
-import Data.List.Extra
 
 import Data.List
 import Data.Nat
@@ -69,7 +68,7 @@ computeShortestPath (S fuel) units gameMap unit costsMap queue =
 
     -- TODO factor to Move
     enemyIn : Pos -> Bool
-    enemyIn hex = case find' (samePos hex) units of
+    enemyIn hex = case find (samePos hex) units of
                     Nothing => False
                     (Just (other, _)) => not (friendly (nation unit) (nation other))
 

@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 433a800bcecc48b5977548c9f6895391007056246b6c300eaffc54f1f87bd923
+-- hash: 593898e586cb62067d5a838ddf00b17eef1a3de74b9fe531bd862f2a0eed943a
 
 name:           republic-of-rome
 version:        0.1.0.0
@@ -28,12 +28,19 @@ source-repository head
 library
   exposed-modules:
       Lib
+      Rome.Core.Province
+      Rome.Core.Senator
+      Rome.Core.Types
+      Rome.Core.War
+      Rome.Manifest
   other-modules:
       Paths_republic_of_rome
   hs-source-dirs:
       src
+  default-extensions: OverloadedStrings
   build-depends:
       base >=4.7 && <5
+    , text
   default-language: Haskell2010
 
 executable republic-of-rome-exe
@@ -42,10 +49,12 @@ executable republic-of-rome-exe
       Paths_republic_of_rome
   hs-source-dirs:
       app
-  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  default-extensions: OverloadedStrings
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Werror
   build-depends:
       base >=4.7 && <5
     , republic-of-rome
+    , text
   default-language: Haskell2010
 
 test-suite republic-of-rome-test
@@ -55,8 +64,10 @@ test-suite republic-of-rome-test
       Paths_republic_of_rome
   hs-source-dirs:
       test
+  default-extensions: OverloadedStrings
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
     , republic-of-rome
+    , text
   default-language: Haskell2010

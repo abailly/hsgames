@@ -10,7 +10,6 @@ import Bautzen.Odds
 import Bautzen.Pos
 import Bautzen.Terrain
 
-import Data.List.Extra
 import Prelude.Either
 
 import Data.Nat
@@ -68,7 +67,7 @@ resolve : (odds : Odds) -> (modifiedDiceRoll : Fin 8) -> Losses
 resolve odds dice = dice `index` (toFin odds `index` CombatTable)
 
 findUnit : String -> { positions : List (GameUnit, Pos) } -> Maybe (GameUnit, Pos)
-findUnit n {positions} = find' (\ (u, p) => fullName u == n) positions
+findUnit n {positions} = find (\ (u, p) => fullName u == n) positions
 
 findUnits : List String -> (positions : List (GameUnit, Pos)) -> Either GameError (List (GameUnit, Pos))
 findUnits names positions =
@@ -207,7 +206,7 @@ isSupportIn hex (u, p) = p == hex &&  unitType u == SupplyColumn
 
 findSupportColumn : (supportSide : Side) -> (hex : Pos) -> (units : List (GameUnit, Pos)) -> Either GameError (GameUnit, Pos)
 findSupportColumn supportSide hex units =
-  case find' (isSupportIn hex) units of
+  case find (isSupportIn hex) units of
     Nothing => Left (NoSupplyColumnThere hex)
     Just sc => Right sc
 

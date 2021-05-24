@@ -19,8 +19,8 @@ data CmdREPL : (segment : GameSegment) -> Type where
 makePos : (col : Int) -> (row : Int) -> Either String Pos
 makePos col row with (integerToNat (cast col), integerToNat (cast row))
   makePos col row | (c , r) with (natToFin c 23, natToFin r 13)
-  makePos col row | (c , r)  | (Just c', Just r') = Right $ hex c' r'
-  makePos col row | (c , r)  | _              = Left $ "position should be between (0,0) and (22, 12): " ++ show col ++ ", " ++ show row
+    makePos col row | (c , r)  | (Just c', Just r') = Right $ hex c' r'
+    makePos col row | (c , r)  | _              = Left $ "position should be between (0,0) and (22, 12): " ++ show col ++ ", " ++ show row
 
 makeMoveCommand : (unitName : String) -> (col : Int) -> (row : Int) -> Either String (Command Move)
 makeMoveCommand unitName col row = MoveTo unitName <$> makePos col row

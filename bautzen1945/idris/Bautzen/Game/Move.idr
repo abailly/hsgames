@@ -5,9 +5,9 @@ import Bautzen.GameUnit
 import Bautzen.Terrain
 import Bautzen.ZoC
 
-import Data.List.Extra as List
 import Data.Nat.Extra
 
+import Data.Fin
 import Data.List
 import Data.Maybe
 import Data.Nat
@@ -61,12 +61,12 @@ samePosition to (_,p) = p == to
 public export
 moveTo : (side : Side) -> (units : List (GameUnit, Pos)) -> Map -> (unitName : String) -> (to : Pos) -> Either GameError Event
 moveTo sideToPlay units gameMap unitName to =
-  case find' (sameName unitName) units of
+  case find (sameName unitName) units of
     (Just (unit, b)) => if side (nation unit) /= sideToPlay
                         then Left (NotYourTurn (side (nation unit)))
                         else if not (to `elem` (neighbours b))
                              then Left (InvalidMove b to)
-                             else case find' (samePosition to) units of
+                             else case find (samePosition to) units of
                                        Nothing => moreMoveTo unit units gameMap b to
                                        (Just (other, _)) => if friendly (nation unit) (nation other)
                                                             then moreMoveTo unit units gameMap b to
@@ -74,22 +74,22 @@ moveTo sideToPlay units gameMap unitName to =
     Nothing => Left (NoSuchUnits [unitName])
 
 
--- namespace MoveTest
+namespace MoveTest
 
---   cannot_move_if_unit_does_not_exist : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "foo" (Hex 3 5) = Left (NoSuchUnits [ "foo" ])
---   cannot_move_if_unit_does_not_exist = Refl
+  cannot_move_if_unit_does_not_exist : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, hex 3 4) ] TestMap "foo" (hex 3 5) = Left (NoSuchUnits [ "foo" ])
+  cannot_move_if_unit_does_not_exist = Refl
 
---   cannot_move_not_current_side : moveTo Axis [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 5) = Left (NotYourTurn Allies)
---   cannot_move_not_current_side = Refl
+  cannot_move_not_current_side : moveTo Axis [ (Bautzen.GameUnit.p13_5dp, hex 3 4) ] TestMap "13/5DP" (hex 3 5) = Left (NotYourTurn Allies)
+  cannot_move_not_current_side = Refl
 
---   cannot_move_if_target_hex_is_occupied_by_enemy : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4), (Bautzen.GameUnit.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 3 5) = Left (EnemyInHex Bautzen.GameUnit.g21_20pz (Hex 3 5))
---   cannot_move_if_target_hex_is_occupied_by_enemy = Refl
+  -- cannot_move_if_target_hex_is_occupied_by_enemy : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, hex 3 4), (Bautzen.GameUnit.g21_20pz, hex 3 5) ] TestMap "13/5DP" (hex 3 5) = Left (EnemyInHex Bautzen.GameUnit.g21_20pz (hex 3 5))
+  -- cannot_move_if_target_hex_is_occupied_by_enemy = Refl
 
---   cannot_move_from_zoc_to_zoc : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4), (Bautzen.GameUnit.g21_20pz, Hex 3 5) ] TestMap "13/5DP" (Hex 4 5) = Left (MoveFromZocToZoc Bautzen.GameUnit.p13_5dp (Hex 4 5))
---   cannot_move_from_zoc_to_zoc = Refl
+  -- cannot_move_from_zoc_to_zoc : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, hex 3 4), (Bautzen.GameUnit.g21_20pz, hex 3 5) ] TestMap "13/5DP" (hex 4 5) = Left (MoveFromZocToZoc Bautzen.GameUnit.p13_5dp (hex 4 5))
+  -- cannot_move_from_zoc_to_zoc = Refl
 
---   moving_into_clear_terrain_costs_1 : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 4 4) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 3 4) (Hex 4 4) (One Zero))
---   moving_into_clear_terrain_costs_1 = Refl
+  -- moving_into_clear_terrain_costs_1 : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, hex 3 4) ] TestMap "13/5DP" (hex 4 4) = Right (Moved Bautzen.GameUnit.p13_5dp (hex 3 4) (hex 4 4) (One Zero))
+  -- moving_into_clear_terrain_costs_1 = Refl
 
 --   infantry_moving_into_rough_terrain_costs_1 : moveTo Allies [ (Bautzen.GameUnit.p13_5dp, Hex 3 4) ] TestMap "13/5DP" (Hex 3 3) = Right (Moved Bautzen.GameUnit.p13_5dp (Hex 3 4) (Hex 3 3) (One Zero))
 --   infantry_moving_into_rough_terrain_costs_1 = Refl

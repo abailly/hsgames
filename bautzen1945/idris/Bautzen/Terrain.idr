@@ -93,7 +93,7 @@ public export
 toNat : Cost -> Nat
 toNat Impossible = 10000000 -- should probably be another type?
 toNat Zero       = 0
-toNat (Half x)   = divNatNZ (toNat x) 2 SIsNotZ
+toNat (Half x)   = divNatNZ (toNat x) 2 SIsNonZero
 toNat (One x)    = S (toNat x)
 toNat (Two x)    = S (S (toNat x))
 
@@ -106,7 +106,7 @@ record Pos where
 mkPosInjective : MkPos p = MkPos p' -> p = p'
 mkPosInjective Refl = Refl
 
-export
+public export
 hex : Fin 23 -> Fin 13 -> Pos
 hex c r = MkPos $ P.Hex c r
 
@@ -130,7 +130,8 @@ Ord Pos where
 
 export
 distance : Pos -> Pos -> Nat
-distance (MkPos p) (MkPos p') = P.distance p p'
+distance (MkPos p) (MkPos p') =
+  let IsDistance d = P.distance p p' in d
 
 export
 neighbours : Pos -> List Pos

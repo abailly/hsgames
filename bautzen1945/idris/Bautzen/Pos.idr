@@ -7,10 +7,10 @@ import Data.Nat
 import Data.Nat.DivMod
 import Data.Nat.Parity
 import Decidable.Equality
+import Data.List
 
 import public Data.ZZ
 import public Data.ZZ.Extra
-import Data.Maybe.Extra
 
 
 %default total
@@ -39,8 +39,8 @@ DecEq (Loc c r) where
   decEq (Hex col row) (Hex k j ) with (decEq col k)
     decEq (Hex col row) (Hex k j ) | No contra = No $ \ h => contra (colInjective h)
     decEq (Hex col row) (Hex k j ) | Yes p with (decEq row j)
-    decEq (Hex col row) (Hex k j ) | Yes p | No contra = No $ \ h => contra (rowInjective h)
-    decEq (Hex col row) (Hex col row) | Yes Refl | Yes Refl = Yes Refl
+      decEq (Hex col row) (Hex k j ) | Yes p | No contra = No $ \ h => contra (rowInjective h)
+      decEq (Hex col row) (Hex col row) | Yes Refl | Yes Refl = Yes Refl
 
 public export
 Show (Loc c r) where
@@ -91,9 +91,18 @@ posToCube (Hex col row) =
       z = Pos (finToNat row) - divZZNZ (x - sign) 2 {z = PosSIsNotZ }
   in MkCube x z
 
-public export
-distance : {c : Nat} -> {r : Nat} -> Loc c r -> Loc c r -> Nat
-distance x y = cubeDistance (posToCube x) (posToCube y)
+mutual
+  public export
+  data Distance : Type where
+    IsDistance : (d : Nat) -> Distance
+
+  export
+  Num Distance where
+    fromInteger = IsDistance . fromInteger
+
+  public export
+  distance : {c : Nat} -> {r : Nat} -> Loc c r -> Loc c r -> Distance
+  distance x y = IsDistance (cubeDistance (posToCube x) (posToCube y))
 
 public export
 data Mvmt : Type where
@@ -171,7 +180,8 @@ neighbours' x y with (x `divMod` (S Z))
   neighbours' x@(Z + (q * (S(S Z)))) y     | (MkDivMod q Z remainderSmall) = catMaybes $ map (makeLoc x y) evenShifts
   neighbours' x@((S Z) + (q * (S(S Z)))) y | (MkDivMod q (S Z) remainderSmall) = catMaybes $ map (makeLoc x y) oddShifts
   neighbours' ((S (S r)) + (q * (S(S Z)))) _   | (MkDivMod q (S (S r)) LTEZero) impossible
-  neighbours' ((S (S r)) + (q * (S(S Z)))) _   | (MkDivMod q (S (S r)) (LTESucc lte)) = absurd $ succNotLTEZ (fromLTESucc lte)
+--  neighbours' ((S (S r)) + (q * (S(S Z)))) _   | (MkDivMod q (S (S r)) (LTESucc lte)) = absurd $ succNotLTEZ (fromLTESucc lte)
+  neighbours' (S (S (plus _ (_ * (S(S Z)))))) _       | (MkDivMod _ (S (S _)) (LTESucc lte)) = absurd $ succNotLTEZ (fromLTESucc lte)
 
 ||| Compute the neighbours of a given position
 ||| There are at most 6 neighbours, with side and corner hexes having of

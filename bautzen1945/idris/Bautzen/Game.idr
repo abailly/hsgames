@@ -13,8 +13,7 @@ import public Bautzen.Game.Map
 
 import Bautzen.SExp
 
-import Data.List.Extra
-
+import Data.List
 import Data.Fin
 import Data.Nat
 
@@ -157,7 +156,7 @@ Show (Query a) where
 export
 query : (ToSExp result) => (game : Game) -> (qry : Query result) -> result
 query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
-  case find' (sameName unitName) units of
+  case find (sameName unitName) units of
     Nothing => Left (UnitDoesNotExist unitName)
     (Just (unit, pos)) =>
       case supplyPathTo units gameMap (supplySources (nation unit) gameMap) (unit, pos) of

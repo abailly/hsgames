@@ -114,7 +114,7 @@ EmptyRule ty = Grammar (TokenData (Token SExpKind)) False ty
 
 eoi : EmptyRule ()
 eoi
-    = do nextIs "Expected end of input" (isEOI . tok)
+    = do _ <- nextIs "Expected end of input" (isEOI . tok)
          pure ()
   where
     isEOI : Token SExpKind -> Bool
