@@ -48,13 +48,13 @@ spec =
             `shouldRespondWith` ResponseMatcher 201 ["Location" <:> encodeUtf8 ("/games" </> unId (randomId testSeed))] ""
 
         it "on POST /games ensures returned game id is unique" $ do
-          location <- fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" anEmptyGame
+          location <- extractLocation <$> postJSON "/games" anEmptyGame
 
           postJSON "/games" anotherEmptyGame
             `shouldRespondWith` ResponseMatcher 201 (locationDifferentFrom location) ""
 
         it "on GET /games/<gameId> returns created game started" $ do
-          gameId <- Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" anEmptyGame
+          gameId <- extractGameId <$> postJSON "/games" anEmptyGame
 
           get (encodeUtf8 $ "/games" </> gameId)
             `shouldRespondWith` ResponseMatcher 200 [] (W.bodyEquals $ A.encode anEmptyGame)
@@ -76,7 +76,7 @@ spec =
           gameId <- newGame
 
           putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName "Alice")
-            `shouldRespondWith` ResponseMatcher 200 [] (W.bodyEquals $ A.encode $ PlayerKey "KNMYUEOH")
+            `shouldRespondWith` ResponseMatcher 200 [] (W.bodyEquals $ A.encode $ PlayerKey "THTBUKBS")
 
         it "on PUT /games/<id>/players returns 400 given player already joined game" $ do
           postJSON "/players" aPlayer
@@ -120,7 +120,7 @@ joinsGame :: Text -> Text -> WaiSession () SResponse
 joinsGame pName gameId = putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName pName)
 
 newGame :: WaiSession () Text
-newGame = Text.drop 7 . decodeUtf8 . fromJust . lookup "Location" . W.simpleHeaders <$> postJSON "/games" anEmptyGame
+newGame = extractGameId <$> postJSON "/games" anEmptyGame
 
 locationDifferentFrom :: ByteString -> [MatchHeader]
 locationDifferentFrom loc =
@@ -130,3 +130,7 @@ locationDifferentFrom loc =
         Just h | h == loc -> Just ("expected 'Location' header to differ from " <> show loc)
         Just h -> Nothing
   ]
+
+extractGameId = Text.drop 7 . decodeUtf8 . extractLocation
+
+extractLocation = fromJust . lookup "Location" . W.simpleHeaders

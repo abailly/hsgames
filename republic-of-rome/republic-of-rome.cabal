@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 593898e586cb62067d5a838ddf00b17eef1a3de74b9fe531bd862f2a0eed943a
+-- hash: ab522e1bf9c0fccd216755bd2f6c66a53b6763b9a2febef80e5f1afed425524d
 
 name:           republic-of-rome
 version:        0.1.0.0
@@ -28,11 +28,6 @@ source-repository head
 library
   exposed-modules:
       Lib
-      Rome.Core.Province
-      Rome.Core.Senator
-      Rome.Core.Types
-      Rome.Core.War
-      Rome.Manifest
   other-modules:
       Paths_republic_of_rome
   hs-source-dirs:

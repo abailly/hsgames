@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.2.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5d4da356b61df8493ea36bf5c65ef61e5f2484be3444ff6a93cb2ad91d312307
+-- hash: 461b7365a6690520b77d2deade1000f1baa59542c22e249da8fb280c0ae5a3c2
 
 name:           game-server
 version:        0.1.0.0
@@ -29,6 +29,7 @@ library
   exposed-modules:
       GameServer
       GameServer.App
+      GameServer.Backend.Bautzen1945
       GameServer.Clients
       GameServer.Clients.IO
       GameServer.Clients.Messages
