@@ -84,6 +84,4 @@ reduce unit = catMaybes . map (\ (u,p) => reduceUnit u p)
     reduceUnit u@(MkGameUnit nation unitType name parent size move currentMP steps hits combat) pos =
       if u /= unit
       then Just (u, pos)
-      else case strengthen (FS hits) of
-             Left  _ => Nothing
-             Right h => Just (MkGameUnit nation unitType name parent size move currentMP steps h combat, pos)
+      else (\ h => (MkGameUnit nation unitType name parent size move currentMP steps h combat, pos)) <$> strengthen (FS hits)

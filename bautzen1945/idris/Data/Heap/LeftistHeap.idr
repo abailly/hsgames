@@ -12,7 +12,6 @@ module Data.Heap.LeftistHeap
 
 import public Data.Heap
 
-import Decidable.Order
 import Data.Nat
 import public Data.Nat.Order
 
@@ -89,9 +88,9 @@ data LeftistBinTree : (rank : Nat) -> (a : Type) -> Type where
        -> LeftistBinTree (S (k + n)) a
 
 makeNode : {r, q : Nat} -> (elem : a) -> LeftistBinTree r a -> LeftistBinTree q a -> LeftistBinTree (S (r + q)) a
-makeNode elem x y with (order r q {to=LTE})
-  makeNode elem x y | (Left z) = rewrite plusCommutative r q in Node elem y x
-  makeNode elem x y | (Right z) = Node elem x y
+makeNode elem x y with (Order.lte r q)
+  makeNode elem x y | (Yes z) = rewrite plusCommutative r q in Node elem y x
+  makeNode elem x y | (No z) = let prf = lteSuccLeft $ notLTEImpliesGT z in Node elem x y
 
 ||| Merge 2 `LeftistBinTree`s while preserving properties.
 |||

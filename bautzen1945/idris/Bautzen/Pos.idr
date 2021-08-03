@@ -12,7 +12,6 @@ import Data.List
 import public Data.ZZ
 import public Data.ZZ.Extra
 
-
 %default total
 
 -- Positions & Map
@@ -99,6 +98,8 @@ mutual
   export
   Num Distance where
     fromInteger = IsDistance . fromInteger
+    IsDistance d1 * IsDistance d2 = IsDistance $ d1 * d2 -- meaningless
+    IsDistance d1 + IsDistance d2 = IsDistance $ d1 + d2
 
   public export
   distance : {c : Nat} -> {r : Nat} -> Loc c r -> Loc c r -> Distance
@@ -177,11 +178,9 @@ evenShifts = [ (Dec, Dec)
 
 neighbours' : {col : Nat} -> {row : Nat} -> (x : Nat) -> (y : Nat) -> List (Loc col row)
 neighbours' x y with (x `divMod` (S Z))
-  neighbours' x@(Z + (q * (S(S Z)))) y     | (MkDivMod q Z remainderSmall) = catMaybes $ map (makeLoc x y) evenShifts
-  neighbours' x@((S Z) + (q * (S(S Z)))) y | (MkDivMod q (S Z) remainderSmall) = catMaybes $ map (makeLoc x y) oddShifts
-  neighbours' ((S (S r)) + (q * (S(S Z)))) _   | (MkDivMod q (S (S r)) LTEZero) impossible
---  neighbours' ((S (S r)) + (q * (S(S Z)))) _   | (MkDivMod q (S (S r)) (LTESucc lte)) = absurd $ succNotLTEZ (fromLTESucc lte)
-  neighbours' (S (S (plus _ (_ * (S(S Z)))))) _       | (MkDivMod _ (S (S _)) (LTESucc lte)) = absurd $ succNotLTEZ (fromLTESucc lte)
+  neighbours' x@(Z + (q * 2)) y     | (MkDivMod q Z _) = catMaybes $ map (makeLoc x y) evenShifts
+  neighbours' x@((S r) + (q * 2)) y | (MkDivMod q (S r) _) = catMaybes $ map (makeLoc x y) oddShifts
+  neighbours' (S (S r) + (q * 2)) _ | (MkDivMod q (S (S r)) LTEZero) impossible
 
 ||| Compute the neighbours of a given position
 ||| There are at most 6 neighbours, with side and corner hexes having of

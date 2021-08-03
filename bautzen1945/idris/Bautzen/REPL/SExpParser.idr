@@ -6,7 +6,7 @@ import Bautzen.SExp
 import Text.Parser
 import Text.Lexer
 import Text.Token
-import Data.Strings
+import Data.String
 import Data.List
 
 %hide Text.Lexer.Core.strTail

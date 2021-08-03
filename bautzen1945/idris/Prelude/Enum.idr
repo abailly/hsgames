@@ -4,14 +4,6 @@ import Data.List
 import Data.Nat
 
 export
-Cast Int Nat where
-  cast i = fromInteger (cast i)
-
-export
-Cast Integer Nat where
-  cast = fromInteger
-
-export
 natRange : Nat -> List Nat
 natRange n = List.reverse (go n)
   where go : Nat -> List Nat

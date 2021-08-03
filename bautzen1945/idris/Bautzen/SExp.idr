@@ -107,11 +107,12 @@ mutual
   private
   step : (x1 : List SExp) -> ((y : List SExp) -> Smaller y x1 -> Either String (List String)) -> Either String (List String)
   step []        f = Right []
-  step (x :: xs) f with (isLTE (length xs) (length xs))
-    step (x :: xs) f | Yes prf = do s <- toStrings x
-                                    ss <- f xs $ LTESucc prf
-                                    pure $ s ++ ss
-    step (x :: xs) f | No contra = absurd (contra lteRefl)
+  step (x :: xs) f =
+     let lx = (length xs)
+         prf = reflexive {rel = LTE}
+     in do s <- toStrings x
+           ss <- f xs $ LTESucc prf
+           pure $ s ++ ss
 
   ||| Convert a s-expression into a list of strings
   |||
