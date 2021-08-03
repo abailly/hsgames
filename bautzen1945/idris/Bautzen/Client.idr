@@ -61,7 +61,7 @@ runREPL sock =
 
 export
 client : Options -> IO (Either String ())
-client (MkOptions port host _)  = do
+client (MkOptions port host _ _)  = do
   Right cnx <- openConnection host port
         | Left err => pure (Left err)
   runREPL cnx
