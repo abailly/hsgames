@@ -37,7 +37,7 @@ data Community = Community
     location :: Cell,
     -- | Current so-called "ultrasociality" traits of this community.
     ultrasociality :: UltraSociality,
-    -- | Current miltiraty technology level of this community.
+    -- | Current military technology level of this community.
     miltech :: MilTech,
     -- | A community initially starts as autonomous in its cell.
     -- It can later expand, thus creating a new `Polity` or become part
