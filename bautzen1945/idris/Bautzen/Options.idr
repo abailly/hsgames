@@ -45,19 +45,19 @@ defaultOptions = MkOptions 34567 "localhost" ServerMode (Verbose "bautzen1945")
 doProcessOptions : List String -> Options -> Either String Options
 doProcessOptions []                        opts = Right opts
 doProcessOptions ("--host" :: arg :: args) opts =
-  doProcessOptions args (record { host = arg } opts)
+  doProcessOptions args ({ host := arg } opts)
 doProcessOptions ("--port" :: arg :: args) opts =
   case parseInteger (unpack arg) 0 of
     Nothing => Left $ "cannot parse " ++ arg ++ " as a port number"
-    (Just x) => doProcessOptions args (record { port = fromInteger x } opts)
+    (Just x) => doProcessOptions args ({ port := fromInteger x } opts)
 doProcessOptions ("client" :: args) opts =
-  doProcessOptions args (record { runMode = ClientMode } opts)
+  doProcessOptions args ({ runMode := ClientMode } opts)
 doProcessOptions ("server" :: args) opts =
-  doProcessOptions args (record { runMode = ServerMode } opts)
+  doProcessOptions args ({ runMode := ServerMode } opts)
 doProcessOptions ("--quiet" :: args) opts =
-  doProcessOptions args (record { verbosity = Quiet } opts)
+  doProcessOptions args ({ verbosity := Quiet } opts)
 doProcessOptions ("--verbose" :: arg :: args) opts =
-  doProcessOptions args (record { verbosity = Verbose arg } opts)
+  doProcessOptions args ({ verbosity := Verbose arg } opts)
 doProcessOptions (arg :: _) _ = Left $ "unknown argument " ++ arg
 
 ||| Process arguments from the command-line, turning them into
