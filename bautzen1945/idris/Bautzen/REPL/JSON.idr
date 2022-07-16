@@ -51,16 +51,16 @@ Cast Nat JSON where
 export
 Cast StdFactors JSON where
   cast (MkStdFactors attack defense) =
-    JArray [ cast attack
-          , cast defense
-          ]
+    JObject [ ("attack", cast attack)
+            , ("defense", cast defense)
+            ]
 
 export
 Cast Arty JSON where
   cast (MkArty support distance) =
-    JArray [ cast support
-          , cast distance
-          ]
+    JObject [ ("support", cast support)
+            , ("distance", cast distance)
+            ]
 
 export
 Cast Pak JSON where
@@ -91,17 +91,16 @@ Cast a JSON => Cast b JSON => Cast c JSON => Cast (a, b, c) JSON where
 export
 Cast GameUnit JSON where
   cast (MkGameUnit nation unitType name parent size move currentMP steps hits combat) =
-    JArray [ JString ":unit"
-          , cast nation
-          , cast unitType
-          , cast name
-          , cast parent
-          , cast size
-          , cast move
-          , cast currentMP
-          , cast steps
-          , cast hits
-          , case unitType of
+    JObject [ ("nation", cast nation)
+          , ("type", cast unitType)
+          , ("name", cast name)
+          , ("parent", cast parent)
+          , ("size", cast size)
+          , ("move", cast move)
+          , ("mp", cast currentMP)
+          , ("steps", cast steps)
+          , ("hits", cast hits)
+          , ("combat", case unitType of
               Armored       => cast combat
               HeavyArmored  => cast combat
               MechInfantry  => cast combat
@@ -110,7 +109,7 @@ Cast GameUnit JSON where
               Artillery     => cast combat
               AntiTank      => cast combat
               HQ            => cast combat
-              SupplyColumn  => cast combat
+              SupplyColumn  => cast combat)
           ]
 
 public export
@@ -162,25 +161,25 @@ Cast (GameUnit, Pos) JSON where
 export
 Cast EngagedUnits JSON where
   cast (MkEngagedUnits base tacticalSupport strategicSupport) =
-    JArray [ JString ":engaged"
-          , JString ":base", cast base
-          , JString ":tactical-support", cast tacticalSupport
-          , JString ":strategic-support", cast strategicSupport
+    JObject [ ("tag", JString "engaged")
+          , ("base", cast base)
+          , ("tactical-support", cast tacticalSupport)
+          , ("strategic-support", cast strategicSupport)
           ]
 
 export
 Cast CombatState JSON where
   cast (MkCombatState hex attackers defenders losses) =
-    JArray [ JString ":combat-state"
-          , JString ":combat-hex", cast hex
-          , JString ":attackers", cast attackers
-          , JString ":defenders", cast defenders
-          , JString ":losses", cast losses
+    JObject  [ ("tag", JString "combat-state")
+          , ("combat-hex", cast hex)
+          , ("attackers", cast attackers)
+          , ("defenders", cast defenders)
+          , ("losses", cast losses)
           ]
 
 export
 Cast CombatPhase JSON where
-  cast NoCombat = JString "NoCombat"
+  cast NoCombat = JArray []
   cast (AssignTacticalSupport side combat) = JArray [ JString "AssignTacticalSupport",  cast side, cast combat ]
   cast (AssignStrategicSupport side combat) = JArray [ JString "AssignStrategicSupport",  cast side, cast combat ]
   cast (ApplyLosses side combat) = JArray [ JString "ApplyLosses",  cast side, cast combat ]
@@ -196,52 +195,52 @@ Cast GameSegment JSON where
 export
 Cast Event JSON where
   cast (Moved unit from to cost) =
-      JArray [ JString ":moved"
-            , JString ":unit", cast unit
-            , JString ":from", cast from
-            , JString ":to", cast to
-            , JString ":cost", cast cost
+      JObject [ ("tag", JString "moved")
+            , ("unit", cast unit)
+            , ("from", cast from)
+            , ("to", cast to)
+            , ("cost", cast cost)
             ]
   cast (CombatEngaged atk def target) =
-      JArray [ JString ":combat-engaged"
-            , JString ":attackers", cast atk
-            , JString ":defenders", cast def
-            , JString ":target", cast target
+      JObject [ ("tag", JString "combat-engaged")
+            , ("attackers", cast atk)
+            , ("defenders", cast def)
+            , ("target", cast target)
             ]
   cast (TacticalSupportProvided side units) =
-      JArray [ JString ":tactical-support-provided"
-            , JString ":supported-side", cast side
-            , JString ":supporting-units", cast units
+      JObject [ ("tag", JString "tactical-support-provided")
+            , ("supported-side", cast side)
+            , ("supporting-units", cast units)
             ]
   cast (SupplyColumnUsed side hex) =
-      JArray [ JString ":supply-column-used"
-            , JString ":supported-side", cast side
-            , JString ":position", cast hex
+      JObject [ ("tag" , JString "supply-column-used")
+            , ("supported-side", cast side)
+            , ("position", cast hex)
             ]
   cast (CombatResolved state losses) =
-      JArray [ JString ":combat-resolved"
-            , JString ":state", cast state
-            , JString ":losses", cast losses
+      JObject [ ("tag", JString  "combat-resolved")
+            , ("state", cast state)
+            , ("losses", cast losses)
             ]
   cast (StepLost side unit remain) =
-      JArray [ JString ":step-lost"
-            , JString ":side", cast side
-            , JString ":unit", cast unit
-            , JString ":remaining-losses", cast remain
+      JObject [ ("tag", JString  "step-lost")
+            , ("side", cast side)
+            , ("unit", cast unit)
+            , ("remaining-losses", cast remain)
             ]
   cast (SegmentChanged from to) =
-      JArray [ JString ":segment-changed"
-            , JString ":from", cast from
-            , JString ":to", cast to
+      JObject [ ("tag", JString "segment-changed")
+            , ("from", cast from)
+            , ("to", cast to)
             ]
   cast (TurnEnded n) =
-      JArray [ JString ":turn-ended"
-            , JString ":new-turn", cast n
+      JObject [ ("tag", JString "turn-ended")
+            , ("new-turn", cast n)
             ]
   cast AxisTurnDone =
-      JArray [ JString ":axis-turn-done" ]
+      JObject [ ("tag", JString "axis-turn-done") ]
   cast GameEnded =
-      JArray [ JString ":game-ended" ]
+      JObject [ ("tag", JString "game-ended") ]
 
 export
 splice : JSON -> JSON -> JSON
