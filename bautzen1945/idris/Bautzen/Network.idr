@@ -1,9 +1,7 @@
 module Bautzen.Network
 
 import Data.List
-
-import Bautzen.SExp
-import Bautzen.REPL.SExpParser
+import Language.JSON
 
 ||| Returns a decimal string representation of `n` padded with 0s
 ||| The number must be representable with 6 digits or else it is
@@ -19,9 +17,9 @@ padWith0 k =
              in padding ++ num
        else num
 
-||| Convert a `SExp` to "wire" format
+||| Convert a `JSON` to "wire" format
 export
-toWire : SExp -> String
+toWire : JSON -> String
 toWire sexp =
   let str = show sexp
       len = padWith0 (prim__strLength str)
@@ -29,5 +27,5 @@ toWire sexp =
 
 ||| Convert a `String` to a SExp, if possible
 export
-fromWire : String -> Either String SExp
-fromWire = parseSExp
+fromWire : String -> Either String JSON
+fromWire msg = maybe (Left$ "Failed to parse JSON from " ++ msg) Right $ parse msg

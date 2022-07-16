@@ -10,6 +10,7 @@ import Language.JSON.Data
 
 import Data.Fin
 import Data.Vect
+import Control.WellFounded
 
 
 export
@@ -77,6 +78,15 @@ Cast a JSON => Cast (Maybe a) JSON where
 export
 Cast a JSON => Cast (Vect n a) JSON where
   cast = cast . toList
+
+export
+Cast a JSON => Cast b JSON => Cast (Either a b) JSON where
+  cast (Right r) = cast r
+  cast (Left l) = cast l
+
+export
+Cast a JSON => Cast b JSON => Cast c JSON => Cast (a, b, c) JSON where
+  cast (a,b,c) = JArray [ cast a, cast b, cast c ]
 
 export
 Cast GameUnit JSON where
@@ -278,3 +288,32 @@ Cast QueryError JSON where
                                                  ("pos" , cast pos) ]
   cast (UnitDoesNotExist unitName) = JObject [ ("reason", JString "UnitDoesNotExist"),
                                                ("unit" , JString unitName) ]
+
+mutual
+  private
+  covering
+  step : (x1 : List JSON) -> ((y : List JSON) -> Smaller y x1 -> Either String (List String)) -> Either String (List String)
+  step []        f = Right []
+  step (x :: xs) f =
+     let lx = (length xs)
+         prf = reflexive {rel = LTE}
+     in do s <- toStrings x
+           ss <- f xs $ LTESucc prf
+           pure $ s ++ ss
+
+  ||| Convert a s-expression into a list of strings
+  |||
+  ||| This function actually _flattens_ the given s-expression, traversing it depth-first and
+  ||| expecting to find only _strings_.
+  |||
+  ||| * A single string is converted as a singleton
+  ||| * A list of strings is converted as a list
+  ||| * Any other type raises an error
+  export
+  -- It should be total but it is not due to the mutual recursion in the
+  -- `step` function
+  covering
+  toStrings : JSON -> Either String (List String)
+  toStrings (JString x) = pure [ x ]
+  toStrings (JArray x) = sizeRec step x
+  toStrings x = Left $ "Expected a string or a list of strings, got "++ show x

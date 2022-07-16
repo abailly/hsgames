@@ -3,18 +3,17 @@ module Bautzen.REPL
 import Debug.Trace
 import Bautzen.Game
 import Bautzen.Options
-import Bautzen.REPL.SExpParser
-import Bautzen.REPL.SExpInstances
-import Bautzen.SExp
+import Bautzen.REPL.JSON
 
 import System.REPL.Extra
 
 import Data.Fin
 import Data.Nat
+import Language.JSON
 
-data CmdREPL : (segment : GameSegment) -> Type where
-  Cmd : (cmd : Command segment) -> CmdREPL segment
-  Qry : (ToSExp res) => (qry : Query res) -> CmdREPL segment
+data CmdREPL : (seg : GameSegment) -> Type where
+  Cmd : (cmd : Command seg) -> CmdREPL seg
+  Qry : Cast res JSON => (qry : Query res) -> CmdREPL seg
 
 makePos : (col : Int) -> (row : Int) -> Either String Pos
 makePos col row with (integerToNat (cast col), integerToNat (cast row))
@@ -25,13 +24,13 @@ makePos col row with (integerToNat (cast col), integerToNat (cast row))
 makeMoveCommand : (unitName : String) -> (col : Int) -> (row : Int) -> Either String (Command Move)
 makeMoveCommand unitName col row = MoveTo unitName <$> makePos col row
 
-makeAttackWithCommand : (unitNames : SExp) -> (col : Int) -> (row : Int) -> Either String (Command $ Combat NoCombat)
+makeAttackWithCommand : (unitNames : JSON) -> (col : Int) -> (row : Int) -> Either String (Command $ Combat NoCombat)
 makeAttackWithCommand unitNames col row = do
   pos <- makePos col row
   units <- toStrings unitNames
   pure $ AttackWith units pos
 
-makeSupportCommand : (unitNames : SExp) -> {side : Side} -> {combatState : CombatState}
+makeSupportCommand : (unitNames : JSON) -> {side : Side} -> {combatState : CombatState}
                    -> Either String (Command $ Combat (AssignTacticalSupport side combatState))
 makeSupportCommand unitNames =
   toStrings unitNames >>= Right . TacticalSupport
@@ -45,33 +44,33 @@ foo game s with (curSegment game)
   foo game s | Move = "Move"
   foo game s | _ = "other"
 
-makeCommand : (game : Game) -> SExp -> Either String (CmdREPL (curSegment game))
-makeCommand game (SList [ SSym "move!", SStr unitName, SList [ SInt col, SInt row] ] ) with (curSegment game)
-  makeCommand game (SList [ SSym "move!", SStr unitName, SList [ SInt col, SInt row] ] ) | Move = Cmd <$> makeMoveCommand unitName col row
-  makeCommand game (SList [ SSym "move!", SStr unitName, SList [ SInt col, SInt row] ] ) | other = Left ("Invalid command for segment " ++ show other)
-makeCommand game (SList [ SSym "attack!", unitNames, SList [ SInt col, SInt row] ] ) with (curSegment game)
-  makeCommand game (SList [ SSym "attack!", unitNames, SList [ SInt col, SInt row] ] ) | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames col row
-  makeCommand game (SList [ SSym "attack!", unitNames, SList [ SInt col, SInt row] ] ) | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym "support!", unitNames ] ) with (curSegment game)
-  makeCommand game (SList [ SSym "support!", unitNames ] ) | Combat (AssignTacticalSupport side combatState) = Cmd <$> makeSupportCommand unitNames
-  makeCommand game (SList [ SSym "support!", unitNames ] ) | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym "resolve!" ] ) with (curSegment game)
-  makeCommand game (SList [ SSym "resolve!" ] ) | Combat (Resolve combatState) = pure $ Cmd (ResolveCombat combatState)
-  makeCommand game (SList [ SSym "resolve!" ] ) | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym "lose-step!", SStr unitName ] ) with (curSegment game)
-  makeCommand game (SList [ SSym "lose-step!", SStr unitName ] ) | Combat (ApplyLosses side state) = Cmd <$> makeLoseStepCommand unitName
-  makeCommand game (SList [ SSym "lose-step!", SStr unitName ] ) | other = Left $ "Invalid command for segment " ++ show other
-makeCommand game (SList [ SSym "next!" ] ) = pure $ Cmd NextSegment
-makeCommand game (SList [ SSym "supply-path?", SStr unitName ] ) = Right $ Qry $ SupplyPath unitName
-makeCommand game (SList [ SSym "map?" ] ) = Right $ Qry TerrainMap
-makeCommand game (SList [ SSym "positions?" ] ) = Right $ Qry Positions
-makeCommand game (SList [ SSym "stage?" ] ) = Right $ Qry GameStage
+makeCommand : (game : Game) -> JSON -> Either String (CmdREPL (curSegment game))
+makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) with (curSegment game)
+  makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) | Move = Cmd <$> makeMoveCommand unitName (cast col) (cast row)
+  makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) | other = Left ("Invalid command for segment " ++ show other)
+makeCommand game (JArray [ JString "attack!", unitNames, JArray [ JNumber col, JNumber row] ] ) with (curSegment game)
+  makeCommand game (JArray [ JString "attack!", unitNames, JArray [ JNumber col, JNumber row] ] ) | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames (cast col) (cast row)
+  makeCommand game (JArray [ JString "attack!", unitNames, JArray [ JNumber col, JNumber row] ] ) | other = Left $ "Invalid command for segment " ++ show other
+makeCommand game (JArray [ JString "support!", unitNames ] ) with (curSegment game)
+  makeCommand game (JArray [ JString "support!", unitNames ] ) | Combat (AssignTacticalSupport side combatState) = Cmd <$> makeSupportCommand unitNames
+  makeCommand game (JArray [ JString "support!", unitNames ] ) | other = Left $ "Invalid command for segment " ++ show other
+makeCommand game (JArray [ JString "resolve!" ] ) with (curSegment game)
+  makeCommand game (JArray [ JString "resolve!" ] ) | Combat (Resolve combatState) = pure $ Cmd (ResolveCombat combatState)
+  makeCommand game (JArray [ JString "resolve!" ] ) | other = Left $ "Invalid command for segment " ++ show other
+makeCommand game (JArray [ JString "lose-step!", JString unitName ] ) with (curSegment game)
+  makeCommand game (JArray [ JString "lose-step!", JString unitName ] ) | Combat (ApplyLosses side state) = Cmd <$> makeLoseStepCommand unitName
+  makeCommand game (JArray [ JString "lose-step!", JString unitName ] ) | other = Left $ "Invalid command for segment " ++ show other
+makeCommand game (JArray [ JString "next!" ] ) = pure $ Cmd NextSegment
+makeCommand game (JArray [ JString "supply-path?", JString unitName ] ) = Right $ Qry $ SupplyPath unitName
+makeCommand game (JArray [ JString "map?" ] ) = Right $ Qry TerrainMap
+makeCommand game (JArray [ JString "positions?" ] ) = Right $ Qry Positions
+makeCommand game (JArray [ JString "stage?" ] ) = Right $ Qry GameStage
 makeCommand _ sexp = Left $ "Unknown command " ++ show sexp
 
 partial
 parseCommand : (game : Game) -> String -> Either String (CmdREPL (curSegment game))
 parseCommand game input = do
-  sexp <- parseSExp input
+  sexp <- maybe (Left "cannot parse JSON") Right (parse input)
   makeCommand game sexp
 
 partial
@@ -81,10 +80,10 @@ commandHandler game command =
   case parseCommand game command of
     Left err => (err, game)
     Right (Cmd cmd) => case act game cmd of
-                         Left err => (show (toSExp err), game)
-                         Right event => (show (toSExp event), apply event game)
+                         Left err => (show $ cast {to = JSON} err, game)
+                         Right event => (show $ cast {to = JSON} event, apply event game)
     Right (Qry qry) =>
-      let qryResult = toSExp $ query game qry
+      let qryResult = cast {to=JSON} $ query game qry
       in (show qryResult, game)
 
 

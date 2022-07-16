@@ -3,11 +3,11 @@ module Bautzen.Client
 
 import Bautzen.Options
 import Bautzen.Network
-import Bautzen.REPL.SExpParser
-import Bautzen.SExp
+
 
 import Data.Strings.Extra
 
+import Language.JSON
 import Builtin
 import Prelude
 import Data.Nat
@@ -19,7 +19,7 @@ import Network.Socket.Raw
 import System
 import System.File
 
-sendCommand : Socket -> SExp -> IO (Either String String)
+sendCommand : Socket -> JSON -> IO (Either String String)
 sendCommand socket command = do
   let cmd = toWire command
   putStrLn $ "sending message " ++ cmd
@@ -51,13 +51,13 @@ runREPL sock =
      if eof
        then pure ()
        else do x <- getLine
-               case parseSExp x of
-                    Right out =>
+               case parse x of
+                    Just out =>
                         do Right result <- sendCommand sock out
                                  | Left err => do putStrLn ("Error sending command: " ++ err) ; runREPL sock
                            putStrLn result
                            runREPL sock
-                    Left err => do putStrLn ("Invalid command: " ++ err) ; runREPL sock
+                    Nothing => do putStrLn ("Invalid command: " ++ x) ; runREPL sock
 
 export
 client : Options -> IO (Either String ())

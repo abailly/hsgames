@@ -13,6 +13,7 @@ import public Bautzen.Game.Map
 
 import Bautzen.SExp
 
+import Language.JSON
 import Data.List
 import Data.Fin
 import Data.Nat
@@ -32,42 +33,42 @@ act (MkGame _ (MkGameState _ side (Combat (ApplyLosses lossSide combat)) units) 
 applyTacticalSupportEvent : Side -> CombatState -> List (GameUnit, Pos) -> GameState -> GameState
 applyTacticalSupportEvent supportedSide (MkCombatState combatHex attackers defenders losses) units game =
   if side game == supportedSide
-  then record { segment = Combat (AssignTacticalSupport (flipSide supportedSide)
+  then { segment := Combat (AssignTacticalSupport (flipSide supportedSide)
                                        (MkCombatState combatHex
-                                        (record { tacticalSupport = units } attackers)
+                                        ({ tacticalSupport := units } attackers)
                                         defenders
                                         losses)) } game
-  else record { segment = Combat (AssignStrategicSupport (flipSide supportedSide)
+  else { segment := Combat (AssignStrategicSupport (flipSide supportedSide)
                                        (MkCombatState combatHex
                                         attackers
-                                        (record { tacticalSupport = units } defenders)
+                                        ({ tacticalSupport := units } defenders)
                                         losses)) } game
 
 applySupplyColumnUsedEvent :  Side -> CombatState -> Pos -> GameState -> GameState
 applySupplyColumnUsedEvent supportedSide (MkCombatState combatHex attackers defenders losses) hex game =
   if side game == supportedSide
-  then record { segment = Combat (AssignStrategicSupport supportedSide
+  then { segment := Combat (AssignStrategicSupport supportedSide
                                        (MkCombatState combatHex
-                                        (record { strategicSupport $= (+1) } attackers)
+                                        ({ strategicSupport $= (+1) } attackers)
                                         defenders
                                         losses)) } game
-  else record { segment = Combat (AssignStrategicSupport supportedSide
+  else { segment := Combat (AssignStrategicSupport supportedSide
                                        (MkCombatState combatHex
                                         attackers
-                                        (record { strategicSupport $= (+1) } defenders)
+                                        ({ strategicSupport $= (+1) } defenders)
                                         losses)) } game
 
 -- TODO handle case where there are more losses to applies than units
 applyStepLostEvent :
   Side -> GameUnit -> Losses -> CombatState -> GameState -> GameState
 applyStepLostEvent lossSide unit newLosses state game@(MkGameState turn side segment units) =
-  record { segment = newSegment, units = reduced } game
+  { segment := newSegment, units := reduced } game
   where
     reduced : List (GameUnit, Pos)
     reduced = reduce unit units
 
     newState : CombatState
-    newState = record { losses = Just newLosses } state
+    newState = { losses := Just newLosses } state
 
     newSegment : GameSegment
     newSegment = case newLosses of
@@ -80,7 +81,7 @@ applyEvent : Event -> GameState -> GameState
 applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
   MkGameState turn side segment (updateMovedUnit unit to (Terrain.toNat cost) units)
 applyEvent (CombatEngaged atk def tgt) game =
-  record { segment = Combat (AssignTacticalSupport (side game)
+  { segment := Combat (AssignTacticalSupport (side game)
                      (MkCombatState tgt
                        (MkEngagedUnits atk [] 0)
                        (MkEngagedUnits def [] 0)
@@ -95,20 +96,20 @@ applyEvent (SupplyColumnUsed side pos) game =
     _ => game -- TODO make this impossible to happen
 applyEvent (CombatResolved state losses) game =
   case segment game of
-    (Combat (Resolve _)) => record { segment = (Combat $ ApplyLosses (side game) (record { losses = Just losses } state)) } game
+    (Combat (Resolve _)) => { segment := (Combat $ ApplyLosses (side game) ({ losses := Just losses } state)) } game
     _ => game -- TODO make this impossible to happen
 applyEvent (StepLost unitSide unit newLosses) game =
   case segment game of
     (Combat (ApplyLosses lossSide combatState)) => applyStepLostEvent unitSide unit newLosses combatState game
     _ => game -- TODO make this impossible to happen
 applyEvent (SegmentChanged from to) game =
-  record { segment = to } game
+  { segment := to } game
 applyEvent AxisTurnDone game =
-  record { side = Allies, segment = Supply } game
+  { side := Allies, segment := Supply } game
 applyEvent (TurnEnded n) game =
-  record { turn = n, side = Axis, segment = Supply } game
+  { turn := n, side := Axis, segment := Supply } game
 applyEvent GameEnded game =
-  record { segment = GameEnd } game
+  { segment := GameEnd } game
 
 export
 apply : Event -> Game -> Game
@@ -154,7 +155,7 @@ Show (Query a) where
   show GameStage = "GameStage"
 
 export
-query : (ToSExp result) => (game : Game) -> (qry : Query result) -> result
+query : (Cast result JSON) => (game : Game) -> (qry : Query result) -> result
 query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
   case find (sameName unitName) units of
     Nothing => Left (UnitDoesNotExist unitName)
