@@ -1,1 +1,2 @@
-[{"gamePort":7890,"gameHost":"localhost","gameType":"Acquire"}]
+[{ "gamePort": 7890, "gameHost": "localhost", "gameType": "Acquire" },
+{ "gamePort": 9999, "gameHost": "localhost", "gameType": "Bautzen1945" }]
