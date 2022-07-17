@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 461b7365a6690520b77d2deade1000f1baa59542c22e249da8fb280c0ae5a3c2
+-- hash: 1a3a237cebffee03cebcdf2b9da8503d0f7c272cfdd872f5d0cfcb93710a073e
 
 name:           game-server
 version:        0.1.0.0
@@ -46,7 +46,19 @@ library
       Paths_game_server
   hs-source-dirs:
       src
-  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts GeneralizedNewtypeDeriving MultiWayIf NamedFieldPuns OverloadedStrings RecordWildCards ScopedTypeVariables
+  default-extensions:
+      DeriveAnyClass
+      DeriveGeneric
+      DerivingStrategies
+      DuplicateRecordFields
+      DisambiguateRecordFields
+      FlexibleContexts
+      GeneralizedNewtypeDeriving
+      MultiWayIf
+      NamedFieldPuns
+      OverloadedStrings
+      RecordWildCards
+      ScopedTypeVariables
   build-depends:
       aeson
     , async
@@ -62,6 +74,7 @@ library
     , mtl
     , network
     , optparse-applicative
+    , process
     , random
     , servant
     , servant-server
@@ -84,7 +97,19 @@ executable game-server-exe
       Paths_game_server
   hs-source-dirs:
       app
-  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts GeneralizedNewtypeDeriving MultiWayIf NamedFieldPuns OverloadedStrings RecordWildCards ScopedTypeVariables
+  default-extensions:
+      DeriveAnyClass
+      DeriveGeneric
+      DerivingStrategies
+      DuplicateRecordFields
+      DisambiguateRecordFields
+      FlexibleContexts
+      GeneralizedNewtypeDeriving
+      MultiWayIf
+      NamedFieldPuns
+      OverloadedStrings
+      RecordWildCards
+      ScopedTypeVariables
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
@@ -102,6 +127,7 @@ executable game-server-exe
     , mtl
     , network
     , optparse-applicative
+    , process
     , random
     , servant
     , servant-server
@@ -131,7 +157,19 @@ test-suite game-server-test
       Paths_game_server
   hs-source-dirs:
       test
-  default-extensions: DeriveAnyClass DeriveGeneric DerivingStrategies DuplicateRecordFields DisambiguateRecordFields FlexibleContexts GeneralizedNewtypeDeriving MultiWayIf NamedFieldPuns OverloadedStrings RecordWildCards ScopedTypeVariables
+  default-extensions:
+      DeriveAnyClass
+      DeriveGeneric
+      DerivingStrategies
+      DuplicateRecordFields
+      DisambiguateRecordFields
+      FlexibleContexts
+      GeneralizedNewtypeDeriving
+      MultiWayIf
+      NamedFieldPuns
+      OverloadedStrings
+      RecordWildCards
+      ScopedTypeVariables
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
@@ -151,9 +189,12 @@ test-suite game-server-test
     , hspec-wai
     , http-conduit
     , http-types
+    , lens
+    , lens-aeson
     , mtl
     , network
     , optparse-applicative
+    , process
     , random
     , servant
     , servant-server

@@ -48,6 +48,7 @@ dependencies:
 - mtl
 - network
 - optparse-applicative
+- process
 - random
 - servant
 - servant-server
@@ -92,4 +93,6 @@ tests:
     - hspec-discover
     - hspec-wai
     - http-conduit
+    - lens
+    - lens-aeson
     - QuickCheck
