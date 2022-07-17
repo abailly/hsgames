@@ -38,7 +38,6 @@ spec = describe "To-Server I/O Protocol" $ do
                     Right v ->
                         v `shouldSatisfy` \v ->
                             (v ^? _Array . ix 0 . key "unit" . key "nation") == Just "Polish"
-                putStrLn "matched"
                 close
 
 newtype Exchange = Exchange {unExchange :: [ByteString]}

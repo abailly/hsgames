@@ -27,7 +27,7 @@ withBautzenServer ::
     IO a
 withBautzenServer action = do
     let process = proc "/Users/arnaud/projects/hsgames/bautzen1945/idris/build/exec/bautzen1945" ["--port", "9999"]
-    withBinaryFile "bautzen.log" ReadWriteMode $ \hdl ->
+    withBinaryFile "bautzen.log" ReadWriteMode $ \hdl -> do
         withCreateProcess process{std_out = UseHandle hdl} $ \_ _ _ pid -> do
             threadDelay 3_000_000
             cnx <- connectSocketTo "localhost" 9999 >>= makeBautzenConnection

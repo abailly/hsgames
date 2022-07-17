@@ -25,19 +25,16 @@ data ServerConnection m = ServerConnection
 connectTo :: String -> PortNumber -> IO (ServerConnection IO)
 connectTo host port = do
     serverHandle <- connectSocketTo host port
-    let send bs = putStrLn ("sending " <> show bs) >> LBS.hPut serverHandle (bs <> "\n")
+    let send bs = LBS.hPut serverHandle (bs <> "\n")
         receive = LBS.fromStrict <$> BS.hGetLine serverHandle
         close = hClose serverHandle
     return $ ServerConnection{..}
 
 connectSocketTo :: String -> PortNumber -> IO Handle
 connectSocketTo host port = do
-    putStrLn $ "connecting to " <> host <> ":" <> show port
     sock <- socket AF_INET Stream defaultProtocol
-    putStrLn "created socket"
     let hints = defaultHints{addrFamily = AF_INET, addrSocketType = Stream}
     server : _ <- getAddrInfo (Just hints) (Just host) (Just $ show port)
-    putStrLn $ "connecting to " <> show server
     connect sock (addrAddress server)
     serverHandle <- socketToHandle sock ReadWriteMode
     hSetBuffering serverHandle NoBuffering

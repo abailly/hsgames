@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ab522e1bf9c0fccd216755bd2f6c66a53b6763b9a2febef80e5f1afed425524d
+-- hash: 9705e3a417328a71c91cff300abf4ffc18bba073f09a87ee279d168f5378b618
 
 name:           republic-of-rome
 version:        0.1.0.0
@@ -32,7 +32,8 @@ library
       Paths_republic_of_rome
   hs-source-dirs:
       src
-  default-extensions: OverloadedStrings
+  default-extensions:
+      OverloadedStrings
   build-depends:
       base >=4.7 && <5
     , text
@@ -44,7 +45,8 @@ executable republic-of-rome-exe
       Paths_republic_of_rome
   hs-source-dirs:
       app
-  default-extensions: OverloadedStrings
+  default-extensions:
+      OverloadedStrings
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall -Werror
   build-depends:
       base >=4.7 && <5
@@ -59,7 +61,8 @@ test-suite republic-of-rome-test
       Paths_republic_of_rome
   hs-source-dirs:
       test
-  default-extensions: OverloadedStrings
+  default-extensions:
+      OverloadedStrings
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5

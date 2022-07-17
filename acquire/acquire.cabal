@@ -53,9 +53,10 @@ Test-Suite tests
    Default-Language:  Haskell2010
    hs-source-dirs:    test
    type:              exitcode-stdio-1.0
-   main-is:           tests.hs
+   main-is:           GameTest.hs
    ghc-options:       -threaded -Wall -Werror -fno-warn-orphans -rtsopts
-   other-modules: GameTest
    build-depends: base
                 , acquire
                 , QuickCheck
+                , hspec
+                , hspec-discover
