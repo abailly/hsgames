@@ -17,12 +17,11 @@ padWith0 k =
              in padding ++ num
        else num
 
-||| Convert a `JSON` to "wire" format
+||| Convert a `String` to "wire" format
 export
-toWire : JSON -> String
-toWire sexp =
-  let str = show sexp
-      len = padWith0 (prim__strLength str)
+toWire : String -> String
+toWire str =
+  let len = padWith0 (prim__strLength str)
   in  len ++ str
 
 ||| Convert a `String` to a SExp, if possible

@@ -12,11 +12,11 @@ main = do
   (_ :: args) <- getArgs
   case processOptions args of
     Left err => putStrLn err
-    Right options@(MkOptions _ _ ServerMode _) => do
+    Right options@(MkOptions _ _ ServerMode _ _) => do
       Right () <- server options
         | Left err => putStrLn err
       pure ()
-    Right options@(MkOptions _ _ ClientMode _) => do
+    Right options@(MkOptions _ _ ClientMode _ _) => do
       Right () <- client options
         | Left err => putStrLn err
       pure ()

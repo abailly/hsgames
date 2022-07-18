@@ -38,9 +38,12 @@ record Options where
   ||| Mostly useful when running in  server mode.
   verbosity : Verbosity
 
+  ||| Unique identifier for this instance.
+  instanceId : String
+
 export
 defaultOptions : Options
-defaultOptions = MkOptions 34567 "localhost" ServerMode (Verbose "bautzen1945")
+defaultOptions = MkOptions 34567 "localhost" ServerMode (Verbose "bautzen1945") "0"
 
 doProcessOptions : List String -> Options -> Either String Options
 doProcessOptions []                        opts = Right opts
@@ -58,6 +61,8 @@ doProcessOptions ("--quiet" :: args) opts =
   doProcessOptions args ({ verbosity := Quiet } opts)
 doProcessOptions ("--verbose" :: arg :: args) opts =
   doProcessOptions args ({ verbosity := Verbose arg } opts)
+doProcessOptions ("--id" :: arg :: args) opts =
+  doProcessOptions args ({ instanceId := arg } opts)
 doProcessOptions (arg :: _) _ = Left $ "unknown argument " ++ arg
 
 ||| Process arguments from the command-line, turning them into
@@ -73,26 +78,30 @@ processOptions args = doProcessOptions args defaultOptions
 namespace OptionsTest
 
   can_parse_port_option :
-    doProcessOptions [ "--port" , "123" ] Options.defaultOptions = Right (MkOptions 123 "localhost" ServerMode (Verbose "bautzen1945"))
+    doProcessOptions [ "--port" , "123" ] Options.defaultOptions = Right (MkOptions 123 "localhost" ServerMode (Verbose "bautzen1945") "0")
   can_parse_port_option = Refl
 
   can_parse_host_option :
-    doProcessOptions [ "--host" , "foo" ] Options.defaultOptions = Right (MkOptions 34567 "foo" ServerMode (Verbose "bautzen1945"))
+    doProcessOptions [ "--host" , "foo" ] Options.defaultOptions = Right (MkOptions 34567 "foo" ServerMode (Verbose "bautzen1945") "0")
   can_parse_host_option = Refl
 
   can_parse_run_mode_option :
-    doProcessOptions [ "client" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ClientMode (Verbose "bautzen1945"))
+    doProcessOptions [ "client" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ClientMode (Verbose "bautzen1945") "0")
   can_parse_run_mode_option = Refl
 
   can_parse_quiet_mode_option :
-    doProcessOptions [ "--quiet" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ServerMode Quiet)
+    doProcessOptions [ "--quiet" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ServerMode Quiet "0")
   can_parse_quiet_mode_option = Refl
 
   can_parse_verbose_mode_option :
-    doProcessOptions [ "--verbose", "name" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ServerMode (Verbose "name"))
+    doProcessOptions [ "--verbose", "name" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ServerMode (Verbose "name") "0")
   can_parse_verbose_mode_option = Refl
+
+  can_parse_instance_id_option :
+    doProcessOptions [ "--id", "foo" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ServerMode (Verbose "bautzen1945") "foo")
+  can_parse_instance_id_option = Refl
 
   can_parse_client_mode_with_host_port :
     doProcessOptions [ "client" ,  "--host" , "foo",  "--port" , "123"  ] Options.defaultOptions
-      = Right (MkOptions 123 "foo" ClientMode (Verbose "bautzen1945"))
+      = Right (MkOptions 123 "foo" ClientMode (Verbose "bautzen1945") "0")
   can_parse_client_mode_with_host_port= Refl

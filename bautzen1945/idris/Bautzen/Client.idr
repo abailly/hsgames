@@ -19,13 +19,8 @@ import Network.Socket.Raw
 import System
 import System.File
 
-sendCommand : Socket -> JSON -> IO (Either String String)
-sendCommand socket command = do
-  let cmd = toWire command
-  putStrLn $ "sending message " ++ cmd
-  Right l <- send socket cmd
-    | Left err => pure $ Left ("failed to send message " ++ show err)
-  putStrLn $ "sent message, waiting answer"
+receiveMessage : Socket -> IO (Either String String)
+receiveMessage socket = do
   Right (str, _) <- recv socket 6
     | Left err => pure $ Left ("failed to receive length of message " ++ show err)
   case parseInteger (unpack str) 0 of
@@ -34,15 +29,31 @@ sendCommand socket command = do
                      | Left err => pure $ Left ("failed to read message " ++ show err)
                    pure (Right msg)
 
+sendCommand : Socket -> JSON -> IO (Either String String)
+sendCommand socket command = do
+  let cmd = toWire (show command)
+  putStrLn $ "sending message " ++ cmd
+  Right l <- send socket cmd
+    | Left err => pure $ Left ("failed to send message " ++ show err)
+  putStrLn $ "sent message, waiting answer"
+  receiveMessage socket
+
 export
-openConnection : (host:String) -> (port: Int) -> IO (Either String Socket)
-openConnection host port = do
+openConnection : (host:String) -> (port: Int) -> String -> IO (Either String Socket)
+openConnection host port instanceId = do
   Right sock <- socket AF_INET Stream 0
         | Left fail => pure (Left $ "Failed to open socket: " ++ show fail)
   res <- connect sock (Hostname host) port
   if res /= 0
     then pure (Left $ "Failed to connect socket with error: " ++ show res)
-    else pure (Right sock)
+    else let clientId = toWire instanceId
+         in do
+            Right l <- send sock clientId
+             | Left err => pure $ Left ("failed to send message " ++ show err)
+            Right "OK" <- receiveMessage sock
+              | Left err => pure $ Left err
+              | Right m => pure $ Left ("Unexpected handshake " ++ m)
+            pure (Right sock)
 
 runREPL : Socket -> IO ()
 runREPL sock =
@@ -61,8 +72,8 @@ runREPL sock =
 
 export
 client : Options -> IO (Either String ())
-client (MkOptions port host _ _)  = do
-  Right cnx <- openConnection host port
+client (MkOptions port host _ _ instanceId)  = do
+  Right cnx <- openConnection host port instanceId
         | Left err => pure (Left err)
   runREPL cnx
   pure (Right ())

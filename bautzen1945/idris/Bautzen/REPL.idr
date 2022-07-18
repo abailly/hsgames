@@ -39,11 +39,6 @@ makeLoseStepCommand : (unitName : String) -> {side : Side} -> {combatState : Com
                    -> Either String (Command $ Combat (ApplyLosses side combatState))
 makeLoseStepCommand unitName = pure $ LoseStep unitName
 
-foo : (game : Game) -> String -> String
-foo game s with (curSegment game)
-  foo game s | Move = "Move"
-  foo game s | _ = "other"
-
 makeCommand : (game : Game) -> JSON -> Either String (CmdREPL (curSegment game))
 makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) with (curSegment game)
   makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) | Move = Cmd <$> makeMoveCommand unitName (cast col) (cast row)
