@@ -1,5 +1,6 @@
 {-# LANGUAGE TypeApplications #-}
-{-| An HTTP Game server.
+
+{- | An HTTP Game server.
 
 The purpose of the server is twofold:
 
@@ -8,7 +9,6 @@ The purpose of the server is twofold:
   Idris
 
 * To manage games lifecycle and players registration logic
-
 -}
 module GameServer where
 
@@ -22,51 +22,56 @@ import Network.Wai
 import Network.Wai.Application.Static
 import Network.Wai.Handler.Warp as Warp
 import Network.Wai.Handler.WebSockets as WS
-import Network.WebSockets as WS
 import Network.Wai.Middleware.RequestLogger
 import Network.Wai.Middleware.RequestLogger.JSON
+import Network.WebSockets as WS
 import System.Log.FastLogger (fromLogStr)
 import System.Random
 
 import GameServer.App
+import GameServer.Clients
 import GameServer.Log
 import GameServer.Types
-import GameServer.Clients
 
--- |Starts HTTP server on given port.
---
--- This server serves static files from @public/@ directory, API calls
--- from @api/@  endpoint and also
--- exposes a WebSocket-based REPL under `/repl` path.
+{- |Starts HTTP server on given port.
+
+ This server serves static files from @public/@ directory, API calls
+ from @api/@  endpoint and also
+ exposes a WebSocket-based REPL under `/repl` path.
+-}
 startServer :: LoggerEnv IO -> ServerConfiguration -> IO Server
-startServer logger ServerConfiguration{serverPort,backends} = do
-  envs <- getStdGen >>= newTVarIO . initialState
-  cnxs <- newTVarIO mempty
-  loggerMiddleware <- runHTTPLog logger
-  let app = loggerMiddleware $
-            WS.websocketsOr WS.defaultConnectionOptions (handleWS logger cnxs backends) $
-            runApp logger envs staticResources
-  (port, action) <- startWarp serverPort app
-  thread <- async action
-  logInfo logger $ object [ "action" .= ("Started" :: Text), "port" .= port, "backends" .= backends ]
-  pure $ Server (Just thread) port
+startServer logger ServerConfiguration{serverPort, backends} = do
+    envs <- getStdGen >>= newTVarIO . initialState
+    cnxs <- newTVarIO mempty
+    loggerMiddleware <- runHTTPLog logger
+    let app =
+            loggerMiddleware $
+                WS.websocketsOr WS.defaultConnectionOptions (handleWS logger cnxs backends) $
+                    runApp logger envs staticResources
+    (port, action) <- startWarp serverPort app
+    thread <- async action
+    logInfo logger $ object ["action" .= ("Started" :: Text), "port" .= port, "backends" .= backends]
+    pure $ Server (Just thread) port
   where
     startWarp 0 app = do
-      (port, socket) <- openFreePort
-      pure (port, Warp.runSettingsSocket defaultSettings socket app)
+        (port, socket) <- openFreePort
+        pure (port, Warp.runSettingsSocket defaultSettings socket app)
     startWarp port app = pure (port, Warp.run port app)
 
-    runHTTPLog logger = mkRequestLogger $ def { outputFormat = CustomOutputFormatWithDetails formatAsJSON
-                                              , destination = Callback (\ str -> logInfo logger (decode @Value $ fromStrict $ fromLogStr str))
-                                              }
+    runHTTPLog logger =
+        mkRequestLogger $
+            def
+                { outputFormat = CustomOutputFormatWithDetails formatAsJSON
+                , destination = Callback (\str -> logInfo logger (decode @Value $ fromStrict $ fromLogStr str))
+                }
 
 stopServer :: Server -> IO ()
 stopServer (Server (Just th) _) = cancel th
-stopServer _                    = pure ()
+stopServer _ = pure ()
 
 waitServer :: Server -> IO ()
 waitServer (Server (Just th) _) = wait th
-waitServer _                    = pure ()
+waitServer _ = pure ()
 
 -- | Serve static resources under `public/` directory
 staticResources :: Application
