@@ -24,6 +24,11 @@ import System.Concurrency
 Logger : Type
 Logger = String -> IO ()
 
+record GameHandler where
+  constructor MkGameHandler
+  cin : Channel String
+  cout : Channel String
+
 mkLogger : Verbosity -> Logger
 mkLogger Quiet _ = pure ()
 mkLogger (Verbose name) msg =
@@ -42,20 +47,20 @@ receiveMessage log socket = do
         | Left err => pure $ Left (show err)
       pure $ Right msg
 
-handleClient : Logger -> Socket -> SocketAddress -> Channel String -> IO ()
-handleClient log socket addr chan = do
+handleClient : Logger -> Socket -> SocketAddress -> GameHandler -> IO ()
+handleClient log socket addr hdlr = do
   Right msg <- receiveMessage log socket
     | Left err => do log err ; close socket
   log $ "received '" ++ msg ++ "'"
-  channelPut chan msg
-  res <- channelGet chan
+  channelPut hdlr.cin msg
+  res <- channelGet hdlr.cout
   log $ "result is '" ++ show res ++ "'"
   let lens = padWith0 (cast $ length res)
   log $ "sending " ++ lens ++ " chars"
   Right l <- send socket (lens ++ res)
     | Left err => do log ("failed to send message " ++ show err) ; close socket -- TODO error handling
   log $ "sent result"
-  handleClient log socket addr chan
+  handleClient log socket addr hdlr
 
 
 clientHandshake : Logger -> Socket -> IO (Either String String)
@@ -66,7 +71,7 @@ clientHandshake log sock = do
      | Left err => pure (Left $ show err)
    pure $ Right msg
 
-serve : Logger -> Socket -> IORef (SortedMap String (Channel String)) ->  IO (Either String ())
+serve : Logger -> Socket -> IORef (SortedMap String GameHandler) ->  IO (Either String ())
 serve log sock clients  = do
   log "awaiting clients"
   Right (s, addr) <- accept sock
@@ -74,13 +79,21 @@ serve log sock clients  = do
   log $ "client connecting from " ++ show addr
   Right clientId <- clientHandshake log s
     |  Left err => do log ("failed to identify client, " ++ show err) ; close s; serve log sock clients
-  chan <- makeChannel
-  modifyIORef clients (insert clientId chan)
+  cs <- readIORef clients
+  hdlr <- maybe (mkChannelsFor clientId) pure (lookup clientId cs)
   pid <- fork $ do
-    handleClient log s addr chan
+    handleClient log s addr hdlr
     modifyIORef clients (delete clientId)
   log $ "forked client handler for " ++ clientId
   serve log sock clients
+ where
+   mkChannelsFor : String -> IO GameHandler
+   mkChannelsFor clientId = do
+      cin <- makeChannel
+      cout <- makeChannel
+      let hdlr = MkGameHandler cin cout
+      modifyIORef clients (insert clientId hdlr)
+      pure hdlr
 
 export
 server : Options -> IO (Either String ())
