@@ -28,6 +28,7 @@ record GameHandler where
   constructor MkGameHandler
   cin : Channel String
   cout : Channel String
+  game : ThreadID
 
 mkLogger : Verbosity -> Logger
 mkLogger Quiet _ = pure ()
@@ -91,7 +92,8 @@ serve log sock clients  = do
    mkChannelsFor clientId = do
       cin <- makeChannel
       cout <- makeChannel
-      let hdlr = MkGameHandler cin cout
+      loopPid <- fork $ commandLoop cin cout clientId initialGame
+      let hdlr = MkGameHandler cin cout loopPid
       modifyIORef clients (insert clientId hdlr)
       pure hdlr
 
@@ -107,4 +109,6 @@ server (MkOptions port host _ verbosity _) = do
       res <- listen sock
       if res /= 0
         then pure (Left $ "Failed to listen on socket with error: " ++ show res)
-        else newIORef empty >>= serve (mkLogger verbosity) sock
+        else do
+          hdlrs <- newIORef empty
+          serve (mkLogger verbosity) sock hdlrs
