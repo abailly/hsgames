@@ -6,7 +6,6 @@ import Bautzen.Options
 import Bautzen.REPL.JSON
 
 import System.REPL.Extra
-import System.Concurrency
 
 import Data.Fin
 import Data.Nat
@@ -98,16 +97,6 @@ initialState = MkGameState 5 Axis Move initialPositions
 export
 initialGame : Game
 initialGame = MkGame [] initialState FullGameMap
-
-export
-partial
-commandLoop : Channel String -> Channel String -> String -> Game -> IO ()
-commandLoop cin cout clientId game = do
-   msg <- channelGet cin
-   let (res, game') = handleCommand game msg
-   channelPut cout res
-   commandLoop cin cout clientId game'
-
 
 export
 partial

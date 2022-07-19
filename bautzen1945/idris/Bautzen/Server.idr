@@ -72,6 +72,17 @@ clientHandshake log sock = do
      | Left err => pure (Left $ show err)
    pure $ Right msg
 
+commandLoop : Channel String -> Channel String -> String -> Game -> IO ()
+commandLoop cin cout clientId game = do
+   msg <- channelGet cin
+   case msg of
+     -- Poison pill
+     "STOP" => pure ()
+     _ => do
+       let (res, game') = handleCommand game msg
+       channelPut cout res
+       commandLoop cin cout clientId game'
+
 serve : Logger -> Socket -> IORef (SortedMap String GameHandler) ->  IO (Either String ())
 serve log sock clients  = do
   log "awaiting clients"
@@ -84,6 +95,7 @@ serve log sock clients  = do
   hdlr <- maybe (mkChannelsFor clientId) pure (lookup clientId cs)
   pid <- fork $ do
     handleClient log s addr hdlr
+    stopHandler hdlr
     modifyIORef clients (delete clientId)
   log $ "forked client handler for " ++ clientId
   serve log sock clients
@@ -96,6 +108,9 @@ serve log sock clients  = do
       let hdlr = MkGameHandler cin cout loopPid
       modifyIORef clients (insert clientId hdlr)
       pure hdlr
+
+   stopHandler : GameHandler -> IO ()
+   stopHandler hdlr = channelPut hdlr.cin "STOP"
 
 export
 server : Options -> IO (Either String ())
