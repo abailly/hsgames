@@ -9,11 +9,13 @@ module GameServer.App (
 ) where
 
 import Control.Concurrent.STM (TVar)
-import Control.Monad.Trans (lift)
+import Control.Monad.Trans (lift, liftIO)
 import Data.Aeson (FromJSON, ToJSON, encode)
+import qualified Data.ByteString.Lazy as LBS
 import Data.Text (Text)
 import Data.Text.Encoding (encodeUtf8)
 import GHC.Generics
+import GameServer.App.HTML (HTML, RawHtml (RawHtml))
 import GameServer.Game
 import GameServer.Log (LoggerEnv)
 import GameServer.Player as P
@@ -31,6 +33,7 @@ type API =
                 :<|> Capture "gameId" Id :> Get '[JSON] Game
                 :<|> Capture "gameId" Id :> "players" :> ReqBody '[JSON] PlayerName :> Put '[JSON] PlayerKey
                 :<|> Capture "gameId" Id :> "players" :> Capture "playerKey" PlayerKey :> Get '[JSON] (Headers '[Header "Location" Text] PlayerState)
+                :<|> Capture "gameType" GameType :> Capture "gameId" Id :> "players" :> Capture "playerKey" PlayerKey :> Get '[HTML] RawHtml
            )
         :<|> "players"
             :> ( Get '[JSON] [Player]
@@ -45,7 +48,7 @@ runApp :: LoggerEnv IO -> GameState -> Application -> Application
 runApp _logger state statics =
     serve
         api
-        ( (listGamesH :<|> createGameH :<|> lookupGameH :<|> joinPlayerH :<|> startGameH)
+        ( (listGamesH :<|> createGameH :<|> lookupGameH :<|> joinPlayerH :<|> startGameH :<|> gamePageH)
             :<|> (listPlayersH :<|> registerPlayerH)
             :<|> Tagged statics
         )
@@ -87,3 +90,12 @@ runApp _logger state statics =
         withState state (registerPlayer player) >>= \case
             PlayerRegistered{} -> pure $ addHeader ("/players" </> P.playerName player) NoContent
             d -> throwError err400{errBody = encode (GameError d)}
+
+    gamePageH :: GameType -> Id -> PlayerKey -> Handler RawHtml
+    gamePageH gameType gameId PlayerKey{playerKey} =
+        withState state (canStartGame gameId playerKey) >>= \case
+            Right (CanStartPlaying game player) ->
+                case gameType of
+                    Bautzen1945 -> RawHtml <$> liftIO (LBS.readFile "../bautzen1945/index.html")
+                    _ -> throwError err501
+            _ -> throwError err400{errBody = "Invalid request, player cannot start playing game"}

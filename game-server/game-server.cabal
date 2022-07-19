@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1a3a237cebffee03cebcdf2b9da8503d0f7c272cfdd872f5d0cfcb93710a073e
+-- hash: aba607d7c6b9c6166ebc01af6bf0f155a1e2688ef21e849f554c767bca9121c9
 
 name:           game-server
 version:        0.1.0.0
@@ -29,6 +29,7 @@ library
   exposed-modules:
       GameServer
       GameServer.App
+      GameServer.App.HTML
       GameServer.Backend.Bautzen1945
       GameServer.Clients
       GameServer.Clients.IO
@@ -70,6 +71,7 @@ library
     , directory
     , fast-logger
     , filepath
+    , http-media
     , http-types
     , mtl
     , network
@@ -123,6 +125,7 @@ executable game-server-exe
     , fast-logger
     , filepath
     , game-server
+    , http-media
     , http-types
     , mtl
     , network
@@ -188,6 +191,7 @@ test-suite game-server-test
     , hspec-discover
     , hspec-wai
     , http-conduit
+    , http-media
     , http-types
     , lens
     , lens-aeson
