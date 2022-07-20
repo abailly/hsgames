@@ -50,6 +50,7 @@ dependencies:
 - network
 - optparse-applicative
 - process
+- QuickCheck
 - random
 - servant
 - servant-server

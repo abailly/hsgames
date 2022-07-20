@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: aba607d7c6b9c6166ebc01af6bf0f155a1e2688ef21e849f554c767bca9121c9
+-- hash: 8d5733dc2265ae118af2f4c02b66d762279dc9075ecdd72c88715a918cea9a54
 
 name:           game-server
 version:        0.1.0.0
@@ -61,7 +61,8 @@ library
       RecordWildCards
       ScopedTypeVariables
   build-depends:
-      aeson
+      QuickCheck
+    , aeson
     , async
     , base
     , binary
@@ -114,7 +115,8 @@ executable game-server-exe
       ScopedTypeVariables
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      aeson
+      QuickCheck
+    , aeson
     , async
     , base
     , binary

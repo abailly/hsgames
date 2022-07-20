@@ -13,7 +13,7 @@ import Control.Monad.State (evalState, runState)
 import Control.Monad.Trans (lift, liftIO)
 import Data.Aeson (FromJSON, ToJSON, encode)
 import qualified Data.ByteString.Lazy as LBS
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import Data.Text.Encoding (encodeUtf8)
 import GHC.Generics
 import GameServer.App.HTML (userInterface)
@@ -22,7 +22,8 @@ import GameServer.Log (LoggerEnv)
 import GameServer.Player as P
 import GameServer.State
 import GameServer.Utils
-import Network.Wai (Application)
+import Network.HTTP.Types (notImplemented501)
+import Network.Wai (Application, responseLBS)
 import Servant
 import Servant.Server
 import System.Random
@@ -93,5 +94,9 @@ runApp _logger state statics =
             d -> throwError err400{errBody = encode (GameError d)}
 
     gamePageRawH :: GameType -> Id -> PlayerKey -> Tagged Handler Application
-    gamePageRawH _gameType _gameId PlayerKey{playerKey} =
-        Tagged $ userInterface "../bautzen1945"
+    gamePageRawH gameType gameId PlayerKey{playerKey} =
+        case gameType of
+            Bautzen1945 -> Tagged $ userInterface "../bautzen1945"
+            other -> Tagged $ \_req resp ->
+                resp $
+                    responseLBS notImplemented501 mempty (LBS.fromStrict $ encodeUtf8 $ pack $ "Game type not implemented" <> show other)

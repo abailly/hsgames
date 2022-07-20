@@ -1,25 +1,48 @@
 module GameServer.AppSpec where
 
-import Control.Concurrent.STM.TVar
+import Control.Concurrent.STM.TVar (newTVarIO)
 import qualified Data.Aeson as A
 import Data.ByteString (ByteString, isInfixOf)
 import Data.ByteString.Lazy (toStrict)
+import Data.Functor (($>))
 import Data.Maybe (fromJust)
 import Data.Text (Text)
 import qualified Data.Text as Text
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
-import GameServer.App
-import GameServer.Builder
-import GameServer.Log
-import GameServer.Player as P
-import GameServer.Utils
+import GameServer.App (PlayerState (PlayerState), initialState, runApp)
+import GameServer.Builder (
+    aPlayer,
+    anEmptyGame,
+    anotherEmptyGame,
+    anotherPlayer,
+    postJSON,
+    putJSON,
+    testSeed,
+ )
+import GameServer.Log (fakeLogger)
+import GameServer.Player as P (Player (playerName), PlayerKey (..), PlayerName (..))
+import GameServer.Utils (Id (unId), randomId, (</>))
 import Network.HTTP.Types (status404)
 import Network.Wai (Application, responseLBS)
-import Network.Wai.Test as W
-import System.Random
-import Test.Hspec as H
-import Test.Hspec.Wai as W
-import Test.Hspec.Wai.Matcher as W
+import Network.Wai.Test as W (SResponse (simpleBody, simpleHeaders))
+import System.Random ()
+import Test.Hspec as H (Spec, SpecWith, describe, it)
+import Test.Hspec.QuickCheck (prop)
+import Test.Hspec.Wai as W (
+    MatchBody (MatchBody),
+    MatchHeader (..),
+    ResponseMatcher (ResponseMatcher),
+    WaiSession,
+    get,
+    shouldRespondWith,
+    with,
+    (<:>),
+ )
+import Test.Hspec.Wai.Internal (WaiSession (WaiSession))
+import Test.Hspec.Wai.Matcher as W (bodyEquals)
+import Test.Hspec.Wai.QuickCheck (Testable (State), property)
+import Test.QuickCheck (Arbitrary (arbitrary), forAll)
+import Test.QuickCheck.Monadic (monadic, monadicIO)
 
 mkGameServerApp :: IO Application
 mkGameServerApp = do
@@ -59,18 +82,16 @@ spec =
 
                     get (encodeUtf8 $ "/games" </> gameId)
                         `shouldRespondWith` ResponseMatcher 200 [] (W.bodyEquals $ A.encode anEmptyGame)
-
             describe "Players" $ do
                 it "on POST /players returns 201 given input player is valid" $
                     postJSON "/players" aPlayer
-                        `shouldRespondWith` ResponseMatcher 201 ["Location" <:> encodeUtf8 ("/players" </> P.playerName aPlayer)] ""
+                        `shouldRespondWith` ResponseMatcher 201 ["Location" <:> encodeUtf8 ("/players" </> playerName aPlayer)] ""
 
                 it "on GET /players returns list of registered players" $ do
                     postJSON "/players" aPlayer
 
                     get "/players"
                         `shouldRespondWith` ResponseMatcher 200 [] (W.bodyEquals $ A.encode [aPlayer])
-
             describe "Players & Games" $ do
                 it "on PUT /games/<id>/players returns 200 and player's key given player can join game" $ do
                     postJSON "/players" aPlayer
@@ -117,15 +138,8 @@ spec =
                             ["Location" <:> encodeUtf8 ("/games/Bautzen1945" </> gameId </> "players" </> unId aliceKey)]
                             (W.bodyEquals $ A.encode $ PlayerState aliceKey "Alice")
 
-                it "on GET /games/<game type>/<id>/players/<playerKey> returns index.html for given game given game exists" $ do
-                    postJSON "/players" aPlayer
-                    postJSON "/players" anotherPlayer
-                    gameId <- newGame
-
-                    aliceKey <- P.playerKey . fromJust . A.decode . W.simpleBody <$> "Alice" `joinsGame` gameId
-                    bobKey <- P.playerKey . fromJust . A.decode . W.simpleBody <$> "Bob" `joinsGame` gameId
-
-                    get (encodeUtf8 $ "/games/Bautzen1945" </> gameId </> "players" </> unId aliceKey)
+                propW "on GET /games/<game type>/<id>/players/<playerKey> returns index.html for any game/player" $ \gameId playerKey ->
+                    get (encodeUtf8 $ "/games/Bautzen1945" </> unId gameId </> "players" </> unId playerKey)
                         `shouldRespondWith` ResponseMatcher
                             200
                             []
@@ -134,6 +148,9 @@ spec =
                                     then Nothing
                                     else Just ("invalid content returned: " <> show body)
                             )
+
+propW :: Testable prop => String -> prop -> SpecWith (State prop, Application)
+propW s p = it s $ property p
 
 joinsGame :: Text -> Text -> WaiSession () SResponse
 joinsGame pName gameId = putJSON (encodeUtf8 $ "/games" </> gameId </> "players") (PlayerName pName)
