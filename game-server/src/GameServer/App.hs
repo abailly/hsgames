@@ -97,6 +97,4 @@ runApp _logger state statics =
     gamePageRawH gameType gameId PlayerKey{playerKey} =
         case gameType of
             Bautzen1945 -> Tagged $ userInterface "../bautzen1945"
-            other -> Tagged $ \_req resp ->
-                resp $
-                    responseLBS notImplemented501 mempty (LBS.fromStrict $ encodeUtf8 $ pack $ "Game type not implemented" <> show other)
+            Acquire -> Tagged $ userInterface "../ui"

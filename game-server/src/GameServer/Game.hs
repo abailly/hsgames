@@ -6,11 +6,16 @@ import Data.Text (Text, pack)
 import GHC.Generics
 import GHC.Natural
 import GameServer.Utils
+import Generic.Random (genericArbitrary, uniform)
 import Servant.API (FromHttpApiData (..))
 import System.Random (StdGen, randomRs)
+import Test.QuickCheck (Arbitrary (..))
 
 data GameType = Bautzen1945 | Acquire
     deriving (Eq, Ord, Show, Generic, ToJSON, FromJSON)
+
+instance Arbitrary GameType where
+    arbitrary = genericArbitrary uniform
 
 instance FromHttpApiData GameType where
     parseUrlPiece "Bautzen1945" = Right Bautzen1945

@@ -6,10 +6,10 @@ import Data.ByteString (ByteString, isInfixOf)
 import Data.ByteString.Lazy (toStrict)
 import Data.Functor (($>))
 import Data.Maybe (fromJust)
-import Data.Text (Text)
+import Data.Text (Text, pack)
 import qualified Data.Text as Text
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
-import GameServer.App (PlayerState (PlayerState), initialState, runApp)
+import GameServer.App (GameType, PlayerState (PlayerState), initialState, runApp)
 import GameServer.Builder (
     aPlayer,
     anEmptyGame,
@@ -138,13 +138,13 @@ spec =
                             ["Location" <:> encodeUtf8 ("/games/Bautzen1945" </> gameId </> "players" </> unId aliceKey)]
                             (W.bodyEquals $ A.encode $ PlayerState aliceKey "Alice")
 
-                propW "on GET /games/<game type>/<id>/players/<playerKey> returns index.html for any game/player" $ \gameId playerKey ->
-                    get (encodeUtf8 $ "/games/Bautzen1945" </> unId gameId </> "players" </> unId playerKey)
+                propW "on GET /games/<game type>/<id>/players/<playerKey> returns index.html for any game/player" $ \(gameType :: GameType) gameId playerKey ->
+                    get (encodeUtf8 $ "/games" </> pack (show gameType) </> unId gameId </> "players" </> unId playerKey)
                         `shouldRespondWith` ResponseMatcher
                             200
                             []
                             ( W.MatchBody $ \_ body ->
-                                if "var $author$project$Game$German = {$: 'German'};" `isInfixOf` toStrict body
+                                if encodeUtf8 (pack (show gameType)) `isInfixOf` toStrict body
                                     then Nothing
                                     else Just ("invalid content returned: " <> show body)
                             )

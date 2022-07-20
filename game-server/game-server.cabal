@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 8d5733dc2265ae118af2f4c02b66d762279dc9075ecdd72c88715a918cea9a54
+-- hash: d2bd512ba8cb6c2898f11dcef7da4bda8087e261d0f58eeddd54d8bc9370ede0
 
 name:           game-server
 version:        0.1.0.0
@@ -72,6 +72,7 @@ library
     , directory
     , fast-logger
     , filepath
+    , generic-random
     , http-media
     , http-types
     , mtl
@@ -127,6 +128,7 @@ executable game-server-exe
     , fast-logger
     , filepath
     , game-server
+    , generic-random
     , http-media
     , http-types
     , mtl
@@ -189,6 +191,7 @@ test-suite game-server-test
     , fast-logger
     , filepath
     , game-server
+    , generic-random
     , hspec
     , hspec-discover
     , hspec-wai
