@@ -1,16 +1,32 @@
-module Game exposing (Model, Msg(..), divStyle, init, isNothing, main, update, view, viewDiv)
+port module Game exposing (Model, Msg(..), divStyle, init, isNothing, main, update, view, viewDiv)
 
 import Browser
-import Debug
 import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html5.DragDrop as DragDrop
+import Json.Decode as Json
+import Json.Encode as Enc
 import String exposing (fromInt)
 import Tuple exposing (first)
+import Html5.DragDrop exposing (Position)
 
 
-type alias Position =
+
+-- JavaScript usage: app.ports.websocketIn.send(response);
+
+
+port websocketIn : (String -> msg) -> Sub msg
+
+
+
+-- JavaScript usage: app.ports.websocketOut.subscribe(handler);
+
+
+port wsOut : String -> Cmd msg
+
+
+type alias Pos =
     ( Int, Int )
 
 
@@ -34,20 +50,33 @@ armyToString army =
 
 
 type alias Unit =
-    { name : UnitName, army : Army, position : Position }
+    { name : UnitName, army : Army, position : Pos }
 
 
 type alias Model =
     { units : Dict.Dict UnitName Unit
-    , positions : Dict.Dict Position (List Unit)
-    , dragDrop : DragDrop.Model UnitName Position
+    , positions : Dict.Dict Pos (List Unit)
+    , dragDrop : DragDrop.Model UnitName Pos
     }
 
 
+type Request
+    = Bye
+
+
+encodeRequest : Request -> Json.Value
+encodeRequest msg =
+    case msg of
+        Bye ->
+            Enc.object [ ( "tag", Enc.string "Bye" ), ( "contents", Enc.list Enc.int [] ) ]
+
+
 type Msg
-    = DragDropMsg (DragDrop.Msg UnitName Position)
+    = DragDropMsg (DragDrop.Msg UnitName Pos)
+    | Output String
 
 
+germanOOB : List String
 germanOOB =
     [ "17-hq-recto"
     , "17-kg1-recto"
@@ -105,6 +134,7 @@ germanOOB =
     ]
 
 
+russianOOB : List String
 russianOOB =
     [ "10dp-25-recto"
     , "10dp-27-recto"
@@ -202,37 +232,41 @@ russianOOB =
     ]
 
 
+russianUnits : List Unit
 russianUnits =
     List.map (\n -> { name = n, army = Russian, position = ( 100, 100 ) }) russianOOB
 
 
+germanUnits : List Unit
 germanUnits =
     List.map (\n -> { name = n, army = German, position = ( 200, 200 ) }) germanOOB
 
 
-init =
-    { units =
-        Dict.fromList <| List.map (\u -> ( u.name, u )) <| russianUnits ++ germanUnits
-    , positions =
-        Dict.fromList [ ( ( 100, 100 ), russianUnits ), ( ( 200, 200 ), germanUnits ) ]
-    , dragDrop = DragDrop.init
-    }
+init : ( String, String ) -> ( Model, Cmd Msg )
+init ( host, port_ ) =
+    ( { units =
+            Dict.fromList <| List.map (\u -> ( u.name, u )) <| russianUnits ++ germanUnits
+      , positions =
+            Dict.fromList [ ( ( 100, 100 ), russianUnits ), ( ( 200, 200 ), germanUnits ) ]
+      , dragDrop = DragDrop.init
+      }
+    , Cmd.none
+    )
 
 
+update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
     case msg of
+        Output _ ->
+            ( model, sendCommand model Bye )
+
         DragDropMsg msg_ ->
             let
                 ( model_, result ) =
                     DragDrop.update msg_ model.dragDrop
 
                 setPos pos u =
-                    case u of
-                        Nothing ->
-                            Nothing
-
-                        Just unit ->
-                            Just { unit | position = pos }
+                    Maybe.map (\unit -> { unit | position = pos }) u
 
                 updatePositions maybeUnit newPosition positions =
                     case maybeUnit of
@@ -261,7 +295,7 @@ update msg model =
                                     remove
                                     positions
             in
-            { model
+            ( { model
                 | dragDrop = model_
                 , units =
                     case result of
@@ -277,10 +311,12 @@ update msg model =
 
                         Just ( unitName, position, _ ) ->
                             updatePositions (Dict.get unitName model.units) position model.positions
-            }
+              }
+            , Cmd.none
+            )
 
 
-divStyle : Position -> List (Attribute Msg)
+divStyle : Pos -> List (Attribute Msg)
 divStyle ( x, y ) =
     let
         sine =
@@ -306,6 +342,7 @@ divStyle ( x, y ) =
     ]
 
 
+parkingStyle : Army -> List (Attribute msg)
 parkingStyle army =
     case army of
         Russian ->
@@ -329,13 +366,15 @@ parkingStyle army =
             ]
 
 
+mapStyle : List (Attribute msg)
 mapStyle =
-    [ style "background" "url('/assets/carte.png') no-repeat"
+    [ style "background" "url('assets/carte.png') no-repeat"
     , style "width" "3000px"
     , style "height" "2000px"
     ]
 
 
+view : Model -> Html Msg
 view model =
     let
         dropId =
@@ -360,6 +399,7 @@ view model =
         (russianParking :: positions ++ [ germanParking ])
 
 
+isNothing : Maybe a -> Bool
 isNothing maybe =
     case maybe of
         Just _ ->
@@ -369,6 +409,7 @@ isNothing maybe =
             True
 
 
+highlighted : Maybe c -> Maybe Position -> c -> List (Attribute msg)
 highlighted dropId droppablePosition position =
     if dropId |> Maybe.map ((==) position) |> Maybe.withDefault False then
         case droppablePosition of
@@ -386,6 +427,7 @@ highlighted dropId droppablePosition position =
         []
 
 
+viewParking : List (Attribute Msg) -> Dict.Dict Pos (List Unit) -> Maybe Pos -> Maybe Position -> Pos -> Html Msg
 viewParking style_ positions dropId droppablePosition position =
     let
         highlight =
@@ -407,6 +449,7 @@ viewParking style_ positions dropId droppablePosition position =
         (viewUnits units styledFloating)
 
 
+viewDiv : List (Attribute Msg) -> Dict.Dict Pos (List Unit) -> Maybe Pos -> Maybe Position -> Pos -> Html Msg
 viewDiv style_ positions dropId droppablePosition position =
     let
         highlight =
@@ -435,11 +478,12 @@ viewDiv style_ positions dropId droppablePosition position =
         (viewUnits units styleStacked)
 
 
+viewUnits : List Unit -> (number -> List (Attribute Msg)) -> List (Html Msg)
 viewUnits units styling =
     let
         mkImg unit ( otherUnits, index ) =
             ( img
-                (src ("/assets/" ++ armyToString unit.army ++ "/" ++ unit.name ++ ".png")
+                (src ("assets/" ++ armyToString unit.army ++ "/" ++ unit.name ++ ".png")
                     :: DragDrop.draggable DragDropMsg unit.name
                     ++ styling index
                 )
@@ -451,9 +495,22 @@ viewUnits units styling =
     List.foldl mkImg ( [], 0 ) units |> first
 
 
+main : Program (String, String) Model Msg
 main =
-    Browser.sandbox
+    Browser.element
         { init = init
         , update = update
         , view = view
+        , subscriptions = subscriptions
         }
+
+
+sendCommand : Model -> Request -> Cmd Msg
+sendCommand _ m =
+    wsOut
+        (Enc.encode 0 <| encodeRequest m)
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    websocketIn Output

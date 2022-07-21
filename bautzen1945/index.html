@@ -8,9 +8,10 @@
     <div id="bautzen1945"></div>
     <script src="bautzen1945.js"></script>
     <script>
-      const node = document.getElementById('acquire1945');
-      const app = Elm.Acquire.init({node: node, flags: [window.location.hostname, window.location.port, window.location.pathname]});
-      const ws = new WebSocket("ws://" + window.location.hostname + ":" + window.location.port +"/" + window.location.pathname);
+      const node = document.getElementById('bautzen1945');
+      const app = Elm.Game.init({node: node, flags: [window.location.hostname, window.location.port, window.location.pathname]});
+      const wsPath = window.location.pathname.split('/').slice(0, -1).join('/');
+      const ws = new WebSocket("ws://" + window.location.hostname + ":" + window.location.port + wsPath);
       ws.onmessage = function(message)
       {
           console.log("receiving: "  + JSON.stringify(message));
@@ -18,7 +19,7 @@
               app.ports.websocketIn.send(message.data);
           }
       };
-      app.ports.websocketOut.subscribe(function(msg) {
+      app.ports.wsOut.subscribe(function(msg) {
           console.log("sending: "  + msg);
           ws.send(msg);
       });
