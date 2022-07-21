@@ -1,2 +1,14 @@
-[{ "gamePort": 7890, "gameHost": "localhost", "gameType": "Acquire" },
-{ "gamePort": 9999, "gameHost": "localhost", "gameType": "Bautzen1945" }]
+[
+  {
+    "gamePort": 7890,
+    "gameHost": "localhost",
+    "gameType": "Acquire",
+    "uiPath": "ui"
+  },
+  {
+    "gamePort": 9999,
+    "gameHost": "localhost",
+    "gameType": "Bautzen1945",
+    "uiPath": "bautzen1945"
+  }
+]

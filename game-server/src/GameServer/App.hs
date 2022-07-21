@@ -21,6 +21,7 @@ import GameServer.Game
 import GameServer.Log (LoggerEnv)
 import GameServer.Player as P
 import GameServer.State
+import GameServer.Types (GameBackend (GameBackend), selectBackend, uiPath)
 import GameServer.Utils
 import Network.HTTP.Types (notImplemented501)
 import Network.Wai (Application, responseLBS)
@@ -46,11 +47,17 @@ type API =
 api :: Proxy API
 api = Proxy
 
-runApp :: LoggerEnv IO -> GameState -> Application -> Application
-runApp _logger state statics =
+runApp :: LoggerEnv IO -> GameState -> [GameBackend] -> Application -> Application
+runApp _logger state backends statics =
     serve
         api
-        ( (listGamesH :<|> createGameH :<|> lookupGameH :<|> joinPlayerH :<|> startGameH :<|> gamePageRawH)
+        ( ( listGamesH
+                :<|> createGameH
+                :<|> lookupGameH
+                :<|> joinPlayerH
+                :<|> startGameH
+                :<|> gamePageRawH
+          )
             :<|> (listPlayersH :<|> registerPlayerH)
             :<|> Tagged statics
         )
@@ -95,6 +102,6 @@ runApp _logger state statics =
 
     gamePageRawH :: GameType -> Id -> PlayerKey -> Tagged Handler Application
     gamePageRawH gameType gameId PlayerKey{playerKey} =
-        case gameType of
-            Bautzen1945 -> Tagged $ userInterface "../bautzen1945"
-            Acquire -> Tagged $ userInterface "../ui"
+        case selectBackend backends gameType of
+            Just GameBackend{uiPath} -> Tagged $ userInterface uiPath
+            Nothing -> Tagged statics

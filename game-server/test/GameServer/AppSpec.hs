@@ -17,6 +17,7 @@ import GameServer.Builder (
     anotherPlayer,
     postJSON,
     putJSON,
+    someBackends,
     testSeed,
  )
 import GameServer.Log (fakeLogger)
@@ -47,7 +48,7 @@ import Test.QuickCheck.Monadic (monadic, monadicIO)
 mkGameServerApp :: IO Application
 mkGameServerApp = do
     state <- newTVarIO $ initialState testSeed
-    pure $ runApp fakeLogger state (\_ resp -> resp $ responseLBS status404 [] "Nothing here")
+    pure $ runApp fakeLogger state someBackends (\_ resp -> resp $ responseLBS status404 [] "Nothing here")
 
 spec :: Spec
 spec =

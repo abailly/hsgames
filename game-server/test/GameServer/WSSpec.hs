@@ -50,7 +50,7 @@ testConfig :: PortNumber -> ServerConfiguration
 testConfig backendPort =
     ServerConfiguration
         { serverPort = 0
-        , backends = [GameBackend Acquire "localhost" (fromIntegral backendPort)]
+        , backends = [GameBackend Acquire "localhost" (fromIntegral backendPort) "ui"]
         }
 
 withServer :: ((Server, LoggerEnv IO, Async ()) -> IO c) -> IO c

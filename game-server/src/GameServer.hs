@@ -47,7 +47,7 @@ startServer logger ServerConfiguration{serverPort, backends} = do
     let app =
             loggerMiddleware $
                 WS.websocketsOr WS.defaultConnectionOptions (handleWS logger cnxs backends) $
-                    runApp logger envs staticResources
+                    runApp logger envs backends staticResources
     (port, action) <- startWarp serverPort app
     thread <- async action
     logInfo logger $ object ["action" .= ("Started" :: Text), "port" .= port, "backends" .= backends]
