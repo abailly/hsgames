@@ -33,7 +33,7 @@ withBautzenServer action = do
             cnx <- connectSocketTo "localhost" 9999 >>= makeBautzenConnection
             action cnx
 
-makeBautzenConnection :: Handle -> IO (ServerConnection IO)
+makeBautzenConnection :: HasCallStack => Handle -> IO (ServerConnection IO)
 makeBautzenConnection hdl =
     let send bs = do
             hPrintf hdl "%06d" $ LBS.length bs

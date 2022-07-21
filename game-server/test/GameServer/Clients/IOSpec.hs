@@ -30,7 +30,9 @@ spec = describe "To-Server I/O Protocol" $ do
 
     around withBautzenServer $
         describe "Bautzen 1945 server" $
-            it "can send and receive a sequence of commands" $ \ServerConnection{..} -> do
+            it "can send and receive a sequence of commands" $ \ServerConnection{send, receive, close} -> do
+                send "12345678"
+                receive `shouldReturn` "OK"
                 send "[\"positions?\"]"
                 r <- eitherDecode @Value <$> receive
                 case r of
