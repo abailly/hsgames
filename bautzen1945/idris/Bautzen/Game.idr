@@ -11,8 +11,6 @@ import public Bautzen.Pos
 import public Bautzen.Terrain
 import public Bautzen.Game.Map
 
-import Bautzen.SExp
-
 import Language.JSON
 import Data.List
 import Data.Fin
@@ -156,7 +154,7 @@ Show (Query a) where
   show GameStage = "GameStage"
 
 export
-query : (Cast result JSON) => (game : Game) -> (qry : Query result) -> result
+query : (game : Game) -> (qry : Query result) -> result
 query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
   case find (sameName unitName) units of
     Nothing => Left (UnitDoesNotExist unitName)
@@ -167,3 +165,25 @@ query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
 query (MkGame _ (MkGameState _ side _ units) gameMap) TerrainMap = gameMap
 query (MkGame _ (MkGameState _ side _ positions) _) Positions = MkAllPositions positions
 query (MkGame _ (MkGameState turn side segment _) _) GameStage = (turn, side, segment)
+
+||| A single player action, either a @Command@ or a @Query@.
+public export
+data PlayerAction : (seg : GameSegment) -> Type where
+  Cmd : (cmd : Command seg) -> PlayerAction seg
+  Qry : Cast res JSON => (qry : Query res) -> PlayerAction seg
+
+public export
+data ActionResult : Type where
+  ResEvent : Event -> ActionResult
+  ResError : GameError -> ActionResult
+  ResQuery : Cast result JSON => result -> ActionResult
+
+export
+handleAction : (game : Game) -> PlayerAction (curSegment game) -> (ActionResult, Game)
+handleAction game (Cmd cmd) =
+  case act game cmd of
+      Left err => (ResError err, game)
+      Right event => (ResEvent event, apply event game)
+handleAction game (Qry qry) =
+  let qryResult = query game qry
+  in (ResQuery qryResult, game)

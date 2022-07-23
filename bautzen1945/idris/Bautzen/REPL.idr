@@ -11,10 +11,6 @@ import Data.Fin
 import Data.Nat
 import Language.JSON
 
-data CmdREPL : (seg : GameSegment) -> Type where
-  Cmd : (cmd : Command seg) -> CmdREPL seg
-  Qry : Cast res JSON => (qry : Query res) -> CmdREPL seg
-
 makePos : (col : Int) -> (row : Int) -> Either String Pos
 makePos col row with (integerToNat (cast col), integerToNat (cast row))
   makePos col row | (c , r) with (natToFin c 23, natToFin r 13)
@@ -39,7 +35,7 @@ makeLoseStepCommand : (unitName : String) -> {side : Side} -> {combatState : Com
                    -> Either String (Command $ Combat (ApplyLosses side combatState))
 makeLoseStepCommand unitName = pure $ LoseStep unitName
 
-makeCommand : (game : Game) -> JSON -> Either String (CmdREPL (curSegment game))
+makeCommand : (game : Game) -> JSON -> Either String (PlayerAction (curSegment game))
 makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) with (curSegment game)
   makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) | Move = Cmd <$> makeMoveCommand unitName (cast col) (cast row)
   makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) | other = Left ("Invalid command for segment " ++ show other)
@@ -63,7 +59,7 @@ makeCommand game (JArray [ JString "stage?" ] ) = Right $ Qry GameStage
 makeCommand _ sexp = Left $ "Unknown command " ++ show sexp
 
 partial
-parseCommand : (game : Game) -> String -> Either String (CmdREPL (curSegment game))
+parseCommand : (game : Game) -> String -> Either String (PlayerAction (curSegment game))
 parseCommand game input = do
   sexp <- maybe (Left "cannot parse JSON") Right (parse input)
   makeCommand game sexp
@@ -74,13 +70,9 @@ handleCommand : Game -> String -> (String, Game)
 handleCommand game command =
   case parseCommand game command of
     Left err => (err, game)
-    Right (Cmd cmd) => case act game cmd of
-                         Left err => (show $ cast {to = JSON} err, game)
-                         Right event => (show $ cast {to = JSON} event, apply event game)
-    Right (Qry qry) =>
-      let qryResult = cast {to=JSON} $ query game qry
-      in (show qryResult, game)
-
+    Right act =>
+        let (res, game) = handleAction game act
+        in (show $ cast {to = JSON} res, game)
 
 partial
 eoiHandler : Game -> String

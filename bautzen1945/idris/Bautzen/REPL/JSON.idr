@@ -2,6 +2,7 @@ module Bautzen.REPL.JSON
 
 import Bautzen.Combats
 import Bautzen.GameUnit
+import Bautzen.Game
 import Bautzen.Game.Core
 import Bautzen.Pos as P
 import Bautzen.Terrain
@@ -294,6 +295,11 @@ Cast QueryError JSON where
                                                  ("pos" , cast pos) ]
   cast (UnitDoesNotExist unitName) = JObject [ ("reason", JString "UnitDoesNotExist"),
                                                ("unit" , JString unitName) ]
+export
+Cast ActionResult JSON where
+  cast (ResEvent x) = cast x
+  cast (ResError x) = cast x
+  cast (ResQuery x) = cast x
 
 mutual
   private
