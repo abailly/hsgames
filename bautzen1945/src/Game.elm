@@ -4,12 +4,11 @@ import Browser
 import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html5.DragDrop as DragDrop
-import Json.Decode as Json
+import Html5.DragDrop as DragDrop exposing (Position)
+import Json.Decode as Json exposing (andThen, field, index, succeed)
 import Json.Encode as Enc
 import String exposing (fromInt)
 import Tuple exposing (first)
-import Html5.DragDrop exposing (Position)
 
 
 
@@ -61,19 +60,20 @@ type alias Model =
 
 
 type Request
-    = Bye
+    = {- Request current positions of all units -} PositionsQ
 
 
 encodeRequest : Request -> Json.Value
 encodeRequest msg =
     case msg of
-        Bye ->
-            Enc.object [ ( "tag", Enc.string "Bye" ), ( "contents", Enc.list Enc.int [] ) ]
+        PositionsQ ->
+            Enc.list Enc.string [ "positions?" ]
 
 
 type Msg
     = DragDropMsg (DragDrop.Msg UnitName Pos)
-    | Output String
+    | Output Request
+    | Input String
 
 
 germanOOB : List String
@@ -244,21 +244,107 @@ germanUnits =
 
 init : ( String, String ) -> ( Model, Cmd Msg )
 init ( host, port_ ) =
-    ( { units =
-            Dict.fromList <| List.map (\u -> ( u.name, u )) <| russianUnits ++ germanUnits
-      , positions =
-            Dict.fromList [ ( ( 100, 100 ), russianUnits ), ( ( 200, 200 ), germanUnits ) ]
-      , dragDrop = DragDrop.init
-      }
-    , Cmd.none
+    let
+        model =
+            { units =
+                Dict.fromList <| List.map (\u -> ( u.name, u )) <| russianUnits ++ germanUnits
+            , positions =
+                Dict.fromList [ ( ( 100, 100 ), russianUnits ), ( ( 200, 200 ), germanUnits ) ]
+            , dragDrop = DragDrop.init
+            }
+    in
+    ( model
+    , sendCommand model PositionsQ
     )
 
 
-update : Msg -> Model -> (Model, Cmd Msg)
+type Messages
+    = Positions (List ( Unit, Pos ))
+
+
+tuple2 : (a -> b -> c) -> Json.Decoder a -> Json.Decoder b -> Json.Decoder c
+tuple2 ctor decodea decodeb =
+    Json.map2 ctor (Json.index 0 decodea) (Json.index 1 decodeb)
+
+
+tuple3 : (a -> b -> c -> d) -> Json.Decoder a -> Json.Decoder b -> Json.Decoder c -> Json.Decoder d
+tuple3 ctor decodea decodeb decodec =
+    Json.map3 ctor (Json.index 0 decodea) (Json.index 1 decodeb) (Json.index 2 decodec)
+
+
+decodeMessages : Json.Decoder Messages
+decodeMessages =
+    field "tag" Json.string |> andThen makeMessages
+
+
+decodeUnit : Json.Decoder Unit
+decodeUnit =
+    tuple3 (\name army position -> { name = name, army = army, position = position })
+        (field "name" Json.string)
+        decodeArmy
+        decodePos
+
+
+decodeArmy : Json.Decoder Army
+decodeArmy =
+    let
+        mkArmy s =
+            case s of
+                "German" ->
+                    succeed German
+
+                "Russian" ->
+                    succeed Russian
+
+                "Polish" ->
+                    succeed Russian
+
+                other ->
+                    Json.fail ("Uknown army type " ++ other)
+    in
+    andThen mkArmy Json.string
+
+
+decodePos : Json.Decoder Pos
+decodePos =
+    tuple2 (\a b -> ( a, b ))
+        (index 0 Json.int)
+        (index 1 Json.int)
+
+
+makeMessages : String -> Json.Decoder Messages
+makeMessages tag =
+    case tag of
+        "Positions" ->
+            field "positions" (Json.map Positions (Json.list decodeUnitPos))
+
+        other ->
+            Json.fail ("Unknown tag " ++ other)
+
+
+decodeUnitPos : Json.Decoder ( Unit, Pos )
+decodeUnitPos =
+    tuple2 (\a b -> ( a, b )) decodeUnit decodePos
+
+
+handleMessages : Model -> String -> ( Model, Cmd Msg )
+handleMessages model s =
+    case Json.decodeString decodeMessages s of
+        Ok (Positions _) ->
+            ( model, Cmd.none )
+
+        Err _ ->
+            ( model, Cmd.none )
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        Output _ ->
-            ( model, sendCommand model Bye )
+        Input s ->
+            handleMessages model s
+
+        Output req ->
+            ( model, sendCommand model req )
 
         DragDropMsg msg_ ->
             let
@@ -325,17 +411,17 @@ divStyle ( x, y ) =
         ( top, left ) =
             ( 15
                 + (if modBy 2 y == 0 then
-                    x * 132
+                    x * 133
 
                    else
-                    x * 132 - 66
+                    x * 133 - 66
                   )
-            , 67 + (truncate <| toFloat y * 132 * sine)
+            , 67 + (truncate <| toFloat y * 133 * sine)
             )
     in
     [ style "text-align" "center"
-    , style "width" "132px"
-    , style "height" "132px"
+    , style "width" "133px"
+    , style "height" "133px"
     , style "position" "absolute"
     , style "top" (String.fromInt top ++ "px")
     , style "left" (String.fromInt left ++ "px")
@@ -495,7 +581,7 @@ viewUnits units styling =
     List.foldl mkImg ( [], 0 ) units |> first
 
 
-main : Program (String, String) Model Msg
+main : Program ( String, String ) Model Msg
 main =
     Browser.element
         { init = init
@@ -506,11 +592,11 @@ main =
 
 
 sendCommand : Model -> Request -> Cmd Msg
-sendCommand _ m =
+sendCommand _ r =
     wsOut
-        (Enc.encode 0 <| encodeRequest m)
+        (Enc.encode 0 <| encodeRequest r)
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    websocketIn Output
+    websocketIn Input

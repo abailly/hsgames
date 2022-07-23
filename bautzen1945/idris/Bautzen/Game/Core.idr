@@ -198,3 +198,8 @@ public export
 data QueryError : Type where
   NoSupplyPathFor : (unitName: String) -> (pos : Pos) -> QueryError
   UnitDoesNotExist : (unitName: String) -> QueryError
+
+public export
+record AllPositions where
+  constructor MkAllPositions
+  positions : List (GameUnit, Pos)

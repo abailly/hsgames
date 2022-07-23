@@ -368,7 +368,7 @@ namespace CombatTest
   -- use_supply_column_returns_supply_column_used_event = Refl
 
   lossState : CombatState
-  lossState = record { losses = Just (1 /> 0) } CombatTest.combatState
+  lossState = { losses := Just (1 /> 0) } CombatTest.combatState
 
   fail_to_lose_step_if_unit_is_not_engaged :
     loseStep Axis Axis CombatTest.lossState "foo" = Left (NoSuchUnits ["foo"])

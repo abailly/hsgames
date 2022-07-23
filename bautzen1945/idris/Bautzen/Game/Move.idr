@@ -22,7 +22,7 @@ updateMovedUnit unit newPosition mps = foldr updateUnit []
     updateUnit : (GameUnit, Pos) -> List (GameUnit, Pos) -> List (GameUnit, Pos)
     updateUnit (gu, pos) acc =
       if fullName unit == fullName gu
-      then (record { currentMP = newMP } unit, newPosition) :: acc
+      then ({ currentMP := newMP } unit, newPosition) :: acc
       else (gu, pos) :: acc
 
 public export

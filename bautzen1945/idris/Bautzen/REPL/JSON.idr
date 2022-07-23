@@ -159,6 +159,13 @@ Cast (GameUnit, Pos) JSON where
               ]
 
 export
+Cast AllPositions JSON where
+  cast (MkAllPositions positions)  =
+    JObject [ ("tag", cast "Positions"),
+              ("positions", cast positions)
+              ]
+
+export
 Cast EngagedUnits JSON where
   cast (MkEngagedUnits base tacticalSupport strategicSupport) =
     JObject [ ("tag", JString "engaged")

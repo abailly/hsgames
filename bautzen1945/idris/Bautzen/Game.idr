@@ -119,6 +119,7 @@ apply event (MkGame events curState gameMap) =
 
 -- Queries
 
+
 ||| Query interface to retrieve information from a `Game`.
 |||
 ||| Queries do not change the state of the game  but provide various
@@ -142,7 +143,7 @@ data Query : (result : Type) -> Type where
   TerrainMap : Query Map
 
   ||| Retrieve positions of all units
-  Positions : Query (List (GameUnit, Pos))
+  Positions : Query AllPositions
 
   ||| Retrieve the stage (turn, side, segment) the game is currently at
   GameStage : Query (Fin 6, Side, GameSegment)
@@ -164,5 +165,5 @@ query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
         [] => Left (NoSupplyPathFor unitName pos)
         x  => Right x
 query (MkGame _ (MkGameState _ side _ units) gameMap) TerrainMap = gameMap
-query (MkGame _ (MkGameState _ side _ positions) _) Positions = positions
+query (MkGame _ (MkGameState _ side _ positions) _) Positions = MkAllPositions positions
 query (MkGame _ (MkGameState turn side segment _) _) GameStage = (turn, side, segment)
