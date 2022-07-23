@@ -61,6 +61,7 @@ type alias Model =
 
 type Request
     = {- Request current positions of all units -} PositionsQ
+    | JoinGame { playerKey : String, gameId : String }
 
 
 encodeRequest : Request -> Json.Value
@@ -68,6 +69,13 @@ encodeRequest msg =
     case msg of
         PositionsQ ->
             Enc.list Enc.string [ "positions?" ]
+
+        JoinGame j ->
+            Enc.object
+                [ ( "tag", Enc.string "JoinGame" )
+                , ( "playerKey", Enc.string j.playerKey )
+                , ( "gameId", Enc.string j.gameId )
+                ]
 
 
 type Msg
@@ -242,8 +250,8 @@ germanUnits =
     List.map (\n -> { name = n, army = German, position = ( 200, 200 ) }) germanOOB
 
 
-init : ( String, String ) -> ( Model, Cmd Msg )
-init ( host, port_ ) =
+init : { port_ : String, host : String, gameId : String, playerKey : String } -> ( Model, Cmd Msg )
+init i =
     let
         model =
             { units =
@@ -254,7 +262,7 @@ init ( host, port_ ) =
             }
     in
     ( model
-    , sendCommand model PositionsQ
+    , sendCommand model <| JoinGame { gameId = i.gameId, playerKey = i.playerKey }
     )
 
 
@@ -581,7 +589,7 @@ viewUnits units styling =
     List.foldl mkImg ( [], 0 ) units |> first
 
 
-main : Program ( String, String ) Model Msg
+main : Program { port_ : String, host : String, gameId : String, playerKey : String } Model Msg
 main =
     Browser.element
         { init = init

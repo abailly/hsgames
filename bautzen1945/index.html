@@ -9,8 +9,14 @@
     <script src="bautzen1945.js"></script>
     <script>
       const node = document.getElementById('bautzen1945');
-      const app = Elm.Game.init({node: node, flags: [window.location.hostname, window.location.port, window.location.pathname]});
-      const wsPath = window.location.pathname.split('/').slice(0, -1).join('/');
+      const path = window.location.pathname.split('/');
+      const app = Elm.Game.init({node: node,
+                                 flags: { host: window.location.hostname,
+                                          port_:window.location.port,
+                                          gameId : path[3],
+                                          playerKey : path [5]
+                                        }});
+      const wsPath = path.slice(0, -1).join('/');
       const ws = new WebSocket("ws://" + window.location.hostname + ":" + window.location.port + wsPath);
       ws.onmessage = function(message)
       {
@@ -19,9 +25,34 @@
               app.ports.websocketIn.send(message.data);
           }
       };
+
+      const sender = {
+        send : function (message, callback) {
+          sender.waitForConnection(function () {
+            ws.send(message);
+            if (typeof callback !== 'undefined') {
+              callback();
+            }
+          }, 1000);
+        },
+
+        waitForConnection : function (callback, interval) {
+          if (ws.readyState === 1) {
+            callback();
+          } else {
+            var that = this;
+            // optional: implement backoff for interval here
+            setTimeout(function () {
+              that.waitForConnection(callback, interval);
+            }, interval);
+          }
+        }};
+
       app.ports.wsOut.subscribe(function(msg) {
-          console.log("sending: "  + msg);
-          ws.send(msg);
+        console.log("sending: "  + msg);
+        sender.send(msg);
       });
-    </script>
+
+
+     </script>
 </body></html>
