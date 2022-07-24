@@ -201,7 +201,7 @@ Cast GameSegment JSON where
   cast GameEnd = JString "GameEnd"
 
 export
-Cast Event JSON where
+Cast (Event seg) JSON where
   cast (Moved unit from to cost) =
       JObject [ ("tag", JString "moved")
             , ("unit", cast unit)
@@ -296,7 +296,7 @@ Cast QueryError JSON where
   cast (UnitDoesNotExist unitName) = JObject [ ("reason", JString "UnitDoesNotExist"),
                                                ("unit" , JString unitName) ]
 export
-Cast ActionResult JSON where
+Cast (ActionResult seg) JSON where
   cast (ResEvent x) = cast x
   cast (ResError x) = cast x
   cast (ResQuery x) = cast x

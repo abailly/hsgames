@@ -35,7 +35,7 @@ makeLoseStepCommand : (unitName : String) -> {side : Side} -> {combatState : Com
                    -> Either String (Command $ Combat (ApplyLosses side combatState))
 makeLoseStepCommand unitName = pure $ LoseStep unitName
 
-makeCommand : (game : Game) -> JSON -> Either String (PlayerAction (curSegment game))
+makeCommand : (game : Game) -> JSON -> Either String (PlayerAction (game.curState.stateSegment))
 makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) with (curSegment game)
   makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) | Move = Cmd <$> makeMoveCommand unitName (cast col) (cast row)
   makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) | other = Left ("Invalid command for segment " ++ show other)
@@ -59,9 +59,9 @@ makeCommand game (JArray [ JString "stage?" ] ) = Right $ Qry GameStage
 makeCommand _ sexp = Left $ "Unknown command " ++ show sexp
 
 partial
-parseCommand : (game : Game) -> String -> Either String (PlayerAction (curSegment game))
+parseCommand : (game : Game) -> String -> Either String (PlayerAction (game.curState.stateSegment))
 parseCommand game input = do
-  sexp <- maybe (Left "cannot parse JSON") Right (parse input)
+  sexp <- maybe (Left $ "cannot parse JSON: " ++ input) Right (parse input)
   makeCommand game sexp
 
 partial
@@ -71,8 +71,9 @@ handleCommand game command =
   case parseCommand game command of
     Left err => (err, game)
     Right act =>
-        let (res, game) = handleAction game act
-        in (show $ cast {to = JSON} res, game)
+        let res = handleAction game act
+            game' = applyResult game res
+        in (show $ cast {to = JSON} res, game')
 
 partial
 eoiHandler : Game -> String
@@ -88,7 +89,7 @@ initialState = MkGameState 5 Axis Move initialPositions
 
 export
 initialGame : Game
-initialGame = MkGame [] initialState FullGameMap
+initialGame = MkGame initialState FullGameMap
 
 export
 partial

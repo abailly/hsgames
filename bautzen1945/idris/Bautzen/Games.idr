@@ -61,5 +61,5 @@ interpret (JoinGame playerKey Allies) games =
      Just (MkSingleGame gameId axisPlayer NoPlayer) =>
        insert gameId (MkSingleGame gameId axisPlayer (HumanPlayer playerKey)) games
      _ => games
-interpret (Action x) games = ?hol_2
+interpret (Action x) games = ?hol2
 interpret (Bye playerKey) games = ?hol_3

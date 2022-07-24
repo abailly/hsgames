@@ -16,27 +16,29 @@ import Data.List
 import Data.Fin
 import Data.Nat
 
+%default total
+
 export
-act : (game : Game) -> Command (curSegment game) -> Either GameError Event
-act (MkGame _ (MkGameState _ side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to
-act (MkGame _ (MkGameState _ side (Combat NoCombat) units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
+act : (game : Game) -> Command (game.curState.stateSegment) -> Either GameError (Event (game.curState.stateSegment))
+act (MkGame (MkGameState _ side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to
+act (MkGame (MkGameState _ side (Combat NoCombat) units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
 act game NextSegment = nextSegment game
-act (MkGame _ (MkGameState _ side (Combat (AssignTacticalSupport combatSide combat)) units) gameMap) (TacticalSupport unitNames) =
+act (MkGame (MkGameState _ side (Combat (AssignTacticalSupport combatSide combat)) units) gameMap) (TacticalSupport unitNames) =
   supportWith side combatSide units gameMap unitNames combat
-act (MkGame _ (MkGameState _ side (Combat (Resolve combat)) units) gameMap) (ResolveCombat combat) =
+act (MkGame (MkGameState _ side (Combat (Resolve combat)) units) gameMap) (ResolveCombat combat) =
   resolveCombat side combat
-act (MkGame _ (MkGameState _ side (Combat (ApplyLosses lossSide combat)) units) gameMap) (LoseStep unitName) =
+act (MkGame (MkGameState _ side (Combat (ApplyLosses lossSide combat)) units) gameMap) (LoseStep unitName) =
   loseStep side lossSide combat unitName
 
 applyTacticalSupportEvent : Side -> CombatState -> List (GameUnit, Pos) -> GameState -> GameState
 applyTacticalSupportEvent supportedSide (MkCombatState combatHex attackers defenders losses) units game =
   if side game == supportedSide
-  then { segment := Combat (AssignTacticalSupport (flipSide supportedSide)
+  then { stateSegment := Combat (AssignTacticalSupport (flipSide supportedSide)
                                        (MkCombatState combatHex
                                         ({ tacticalSupport := units } attackers)
                                         defenders
                                         losses)) } game
-  else { segment := Combat (AssignStrategicSupport (flipSide supportedSide)
+  else { stateSegment := Combat (AssignStrategicSupport (flipSide supportedSide)
                                        (MkCombatState combatHex
                                         attackers
                                         ({ tacticalSupport := units } defenders)
@@ -45,12 +47,12 @@ applyTacticalSupportEvent supportedSide (MkCombatState combatHex attackers defen
 applySupplyColumnUsedEvent :  Side -> CombatState -> Pos -> GameState -> GameState
 applySupplyColumnUsedEvent supportedSide (MkCombatState combatHex attackers defenders losses) hex game =
   if side game == supportedSide
-  then { segment := Combat (AssignStrategicSupport supportedSide
+  then { stateSegment := Combat (AssignStrategicSupport supportedSide
                                        (MkCombatState combatHex
                                         ({ strategicSupport $= (+1) } attackers)
                                         defenders
                                         losses)) } game
-  else { segment := Combat (AssignStrategicSupport supportedSide
+  else { stateSegment := Combat (AssignStrategicSupport supportedSide
                                        (MkCombatState combatHex
                                         attackers
                                         ({ strategicSupport $= (+1) } defenders)
@@ -60,7 +62,7 @@ applySupplyColumnUsedEvent supportedSide (MkCombatState combatHex attackers defe
 applyStepLostEvent :
   Side -> GameUnit -> Losses -> CombatState -> GameState -> GameState
 applyStepLostEvent lossSide unit newLosses state game@(MkGameState turn side segment units) =
-  { segment := newSegment, units := reduced } game
+  { stateSegment := newSegment, units := reduced } game
   where
     reduced : List (GameUnit, Pos)
     reduced = reduce unit units
@@ -75,44 +77,38 @@ applyStepLostEvent lossSide unit newLosses state game@(MkGameState turn side seg
                   (atk /> _) => Combat $ ApplyLosses side newState
 
 
-applyEvent : Event -> GameState -> GameState
-applyEvent (Moved unit from to cost) (MkGameState turn side segment units) =
-  MkGameState turn side segment (updateMovedUnit unit to (Terrain.toNat cost) units)
-applyEvent (CombatEngaged atk def tgt) game =
-  { segment := Combat (AssignTacticalSupport (side game)
+applyEvent : (st : GameState) -> Event (st.stateSegment) -> GameState
+applyEvent (MkGameState turn side Move units) (Moved unit from to cost) =
+  MkGameState turn side Move (updateMovedUnit unit to (Terrain.toNat cost) units)
+applyEvent game@(MkGameState turn side (Combat NoCombat) units) (CombatEngaged atk def tgt) =
+  { stateSegment := Combat (AssignTacticalSupport side
                      (MkCombatState tgt
                        (MkEngagedUnits atk [] 0)
                        (MkEngagedUnits def [] 0)
                        Nothing)) } game
-applyEvent (TacticalSupportProvided _ units) game =
-  case segment game of
-    (Combat (AssignTacticalSupport supSide combat)) => applyTacticalSupportEvent supSide combat units game
-    _ => game -- TODO make this impossible to happen
-applyEvent (SupplyColumnUsed side pos) game =
-  case segment game of
-    (Combat (AssignStrategicSupport supSide combat)) => applySupplyColumnUsedEvent supSide combat pos game
-    _ => game -- TODO make this impossible to happen
-applyEvent (CombatResolved state losses) game =
-  case segment game of
-    (Combat (Resolve _)) => { segment := (Combat $ ApplyLosses (side game) ({ losses := Just losses } state)) } game
-    _ => game -- TODO make this impossible to happen
-applyEvent (StepLost unitSide unit newLosses) game =
-  case segment game of
-    (Combat (ApplyLosses lossSide combatState)) => applyStepLostEvent unitSide unit newLosses combatState game
-    _ => game -- TODO make this impossible to happen
-applyEvent (SegmentChanged from to) game =
-  { segment := to } game
-applyEvent AxisTurnDone game =
-  { side := Allies, segment := Supply } game
-applyEvent (TurnEnded n) game =
-  { turn := n, side := Axis, segment := Supply } game
-applyEvent GameEnded game =
-  { segment := GameEnd } game
+applyEvent (MkGameState turn side (Combat (AssignTacticalSupport supSide combat)) us) (TacticalSupportProvided supSide units) =
+  -- NOTE: https://github.com/idris-lang/Idris2/issues/490
+  -- I would love to write 'game@...' but it does not currently work
+  applyTacticalSupportEvent supSide combat units (MkGameState turn side (Combat (AssignTacticalSupport supSide combat)) us)
+applyEvent (MkGameState turn side (Combat (AssignStrategicSupport supSide combat)) us) (SupplyColumnUsed supSide pos) =
+  applySupplyColumnUsedEvent supSide combat pos (MkGameState turn side (Combat (AssignStrategicSupport supSide combat)) us)
+applyEvent (MkGameState turn side (Combat (Resolve st)) us) (CombatResolved state losses) =
+  MkGameState turn side (Combat $ ApplyLosses side ({ losses := Just losses } state)) us
+applyEvent (MkGameState turn side (Combat (ApplyLosses lossSide combatState)) us) (StepLost lossSide unit newLosses) =
+   applyStepLostEvent lossSide unit newLosses combatState (MkGameState turn side (Combat (ApplyLosses lossSide combatState)) us)
+applyEvent game (SegmentChanged (game.stateSegment) to) =
+   { stateSegment := to } game
+applyEvent (MkGameState turn side (Combat NoCombat) us) AxisTurnDone =
+   (MkGameState turn Allies Supply us)
+applyEvent (MkGameState turn side (Combat NoCombat) us) (TurnEnded n) =
+   (MkGameState n Axis Supply us)
+applyEvent game GameEnded =
+   { stateSegment := GameEnd } game
 
 export
-apply : Event -> Game -> Game
-apply event (MkGame events curState gameMap) =
-  MkGame (event :: events) (applyEvent event curState) gameMap
+apply : (game : Game) -> Event (game.curState.stateSegment) -> Game
+apply game event =
+  MkGame (applyEvent game.curState event) game.gameMap
 
 
 -- Queries
@@ -155,16 +151,16 @@ Show (Query a) where
 
 export
 query : (game : Game) -> (qry : Query result) -> result
-query (MkGame _ (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
+query (MkGame (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
   case find (sameName unitName) units of
     Nothing => Left (UnitDoesNotExist unitName)
     (Just (unit, pos)) =>
       case supplyPathTo units gameMap (supplySources (nation unit) gameMap) (unit, pos) of
         [] => Left (NoSupplyPathFor unitName pos)
         x  => Right x
-query (MkGame _ (MkGameState _ side _ units) gameMap) TerrainMap = gameMap
-query (MkGame _ (MkGameState _ side _ positions) _) Positions = MkAllPositions positions
-query (MkGame _ (MkGameState turn side segment _) _) GameStage = (turn, side, segment)
+query (MkGame (MkGameState _ side _ units) gameMap) TerrainMap = gameMap
+query (MkGame (MkGameState _ side _ positions) _) Positions = MkAllPositions positions
+query (MkGame (MkGameState turn side segment _) _) GameStage = (turn, side, segment)
 
 ||| A single player action, either a @Command@ or a @Query@.
 public export
@@ -173,17 +169,23 @@ data PlayerAction : (seg : GameSegment) -> Type where
   Qry : Cast res JSON => (qry : Query res) -> PlayerAction seg
 
 public export
-data ActionResult : Type where
-  ResEvent : Event -> ActionResult
-  ResError : GameError -> ActionResult
-  ResQuery : Cast result JSON => result -> ActionResult
+data ActionResult : (seg : GameSegment) -> Type where
+  ResEvent : Event seg -> ActionResult seg
+  ResError : GameError -> ActionResult seg
+  ResQuery : Cast result JSON => result -> ActionResult seg
 
-export
-handleAction : (game : Game) -> PlayerAction (curSegment game) -> (ActionResult, Game)
+public export
+handleAction : (game : Game) -> PlayerAction (game.curState.stateSegment) -> ActionResult (game.curState.stateSegment)
 handleAction game (Cmd cmd) =
   case act game cmd of
-      Left err => (ResError err, game)
-      Right event => (ResEvent event, apply event game)
+      Left err => ResError err
+      Right event => ResEvent event
 handleAction game (Qry qry) =
   let qryResult = query game qry
-  in (ResQuery qryResult, game)
+  in ResQuery qryResult
+
+public export
+applyResult : (game : Game) -> ActionResult (game.curState.stateSegment) -> Game
+applyResult g (ResEvent x) = apply g x
+applyResult g (ResError x) = g
+applyResult g (ResQuery x) = g

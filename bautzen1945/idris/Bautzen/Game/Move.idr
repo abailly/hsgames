@@ -40,7 +40,7 @@ movementCost unit units gameMap from to leavingZoC with (cost (unitType unit) (t
                                                            No _    => Left (NotEnoughMPs unit from to (toNat cost))
 
 public export
-moreMoveTo : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos) -> Either GameError Event
+moreMoveTo : (unit : GameUnit) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (from : Pos) -> (to : Pos) -> Either GameError (Event Move)
 moreMoveTo unit units gameMap from to with (inZoC (side (nation unit)) units from, inZoC (side (nation unit)) units to)
   moreMoveTo unit units gameMap from to | (InZoC _, Free) = do (c ** _) <- movementCost unit units gameMap from to True
                                                                pure (Moved unit from to c)
@@ -59,7 +59,7 @@ samePosition to (_,p) = p == to
 
 
 public export
-moveTo : (side : Side) -> (units : List (GameUnit, Pos)) -> Map -> (unitName : String) -> (to : Pos) -> Either GameError Event
+moveTo : (side : Side) -> (units : List (GameUnit, Pos)) -> Map -> (unitName : String) -> (to : Pos) -> Either GameError (Event Move)
 moveTo sideToPlay units gameMap unitName to =
   case find (sameName unitName) units of
     (Just (unit, b)) => if side (nation unit) /= sideToPlay

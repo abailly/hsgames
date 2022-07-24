@@ -118,7 +118,7 @@ validateDefenders attackerSide positions gameMap target =
 export
 attackWith : (side : Side) -> (units : List (GameUnit, Pos)) -> (gameMap : Map)
            -> (unitNames : List String) -> (target : Pos)
-           -> Either GameError Event
+           -> Either GameError (Event $ Combat NoCombat)
 attackWith side units gameMap unitNames target = do
   attackUnits <- findUnits unitNames units
   attackers <- validateAttackers side units gameMap attackUnits target
@@ -195,7 +195,7 @@ supportWith : (currentSide : Side) -> (supportSide : Side)
            -> (units : List (GameUnit, Pos)) -> (gameMap : Map)
            -> (unitNames : List String)
            -> (state : CombatState)
-           -> Either GameError Event
+           -> Either GameError (Event $ Combat $ AssignTacticalSupport supportSide state)
 supportWith currentSide supportSide units gameMap unitNames state = do
   supportUnits <- findUnits unitNames units >>= validateSupportUnits currentSide supportSide state
   pure $ TacticalSupportProvided supportSide supportUnits
@@ -258,7 +258,7 @@ useSupplyColumn : (currentSide : Side) -> (supportSide : Side)
            -> (units : List (GameUnit, Pos)) -> (gameMap : Map)
            -> (scLocation : Pos)
            -> (state : CombatState)
-           -> Either GameError Event
+           -> Either GameError (Event $ Combat $ AssignStrategicSupport supportSide state)
 useSupplyColumn currentSide supportSide units gameMap scLocation state = do
   unit <- findSupportColumn supportSide scLocation units >>= validateSupportFromSC currentSide supportSide state units
   pure $ SupplyColumnUsed supportSide scLocation
@@ -266,7 +266,7 @@ useSupplyColumn currentSide supportSide units gameMap scLocation state = do
 export
 resolveCombat :
   (currentSide  : Side) -> (combat : CombatState)
-  -> Either GameError Event
+  -> Either GameError (Event $ Combat $ Resolve combat)
 resolveCombat currentSide state@(MkCombatState combatHex (MkEngagedUnits atk tac strat) (MkEngagedUnits def tac' strat') losses) =
   let baseOdds = Combat.attack (map fst atk) (map fst def)
       supOdds = Combat.support (map fst tac) (map fst tac') baseOdds
@@ -285,7 +285,7 @@ doLoseStep side (MkEngagedUnits base _ _) (S k) unitName = do
 export
 loseStep : (currentSide : Side) -> (lossSide : Side) -> (combat : CombatState)
          -> (unitName : String)
-         -> Either GameError Event
+         -> Either GameError (Event $ Combat $ ApplyLosses lossSide combat)
 loseStep _ side (MkCombatState _ _ _ Nothing) _ = Left $ NotYourTurn side -- TODO should never happen, error is a placeholder
 loseStep currentSide lossSide (MkCombatState _ atk def (Just (al /> dl))) unitName =
   if currentSide == lossSide

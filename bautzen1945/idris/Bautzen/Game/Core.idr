@@ -37,7 +37,7 @@ record GameState where
   constructor MkGameState
   turn : Fin 6
   side : Side
-  segment : GameSegment
+  stateSegment : GameSegment
   units : List (GameUnit, Pos)
 
 public export
@@ -108,12 +108,12 @@ Show (Command segment) where
   show (LoseStep unitName) = "LoseStep " ++ show unitName
 
 public export
-data Event : Type where
+data Event : (segment : GameSegment) -> Type where
 
   ||| Unit has moved from some position to some other position
   Moved : (unit : GameUnit) -> (from : Pos) -> (to : Pos) -> (cost : Cost)
         -> { auto prf : LTE (toNat cost) (currentMP unit) }
-        -> Event
+        -> Event Move
 
   ||| Some attackers have engaged combat with some defenders on the given target hex.
   |||
@@ -123,25 +123,25 @@ data Event : Type where
   ||| @attackers list of attacker's units and their positions
   ||| @defenders list of defender's units and their positions
   ||| @target the attacked position
-  CombatEngaged : (attackers : List (GameUnit, Pos)) -> (defenders : List (GameUnit, Pos)) -> (target : Pos) -> Event
+  CombatEngaged : (attackers : List (GameUnit, Pos)) -> (defenders : List (GameUnit, Pos)) -> (target : Pos) -> Event (Combat NoCombat)
 
   ||| Units provide tactical support for some side in current combat
   |||
   ||| @supportedSide the side which is given support
   ||| @supportUnits units and positions that provide support
-  TacticalSupportProvided : (supportedSide : Side) -> (supportUnits : List (GameUnit, Pos)) -> Event
+  TacticalSupportProvided : (supportedSide : Side) -> (supportUnits : List (GameUnit, Pos)) -> Event (Combat $ AssignTacticalSupport supportedSide combatState)
 
   ||| A supply column is used to provide support to units engaged in a combat
   |||
   ||| @supportedSide the side which is given support
   ||| @hex the position of the supply column
-  SupplyColumnUsed : (supportedSide : Side) -> (hex : Pos) -> Event
+  SupplyColumnUsed : (supportedSide : Side) -> (hex : Pos) -> Event (Combat $ AssignStrategicSupport supportedSide combatState)
 
   ||| Combat has been resolved yielding the given losses
   |||
   ||| @state the state of the combat (before any loss has been applied)
   ||| @losses losses to apply on engaged units
-  CombatResolved : (state : CombatState) -> (losses : Losses) -> Event
+  CombatResolved : (state : CombatState) -> (losses : Losses) -> Event (Combat $ Resolve combatState)
 
   ||| Given unit has lost a step
   |||
@@ -152,25 +152,25 @@ data Event : Type where
   ||| the combat state
   ||| @unit the unit to apply a step loss to
   ||| @remainingLosses  losses  remaining to apply
-  StepLost : (side : Side) -> (unit : GameUnit) -> (remainingLosses : Losses) -> Event
+  StepLost : (side : Side) -> (unit : GameUnit) -> (remainingLosses : Losses) -> Event  (Combat $ ApplyLosses side combatState)
 
   ||| The segment has been advanced one step.
   |||
   ||| @from the previous segment
   ||| @to the new segment
-  SegmentChanged : (from : GameSegment)  -> (to : GameSegment) -> Event
+  SegmentChanged : (from : GameSegment)  -> (to : GameSegment) -> Event from
 
   ||| Axis turn is over, move to Allies turn
-  AxisTurnDone : Event
+  AxisTurnDone : Event (Combat NoCombat)
 
   ||| Turn ended, start a new turn
-  TurnEnded : Fin 6 -> Event
+  TurnEnded : Fin 6 -> Event (Combat NoCombat)
 
   ||| Game has ended
-  GameEnded : Event
+  GameEnded : Event segment
 
 public export
-Show Event where
+Show (Event seg) where
   show (Moved unit from to cost) = "Moved " ++ name unit ++ " from " ++ show from ++ " to " ++ show to ++ " for "  ++ show (toNat cost) ++ " mps"
   show (CombatEngaged atk def tgt) = "CombatEngaged " ++ show (map (GameUnit.name . fst) atk) ++ " -> " ++ show (map (GameUnit.name . fst) def) ++ " @ " ++ show tgt
   show (TacticalSupportProvided side units) = "TacticalSupportProvided " ++ show (map (GameUnit.name . fst) units) ++ " -> " ++ show side
@@ -183,16 +183,18 @@ Show Event where
   show GameEnded = "Game Ended"
 
 public export
-data Game : Type where
-  MkGame : (events : List Event) -> (curState : GameState) -> (gameMap : Map) -> Game
+record Game  where
+  constructor  MkGame
+  curState : GameState
+  gameMap : Map
 
 public export
 Show Game where
-  show (MkGame events state gameMap) = "Game: " ++ show events ++ "\n" ++ show state ++ "\n" ++ show gameMap
+  show (MkGame state gameMap) = "Game: " ++ show state ++ "\n" ++ show gameMap
 
 public export
 curSegment : Game -> GameSegment
-curSegment (MkGame _ (MkGameState _ _  segment _) _) = segment
+curSegment game = game.curState.stateSegment
 
 public export
 data QueryError : Type where
