@@ -54,7 +54,7 @@ Games = SortedMap Id SingleGame
 applyAction : {gameSegment: GameSegment} -> PlayerAction gameSegment -> SingleGame -> Id -> Games -> Games
 applyAction {gameSegment} act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) gameId games with (decEq (curSegment theGame) gameSegment)
   applyAction act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) gameId games | (Yes prf) =
-    let res = handleAction theGame $ rewrite__impl PlayerAction prf act
+    let res = handleAction theGame $ rewrite prf in act
         game' = applyResult theGame res
     in insert gameId  ({ theGame := game' } single) games
   applyAction act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) gameId games | (No contra) = games
