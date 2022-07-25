@@ -35,7 +35,7 @@ makeLoseStepCommand : (unitName : String) -> {side : Side} -> {combatState : Com
                    -> Either String (Command $ Combat (ApplyLosses side combatState))
 makeLoseStepCommand unitName = pure $ LoseStep unitName
 
-makeCommand : (game : Game) -> JSON -> Either String (PlayerAction (game.curState.stateSegment))
+makeCommand : (game : Game) -> JSON -> Either String (PlayerAction (curSegment game))
 makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) with (curSegment game)
   makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) | Move = Cmd <$> makeMoveCommand unitName (cast col) (cast row)
   makeCommand game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) | other = Left ("Invalid command for segment " ++ show other)
@@ -59,7 +59,7 @@ makeCommand game (JArray [ JString "stage?" ] ) = Right $ Qry GameStage
 makeCommand _ sexp = Left $ "Unknown command " ++ show sexp
 
 partial
-parseCommand : (game : Game) -> String -> Either String (PlayerAction (game.curState.stateSegment))
+parseCommand : (game : Game) -> String -> Either String (PlayerAction (curSegment game))
 parseCommand game input = do
   sexp <- maybe (Left $ "cannot parse JSON: " ++ input) Right (parse input)
   makeCommand game sexp
@@ -78,18 +78,6 @@ handleCommand game command =
 partial
 eoiHandler : Game -> String
 eoiHandler = show
-
-initialPositions : List (GameUnit, Pos)
-initialPositions = [ (Bautzen.GameUnit.p13_5dp, hex 1 9)
-                   , (Bautzen.GameUnit.g21_20pz, hex 5 8)
-                   ]
-
-initialState : GameState
-initialState = MkGameState 5 Axis Move initialPositions
-
-export
-initialGame : Game
-initialGame = MkGame initialState FullGameMap
 
 export
 partial

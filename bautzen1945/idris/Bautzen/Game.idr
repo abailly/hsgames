@@ -19,7 +19,7 @@ import Data.Nat
 %default total
 
 export
-act : (game : Game) -> Command (game.curState.stateSegment) -> Either GameError (Event (game.curState.stateSegment))
+act : (game : Game) -> Command (curSegment game) -> Either GameError (Event (curSegment game))
 act (MkGame (MkGameState _ side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to
 act (MkGame (MkGameState _ side (Combat NoCombat) units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
 act game NextSegment = nextSegment game
@@ -106,7 +106,7 @@ applyEvent game GameEnded =
    { stateSegment := GameEnd } game
 
 export
-apply : (game : Game) -> Event (game.curState.stateSegment) -> Game
+apply : (game : Game) -> Event (curSegment game) -> Game
 apply game event =
   MkGame (applyEvent game.curState event) game.gameMap
 
@@ -175,7 +175,7 @@ data ActionResult : (seg : GameSegment) -> Type where
   ResQuery : Cast result JSON => result -> ActionResult seg
 
 public export
-handleAction : (game : Game) -> PlayerAction (game.curState.stateSegment) -> ActionResult (game.curState.stateSegment)
+handleAction : (game : Game) -> PlayerAction (curSegment game) -> ActionResult (curSegment game)
 handleAction game (Cmd cmd) =
   case act game cmd of
       Left err => ResError err
@@ -185,7 +185,21 @@ handleAction game (Qry qry) =
   in ResQuery qryResult
 
 public export
-applyResult : (game : Game) -> ActionResult (game.curState.stateSegment) -> Game
+applyResult : (game : Game) -> ActionResult (curSegment game) -> Game
 applyResult g (ResEvent x) = apply g x
 applyResult g (ResError x) = g
 applyResult g (ResQuery x) = g
+
+export
+initialPositions : List (GameUnit, Pos)
+initialPositions = [ (Bautzen.GameUnit.p13_5dp, hex 1 9)
+                   , (Bautzen.GameUnit.g21_20pz, hex 5 8)
+                   ]
+
+export
+initialState : GameState
+initialState = MkGameState 5 Axis Move initialPositions
+
+export
+initialGame : Game
+initialGame = MkGame initialState FullGameMap

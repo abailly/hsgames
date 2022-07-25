@@ -8,6 +8,7 @@ import Data.Fin
 import Data.List
 import Data.Nat
 import Data.Vect
+import Decidable.Equality
 
 %default total
 
@@ -21,6 +22,10 @@ record Losses where
 
   ||| Steps lost by defender. Can be transformed in hexes of retreat.
   defenderLoss : Nat
+
+Eq Losses where
+  (/>) a d == (/>) a' d' =
+   a == a' && d == d'
 
 infix 1 />
 
@@ -36,6 +41,10 @@ record EngagedUnits where
   tacticalSupport : List (GameUnit, Pos)
   strategicSupport : Nat
 
+Eq EngagedUnits where
+  (MkEngagedUnits b t s) ==  (MkEngagedUnits b' t' s') =
+     b == b' && t == t' && s == s'
+
 public export
 Show EngagedUnits where
   show (MkEngagedUnits base tacticalSupport strategicSupport) =
@@ -50,6 +59,11 @@ record CombatState where
   attackers : EngagedUnits
   defenders : EngagedUnits
   losses : Maybe Losses
+
+public export
+Eq CombatState where
+  (MkCombatState h as ds ls) == (MkCombatState h' as' ds' ls') =
+    h == h' && as == as' && ds == ds' && ls == ls'
 
 public export
 Show CombatState where

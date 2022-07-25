@@ -6,6 +6,7 @@ import Bautzen.Terrain
 
 import Data.Fin
 import Data.Nat
+import Decidable.Equality
 
 %default total
 
@@ -18,12 +19,70 @@ data CombatPhase : Type where
   Resolve : (combat : CombatState) -> CombatPhase
   ApplyLosses : (side : Side) -> (combat : CombatState) -> CombatPhase
 
+sideTacSupportInjective : (AssignTacticalSupport side combat = AssignTacticalSupport side' combat') -> (side = side')
+sideTacSupportInjective Refl = Refl
+
+combatTacSupportInjective : (AssignTacticalSupport side combat = AssignTacticalSupport side' combat') -> (combat = combat')
+combatTacSupportInjective Refl = Refl
+
+sideStratSupportInjective : (AssignStrategicSupport side combat = AssignStrategicSupport side' combat') -> (side = side')
+sideStratSupportInjective Refl = Refl
+
+combatStratSupportInjective : (AssignStrategicSupport side combat = AssignStrategicSupport side' combat') -> (combat = combat')
+combatStratSupportInjective Refl = Refl
+
+sideLossesInjective : (ApplyLosses side combat = ApplyLosses side' combat') -> (side = side')
+sideLossesInjective Refl = Refl
+
+combatLossesInjective : (ApplyLosses side combat = ApplyLosses side' combat') -> (combat = combat')
+combatLossesInjective Refl = Refl
+
+combatResolveInjective : (Resolve combat = Resolve combat') -> (combat = combat')
+combatResolveInjective Refl = Refl
+
+export
+DecEq CombatPhase where
+  decEq NoCombat NoCombat = Yes Refl
+  decEq (AssignTacticalSupport side combat) (AssignTacticalSupport side' combat') with (decEq side side')
+    decEq (AssignTacticalSupport side combat) (AssignTacticalSupport side' combat') | (Yes prf) with (decEq @{FromEq} combat combat')
+      decEq (AssignTacticalSupport side combat) (AssignTacticalSupport side' combat') | (Yes prf) | (Yes x) = rewrite prf in rewrite x in Yes Refl
+      decEq (AssignTacticalSupport side combat) (AssignTacticalSupport side' combat') | (Yes prf) | (No contra) = No $ contra . combatTacSupportInjective
+    decEq (AssignTacticalSupport side combat) (AssignTacticalSupport side' combat') | (No contra) = No $ contra . sideTacSupportInjective
+  decEq (AssignStrategicSupport side combat) (AssignStrategicSupport side' combat') with (decEq side side')
+    decEq (AssignStrategicSupport side combat) (AssignStrategicSupport side' combat') | (Yes prf) with (decEq @{FromEq} combat combat')
+      decEq (AssignStrategicSupport side combat) (AssignStrategicSupport side' combat') | (Yes prf) | (Yes x) = rewrite prf in rewrite x in Yes Refl
+      decEq (AssignStrategicSupport side combat) (AssignStrategicSupport side' combat') | (Yes prf) | (No contra) = No $ contra . combatStratSupportInjective
+    decEq (AssignStrategicSupport side combat) (AssignStrategicSupport side' combat') | (No contra) = No $ contra . sideStratSupportInjective
+  decEq (Resolve combat) (Resolve combat') with (decEq @{FromEq} combat combat')
+    decEq (Resolve combat) (Resolve combat') | (Yes prf) = rewrite prf in Yes Refl
+    decEq (Resolve combat) (Resolve combat') | (No contra) = No $ contra . combatResolveInjective
+  decEq (ApplyLosses side combat) (ApplyLosses side' combat') with (decEq side side')
+    decEq (ApplyLosses side combat) (ApplyLosses side' combat') | (Yes prf) with (decEq @{FromEq} combat combat')
+      decEq (ApplyLosses side combat) (ApplyLosses side' combat') | (Yes prf) | (Yes x) = rewrite x in rewrite prf in Yes Refl
+      decEq (ApplyLosses side combat) (ApplyLosses side' combat') | (Yes prf) | (No contra) = No $ contra . combatLossesInjective
+    decEq (ApplyLosses side combat) (ApplyLosses side' combat') | (No contra) = No $ contra . sideLossesInjective
+  decEq x x' = No believe_me
+
 public export
 data GameSegment : Type where
   Supply : GameSegment
   Move : GameSegment
   Combat : (phase : CombatPhase) -> GameSegment
   GameEnd : GameSegment
+
+combatInjective : Combat c = Combat c' -> c = c'
+combatInjective Refl = Refl
+
+public export
+DecEq GameSegment where
+  decEq Supply Supply = Yes Refl
+  decEq Move Move = Yes Refl
+  decEq (Combat phase) (Combat phase') = case decEq phase phase' of
+     Yes prf => Yes $ cong Combat prf
+     No contra => No $ \ c => contra (combatInjective c)
+  decEq GameEnd GameEnd  = Yes Refl
+   -- TODO: Not sure how to prove all those negative cases
+  decEq x x' = No believe_me
 
 public export
 Show GameSegment where

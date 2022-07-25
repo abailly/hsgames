@@ -4,6 +4,7 @@ import Data.Fin
 import Data.Maybe
 import Data.Nat
 import Data.Vect
+import Decidable.Equality
 
 %default total
 
@@ -32,6 +33,16 @@ public export
 data Side : Type where
   Axis : Side
   Allies : Side
+
+axisNotAllies : (Axis = Allies) -> Void
+axisNotAllies Refl impossible
+
+public export
+DecEq Side where
+  decEq Axis Axis = Yes Refl
+  decEq Allies Allies = Yes Refl
+  decEq Axis Allies = No axisNotAllies
+  decEq Allies Axis = No $ negEqSym axisNotAllies
 
 public export
 Show Side where
