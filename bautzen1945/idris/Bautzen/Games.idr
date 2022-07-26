@@ -23,6 +23,9 @@ makeId s =
     idParser : Parser Id
     idParser = ntimes 8 alphaNum
 
+Cast Id JSON where
+  cast = JString . pack . toList
+
 ||| Lifecycle protocol for a single game.
 |||
 ||| The @gameId@ type parameter is used to distinguish commands for
@@ -78,8 +81,21 @@ makeGameCommand games (JObject [ ("tag", JString "Action"), ("gameId", JString g
     Nothing => Left $ "Unknown gameId: " ++ show gid
     Just (MkSingleGame _ _ _ game) =>
        makePlayerAction game action >>= Right . Action gid pk
+makeGameCommand games (JObject [ ("tag", JString "Bye"), ("gameId", JString gameId), ("playerKey", JString playerKey) ]) = do
+  gid <- makeId gameId
+  pk <- makeId playerKey
+  pure $ Bye gid pk
 makeGameCommand _ json = Left $ "Unknown command " ++ show json
 
+Cast GameCommand JSON where
+  cast (NewGame newGameId) =
+    JObject [ ("tag", JString "NewGame"), ("gameId", cast newGameId) ]
+  cast (JoinGame gameId playerKey side) =
+    JObject [ ("tag", JString "JoinGame"), ("gameId", cast gameId) , ("playerKey", cast playerKey), ("side", cast side) ]
+  cast (Action gameId playerKey action) =
+    JObject [ ("tag", JString "Action"), ("gameId", cast gameId) , ("playerKey", cast playerKey), ("action", cast action) ]
+  cast (Bye gameId playerKey) =
+    JObject [ ("tag", JString "Bye"), ("gameId", cast gameId), ("playerKey", cast playerKey) ]
 
 data GamesEvent : (gameId : Id) -> Type where
    NewGameCreated : (game : SingleGame) -> GamesEvent (game.gameId)
