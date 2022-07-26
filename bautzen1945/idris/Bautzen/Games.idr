@@ -28,7 +28,7 @@ data GameCommand : (gameId : Id) -> Type where
   JoinGame : (playerKey : Id) -> (side : Side) -> GameCommand gameId
 
   ||| Game-specific action
-  Action : { gameSegment : GameSegment} -> PlayerAction gameSegment -> GameCommand gameId
+  Action : { gameSegment : GameSegment} -> (playerKey : Id) -> PlayerAction gameSegment -> GameCommand gameId
 
   ||| Given player leaves game
   Bye : (playerKey : Id) -> GameCommand gameId
@@ -51,29 +51,30 @@ export
 Games : Type
 Games = SortedMap Id SingleGame
 
-applyAction : {gameSegment: GameSegment} -> PlayerAction gameSegment -> SingleGame -> Id -> Games -> Games
-applyAction {gameSegment} act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) gameId games with (decEq (curSegment theGame) gameSegment)
-  applyAction act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) gameId games | (Yes prf) =
-    let res = handleAction theGame $ rewrite prf in act
-        game' = applyResult theGame res
-    in insert gameId  ({ theGame := game' } single) games
-  applyAction act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) gameId games | (No contra) = games
-
 data GamesEvent : (gameId : Id) -> Type where
    NewGameCreated : (game : SingleGame) -> GamesEvent (game.gameId)
    PlayerJoined :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent (game.gameId)
-   PlayerPlayed :  (playerKey : Id) -> (result : ActionResult (curSegment game)) -> GamesEvent gameId
+   PlayerPlayed :  (playerKey : Id) -> (game : Game) ->  (result : ActionResult segment) -> GamesEvent gameId
    PlayerLeft :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent gameId
 
 data GamesError =
    UnknownGame Id
   | UnknownPlayer Id
   | SideTaken Side Id
+  | InvalidSegment GameSegment GameSegment Id Id
 
-data GamesResult : Type where
-   GamesResEvent : { gameId : Id } -> (event : GamesEvent gameId) -> GamesResult
-   GamesResError  : GamesError -> GamesResult
+data GamesResult : (0 games : Games) -> Type where
+   GamesResEvent : { gameId : Id } -> (event : GamesEvent gameId) -> GamesResult games
+   GamesResError  : GamesError -> GamesResult games
 
+actAction : {gameSegment: GameSegment} -> PlayerAction gameSegment -> SingleGame -> Id -> Id -> (games : Games) -> GamesResult games
+actAction {gameSegment} act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) playerKey gameId games with (decEq (curSegment theGame) gameSegment)
+  actAction act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) playerKey gameId games | (Yes prf) =
+    let result = handleAction theGame $ rewrite prf in act
+        game' =  applyResult theGame result
+    in GamesResEvent $ PlayerPlayed {gameId} playerKey game' result
+  actAction act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) playerKey gameId games | (No contra) =
+    GamesResError $ InvalidSegment gameSegment (curSegment theGame) playerKey gameId
 
 removePlayerFromGame : Id -> SingleGame -> Maybe SingleGame
 removePlayerFromGame playerKey single@(MkSingleGame gameId (HumanPlayer xs) (HumanPlayer ys) theGame) =
@@ -93,7 +94,7 @@ removePlayerFromGame playerKey single@(MkSingleGame gameId _ (HumanPlayer xs) th
 removePlayerFromGame _ _ = Nothing
 
 ||| Interpret @GameCommand@, returning a @GamesResult@
-interpret : { gameId : Id } -> GameCommand gameId -> Games -> GamesResult
+interpret : { gameId : Id } -> GameCommand gameId -> (games : Games) -> GamesResult games
 interpret (NewGame gameId) games =
   GamesResEvent $ NewGameCreated $ MkSingleGame gameId NoPlayer NoPlayer initialGame
 interpret (JoinGame playerKey Axis) games =
@@ -117,28 +118,28 @@ interpret (Bye playerKey) games =
       case removePlayerFromGame playerKey single of
          Just game => GamesResEvent $ PlayerLeft {gameId} playerKey game
          Nothing => GamesResError (UnknownPlayer playerKey)
-interpret _ _ = ?hole
---        insert gameId  games
---      _ => games
--- interpret (JoinGame playerKey Allies) games =
---   case lookup gameId games of
---      Just (MkSingleGame gameId axisPlayer NoPlayer theGame) =>
---        insert gameId (MkSingleGame gameId axisPlayer (HumanPlayer playerKey) theGame) games
---      _ => games
--- interpret (Action {gameSegment} act) games =
---   case SortedMap.lookup gameId games of
---     Nothing => games
---     (Just single@(MkSingleGame _ _ _ game)) =>
---       applyAction act single gameId games
--- interpret (Bye playerKey) games =
---   case SortedMap.lookup gameId games of
---     Nothing => games
---     (Just single@(MkSingleGame gameId (HumanPlayer axisId) alliesPlayer theGame))
---         => if playerKey == axisId
---            then insert gameId (MkSingleGame gameId NoPlayer alliesPlayer theGame) games
---            else games
---     (Just single@(MkSingleGame gameId axisPlayer (HumanPlayer alliesId) theGame))
---         => if playerKey == alliesId
---            then insert gameId (MkSingleGame gameId axisPlayer NoPlayer theGame) games
---            else games
---     _ => games
+interpret (Action {gameSegment} playerKey act) games =
+   case SortedMap.lookup gameId games of
+     Nothing => GamesResError $ UnknownGame gameId
+     (Just single@(MkSingleGame _ _ _ game)) =>
+       actAction act single playerKey gameId games
+
+||| Apply a @GamesResult@ to current state of @Games@
+apply : (games : Games) -> GamesResult games -> Games
+apply games (GamesResEvent {gameId = (game .gameId)} (NewGameCreated game)) =
+ insert game.gameId game games
+apply games (GamesResEvent {gameId = (game .gameId)} (PlayerJoined playerKey game)) =
+ insert game.gameId game games
+apply games (GamesResEvent {gameId} (PlayerPlayed playerKey game' result)) =
+   -- TODO: we know the gameId is in the games so we shouldn't pattern match
+   case SortedMap.lookup gameId games of
+     Nothing => games
+     (Just single@(MkSingleGame _ axis allies game)) =>
+       case result of
+          (ResEvent _) =>
+            insert gameId (MkSingleGame gameId axis allies game') games
+          (ResError x) => games
+          (ResQuery x) => games
+apply games (GamesResEvent {gameId} (PlayerLeft playerKey game)) =
+  insert gameId game games
+apply games (GamesResError x) = games
