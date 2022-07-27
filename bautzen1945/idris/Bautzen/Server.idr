@@ -3,7 +3,7 @@ module Bautzen.Server
 
 import Bautzen.Options
 
-import Bautzen.Game
+import Bautzen.Games
 import Bautzen.Network
 import Bautzen.REPL
 
@@ -72,7 +72,7 @@ clientHandshake log sock = do
      | Left err => pure (Left $ show err)
    pure $ Right msg
 
-commandLoop : Channel String -> Channel String -> String -> Game -> IO ()
+commandLoop : Channel String -> Channel String -> String -> Games -> IO ()
 commandLoop cin cout clientId game = do
    msg <- channelGet cin
    case msg of
@@ -104,7 +104,7 @@ serve log sock clients  = do
    mkChannelsFor clientId = do
       cin <- makeChannel
       cout <- makeChannel
-      loopPid <- fork $ commandLoop cin cout clientId initialGame
+      loopPid <- fork $ commandLoop cin cout clientId initialGames
       let hdlr = MkGameHandler cin cout loopPid
       modifyIORef clients (insert clientId hdlr)
       pure hdlr

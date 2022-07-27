@@ -29,7 +29,7 @@ handleCommand games input =
 
 partial
 eoiHandler : Games -> String
-eoiHandler = show
+eoiHandler = show . cast {to = JSON}
 
 export
 partial

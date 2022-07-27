@@ -13,6 +13,7 @@ import Data.Fin
 import Data.Vect
 import Control.WellFounded
 
+%default total
 
 export
 Cast Side JSON where
@@ -307,34 +308,41 @@ Cast (ActionResult seg) JSON where
   cast (ResError x) = cast x
   cast (ResQuery x) = cast x
 
-mutual
-  private
-  covering
-  step : (x1 : List JSON) -> ((y : List JSON) -> Smaller y x1 -> Either String (List String)) -> Either String (List String)
-  step []        f = Right []
-  step (x :: xs) f =
-     let lx = (length xs)
-         prf = reflexive {rel = LTE}
-     in do s <- toStrings x
-           ss <- f xs $ LTESucc prf
-           pure $ s ++ ss
+export
+Cast GameState JSON where
+  cast (MkGameState turn side stateSegment units) =
+    JObject [ ("tag", JString "GameState")
+            , ("turn" , cast turn)
+            , ("side", cast side)
+            , ("stateSegment", cast stateSegment)
+            , ("units", cast units)
+            ]
 
-  ||| Convert a s-expression into a list of strings
-  |||
-  ||| This function actually _flattens_ the given s-expression, traversing it depth-first and
-  ||| expecting to find only _strings_.
-  |||
-  ||| * A single string is converted as a singleton
-  ||| * A list of strings is converted as a list
-  ||| * Any other type raises an error
-  export
-  -- It should be total but it is not due to the mutual recursion in the
-  -- `step` function
-  covering
-  toStrings : JSON -> Either String (List String)
-  toStrings (JString x) = pure [ x ]
-  toStrings (JArray x) = sizeRec step x
-  toStrings x = Left $ "Expected a string or a list of strings, got "++ show x
+export
+Cast Game JSON where
+  cast (MkGame curState gameMap) =
+    JObject [ ("tag", JString "Game")
+            , ("curState", cast curState)
+            , ("gameMap" , cast gameMap)
+            ]
+
+||| Convert a s-expression into a list of strings
+|||
+||| This function actually _flattens_ the given s-expression, traversing it depth-first and
+||| expecting to find only _strings_.
+|||
+||| * A single string is converted as a singleton
+||| * A list of strings is converted as a list
+||| * Any other type raises an error
+toStrings : JSON -> Either String (List String)
+
+step : List JSON -> Either String (List String)
+step [] = pure []
+step (x :: xs) = [| toStrings x ++ step xs |]
+
+toStrings (JString str) = pure [str]
+toStrings (JArray xs) = step xs
+toStrings x = Left $ "Expected a string or a list of strings, got "++ show x
 
 makePos : (col : Int) -> (row : Int) -> Either String Pos
 makePos col row with (integerToNat (cast col), integerToNat (cast row))
