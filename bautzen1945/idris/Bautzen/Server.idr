@@ -31,6 +31,34 @@ record GameHandler where
   cout : Channel String
   game : ThreadID
 
+record GamesState where
+  constructor MkGamesState
+  ||| Handle a single serialised command from given client @Id@.
+  ||| This handler should be threadsafe and returns the result of executing the command
+  handleMessage : Id -> String -> IO String
+
+atomically : Mutex -> IO a -> IO a
+atomically mutex act = do
+  mutexAcquire mutex
+  res <- act
+  mutexRelease mutex
+  pure res
+
+mkGamesState : IO GamesState
+mkGamesState = do
+  games <- newIORef initialGames
+  mutex <- makeMutex
+  pure $ MkGamesState (handle games mutex)
+  where
+    handle : IORef Games -> Mutex -> Id -> String -> IO String
+    handle refGames mutex clientId msg =
+      atomically mutex $ do
+         g <- readIORef refGames
+         let (res, g') = handleCommand clientId g msg
+         writeIORef refGames g'
+         pure res
+
+
 mkLogger : Verbosity -> Logger
 mkLogger Quiet _ = pure ()
 mkLogger (Verbose name) msg =
@@ -73,25 +101,25 @@ clientHandshake log sock = do
      | Left err => pure (Left $ show err)
    pure $ Right msg
 
-commandLoop : Channel String -> Channel String -> Id -> Games -> IO ()
-commandLoop cin cout clientId game = do
+commandLoop : Channel String -> Channel String -> Id -> GamesState -> IO ()
+commandLoop cin cout clientId gamesState = do
    msg <- channelGet cin
    case msg of
      -- Poison pill
      "STOP" => pure ()
      _ => do
-       let (res, game') = handleCommand clientId game msg
+       res <- gamesState.handleMessage clientId msg
        channelPut cout res
-       commandLoop cin cout clientId game'
+       commandLoop cin cout clientId gamesState
 
-serve : Logger -> Socket -> IORef (SortedMap Id GameHandler) ->  IO (Either String ())
-serve log sock clients  = do
+serve : Logger -> Socket -> IORef (SortedMap Id GameHandler) -> GamesState ->  IO (Either String ())
+serve log sock clients gamesState = do
   log "awaiting clients"
   Right (s, addr) <- accept sock
     | Left err => pure (Left $ "Failed to accept on socket with error: " ++ show err)
   log $ "client connecting from " ++ show addr
   Right clientId <- clientHandshake log s
-    |  Left err => do log ("failed to identify client, " ++ show err) ; close s; serve log sock clients
+    |  Left err => do log ("failed to identify client, " ++ show err) ; close s; serve log sock clients gamesState
   cs <- readIORef clients
   hdlr <- maybe (mkChannelsFor clientId) pure (lookup clientId cs)
   pid <- fork $ do
@@ -99,13 +127,13 @@ serve log sock clients  = do
     stopHandler hdlr
     modifyIORef clients (delete clientId)
   log $ "forked client handler for " ++ show @{AsString} clientId
-  serve log sock clients
+  serve log sock clients gamesState
  where
    mkChannelsFor : Id -> IO GameHandler
    mkChannelsFor clientId = do
       cin <- makeChannel
       cout <- makeChannel
-      loopPid <- fork $ commandLoop cin cout clientId initialGames
+      loopPid <- fork $ commandLoop cin cout clientId gamesState
       let hdlr = MkGameHandler cin cout loopPid
       modifyIORef clients (insert clientId hdlr)
       pure hdlr
@@ -127,4 +155,5 @@ server (MkOptions port host _ verbosity _) = do
         then pure (Left $ "Failed to listen on socket with error: " ++ show res)
         else do
           hdlrs <- newIORef empty
-          serve (mkLogger verbosity) sock hdlrs
+          gamesState <- mkGamesState
+          serve (mkLogger verbosity) sock hdlrs gamesState

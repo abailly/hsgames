@@ -100,7 +100,7 @@ data GamesEvent : (gameId : Id) -> Type where
    NewGameCreated : (game : SingleGame) -> GamesEvent (game.gameId)
    PlayerJoined :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent (game.gameId)
    PlayerPlayed :  (playerKey : Id) -> (game : SingleGame) ->  (result : ActionResult segment) -> GamesEvent gameId
-   PlayerLeft :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent gameId
+   PlayerLeft :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent game.gameId
 
 export
 Cast (GamesEvent gid) JSON where
@@ -184,7 +184,7 @@ interpret playerKey (JoinGame gameId Axis) games =
       Just (MkSingleGame gameId NoPlayer alliesPlayer theGame) =>
         GamesResEvent $ PlayerJoined playerKey (MkSingleGame gameId (HumanPlayer playerKey) alliesPlayer theGame)
       Just _ =>
-        GamesResError $ SideTaken Axis gameId
+        GamesResError $ SideTaken Axis playerKey
       Nothing => GamesResError $ UnknownGame gameId
 interpret playerKey (JoinGame gameId Allies) games =
    case lookup gameId games of
@@ -198,7 +198,7 @@ interpret playerKey (Bye gameId) games =
     Nothing => GamesResError $ UnknownGame gameId
     Just single =>
       case removePlayerFromGame playerKey single of
-         Just game => GamesResEvent $ PlayerLeft {gameId} playerKey game
+         Just game => GamesResEvent $ PlayerLeft playerKey game
          Nothing => GamesResError (UnknownPlayer playerKey)
 interpret playerKey (Action {gameSegment} gameId act) games =
    case SortedMap.lookup gameId games of
@@ -223,8 +223,8 @@ apply games (GamesResEvent {gameId} (PlayerPlayed playerKey game' result)) =
             insert gameId game' games
           (ResError x) => games
           (ResQuery x) => games
-apply games (GamesResEvent {gameId} (PlayerLeft playerKey game)) =
-  insert gameId game games
+apply games (GamesResEvent {gameId = game.gameId } (PlayerLeft playerKey game)) =
+  insert game.gameId game games
 apply games (GamesResError x) = games
 
 export
