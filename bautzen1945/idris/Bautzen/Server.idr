@@ -4,6 +4,7 @@ module Bautzen.Server
 import Bautzen.Options
 
 import Bautzen.Games
+import Bautzen.Id
 import Bautzen.Network
 import Bautzen.REPL
 
@@ -64,26 +65,26 @@ handleClient log socket addr hdlr = do
   handleClient log socket addr hdlr
 
 
-clientHandshake : Logger -> Socket -> IO (Either String String)
+clientHandshake : Logger -> Socket -> IO (Either String Id)
 clientHandshake log sock = do
-   Right msg <- receiveMessage log sock
+   Right msg <- join . map makeId <$> receiveMessage log sock
      | Left err => pure (Left err)
    Right _ <- send sock (toWire "OK")
      | Left err => pure (Left $ show err)
    pure $ Right msg
 
-commandLoop : Channel String -> Channel String -> String -> Games -> IO ()
+commandLoop : Channel String -> Channel String -> Id -> Games -> IO ()
 commandLoop cin cout clientId game = do
    msg <- channelGet cin
    case msg of
      -- Poison pill
      "STOP" => pure ()
      _ => do
-       let (res, game') = handleCommand game msg
+       let (res, game') = handleCommand clientId game msg
        channelPut cout res
        commandLoop cin cout clientId game'
 
-serve : Logger -> Socket -> IORef (SortedMap String GameHandler) ->  IO (Either String ())
+serve : Logger -> Socket -> IORef (SortedMap Id GameHandler) ->  IO (Either String ())
 serve log sock clients  = do
   log "awaiting clients"
   Right (s, addr) <- accept sock
@@ -97,10 +98,10 @@ serve log sock clients  = do
     handleClient log s addr hdlr
     stopHandler hdlr
     modifyIORef clients (delete clientId)
-  log $ "forked client handler for " ++ clientId
+  log $ "forked client handler for " ++ show @{AsString} clientId
   serve log sock clients
  where
-   mkChannelsFor : String -> IO GameHandler
+   mkChannelsFor : Id -> IO GameHandler
    mkChannelsFor clientId = do
       cin <- makeChannel
       cout <- makeChannel

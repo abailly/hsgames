@@ -3,7 +3,7 @@ module Bautzen.Client
 
 import Bautzen.Options
 import Bautzen.Network
-
+import Bautzen.Id
 
 import Data.Strings.Extra
 
@@ -39,14 +39,14 @@ sendCommand socket command = do
   receiveMessage socket
 
 export
-openConnection : (host:String) -> (port: Int) -> String -> IO (Either String Socket)
+openConnection : (host:String) -> (port: Int) -> Id -> IO (Either String Socket)
 openConnection host port instanceId = do
   Right sock <- socket AF_INET Stream 0
         | Left fail => pure (Left $ "Failed to open socket: " ++ show fail)
   res <- connect sock (Hostname host) port
   if res /= 0
     then pure (Left $ "Failed to connect socket with error: " ++ show res)
-    else let clientId = toWire instanceId
+    else let clientId = toWire (show @{AsString} instanceId)
          in do
             Right l <- send sock clientId
              | Left err => pure $ Left ("failed to send message " ++ show err)

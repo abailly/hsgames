@@ -2,6 +2,7 @@ module Bautzen.REPL
 
 import Debug.Trace
 import Bautzen.Games
+import Bautzen.Id
 import Bautzen.Options
 
 import System.REPL.Extra
@@ -18,12 +19,12 @@ parseCommand game input =
 
 partial
 export
-handleCommand : Games -> String -> (String, Games)
-handleCommand games input =
+handleCommand : Id -> Games -> String -> (String, Games)
+handleCommand clientId games input =
   case parseCommand games input of
     Left err => (err, games)
     Right act =>
-        let res = interpret act games
+        let res = interpret clientId act games
             games' = apply games res
         in (show $ cast {to = JSON} res, games')
 
@@ -34,4 +35,4 @@ eoiHandler = show . cast {to = JSON}
 export
 partial
 repl : Options -> IO ()
-repl _ = processStdin initialGames handleCommand eoiHandler
+repl opts = processStdin initialGames (handleCommand opts.instanceId) eoiHandler
