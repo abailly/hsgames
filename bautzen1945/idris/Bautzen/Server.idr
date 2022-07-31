@@ -77,18 +77,30 @@ receive log socket = do
         | Left err => pure $ Left (show err)
       pure $ Right msg
 
-handleClient : Logger -> Socket -> SocketAddress -> GameHandler -> IO ()
-handleClient log socket addr hdlr = do
-  Right msg <- receive log socket
-    | Left err => do log err ; close socket
-  log $ "received '" ++ msg ++ "'"
-  channelPut hdlr.cin msg
-  res <- channelGet hdlr.cout
-  log $ "result is '" ++ show res ++ "'"
-  Right l <- send socket (toWire res)
-    | Left err => do log ("failed to send message " ++ show err) ; close socket -- TODO error handling
-  log $ "sent result"
-  handleClient log socket addr hdlr
+handleClient : Logger -> Socket -> SocketAddress -> GameHandler -> IO (ThreadID, ThreadID)
+handleClient log socket addr hdlr =
+ (,) <$> fork handleInput <*> fork handleOutput
+ where
+   stopHandler : GameHandler -> IO ()
+   stopHandler hdlr = channelPut hdlr.cin "STOP"
+
+   handleInput : IO ()
+   handleInput = do
+      Right msg <- receive log socket
+        | Left err => do log err ; close socket ; stopHandler hdlr
+      log $ "received '" ++ msg ++ "'"
+      channelPut hdlr.cin msg
+      handleInput
+
+   handleOutput : IO ()
+   handleOutput = do
+     res <- channelGet hdlr.cout
+     log $ "dispatchting result: '" ++ show res ++ "'"
+     Right l <- send socket (toWire res)
+       | Left err => do log ("failed to send message " ++ show err) ; close socket ; stopHandler hdlr
+ -- TODO error handling
+     log $ "sent result"
+     handleOutput
 
 ||| Clients are expected to send their `Id` upon connection.
 clientHandshake : Logger -> Socket -> IO (Either String Id)
@@ -99,16 +111,17 @@ clientHandshake log sock = do
      | Left err => pure (Left $ show err)
    pure $ Right msg
 
-commandLoop : Channel String -> Channel String -> Id -> GamesState -> IO ()
-commandLoop cin cout clientId gamesState = do
+commandLoop : Channel String -> Channel String -> IORef (SortedMap Id GameHandler) -> Id -> GamesState -> IO ()
+commandLoop cin cout clients clientId gamesState = do
    msg <- channelGet cin
    case msg of
      -- Poison pill
-     "STOP" => pure ()
+     "STOP" =>
+       modifyIORef clients (delete clientId)
      _ => do
        res <- gamesState.handleMessage clientId msg
        channelPut cout res
-       commandLoop cin cout clientId gamesState
+       commandLoop cin cout clients clientId gamesState
 
 serve : Logger -> Socket -> IORef (SortedMap Id GameHandler) -> GamesState ->  IO (Either String ())
 serve log sock clients gamesState = do
@@ -120,10 +133,7 @@ serve log sock clients gamesState = do
     |  Left err => do log ("failed to identify client, " ++ show err) ; close s; serve log sock clients gamesState
   cs <- readIORef clients
   hdlr <- maybe (mkChannelsFor clientId) pure (lookup clientId cs)
-  pid <- fork $ do
-    handleClient log s addr hdlr
-    stopHandler hdlr
-    modifyIORef clients (delete clientId)
+  _ <- handleClient log s addr hdlr
   log $ "forked client handler for " ++ show @{AsString} clientId
   serve log sock clients gamesState
  where
@@ -131,13 +141,10 @@ serve log sock clients gamesState = do
    mkChannelsFor clientId = do
       cin <- makeChannel
       cout <- makeChannel
-      loopPid <- fork $ commandLoop cin cout clientId gamesState
+      loopPid <- fork $ commandLoop cin cout clients clientId gamesState
       let hdlr = MkGameHandler cin cout loopPid
       modifyIORef clients (insert clientId hdlr)
       pure hdlr
-
-   stopHandler : GameHandler -> IO ()
-   stopHandler hdlr = channelPut hdlr.cin "STOP"
 
 export
 server : Options -> IO (Either String ())
