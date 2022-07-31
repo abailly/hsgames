@@ -13,7 +13,7 @@ import Language.JSON
 
 %default total
 
-||| Lifecycle protocol for a single game.
+||| Lifecycle protocol for games.
 |||
 ||| The @gameId@ type parameter is used to distinguish commands for
 ||| each different managed games.
@@ -21,7 +21,6 @@ public export
 data GameCommand : Type where
 
   ||| Create a new game with given id.
-  ||| TODO: what if game with same id exists?
   NewGame : (newGameId : Id) -> GameCommand
 
   ||| A player identified by @playerKey@ joins given game
@@ -35,9 +34,16 @@ data GameCommand : Type where
 
 public  export
 data PlayerType =
+     ||| Player is a human with given id.
      HumanPlayer Id
      | RobotPlayer
      | NoPlayer
+
+Eq PlayerType where
+  HumanPlayer i == HumanPlayer i' = i == i'
+  RobotPlayer == RobotPlayer = True
+  NoPlayer == NoPlayer = True
+  _ == _ = False
 
 export
 Cast PlayerType JSON where
@@ -96,18 +102,21 @@ makeGameCommand games (JObject [ ("tag", JString "Bye"), ("gameId", JString game
 makeGameCommand _ json = Left $ "Unknown command " ++ show json
 
 export
-data GamesEvent : (gameId : Id) -> Type where
-   NewGameCreated : (game : SingleGame) -> GamesEvent (game.gameId)
-   PlayerJoined :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent (game.gameId)
-   PlayerPlayed :  (playerKey : Id) -> (game : SingleGame) ->  (result : ActionResult segment) -> GamesEvent gameId
-   PlayerLeft :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent game.gameId
+data GamesEvent : Type where
+   NewGameCreated : (game : SingleGame) -> GamesEvent
+   PlayerJoined :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent
+   GameStarted :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent
+   PlayerPlayed :  (playerKey : Id) -> (game : SingleGame) ->  (result : ActionResult segment) -> GamesEvent
+   PlayerLeft :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent
 
 export
-Cast (GamesEvent gid) JSON where
+Cast GamesEvent JSON where
   cast (NewGameCreated game) =
     JObject [ ("tag", JString "NewGameCreated"), ("game", cast game.gameId) ]
   cast (PlayerJoined playerKey game) =
     JObject [ ("tag", JString "PlayerJoined"), ("gameId", cast game.gameId) ]
+  cast (GameStarted playerKey game) =
+    JObject [ ("tag", JString "GameStarted"), ("gameId", cast game.gameId) ]
   cast (PlayerPlayed playerKey game result) =
     JObject [ ("tag", JString "PlayerPlayed"), ("gameId", cast game.gameId), ("result", cast result) ]
   cast (PlayerLeft playerKey game) =
@@ -136,7 +145,7 @@ Cast GamesError JSON where
 
 public export
 data GamesResult : (0 games : Games) -> Type where
-   GamesResEvent : { gameId : Id } -> (event : GamesEvent gameId) -> GamesResult games
+   GamesResEvent : (event : GamesEvent) -> GamesResult games
    GamesResError  : GamesError -> GamesResult games
 
 export
@@ -149,7 +158,7 @@ actAction {gameSegment} act single@(MkSingleGame xs axisPlayer alliesPlayer theG
   actAction act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) playerKey gameId games | (Yes prf) =
     let result = handleAction theGame $ rewrite prf in act
         game' =  applyResult theGame result
-    in GamesResEvent $ PlayerPlayed {gameId} playerKey ({ theGame := game' } single) result
+    in GamesResEvent $ PlayerPlayed playerKey ({ theGame := game' } single) result
   actAction act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) playerKey gameId games | (No contra) =
     GamesResError $ InvalidSegment gameSegment (curSegment theGame) playerKey gameId
 
@@ -182,14 +191,20 @@ interpret playerKey (NewGame gameId) games =
 interpret playerKey (JoinGame gameId Axis) games =
    case lookup gameId games of
       Just (MkSingleGame gameId NoPlayer alliesPlayer theGame) =>
-        GamesResEvent $ PlayerJoined playerKey (MkSingleGame gameId (HumanPlayer playerKey) alliesPlayer theGame)
+        let game = (MkSingleGame gameId (HumanPlayer playerKey) alliesPlayer theGame)
+        in if alliesPlayer == NoPlayer
+           then GamesResEvent $ PlayerJoined playerKey game
+           else GamesResEvent $ GameStarted playerKey game
       Just _ =>
         GamesResError $ SideTaken Axis playerKey
       Nothing => GamesResError $ UnknownGame gameId
 interpret playerKey (JoinGame gameId Allies) games =
    case lookup gameId games of
       Just (MkSingleGame gameId axisPlayer NoPlayer theGame) =>
-        GamesResEvent $ PlayerJoined playerKey (MkSingleGame gameId axisPlayer (HumanPlayer playerKey) theGame)
+        let game = (MkSingleGame gameId axisPlayer (HumanPlayer playerKey) theGame)
+        in if axisPlayer == NoPlayer
+           then GamesResEvent $ PlayerJoined playerKey game
+           else GamesResEvent $ GameStarted playerKey game
       Just _ =>
         GamesResError $ SideTaken Allies gameId
       Nothing => GamesResError $ UnknownGame gameId
@@ -209,21 +224,23 @@ interpret playerKey (Action {gameSegment} gameId act) games =
 ||| Apply a @GamesResult@ to current state of @Games@
 export
 apply : (games : Games) -> GamesResult games -> Games
-apply games (GamesResEvent {gameId = (game .gameId)} (NewGameCreated game)) =
+apply games (GamesResEvent  (NewGameCreated game)) =
  insert game.gameId game games
-apply games (GamesResEvent {gameId = (game .gameId)} (PlayerJoined playerKey game)) =
+apply games (GamesResEvent  (PlayerJoined playerKey game)) =
  insert game.gameId game games
-apply games (GamesResEvent {gameId} (PlayerPlayed playerKey game' result)) =
+apply games (GamesResEvent  (GameStarted playerKey game)) =
+ insert game.gameId game games
+apply games (GamesResEvent (PlayerPlayed playerKey game' result)) =
    -- TODO: we know the gameId is in the games so we shouldn't pattern match
-   case SortedMap.lookup gameId games of
+   case SortedMap.lookup game'.gameId games of
      Nothing => games
      (Just single@(MkSingleGame _ axis allies game)) =>
        case result of
           (ResEvent _) =>
-            insert gameId game' games
+            insert game'.gameId game' games
           (ResError x) => games
           (ResQuery x) => games
-apply games (GamesResEvent {gameId = game.gameId } (PlayerLeft playerKey game)) =
+apply games (GamesResEvent (PlayerLeft playerKey game)) =
   insert game.gameId game games
 apply games (GamesResError x) = games
 

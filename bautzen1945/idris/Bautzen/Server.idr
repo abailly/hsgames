@@ -64,8 +64,8 @@ mkLogger Quiet _ = pure ()
 mkLogger (Verbose name) msg =
   putStrLn  $ "[" ++ name ++ "] " ++ msg
 
-receiveMessage : Logger -> Socket -> IO (Either String String)
-receiveMessage log socket = do
+receive : Logger -> Socket -> IO (Either String String)
+receive log socket = do
   log "waiting for input"
   Right (str, _) <- recv socket 6 -- receive 6 characters representing the length of message to read
     | Left err => pure $ Left ("failed to receive length of message " ++ show err)
@@ -79,23 +79,21 @@ receiveMessage log socket = do
 
 handleClient : Logger -> Socket -> SocketAddress -> GameHandler -> IO ()
 handleClient log socket addr hdlr = do
-  Right msg <- receiveMessage log socket
+  Right msg <- receive log socket
     | Left err => do log err ; close socket
   log $ "received '" ++ msg ++ "'"
   channelPut hdlr.cin msg
   res <- channelGet hdlr.cout
   log $ "result is '" ++ show res ++ "'"
-  let lens = padWith0 (cast $ length res)
-  log $ "sending " ++ lens ++ " chars"
-  Right l <- send socket (lens ++ res)
+  Right l <- send socket (toWire res)
     | Left err => do log ("failed to send message " ++ show err) ; close socket -- TODO error handling
   log $ "sent result"
   handleClient log socket addr hdlr
 
-
+||| Clients are expected to send their `Id` upon connection.
 clientHandshake : Logger -> Socket -> IO (Either String Id)
 clientHandshake log sock = do
-   Right msg <- join . map makeId <$> receiveMessage log sock
+   Right msg <- join . map makeId <$> receive log sock
      | Left err => pure (Left err)
    Right _ <- send sock (toWire "OK")
      | Left err => pure (Left $ show err)

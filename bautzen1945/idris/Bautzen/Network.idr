@@ -23,8 +23,3 @@ toWire : String -> String
 toWire str =
   let len = padWith0 (prim__strLength str)
   in  len ++ str
-
-||| Convert a `String` to a SExp, if possible
-export
-fromWire : String -> Either String JSON
-fromWire msg = maybe (Left$ "Failed to parse JSON from " ++ msg) Right $ parse msg
