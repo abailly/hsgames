@@ -42,7 +42,7 @@ runPlayer ::
     Id ->
     InOut IO ->
     IO ()
-runPlayer logger host port player game io = do
+runPlayer logger host port game player io = do
     h <- connectTo host port
     send h (encode $ JoinGame player game)
     logInfo logger $ "registering " ++ show player ++ " with server, waiting for GameStarts"
