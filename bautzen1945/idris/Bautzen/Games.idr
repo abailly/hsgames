@@ -110,6 +110,14 @@ data GamesEvent : Type where
    PlayerLeft :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent
 
 export
+(.id) : GamesEvent -> Id
+(NewGameCreated game).id  = game.gameId
+(PlayerJoined playerKey game).id  =  game.gameId
+(GameStarted playerKey game).id  =  game.gameId
+(PlayerPlayed playerKey game result).id  = game.gameId
+(PlayerLeft playerKey game).id  = game.gameId
+
+export
 Cast GamesEvent JSON where
   cast (NewGameCreated game) =
     JObject [ ("tag", JString "NewGameCreated"), ("game", cast game.gameId) ]
@@ -181,14 +189,14 @@ removePlayerFromGame _ _ = Nothing
 
 ||| Interpret @GameCommand@, returning a @GamesResult@
 export
-interpret : Id -> GameCommand -> (games : Games) -> GamesResult games
-interpret playerKey (NewGame gameId) games =
+act : Id -> GameCommand -> (games : Games) -> GamesResult games
+act playerKey (NewGame gameId) games =
    case lookup gameId games of
       Just _ =>
         GamesResError $ GameAlreadyExists gameId
       Nothing =>
         GamesResEvent $ NewGameCreated $ MkSingleGame gameId NoPlayer NoPlayer initialGame
-interpret playerKey (JoinGame gameId Axis) games =
+act playerKey (JoinGame gameId Axis) games =
    case lookup gameId games of
       Just (MkSingleGame gameId NoPlayer alliesPlayer theGame) =>
         let game = (MkSingleGame gameId (HumanPlayer playerKey) alliesPlayer theGame)
@@ -198,7 +206,7 @@ interpret playerKey (JoinGame gameId Axis) games =
       Just _ =>
         GamesResError $ SideTaken Axis playerKey
       Nothing => GamesResError $ UnknownGame gameId
-interpret playerKey (JoinGame gameId Allies) games =
+act playerKey (JoinGame gameId Allies) games =
    case lookup gameId games of
       Just (MkSingleGame gameId axisPlayer NoPlayer theGame) =>
         let game = (MkSingleGame gameId axisPlayer (HumanPlayer playerKey) theGame)
@@ -208,18 +216,18 @@ interpret playerKey (JoinGame gameId Allies) games =
       Just _ =>
         GamesResError $ SideTaken Allies gameId
       Nothing => GamesResError $ UnknownGame gameId
-interpret playerKey (Bye gameId) games =
+act playerKey (Bye gameId) games =
   case SortedMap.lookup gameId games of
     Nothing => GamesResError $ UnknownGame gameId
     Just single =>
       case removePlayerFromGame playerKey single of
          Just game => GamesResEvent $ PlayerLeft playerKey game
          Nothing => GamesResError (UnknownPlayer playerKey)
-interpret playerKey (Action {gameSegment} gameId act) games =
+act playerKey (Action {gameSegment} gameId action) games =
    case SortedMap.lookup gameId games of
      Nothing => GamesResError $ UnknownGame gameId
      (Just single@(MkSingleGame _ _ _ game)) =>
-       actAction act single playerKey gameId games
+       actAction action single playerKey gameId games
 
 ||| Apply a @GamesResult@ to current state of @Games@
 export
@@ -243,6 +251,13 @@ apply games (GamesResEvent (PlayerPlayed playerKey game' result)) =
 apply games (GamesResEvent (PlayerLeft playerKey game)) =
   insert game.gameId game games
 apply games (GamesResError x) = games
+
+export
+interpret : Id -> GameCommand -> (games : Games) -> (GamesResult games, Games)
+interpret clientId command games =
+  let res = act clientId command games
+  in (res, apply games res)
+
 
 export
 initialGames : Games

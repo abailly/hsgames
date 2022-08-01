@@ -12,23 +12,20 @@ import Data.Nat
 import Language.JSON
 
 
-partial
+export
 parseCommand : (games : Games) -> String -> Either String GameCommand
 parseCommand game input =
   maybe (Left $ "cannot parse JSON: " ++ input) Right (parse input) >>= makeGameCommand game
 
-partial
 export
 handleCommand : Id -> Games -> String -> (String, Games)
 handleCommand clientId games input =
   case parseCommand games input of
     Left err => (err, games)
     Right act =>
-        let res = interpret clientId act games
-            games' = apply games res
-        in (show $ cast {to = JSON} res, games')
+       let (res, g) = interpret clientId act games
+       in (show $ cast {to = JSON} res, g)
 
-partial
 eoiHandler : Games -> String
 eoiHandler = show . cast {to = JSON}
 
