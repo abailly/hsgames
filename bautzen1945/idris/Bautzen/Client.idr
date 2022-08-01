@@ -22,21 +22,28 @@ import System.File
 receiveMessage : Socket -> IO (Either String String)
 receiveMessage socket = do
   Right (str, _) <- recv socket 6
-    | Left err => pure $ Left ("failed to receive length of message " ++ show err)
+    | Left err => pure $ Left ("failed to receive length of message: " ++ show err)
   case parseInteger (unpack str) 0 of
     Nothing => pure $ Left ("fail to parse '" ++ str ++ "' to expected number of characters, ignoring")
     Just len => do Right (msg, _) <- recv socket (fromInteger len)
-                     | Left err => pure $ Left ("failed to read message " ++ show err)
+                     | Left err => pure $ Left ("failed to read message: '" ++ show err ++ "'")
                    pure (Right msg)
 
-sendCommand : Socket -> JSON -> IO (Either String String)
+runReceiver : Socket -> Fuel -> IO ()
+runReceiver cnx Dry = pure ()
+runReceiver cnx (More f) = do
+    Right msg <- receiveMessage cnx
+      | Left err => putStrLn $ "! " ++ err
+    putStr "< " ; putStrLn msg
+    runReceiver cnx f
+
+sendCommand : Socket -> JSON -> IO (Either String ())
 sendCommand socket command = do
   let cmd = toWire (show command)
-  putStrLn $ "sending message " ++ cmd
   Right l <- send socket cmd
     | Left err => pure $ Left ("failed to send message " ++ show err)
-  putStrLn $ "sent message, waiting answer"
-  receiveMessage socket
+  putStrLn $ "sent message: '" ++ cmd ++ "'"
+  pure $ Right ()
 
 export
 openConnection : (host:String) -> (port: Int) -> Id -> IO (Either String Socket)
@@ -64,9 +71,8 @@ runREPL sock =
        else do x <- getLine
                case parse x of
                     Just out =>
-                        do Right result <- sendCommand sock out
+                        do Right () <- sendCommand sock out
                                  | Left err => do putStrLn ("Error sending command: " ++ err) ; runREPL sock
-                           putStrLn result
                            runREPL sock
                     Nothing => do putStrLn ("Invalid command: " ++ x) ; runREPL sock
 
@@ -75,5 +81,6 @@ client : Options -> IO (Either String ())
 client (MkOptions port host _ _ instanceId)  = do
   Right cnx <- openConnection host port instanceId
         | Left err => pure (Left err)
+  _ <- fork $ runReceiver cnx forever
   runREPL cnx
   pure (Right ())
