@@ -1,7 +1,7 @@
 -- | Handles interaction with game players' clients
 module GameServer.Clients where
 
-import Control.Concurrent.Async (Async, async, cancel, waitAnyCancel)
+import Control.Concurrent.Async (Async, async, cancel, link, waitAnyCancel)
 import Control.Concurrent.Chan.Unagi (InChan, OutChan, newChan, readChan, writeChan)
 import Control.Concurrent.STM
 import Control.Exception (catch)
@@ -12,7 +12,8 @@ import Data.Functor
 import Data.IORef
 import qualified Data.Map as M
 import Data.Text (pack, unpack)
-import Data.Text.Lazy (Text)
+import Data.Text.Lazy (Text, toStrict)
+import Data.Text.Lazy.Encoding (decodeUtf8)
 import Debug.Trace
 import GHC.Generics
 import GameServer.Backend.Bautzen1945 (makeBautzenConnection)
@@ -113,31 +114,26 @@ handleBautzen1945Client :: LoggerEnv IO -> String -> PortNumber -> Connection ->
 handleBautzen1945Client logger host port connection = do
     serverCnx <- connectSocketTo host port >>= makeBautzenConnection
     logInfo logger $ "start player threads for " ++ host ++ "@" ++ show port
-    -- we run 2 asyncs, one for handling player commands and general game play,
-    -- the other to pump server's response to WS connection. This seems necessary because
-    -- we have 2 connections to handle:
-    --
-    --  * WS Connection between remote client's UI and this server code,
-    --  * Chan-based connection between player's proxy and main server
-    --
-    -- There should be a way to greatly simplify this code using directly pure version of the game
-    -- instead of wrapping the CLI server.
+    -- we run 2 asyncs:
+    --  * one for handling player commands
+    --  * the other to handle server's response
     toServer <- async $ do
         logInfo logger ("starting read loop" :: String)
         forever $ do
             Text message _ <- receiveDataMessage connection
-            logInfo logger $ "received message: " ++ show message
+            logInfo logger $ "received message: " ++ unpack (toStrict $ decodeUtf8 message)
             send serverCnx message
         logInfo logger ("stopping read loop" :: String)
 
     toClient <- async $ do
         logInfo logger ("starting response sender" :: String)
         forever $ do
-            v <- receive serverCnx
-            logInfo logger $ "sending response to player " ++ show v
-            sendTextData connection v
+            message <- receive serverCnx
+            logInfo logger $ "sending response to player " ++ unpack (toStrict $ decodeUtf8 message)
+            sendTextData connection message
                 `catch` (\(e :: ConnectionException) -> logInfo logger $ "response sender error: " ++ show e)
-
+    link toClient
+    link toServer
     void $ waitAnyCancel [toClient, toServer]
 
 handleClient :: LoggerEnv IO -> IORef ClientConnection -> String -> PortNumber -> Connection -> IO ()
