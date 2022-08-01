@@ -49,15 +49,15 @@ data ClientConnection = ClientConnection
     }
 
 findBackend ::
-    [GameBackend] -> SBS.ByteString -> Maybe (String, PortNumber)
+    [GameBackend] -> SBS.ByteString -> Maybe (String, PortNumber, GameType)
 findBackend backends url = do
     let parts = SBS.split (toEnum $ fromEnum '/') url
-    backend <-
-        selectBackend backends =<< case parts of
-            ("" : "games" : "Acquire" : _) -> Just Acquire
-            ("" : "games" : "Bautzen1945" : _) -> Just Bautzen1945
-            _ -> Nothing
-    pure (gameHost backend, fromIntegral $ gamePort backend)
+    gameType <- case parts of
+        ("" : "games" : "Acquire" : _) -> Just Acquire
+        ("" : "games" : "Bautzen1945" : _) -> Just Bautzen1945
+        _ -> Nothing
+    backend <- selectBackend backends gameType
+    pure (gameHost backend, fromIntegral $ gamePort backend, gameType)
 
 handleWS ::
     LoggerEnv IO ->
@@ -70,12 +70,12 @@ handleWS logger cnxs backends pending = do
         backend = findBackend backends key
     logInfo logger $ "got websocket request with key: " ++ show key
     case backend of
-        Just (host, port) -> do
+        Just (host, port, gameType) -> do
             connection <- acceptRequest pending
             ref <- getOrMakeChannels key connection
             withPingThread connection 30 (pure ()) $ do
-                logInfo logger $ "starting client for backend at (" ++ host ++ "," ++ show port ++ ")"
-                handleClient logger ref host port connection
+                logInfo logger $ "starting client for backend " <> show gameType <> " at (" ++ host ++ "," ++ show port ++ ")"
+                handleClient logger ref host port connection gameType
         Nothing -> do
             logError logger $ "no backend found for URL " ++ show key
             rejectRequest pending "Invalid backend in URL"
@@ -101,18 +101,20 @@ handleWS logger cnxs backends pending = do
                 logInfo logger $ "reusing old channels with key " ++ show key
                 return r
 
-handleClient :: LoggerEnv IO -> IORef ClientConnection -> String -> PortNumber -> Connection -> IO ()
-handleClient logger channels host port connection =
+handleClient :: LoggerEnv IO -> IORef ClientConnection -> String -> PortNumber -> Connection -> GameType -> IO ()
+handleClient logger channels host port connection gameType =
     let clientLoop = do
             Text message _ <- receiveDataMessage connection
             logInfo logger $ "received message: " ++ show message
             case eitherDecode message of
                 Left e -> sendTextData connection (encode $ CommandError $ pack e)
-                Right c -> handleCommand c
+                Right c -> case gameType of
+                    Acquire -> handleAcquireCommand c
+                    Bautzen1945 -> handleBautzen1945Command c
             clientLoop
      in clientLoop
             `catch` ( \(e :: ConnectionException) -> do
-                        logInfo logger $ "client error: " ++ (show e) ++ ", closing everything"
+                        logInfo logger $ "client error: " ++ show e ++ ", closing everything"
                         cleanup
                     )
   where
@@ -173,20 +175,23 @@ handleClient logger channels host port connection =
         maybe (return ()) cancel cp
         modifyIORef channels (\c -> c{serverPump = Nothing, clientPump = Nothing})
 
-    handleCommand ListGames = do
+    handleAcquireCommand ListGames = do
         r <- listGames logger host port
         case r of
             Left err -> sendTextData connection (encode err)
             Right res -> sendTextData connection (encode res)
-    handleCommand (NewGame numHumans numRobots) = do
+    handleAcquireCommand (NewGame numHumans numRobots) = do
         r <- runNewGame host port numHumans numRobots
         sendTextData connection (encode r)
         logInfo logger $ "created new game " ++ show r
-    handleCommand JoinGame{playerKey, gameId} = do
+    handleAcquireCommand JoinGame{playerKey, gameId} = do
         startPlayer playerKey gameId
         logInfo logger $ "player joined game " ++ show gameId
-    handleCommand (Action n) = do
+    handleAcquireCommand (Action n) = do
         w <- inChan <$> readIORef channels
         writeChan w (unpack n)
         logInfo logger $ "action " ++ show n
-    handleCommand Bye = sendClose connection ("Bye" :: Text)
+    handleAcquireCommand Bye = sendClose connection ("Bye" :: Text)
+
+    handleBautzen1945Command :: Message -> IO ()
+    handleBautzen1945Command = Prelude.error "not implemented"
