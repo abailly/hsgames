@@ -62,6 +62,7 @@ type alias Model =
 type Request
     = {- Request current positions of all units -} PositionsQ
     | JoinGame { playerKey : String, gameId : String }
+    | Connect { playerKey : String }
 
 
 encodeRequest : Request -> Json.Value
@@ -69,6 +70,12 @@ encodeRequest msg =
     case msg of
         PositionsQ ->
             Enc.list Enc.string [ "positions?" ]
+
+        Connect j ->
+            Enc.object
+                [ ( "tag", Enc.string "Connect" )
+                , ( "playerKey", Enc.string j.playerKey )
+                ]
 
         JoinGame j ->
             Enc.object
@@ -262,12 +269,14 @@ init i =
             }
     in
     ( model
-    , sendCommand model <| JoinGame { gameId = i.gameId, playerKey = i.playerKey }
+    , sendCommand model <| Connect { playerKey = i.playerKey }
     )
 
 
 type Messages
-    = Positions (List ( Unit, Pos ))
+    = {- Server acknowledged player's connection -}
+      Connected
+    | Positions (List ( Unit, Pos ))
 
 
 tuple2 : (a -> b -> c) -> Json.Decoder a -> Json.Decoder b -> Json.Decoder c
@@ -326,6 +335,9 @@ makeMessages tag =
         "Positions" ->
             field "positions" (Json.map Positions (Json.list decodeUnitPos))
 
+        "Connected" ->
+            Json.succeed Connected
+
         other ->
             Json.fail ("Unknown tag " ++ other)
 
@@ -338,6 +350,9 @@ decodeUnitPos =
 handleMessages : Model -> String -> ( Model, Cmd Msg )
 handleMessages model s =
     case Json.decodeString decodeMessages s of
+        Ok Connected ->
+            ( model, Cmd.none )
+
         Ok (Positions _) ->
             ( model, Cmd.none )
 

@@ -122,14 +122,28 @@ handleClient log socket addr hdlr =
      log $ "sent result"
      handleOutput
 
+data Handshake =
+   Connect Id
+   | Connected
+
+Cast Handshake JSON where
+  cast (Connect k) = JObject [( "tag", JString "Connect"), ("playerKey", cast k)]
+  cast Connected = JObject [( "tag", JString "Connected")]
+
 ||| Clients are expected to send their `Id` upon connection.
 clientHandshake : Logger -> Socket -> IO (Either String Id)
 clientHandshake log sock = do
-   Right msg <- join . map makeId <$> receive log sock
+   Right msg <- receive log sock
      | Left err => pure (Left err)
-   Right _ <- send sock (toWire "OK")
-     | Left err => pure (Left $ show err)
-   pure $ Right msg
+   case parse msg of
+     Just (JObject [("tag", JString "Connect"), ("playerKey", JString k)]) =>
+       case makeId k of
+          Right id => do
+            Right _ <- send sock (toWire $ show $ cast {to = JSON } Connected)
+              | Left err => pure (Left $ show err)
+            pure $ Right id
+          Left err => pure $ Left err
+     other => pure $ Left $ "invalid handshake " ++ show other
 
 
 commandLoop : Channel String -> Channel String -> IORef (SortedMap Id GameHandler) -> IORef (SortedMap Id (SortedMap Id (Channel String))) -> Id -> GamesState -> IO ()
