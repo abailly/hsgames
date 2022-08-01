@@ -32,12 +32,17 @@ record GameHandler where
   cout : Channel String
   game : ThreadID
 
+data MessageResult : Type where
+  MsgError : (err : String) -> MessageResult
+  MsgEvent : (event : String) -> (gameId : Id) -> MessageResult
+
+
 record GamesState where
   constructor MkGamesState
   ||| Handle a single serialised command from given client @Id@.
   ||| This handler should be threadsafe and returns the result of executing the command, alongside
   ||| the `Id` of the game this command is related to, if it's not a `GamesResultErr`.
-  handleMessage : Id -> String -> IO (String, Maybe Id)
+  handleMessage : Id -> String -> IO MessageResult
 
 atomically : Mutex -> IO a -> IO a
 atomically mutex act = do
@@ -60,7 +65,7 @@ mkGamesState = do
         let (res, g) = interpret clientId act games
         in (Right res, g)
 
-    handle : IORef Games -> Mutex -> Id -> String -> IO (String, Maybe Id)
+    handle : IORef Games -> Mutex -> Id -> String -> IO MessageResult
     handle refGames mutex clientId msg =
       atomically mutex $ do
          g <- readIORef refGames
@@ -68,11 +73,11 @@ mkGamesState = do
          writeIORef refGames g'
          pure $ case res of
            (Left err) =>
-             (err, Nothing)
+             MsgError err
            (Right (GamesResEvent event)) =>
-             (show $ cast { to = JSON } event, Just event.id)
+             MsgEvent (show $ cast { to = JSON } event) event.id
            (Right (GamesResError x)) =>
-             (show $ cast { to = JSON } x, Nothing)
+             MsgError $ show $ cast { to = JSON } x
 
 mkLogger : Verbosity -> Logger
 mkLogger Quiet _ = pure ()
@@ -126,7 +131,8 @@ clientHandshake log sock = do
      | Left err => pure (Left $ show err)
    pure $ Right msg
 
-commandLoop : Channel String -> Channel String -> IORef (SortedMap Id GameHandler) -> IORef (SortedMap Id (List (Channel String))) -> Id -> GamesState -> IO ()
+
+commandLoop : Channel String -> Channel String -> IORef (SortedMap Id GameHandler) -> IORef (SortedMap Id (SortedMap Id (Channel String))) -> Id -> GamesState -> IO ()
 commandLoop cin cout clients gamesOutput clientId gamesState = do
    msg <- channelGet cin
    case msg of
@@ -134,14 +140,26 @@ commandLoop cin cout clients gamesOutput clientId gamesState = do
      "STOP" =>
        modifyIORef clients (delete clientId)
      _ => do
-       (res, gameId) <- gamesState.handleMessage clientId msg
-       gMap <- readIORef gamesOutput
-       case gameId >>= flip lookup gMap of
-          Nothing => pure ()
-          Just outs => traverse_ (\ out => channelPut out res) outs
+       res <- gamesState.handleMessage clientId msg
+       handleOutputsForResult res
+       --traverse_ (\ out => channelPut out res) outs
        commandLoop cin cout clients gamesOutput clientId gamesState
+  where
+   handleOutputsForResult : MessageResult -> IO ()
+   handleOutputsForResult (MsgError err) = channelPut cout err
+   handleOutputsForResult (MsgEvent event gameId) = do
+      modifyIORef gamesOutput $ \ gmap => case lookup gameId gmap of
+        Nothing => insert gameId (insert clientId cout empty) gmap
+        Just outs =>
+          case lookup clientId outs of
+            Nothing => insert gameId (insert clientId cout outs) gmap
+            Just _ => gmap
+      Just outs <- lookup gameId <$> readIORef gamesOutput
+        | Nothing => pure () -- TODO: should never happen? prove it...
+      let output = show $ cast {to = JSON} event
+      traverse_ (\out => channelPut out output) outs
 
-serve : Logger -> Socket -> IORef (SortedMap Id GameHandler) -> IORef (SortedMap Id (List (Channel String))) -> GamesState ->  IO (Either String ())
+serve : Logger -> Socket -> IORef (SortedMap Id GameHandler) -> IORef (SortedMap Id (SortedMap Id (Channel String))) -> GamesState ->  IO (Either String ())
 serve log sock clients gamesOutput gamesState = do
   log "awaiting clients"
   Right (s, addr) <- accept sock
@@ -178,6 +196,6 @@ server (MkOptions port host _ verbosity _) = do
         then pure (Left $ "Failed to listen on socket with error: " ++ show res)
         else do
           hdlrs <- newIORef empty
-          gamesState <- mkGamesState
           gamesOutput <- newIORef empty
+          gamesState <- mkGamesState
           serve (mkLogger verbosity) sock hdlrs gamesOutput gamesState
