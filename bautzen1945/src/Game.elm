@@ -4,9 +4,11 @@ import Browser
 import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (onClick)
 import Html5.DragDrop as DragDrop exposing (Position)
 import Json.Decode as Json exposing (andThen, field, index, succeed)
 import Json.Encode as Enc
+import Random
 import String exposing (fromInt)
 import Tuple exposing (first)
 
@@ -52,17 +54,23 @@ type alias Unit =
     { name : UnitName, army : Army, position : Pos }
 
 
-type alias Model =
+type alias Game =
     { units : Dict.Dict UnitName Unit
     , positions : Dict.Dict Pos (List Unit)
     , dragDrop : DragDrop.Model UnitName Pos
     }
 
 
+type Model
+    = NoGame
+    | InGame Game
+
+
 type Request
     = {- Request current positions of all units -} PositionsQ
     | JoinGame { playerKey : String, gameId : String }
     | Connect { playerKey : String }
+    | NewGame { gameId : String }
 
 
 encodeRequest : Request -> Json.Value
@@ -77,6 +85,12 @@ encodeRequest msg =
                 , ( "playerKey", Enc.string j.playerKey )
                 ]
 
+        NewGame g ->
+            Enc.object
+                [ ( "tag", Enc.string "NewGame" )
+                , ( "gameId", Enc.string g.gameId )
+                ]
+
         JoinGame j ->
             Enc.object
                 [ ( "tag", Enc.string "JoinGame" )
@@ -87,8 +101,9 @@ encodeRequest msg =
 
 type Msg
     = DragDropMsg (DragDrop.Msg UnitName Pos)
-    | Output Request
+    | StartNewGame
     | Input String
+    | NewGameWithId String
 
 
 germanOOB : List String
@@ -261,21 +276,27 @@ init : { port_ : String, host : String, gameId : String, playerKey : String } ->
 init i =
     let
         model =
-            { units =
-                Dict.fromList <| List.map (\u -> ( u.name, u )) <| russianUnits ++ germanUnits
-            , positions =
-                Dict.fromList [ ( ( 100, 100 ), russianUnits ), ( ( 200, 200 ), germanUnits ) ]
-            , dragDrop = DragDrop.init
-            }
+            NoGame
     in
     ( model
     , sendCommand model <| Connect { playerKey = i.playerKey }
     )
 
 
+
+-- inGame : Model
+-- inGame =
+--     InGame
+--         { units =
+--             Dict.fromList <| List.map (\u -> ( u.name, u )) <| russianUnits ++ germanUnits
+--         , positions =
+--             Dict.fromList [ ( ( 100, 100 ), russianUnits ), ( ( 200, 200 ), germanUnits ) ]
+--         , dragDrop = DragDrop.init
+--         }
+
+
 type Messages
-    = {- Server acknowledged player's connection -}
-      Connected
+    = {- Server acknowledged player's connection -} Connected
     | Positions (List ( Unit, Pos ))
 
 
@@ -362,67 +383,88 @@ handleMessages model s =
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    case msg of
-        Input s ->
-            handleMessages model s
+    case model of
+        NoGame ->
+            case msg of
+                StartNewGame ->
+                    let
+                        randomGameId =
+                            Random.map String.fromList (Random.list 8 <| Random.map Char.fromCode (Random.int 65 90))
+                    in
+                    ( model, Random.generate NewGameWithId randomGameId )
 
-        Output req ->
-            ( model, sendCommand model req )
+                NewGameWithId gid ->
+                    ( model, sendCommand model (NewGame { gameId = gid }) )
 
-        DragDropMsg msg_ ->
-            let
-                ( model_, result ) =
-                    DragDrop.update msg_ model.dragDrop
+                Input s ->
+                    handleMessages model s
 
-                setPos pos u =
-                    Maybe.map (\unit -> { unit | position = pos }) u
+                _ ->
+                    ( model, Cmd.none )
 
-                updatePositions maybeUnit newPosition positions =
-                    case maybeUnit of
-                        Nothing ->
-                            positions
+        InGame game ->
+            case msg of
+                Input s ->
+                    handleMessages model s
 
-                        Just unit ->
-                            let
-                                remove =
-                                    Maybe.map (\us -> List.filter (\u -> u.name /= unit.name) us)
+                DragDropMsg msg_ ->
+                    let
+                        ( model_, result ) =
+                            DragDrop.update msg_ game.dragDrop
 
-                                add units =
-                                    let
-                                        newPos =
-                                            { unit | position = newPosition }
-                                    in
-                                    case units of
-                                        Nothing ->
-                                            Just [ newPos ]
+                        setPos pos u =
+                            Maybe.map (\unit -> { unit | position = pos }) u
 
-                                        Just us ->
-                                            Just (newPos :: us)
-                            in
-                            Dict.update newPosition add <|
-                                Dict.update unit.position
-                                    remove
+                        updatePositions maybeUnit newPosition positions =
+                            case maybeUnit of
+                                Nothing ->
                                     positions
-            in
-            ( { model
-                | dragDrop = model_
-                , units =
-                    case result of
-                        Nothing ->
-                            model.units
 
-                        Just ( unitName, position, _ ) ->
-                            Dict.update unitName (setPos position) model.units
-                , positions =
-                    case result of
-                        Nothing ->
-                            model.positions
+                                Just unit ->
+                                    let
+                                        remove =
+                                            Maybe.map (\us -> List.filter (\u -> u.name /= unit.name) us)
 
-                        Just ( unitName, position, _ ) ->
-                            updatePositions (Dict.get unitName model.units) position model.positions
-              }
-            , Cmd.none
-            )
+                                        add units =
+                                            let
+                                                newPos =
+                                                    { unit | position = newPosition }
+                                            in
+                                            case units of
+                                                Nothing ->
+                                                    Just [ newPos ]
+
+                                                Just us ->
+                                                    Just (newPos :: us)
+                                    in
+                                    Dict.update newPosition add <|
+                                        Dict.update unit.position
+                                            remove
+                                            positions
+                    in
+                    ( InGame
+                        { game
+                            | dragDrop = model_
+                            , units =
+                                case result of
+                                    Nothing ->
+                                        game.units
+
+                                    Just ( unitName, position, _ ) ->
+                                        Dict.update unitName (setPos position) game.units
+                            , positions =
+                                case result of
+                                    Nothing ->
+                                        game.positions
+
+                                    Just ( unitName, position, _ ) ->
+                                        updatePositions (Dict.get unitName game.units) position game.positions
+                        }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
 
 divStyle : Pos -> List (Attribute Msg)
@@ -485,24 +527,39 @@ mapStyle =
 
 view : Model -> Html Msg
 view model =
+    case model of
+        NoGame ->
+            viewNoGame
+
+        InGame game ->
+            viewInGame game
+
+
+viewNoGame : Html Msg
+viewNoGame =
+    div [] [ button [ onClick StartNewGame ] [ text "New Game" ] ]
+
+
+viewInGame : Game -> Html Msg
+viewInGame game =
     let
         dropId =
-            DragDrop.getDropId model.dragDrop
+            DragDrop.getDropId game.dragDrop
 
         droppablePosition =
-            DragDrop.getDroppablePosition model.dragDrop
+            DragDrop.getDroppablePosition game.dragDrop
 
         pos j =
             List.map (\i -> ( j, i )) <| List.range 0 21
 
         positions =
-            List.map (\p -> viewDiv (divStyle p) model.positions dropId droppablePosition p) <| List.concat (List.map pos <| List.range 0 12)
+            List.map (\p -> viewDiv (divStyle p) game.positions dropId droppablePosition p) <| List.concat (List.map pos <| List.range 0 12)
 
         russianParking =
-            viewParking (parkingStyle Russian) model.positions dropId droppablePosition ( 100, 100 )
+            viewParking (parkingStyle Russian) game.positions dropId droppablePosition ( 100, 100 )
 
         germanParking =
-            viewParking (parkingStyle German) model.positions dropId droppablePosition ( 200, 200 )
+            viewParking (parkingStyle German) game.positions dropId droppablePosition ( 200, 200 )
     in
     div mapStyle
         (russianParking :: positions ++ [ germanParking ])
