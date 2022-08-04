@@ -59,6 +59,7 @@ type alias Game =
     , positions : Dict.Dict Pos (List Unit)
     , dragDrop : DragDrop.Model UnitName Pos
     , gameId : String
+    , gameSegment : GameSegment
     }
 
 
@@ -70,6 +71,23 @@ type Side
 encodeSide : Side -> Json.Value
 encodeSide =
     toString >> Enc.string
+
+
+decodeSide : Json.Decoder Side
+decodeSide =
+    let
+        mkSide s =
+            case s of
+                "Axis" ->
+                    succeed Axis
+
+                "Allies" ->
+                    succeed Allies
+
+                other ->
+                    Json.fail ("Uknown side: " ++ other)
+    in
+    andThen mkSide Json.string
 
 
 toString : Side -> String
@@ -110,6 +128,7 @@ type Request
     | JoinGame { gameId : String, side : Side }
     | Connect { playerKey : String }
     | NewGame { gameId : String }
+    | GameStage
 
 
 encodeRequest : Request -> Json.Value
@@ -136,6 +155,10 @@ encodeRequest msg =
                 , ( "gameId", Enc.string j.gameId )
                 , ( "side", encodeSide j.side )
                 ]
+
+        GameStage ->
+            Enc.object
+                [ ( "tag", Enc.string "GameStage" ) ]
 
 
 type Msg
@@ -332,7 +355,39 @@ inGame gameId =
             Dict.fromList [ ( ( 100, 100 ), russianUnits ), ( ( 200, 200 ), germanUnits ) ]
         , dragDrop = DragDrop.init
         , gameId = gameId
+        , gameSegment = { turn = 7, side = Axis, segment = Setup }
         }
+
+
+type alias Turn =
+    Int
+
+
+showTurn : Turn -> String
+showTurn turn =
+    fromInt (7 - turn)
+
+
+type Segment
+    = Setup
+
+
+showSegment : Segment -> String
+showSegment s =
+    case s of
+        Setup ->
+            "Setup"
+
+
+
+-- | Supply
+-- | Move
+-- | Combat | (phase | CombatPhase) ->
+--   GameEnd
+
+
+type alias GameSegment =
+    { turn : Turn, side : Side, segment : Segment }
 
 
 type Messages
@@ -340,6 +395,7 @@ type Messages
     | NewGameCreated String
     | PlayerJoined String
     | GameStarted String
+    | CurrentGameSegment GameSegment
     | Positions (List ( Unit, Pos ))
 
 
@@ -393,6 +449,25 @@ decodePos =
         (index 1 Json.int)
 
 
+decodeTurn : Json.Decoder Turn
+decodeTurn =
+    Json.int
+
+
+decodeSegment : Json.Decoder Segment
+decodeSegment =
+    let
+        mkSegment s =
+            case s of
+                "Setup" ->
+                    succeed Setup
+
+                other ->
+                    Json.fail ("Uknown Segment type " ++ other)
+    in
+    andThen mkSegment Json.string
+
+
 makeMessages : String -> Json.Decoder Messages
 makeMessages tag =
     case tag of
@@ -410,6 +485,12 @@ makeMessages tag =
 
         "GameStarted" ->
             Json.map GameStarted (field "gameId" Json.string)
+
+        "CurrentGameSegment" ->
+            tuple3 (\t d s -> CurrentGameSegment { turn = t, side = d, segment = s })
+                (field "turn" decodeTurn)
+                (field "side" decodeSide)
+                (field "segment" decodeSegment)
 
         other ->
             Json.fail ("Unknown tag " ++ other)
@@ -455,13 +536,25 @@ handleMessages model s =
         Ok (GameStarted gid) ->
             case model of
                 Waiting _ ->
-                    ( inGame gid, Cmd.none )
+                    let
+                        newModel =
+                            inGame gid
+                    in
+                    ( newModel, sendCommand model GameStage )
 
                 _ ->
                     ( model, Cmd.none )
 
         Ok (Positions _) ->
             ( model, Cmd.none )
+
+        Ok (CurrentGameSegment gameStage) ->
+            case model of
+                InGame g ->
+                    ( InGame { g | gameSegment = gameStage }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
         Err _ ->
             ( model, Cmd.none )
@@ -697,6 +790,26 @@ sideToOption side =
 
 viewInGame : Game -> Html Msg
 viewInGame game =
+    div []
+        [ viewSegment game.gameSegment
+        , viewMap game
+        ]
+
+
+viewSegment : GameSegment -> Html Msg
+viewSegment { turn, side, segment } =
+    div []
+        [ span [] [ text "Turn" ]
+        , span [] [ text <| showTurn turn ]
+        , span [] [ text "Side" ]
+        , span [] [ text <| toString side ]
+        , span [] [ text "Segment" ]
+        , span [] [ text <| showSegment segment ]
+        ]
+
+
+viewMap : Game -> Html Msg
+viewMap game =
     let
         dropId =
             DragDrop.getDropId game.dragDrop
