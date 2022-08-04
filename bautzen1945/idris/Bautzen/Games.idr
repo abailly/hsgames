@@ -120,7 +120,7 @@ export
 export
 Cast GamesEvent JSON where
   cast (NewGameCreated game) =
-    JObject [ ("tag", JString "NewGameCreated"), ("game", cast game.gameId) ]
+    JObject [ ("tag", JString "NewGameCreated"), ("gameId", cast game.gameId) ]
   cast (PlayerJoined playerKey game) =
     JObject [ ("tag", JString "PlayerJoined"), ("gameId", cast game.gameId) ]
   cast (GameStarted playerKey game) =

@@ -84,16 +84,27 @@ mkLogger Quiet _ = pure ()
 mkLogger (Verbose name) msg =
   putStrLn  $ "[" ++ name ++ "] " ++ msg
 
+recvAll : Socket -> ByteLength -> IO (Either String String)
+recvAll socket len = go "" len
+  where
+    go : String -> ByteLength -> IO (Either String String)
+    go acc remaining = do
+      Right (str, res) <- recv socket remaining
+        | Left err => pure $ Left ("failed to receive length of message " ++ show err)
+      if res == remaining
+       then pure $ Right (acc ++ str)
+       else go (acc ++ str) (remaining - res)
+
 receive : Logger -> Socket -> IO (Either String String)
 receive log socket = do
   log "waiting for input"
-  Right (str, _) <- recv socket 6 -- receive 6 characters representing the length of message to read
+  Right str <- recvAll socket 6 -- receive 6 characters representing the length of message to read
     | Left err => pure $ Left ("failed to receive length of message " ++ show err)
   log $ "received  " ++ str
   case parseInteger (unpack str) 0 of
     Nothing => pure $ Left ("fail to parse '" ++ str ++ "' to expected number of characters, ignoring")
     Just len => do
-      Right msg <- map fst <$> recv socket (fromInteger len)
+      Right msg <- recvAll socket (fromInteger len)
         | Left err => pure $ Left (show err)
       pure $ Right msg
 
@@ -116,7 +127,7 @@ handleClient log socket addr hdlr =
    handleOutput : IO ()
    handleOutput = do
      res <- channelGet hdlr.cout
-     log $ "dispatchting result: '" ++ show res ++ "'"
+     log $ "dispatching result: '" ++ res ++ "'"
      Right l <- send socket (toWire res)
        | Left err => do log ("failed to send message " ++ show err) ; close socket ; stopHandler hdlr
      log $ "sent result"
@@ -146,8 +157,8 @@ clientHandshake log sock = do
      other => pure $ Left $ "invalid handshake " ++ show other
 
 
-commandLoop : Channel String -> Channel String -> IORef (SortedMap Id GameHandler) -> IORef (SortedMap Id (SortedMap Id (Channel String))) -> Id -> GamesState -> IO ()
-commandLoop cin cout clients gamesOutput clientId gamesState = do
+commandLoop : Logger -> Channel String -> Channel String -> IORef (SortedMap Id GameHandler) -> IORef (SortedMap Id (SortedMap Id (Channel String))) -> Id -> GamesState -> IO ()
+commandLoop log cin cout clients gamesOutput clientId gamesState = do
    msg <- channelGet cin
    case msg of
      -- Poison pill
@@ -156,8 +167,7 @@ commandLoop cin cout clients gamesOutput clientId gamesState = do
      _ => do
        res <- gamesState.handleMessage clientId msg
        handleOutputsForResult res
-       --traverse_ (\ out => channelPut out res) outs
-       commandLoop cin cout clients gamesOutput clientId gamesState
+       commandLoop log cin cout clients gamesOutput clientId gamesState
   where
    handleOutputsForResult : MessageResult -> IO ()
    handleOutputsForResult (MsgError err) = channelPut cout err
@@ -170,8 +180,8 @@ commandLoop cin cout clients gamesOutput clientId gamesState = do
             Just _ => gmap
       Just outs <- lookup gameId <$> readIORef gamesOutput
         | Nothing => pure () -- TODO: should never happen? prove it...
-      let output = show $ cast {to = JSON} event
-      traverse_ (\out => channelPut out output) outs
+      log $ "sending result: " ++ event
+      traverse_ (\out => channelPut out event) outs
 
 serve : Logger -> Socket -> IORef (SortedMap Id GameHandler) -> IORef (SortedMap Id (SortedMap Id (Channel String))) -> GamesState ->  IO (Either String ())
 serve log sock clients gamesOutput gamesState = do
@@ -191,7 +201,7 @@ serve log sock clients gamesOutput gamesState = do
    mkChannelsFor clientId = do
       cin <- makeChannel
       cout <- makeChannel
-      loopPid <- fork $ commandLoop cin cout clients gamesOutput clientId gamesState
+      loopPid <- fork $ commandLoop log cin cout clients gamesOutput clientId gamesState
       let hdlr = MkGameHandler cin cout loopPid
       modifyIORef clients (insert clientId hdlr)
       pure hdlr

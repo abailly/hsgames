@@ -113,7 +113,7 @@ handleWS logger cnxs backends pending = do
 handleBautzen1945Client :: LoggerEnv IO -> String -> PortNumber -> Connection -> IO ()
 handleBautzen1945Client logger host port connection = do
     serverCnx <- connectSocketTo host port >>= makeBautzenConnection
-    logInfo logger $ "start player threads for " ++ host ++ "@" ++ show port
+    logInfo logger $ "start player threads for " ++ host ++ ":" ++ show port
     -- we run 2 asyncs:
     --  * one for handling player commands
     --  * the other to handle server's response
@@ -121,7 +121,7 @@ handleBautzen1945Client logger host port connection = do
         logInfo logger ("starting read loop" :: String)
         forever $ do
             Text message _ <- receiveDataMessage connection
-            logInfo logger $ "received message: " ++ unpack (toStrict $ decodeUtf8 message)
+            logInfo logger $ "from player: " ++ unpack (toStrict $ decodeUtf8 message)
             send serverCnx message
         logInfo logger ("stopping read loop" :: String)
 
@@ -129,7 +129,7 @@ handleBautzen1945Client logger host port connection = do
         logInfo logger ("starting response sender" :: String)
         forever $ do
             message <- receive serverCnx
-            logInfo logger $ "sending response to player " ++ unpack (toStrict $ decodeUtf8 message)
+            logInfo logger $ "to player: " ++ unpack (toStrict $ decodeUtf8 message)
             sendTextData connection message
                 `catch` (\(e :: ConnectionException) -> logInfo logger $ "response sender error: " ++ show e)
     link toClient
