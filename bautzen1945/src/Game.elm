@@ -94,13 +94,14 @@ fromString s =
 type alias PreGame =
     { gameId : String
     , playerKey : String
-    , side : Side
+    , side : Maybe Side
     }
 
 
 type Model
     = NoGame PreGame
     | InGame Game
+    | Waiting { gameId : String, mySide : Side }
 
 
 type Request
@@ -314,7 +315,7 @@ init : { port_ : String, host : String, gameId : String, playerKey : String } ->
 init i =
     let
         model =
-            NoGame { gameId = i.gameId, playerKey = i.playerKey, side = Allies }
+            NoGame { gameId = i.gameId, playerKey = i.playerKey, side = Nothing }
     in
     ( model
     , sendCommand model <| Connect { playerKey = i.playerKey }
@@ -336,6 +337,7 @@ init i =
 type Messages
     = {- Server acknowledged player's connection -} Connected
     | NewGameCreated String
+    | PlayerJoined String
     | Positions (List ( Unit, Pos ))
 
 
@@ -401,6 +403,9 @@ makeMessages tag =
         "NewGameCreated" ->
             Json.map NewGameCreated (field "gameId" Json.string)
 
+        "PlayerJoined" ->
+            Json.map PlayerJoined (field "gameId" Json.string)
+
         other ->
             Json.fail ("Unknown tag " ++ other)
 
@@ -419,7 +424,25 @@ handleMessages model s =
         Ok (NewGameCreated gid) ->
             case model of
                 NoGame p ->
-                    ( model, sendCommand model (JoinGame { gameId = gid, side = p.side }) )
+                    case p.side of
+                        Just side ->
+                            ( model, sendCommand model (JoinGame { gameId = gid, side = side }) )
+
+                        _ ->
+                            ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        Ok (PlayerJoined gid) ->
+            case model of
+                NoGame p ->
+                    case p.side of
+                        Just side ->
+                            ( Waiting { gameId = gid, mySide = side }, Cmd.none )
+
+                        Nothing ->
+                            ( model, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -453,7 +476,24 @@ update msg model =
                     ( model, Cmd.none )
 
                 SetSide side ->
-                    ( NoGame { p | side = side }, Cmd.none )
+                    ( NoGame { p | side = Just side }, Cmd.none )
+
+        Waiting _ ->
+            case msg of
+                Input s ->
+                    handleMessages model s
+
+                DragDropMsg _ ->
+                    ( model, Cmd.none )
+
+                StartNewGame ->
+                    ( model, Cmd.none )
+
+                NewGameWithId _ ->
+                    ( model, Cmd.none )
+
+                SetSide _ ->
+                    ( model, Cmd.none )
 
         InGame game ->
             case msg of
@@ -587,15 +627,44 @@ view model =
         InGame game ->
             viewInGame game
 
+        Waiting w ->
+            viewWaiting w
+
+
+viewWaiting : { gameId : String, mySide : Side } -> Html Msg
+viewWaiting waiting =
+    div []
+        [ label [] [ text <| "Waiting for " ++ toString (otherSide waiting.mySide) ++ " player to join" ]
+        ]
+
+
+otherSide : Side -> Side
+otherSide side =
+    case side of
+        Axis ->
+            Allies
+
+        Allies ->
+            Axis
+
 
 viewNoGame : PreGame -> Html Msg
 viewNoGame p =
+    let
+        viewNewGame =
+            case p.side of
+                Nothing ->
+                    []
+
+                _ ->
+                    [ button [ onClick StartNewGame ] [ text "New Game" ] ]
+    in
     div []
-        [ div []
+        ([ div []
             [ label [] [ text "Player: " ]
             , span [] [ text p.playerKey ]
             ]
-        , div []
+         , div []
             [ label [] [ text "Side: " ]
             , select [ onInput (fromString >> SetSide) ]
                 (List.map
@@ -603,8 +672,9 @@ viewNoGame p =
                     [ Allies, Axis ]
                 )
             ]
-        , button [ onClick StartNewGame ] [ text "New Game" ]
-        ]
+         ]
+            ++ viewNewGame
+        )
 
 
 sideToOption : Side -> Html Msg
