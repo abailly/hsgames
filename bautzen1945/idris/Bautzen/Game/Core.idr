@@ -65,6 +65,7 @@ DecEq CombatPhase where
 
 public export
 data GameSegment : Type where
+  Setup : GameSegment
   Supply : GameSegment
   Move : GameSegment
   Combat : (phase : CombatPhase) -> GameSegment
@@ -86,6 +87,7 @@ DecEq GameSegment where
 
 public export
 Show GameSegment where
+  show Setup = "Setup"
   show Supply = "Supply"
   show Move = "Move"
   show (Combat _) = "Combat"
@@ -126,6 +128,7 @@ data GameError : Type where
   NoSupplyColumnThere : (hex : Pos) -> GameError
   NoStepsToLose : (side : Side) -> GameError
   CombatInProgress : (side : Side) -> GameError
+  InvalidPlacement : (pos : Pos) -> GameError
   GameHasEnded : GameError
 
 public export
@@ -146,10 +149,12 @@ Show GameError where
   show (NothingToAttack target) = "Attacked hex is empty: " ++ show target
   show (AttackingOwnUnits units target) = "Attacking own units: " ++ show units ++ " -> " ++ show target
   show (CombatInProgress side) = "Combat in progress for: " ++ show side
+  show (InvalidPlacement pos) = "Placement is invalid: " ++ show pos
   show GameHasEnded = "Game has ended"
 
 public export
 data Command : (segment : GameSegment) -> Type where
+  Place : (unitName : String) -> (pos : Pos) -> Command Setup
   MoveTo : (unitName : String) -> (to : Pos) -> Command Move
   AttackWith : (unitNames : List String) -> (target : Pos) -> Command (Combat NoCombat)
   NextSegment : Command segment
@@ -159,6 +164,7 @@ data Command : (segment : GameSegment) -> Type where
 
 public export
 Show (Command segment) where
+  show (Place unitName to) = "Place " ++ unitName ++ " @ " ++ show to
   show (MoveTo unitName to) = "MoveTo " ++ unitName ++ " -> " ++ show to
   show (AttackWith unitNames target) = "AttackWith " ++ show unitNames ++ " -> " ++ show target
   show NextSegment = "NextSegment"
@@ -168,6 +174,9 @@ Show (Command segment) where
 
 public export
 data Event : (segment : GameSegment) -> Type where
+
+  ||| Unit has been placed at given location
+  Placed : (unit : GameUnit) -> (pos : Pos) -> Event Setup
 
   ||| Unit has moved from some position to some other position
   Moved : (unit : GameUnit) -> (from : Pos) -> (to : Pos) -> (cost : Cost)
@@ -230,6 +239,7 @@ data Event : (segment : GameSegment) -> Type where
 
 public export
 Show (Event seg) where
+  show (Placed unit pos) = "Placed " ++ name unit ++ " at " ++ show pos
   show (Moved unit from to cost) = "Moved " ++ name unit ++ " from " ++ show from ++ " to " ++ show to ++ " for "  ++ show (toNat cost) ++ " mps"
   show (CombatEngaged atk def tgt) = "CombatEngaged " ++ show (map (GameUnit.name . fst) atk) ++ " -> " ++ show (map (GameUnit.name . fst) def) ++ " @ " ++ show tgt
   show (TacticalSupportProvided side units) = "TacticalSupportProvided " ++ show (map (GameUnit.name . fst) units) ++ " -> " ++ show side

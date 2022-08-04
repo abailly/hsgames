@@ -133,7 +133,7 @@ distance : Pos -> Pos -> Nat
 distance (MkPos p) (MkPos p') =
   let IsDistance d = P.distance p p' in d
 
-export
+public export
 neighbours : Pos -> List Pos
 neighbours (MkPos p) = map MkPos $ P.neighbours p
 
@@ -220,3 +220,12 @@ allPossibleConnections = catMaybes [ mkPosAndNeighbours c r | c <- [0 .. 22], r 
       let pos = hex col row
           cnx = map (\ p => (p,Plain)) (neighbours pos)
       pure $ (pos, cnx)
+
+
+public export
+sameName : String -> (GameUnit, Pos) -> Bool
+sameName unitName (u,_) = fullName u == unitName
+
+public export
+samePosition : Pos -> (GameUnit, Pos) -> Bool
+samePosition to (_,p) = p == to

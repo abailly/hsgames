@@ -9,6 +9,8 @@ import Bautzen.Terrain
 
 import Data.Fin
 
+%default total
+
 public export
 newTurn : Game -> Either GameError (Event (Combat NoCombat))
 newTurn (MkGame (MkGameState FZ _ _ _) _) = Right GameEnded
@@ -16,6 +18,7 @@ newTurn (MkGame (MkGameState (FS x) _ _ _) _) = Right $ TurnEnded (weaken x)
 
 public export
 nextSegment : (game : Game) -> Either GameError (Event (curSegment game))
+nextSegment (MkGame (MkGameState _ _ Setup _) _) = Right (SegmentChanged Setup Supply)
 nextSegment (MkGame (MkGameState _ _ Supply _) _) = Right (SegmentChanged Supply Move)
 nextSegment (MkGame (MkGameState _ _  Move _) _) = Right (SegmentChanged Move (Combat NoCombat))
 nextSegment (MkGame (MkGameState _ Axis (Combat NoCombat) _) _) = Right AxisTurnDone

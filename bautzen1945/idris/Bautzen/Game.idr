@@ -5,6 +5,7 @@ import public Bautzen.GameUnit
 import public Bautzen.Game.Combat
 import public Bautzen.Game.Core
 import public Bautzen.Game.Move
+import public Bautzen.Game.Setup
 import public Bautzen.Game.Supply
 import public Bautzen.Game.Turn
 import public Bautzen.Pos
@@ -20,6 +21,7 @@ import Data.Nat
 
 export
 act : (game : Game) -> Command (curSegment game) -> Either GameError (Event (curSegment game))
+act (MkGame (MkGameState _ side Setup units) gameMap) (Place unitName pos) = placeAt side units gameMap unitName pos
 act (MkGame (MkGameState _ side Move units) gameMap) (MoveTo unitName to) = moveTo side units gameMap unitName to
 act (MkGame (MkGameState _ side (Combat NoCombat) units) gameMap) (AttackWith unitNames target) = attackWith side units gameMap unitNames target
 act game NextSegment = nextSegment game
@@ -78,6 +80,8 @@ applyStepLostEvent lossSide unit newLosses state game@(MkGameState turn side seg
 
 
 applyEvent : (st : GameState) -> Event (st.stateSegment) -> GameState
+applyEvent (MkGameState turn side Setup units) (Placed unit pos) =
+  MkGameState turn side Setup (updatePlacedUnit unit pos units)
 applyEvent (MkGameState turn side Move units) (Moved unit from to cost) =
   MkGameState turn side Move (updateMovedUnit unit to (Terrain.toNat cost) units)
 applyEvent game@(MkGameState turn side (Combat NoCombat) units) (CombatEngaged atk def tgt) =

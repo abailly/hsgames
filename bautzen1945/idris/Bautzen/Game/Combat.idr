@@ -101,9 +101,6 @@ checkAttackersAreAdjacentToTarget attackers target =
     [] => Right attackers
     errs => Left (NotAdjacentTo (map fst errs) target)
 
-samePosition : Pos -> (GameUnit, Pos) -> Bool
-samePosition target (_, p) = p == target
-
 validateDefenders : (side : Side) -> (positions : List (GameUnit, Pos)) -> (gameMap : Map)
                   -> (target : Pos)
                   -> Either GameError (List (GameUnit, Pos))

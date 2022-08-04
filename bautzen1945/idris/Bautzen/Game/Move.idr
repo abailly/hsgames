@@ -3,6 +3,7 @@ module Bautzen.Game.Move
 import Bautzen.Game.Core
 import Bautzen.GameUnit
 import Bautzen.Terrain
+import public Bautzen.Pos
 import Bautzen.ZoC
 
 import Data.Nat.Extra
@@ -47,15 +48,6 @@ moreMoveTo unit units gameMap from to with (inZoC (side (nation unit)) units fro
   moreMoveTo unit units gameMap from to | (Free, _) = do (c ** _) <- movementCost unit units gameMap from to False
                                                          pure (Moved unit from to c)
   moreMoveTo unit units gameMap from to | (_, _) = Left (MoveFromZocToZoc unit to)
-
-
-public export
-sameName : String -> (GameUnit, Pos) -> Bool
-sameName unitName (u,_) = fullName u == unitName
-
-public export
-samePosition : Pos -> (GameUnit, Pos) -> Bool
-samePosition to (_,p) = p == to
 
 
 public export
@@ -130,5 +122,5 @@ namespace MoveTest
 --   unit_cannot_move_if_not_enough_MP : moveTo Axis [ (MoveTest.g21_20pz_no_mp, Hex 3 4) ] TestMap "21/20Pz" (Hex 3 5) = Left (NotEnoughMPs MoveTest.g21_20pz_no_mp (Hex 3 4) (Hex 3 5) 4)
 --   unit_cannot_move_if_not_enough_MP = Refl
 
---   cannot_move_more_than_one_hex : moveTo Axis [ (Bautzen.GameUnit.g21_20pz, Hex 3 4) ] TestMap "21/20Pz" (Hex 3 6) = Left (InvalidMove (Hex 3 4) (Hex 3 6))
---   cannot_move_more_than_one_hex = Refl
+  -- cannot_move_more_than_one_hex : moveTo Axis [ (Bautzen.GameUnit.g21_20pz, MkPos $ Hex 3 4) ] TestMap "21/20Pz" (MkPos $ Hex 3 6) = Left (InvalidMove (MkPos (Hex 3 4)) (MkPos (Hex 3 6)))
+  -- cannot_move_more_than_one_hex = Refl

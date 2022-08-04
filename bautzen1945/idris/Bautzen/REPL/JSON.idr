@@ -153,6 +153,7 @@ Cast GameError JSON where
   cast (NoSupplyColumnThere hex) = JArray [ JString ":error", JString "NoSupplyColumnThere", cast hex ]
   cast (NoStepsToLose side) = JArray [ JString ":error", JString "NoStepsToLose", cast side ]
   cast (CombatInProgress side) = JArray [ JString ":error", JString "CombatInProgress", cast side ]
+  cast (InvalidPlacement pos) = JArray [ JString ":error", JString "InvalidPlacement", cast pos ]
   cast GameHasEnded = JArray [ JString ":error", JString "GameHasEnded" ]
 
 export
@@ -202,6 +203,7 @@ Cast CombatPhase JSON where
 
 export
 Cast GameSegment JSON where
+  cast Setup = JString "Setup"
   cast Supply = JString "Supply"
   cast Move = JString "Move"
   cast (Combat phase) = JArray [ JString "Combat", cast phase ]
@@ -209,6 +211,11 @@ Cast GameSegment JSON where
 
 export
 Cast (Event seg) JSON where
+  cast (Placed unit pos) =
+      JObject [ ("tag", JString "Placed")
+            , ("unit", cast unit)
+            , ("pos", cast pos)
+            ]
   cast (Moved unit from to cost) =
       JObject [ ("tag", JString "moved")
             , ("unit", cast unit)
