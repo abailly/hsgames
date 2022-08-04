@@ -20,7 +20,7 @@
       const ws = new WebSocket("ws://" + window.location.hostname + ":" + window.location.port + wsPath);
       ws.onmessage = function(message)
       {
-          console.log("receiving: "  + JSON.stringify(message));
+          console.log("receiving: "  + message.data);
           if(message.data) {
               app.ports.websocketIn.send(message.data);
           }

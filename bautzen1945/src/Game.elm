@@ -4,7 +4,7 @@ import Browser
 import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick)
+import Html.Events exposing (onClick, onInput)
 import Html5.DragDrop as DragDrop exposing (Position)
 import Json.Decode as Json exposing (andThen, field, index, succeed)
 import Json.Encode as Enc
@@ -61,14 +61,51 @@ type alias Game =
     }
 
 
+type Side
+    = Axis
+    | Allies
+
+
+encodeSide : Side -> Json.Value
+encodeSide =
+    toString >> Enc.string
+
+
+toString : Side -> String
+toString side =
+    case side of
+        Axis ->
+            "Axis"
+
+        Allies ->
+            "Allies"
+
+
+fromString : String -> Side
+fromString s =
+    case s of
+        "Axis" ->
+            Axis
+
+        _ ->
+            Allies
+
+
+type alias PreGame =
+    { gameId : String
+    , playerKey : String
+    , side : Side
+    }
+
+
 type Model
-    = NoGame
+    = NoGame PreGame
     | InGame Game
 
 
 type Request
     = {- Request current positions of all units -} PositionsQ
-    | JoinGame { playerKey : String, gameId : String }
+    | JoinGame { gameId : String, side : Side }
     | Connect { playerKey : String }
     | NewGame { gameId : String }
 
@@ -94,8 +131,8 @@ encodeRequest msg =
         JoinGame j ->
             Enc.object
                 [ ( "tag", Enc.string "JoinGame" )
-                , ( "playerKey", Enc.string j.playerKey )
                 , ( "gameId", Enc.string j.gameId )
+                , ( "side", encodeSide j.side )
                 ]
 
 
@@ -104,6 +141,7 @@ type Msg
     | StartNewGame
     | Input String
     | NewGameWithId String
+    | SetSide Side
 
 
 germanOOB : List String
@@ -276,7 +314,7 @@ init : { port_ : String, host : String, gameId : String, playerKey : String } ->
 init i =
     let
         model =
-            NoGame
+            NoGame { gameId = i.gameId, playerKey = i.playerKey, side = Allies }
     in
     ( model
     , sendCommand model <| Connect { playerKey = i.playerKey }
@@ -297,6 +335,7 @@ init i =
 
 type Messages
     = {- Server acknowledged player's connection -} Connected
+    | NewGameCreated String
     | Positions (List ( Unit, Pos ))
 
 
@@ -359,6 +398,9 @@ makeMessages tag =
         "Connected" ->
             Json.succeed Connected
 
+        "NewGameCreated" ->
+            Json.map NewGameCreated (field "gameId" Json.string)
+
         other ->
             Json.fail ("Unknown tag " ++ other)
 
@@ -374,6 +416,14 @@ handleMessages model s =
         Ok Connected ->
             ( model, Cmd.none )
 
+        Ok (NewGameCreated gid) ->
+            case model of
+                NoGame p ->
+                    ( model, sendCommand model (JoinGame { gameId = gid, side = p.side }) )
+
+                _ ->
+                    ( model, Cmd.none )
+
         Ok (Positions _) ->
             ( model, Cmd.none )
 
@@ -384,7 +434,7 @@ handleMessages model s =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case model of
-        NoGame ->
+        NoGame p ->
             case msg of
                 StartNewGame ->
                     let
@@ -399,8 +449,11 @@ update msg model =
                 Input s ->
                     handleMessages model s
 
-                _ ->
+                DragDropMsg _ ->
                     ( model, Cmd.none )
+
+                SetSide side ->
+                    ( NoGame { p | side = side }, Cmd.none )
 
         InGame game ->
             case msg of
@@ -528,16 +581,35 @@ mapStyle =
 view : Model -> Html Msg
 view model =
     case model of
-        NoGame ->
-            viewNoGame
+        NoGame p ->
+            viewNoGame p
 
         InGame game ->
             viewInGame game
 
 
-viewNoGame : Html Msg
-viewNoGame =
-    div [] [ button [ onClick StartNewGame ] [ text "New Game" ] ]
+viewNoGame : PreGame -> Html Msg
+viewNoGame p =
+    div []
+        [ div []
+            [ label [] [ text "Player: " ]
+            , span [] [ text p.playerKey ]
+            ]
+        , div []
+            [ label [] [ text "Side: " ]
+            , select [ onInput (fromString >> SetSide) ]
+                (List.map
+                    sideToOption
+                    [ Allies, Axis ]
+                )
+            ]
+        , button [ onClick StartNewGame ] [ text "New Game" ]
+        ]
+
+
+sideToOption : Side -> Html Msg
+sideToOption side =
+    option [ value (toString side) ] [ text (toString side) ]
 
 
 viewInGame : Game -> Html Msg
