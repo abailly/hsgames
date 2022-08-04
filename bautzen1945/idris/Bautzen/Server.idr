@@ -133,14 +133,6 @@ handleClient log socket addr hdlr =
      log $ "sent result"
      handleOutput
 
-data Handshake =
-   Connect Id
-   | Connected
-
-Cast Handshake JSON where
-  cast (Connect k) = JObject [( "tag", JString "Connect"), ("playerKey", cast k)]
-  cast Connected = JObject [( "tag", JString "Connected")]
-
 ||| Clients are expected to send their `Id` upon connection.
 clientHandshake : Logger -> Socket -> IO (Either String Id)
 clientHandshake log sock = do

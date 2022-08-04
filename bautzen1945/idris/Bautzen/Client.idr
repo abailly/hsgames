@@ -53,13 +53,13 @@ openConnection host port instanceId = do
   res <- connect sock (Hostname host) port
   if res /= 0
     then pure (Left $ "Failed to connect socket with error: " ++ show res)
-    else let clientId = toWire (show @{AsString} instanceId)
+    else let clientId = toWire (show $ cast {to = JSON} $ Connect instanceId)
          in do
             Right l <- send sock clientId
              | Left err => pure $ Left ("failed to send message " ++ show err)
-            Right "OK" <- receiveMessage sock
+            Right (Just (JObject [ ("tag", JString "Connected")])) <- map parse <$> receiveMessage sock
               | Left err => pure $ Left err
-              | Right m => pure $ Left ("Unexpected handshake " ++ m)
+              | Right m => pure $ Left ("Unexpected handshake: " ++ show m)
             pure (Right sock)
 
 runREPL : Socket -> IO ()

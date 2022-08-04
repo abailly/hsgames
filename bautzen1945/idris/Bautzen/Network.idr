@@ -1,5 +1,6 @@
 module Bautzen.Network
 
+import Bautzen.Id
 import Data.List
 import Language.JSON
 
@@ -23,3 +24,14 @@ toWire : String -> String
 toWire str =
   let len = padWith0 (prim__strLength str)
   in  len ++ str
+
+public
+export
+data Handshake =
+   Connect Id
+   | Connected
+
+export
+Cast Handshake JSON where
+  cast (Connect k) = JObject [( "tag", JString "Connect"), ("playerKey", cast k)]
+  cast Connected = JObject [( "tag", JString "Connected")]
