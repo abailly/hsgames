@@ -58,6 +58,7 @@ type alias Game =
     { units : Dict.Dict UnitName Unit
     , positions : Dict.Dict Pos (List Unit)
     , dragDrop : DragDrop.Model UnitName Pos
+    , gameId : String
     }
 
 
@@ -322,22 +323,23 @@ init i =
     )
 
 
-
--- inGame : Model
--- inGame =
---     InGame
---         { units =
---             Dict.fromList <| List.map (\u -> ( u.name, u )) <| russianUnits ++ germanUnits
---         , positions =
---             Dict.fromList [ ( ( 100, 100 ), russianUnits ), ( ( 200, 200 ), germanUnits ) ]
---         , dragDrop = DragDrop.init
---         }
+inGame : String -> Model
+inGame gameId =
+    InGame
+        { units =
+            Dict.fromList <| List.map (\u -> ( u.name, u )) <| russianUnits ++ germanUnits
+        , positions =
+            Dict.fromList [ ( ( 100, 100 ), russianUnits ), ( ( 200, 200 ), germanUnits ) ]
+        , dragDrop = DragDrop.init
+        , gameId = gameId
+        }
 
 
 type Messages
     = {- Server acknowledged player's connection -} Connected
     | NewGameCreated String
     | PlayerJoined String
+    | GameStarted String
     | Positions (List ( Unit, Pos ))
 
 
@@ -406,6 +408,9 @@ makeMessages tag =
         "PlayerJoined" ->
             Json.map PlayerJoined (field "gameId" Json.string)
 
+        "GameStarted" ->
+            Json.map GameStarted (field "gameId" Json.string)
+
         other ->
             Json.fail ("Unknown tag " ++ other)
 
@@ -443,6 +448,14 @@ handleMessages model s =
 
                         Nothing ->
                             ( model, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        Ok (GameStarted gid) ->
+            case model of
+                Waiting _ ->
+                    ( inGame gid, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
