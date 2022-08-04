@@ -261,6 +261,8 @@ Cast (Event seg) JSON where
             ]
   cast AxisTurnDone =
       JObject [ ("tag", JString "axis-turn-done") ]
+  cast AlliesSetupDone =
+      JObject [ ("tag", JString "AlliesSetupDone") ]
   cast GameEnded =
       JObject [ ("tag", JString "game-ended") ]
 
@@ -299,9 +301,20 @@ Cast (Pos, List (Pos, Connection)) JSON where
 
 export
 Cast Map JSON where
-  cast (MkMap hexes edges) = JObject [ ("hexes", cast (tabulate hexes))
+  cast (MkMap hexes edges) = JObject [ ("tag", JString "Map")
+                                     , ("hexes", cast (tabulate hexes))
                                      , ("edges", cast edges)
                                      ]
+
+export
+Cast CurrentGameSegment JSON where
+  cast (MkCurrentGameSegment turn side segment) =
+    JObject [ ("tag", JString "CurrentGameSegment")
+            , ("turn", cast turn)
+            , ("side", cast side)
+            , ("segment", cast segment)
+            ]
+
 export
 Cast QueryError JSON where
   cast (NoSupplyPathFor unitName pos) = JObject [ ("reason", JString "NoSupplyPathFor"),
@@ -396,5 +409,5 @@ makePlayerAction game (JArray [ JString "next!" ] ) = pure $ Cmd NextSegment
 makePlayerAction game (JArray [ JString "supply-path?", JString unitName ] ) = Right $ Qry $ SupplyPath unitName
 makePlayerAction game (JArray [ JString "map?" ] ) = Right $ Qry TerrainMap
 makePlayerAction game (JArray [ JString "positions?" ] ) = Right $ Qry Positions
-makePlayerAction game (JArray [ JString "stage?" ] ) = Right $ Qry GameStage
+makePlayerAction game (JObject [ ("tag", JString  "GameStage") ] ) = Right $ Qry GameStage
 makePlayerAction _ sexp = Left $ "Unknown command " ++ show sexp

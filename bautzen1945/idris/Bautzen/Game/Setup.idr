@@ -17,13 +17,45 @@ updatePlacedUnit unit newPosition = foldr updateUnit []
       then (unit, newPosition) :: acc
       else (gu, pos) :: acc
 
+UnitSelector : Type
+UnitSelector = GameUnit -> Bool
+
+PlacementRule : Type
+PlacementRule = Pos -> Bool
+
+findMatch : GameUnit ->  List (UnitSelector, PlacementRule) -> Maybe PlacementRule
+findMatch u [] = Nothing
+findMatch u ((selector, rule) :: rest) =
+  if selector u
+  then Just rule
+  else findMatch u rest
+
+public
+export
+initialPlacement : List (UnitSelector, PlacementRule)
+initialPlacement =
+  [  (\ u => u.parent == Just "5DP",
+      \ pos => let origin = hex 15 6
+               in  distance pos origin <= 1 ),
+     (\ u => u.parent == Just "7DP",
+      \ pos => let origin = hex 19 2
+               in  distance pos origin <= 1 ),
+     (\ u => u.parent == Just "10DP",
+      \ pos => let origin = hex 18 1
+               in  distance pos origin <= 1 )
+  ]
+
 public export
 placeAt : (side : Side) -> (units : List (GameUnit, Pos)) -> Map -> (unitName : String) -> (pos : Pos) -> Either GameError (Event Setup)
 placeAt sideToPlay units map unitName pos =
   case find (sameName unitName) units of
     (Just (unit, b)) => if side (nation unit) /= sideToPlay
                         then Left (NotYourTurn (side (nation unit)))
-                        else Left (InvalidPlacement pos)
+                        else case findMatch unit initialPlacement of
+                               Just placementRule => if placementRule pos
+                                                     then Right (Placed unit pos)
+                                                     else Left (InvalidPlacement pos)
+                               Nothing => Left (InvalidPlacement pos)
     Nothing => Left (NoSuchUnits [unitName])
 
 
@@ -35,5 +67,8 @@ namespace SetupTest
   cannot_place_not_current_side : placeAt Axis [ (Bautzen.GameUnit.p13_5dp, hex 3 4) ] TestMap "13/5DP" (hex 3 5) = Left (NotYourTurn Allies)
   cannot_place_not_current_side = Refl
 
-  cannot_place_if_outside_zone : placeAt Allies [ (Bautzen.GameUnit.p13_5dp, hex 3 4) ] TestMap "13/5DP" (hex 10 4) = Left (InvalidPlacement (hex 10 4))
-  cannot_place_if_outside_zone = Refl
+  -- cannot_place_if_outside_zone : placeAt Allies [ (Bautzen.GameUnit.p13_5dp, hex 3 4) ] TestMap "13/5DP" (hex 10 4) = Left (InvalidPlacement (hex 10 4))
+  -- cannot_place_if_outside_zone = Refl
+
+  -- can_place_if_within_zone : placeAt Allies [ (Bautzen.GameUnit.p13_5dp, hex 3 4) ] TestMap "13/5DP" (hex 15 6) = Right (Placed Bautzen.GameUnit.p13_5dp (hex 15 6))
+  -- can_place_if_within_zone = Refl

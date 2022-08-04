@@ -82,6 +82,8 @@ applyStepLostEvent lossSide unit newLosses state game@(MkGameState turn side seg
 applyEvent : (st : GameState) -> Event (st.stateSegment) -> GameState
 applyEvent (MkGameState turn side Setup units) (Placed unit pos) =
   MkGameState turn side Setup (updatePlacedUnit unit pos units)
+applyEvent (MkGameState turn _ Setup us) AlliesSetupDone =
+   (MkGameState turn Axis Setup us)
 applyEvent (MkGameState turn side Move units) (Moved unit from to cost) =
   MkGameState turn side Move (updateMovedUnit unit to (Terrain.toNat cost) units)
 applyEvent game@(MkGameState turn side (Combat NoCombat) units) (CombatEngaged atk def tgt) =
@@ -117,6 +119,13 @@ apply game event =
 
 -- Queries
 
+public
+export
+record CurrentGameSegment where
+  constructor MkCurrentGameSegment
+  turn : Fin 6
+  side : Side
+  segment : GameSegment
 
 ||| Query interface to retrieve information from a `Game`.
 |||
@@ -144,7 +153,7 @@ data Query : (result : Type) -> Type where
   Positions : Query AllPositions
 
   ||| Retrieve the stage (turn, side, segment) the game is currently at
-  GameStage : Query (Fin 6, Side, GameSegment)
+  GameStage : Query CurrentGameSegment
 
 export
 Show (Query a) where
@@ -164,7 +173,7 @@ query (MkGame (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
         x  => Right x
 query (MkGame (MkGameState _ side _ units) gameMap) TerrainMap = gameMap
 query (MkGame (MkGameState _ side _ positions) _) Positions = MkAllPositions positions
-query (MkGame (MkGameState turn side segment _) _) GameStage = (turn, side, segment)
+query (MkGame (MkGameState turn side segment _) _) GameStage = MkCurrentGameSegment turn side segment
 
 ||| A single player action, either a @Command@ or a @Query@.
 public export

@@ -231,6 +231,9 @@ data Event : (segment : GameSegment) -> Type where
   ||| Axis turn is over, move to Allies turn
   AxisTurnDone : Event (Combat NoCombat)
 
+  ||| Allies setup done.
+  AlliesSetupDone : Event Setup
+
   ||| Turn ended, start a new turn
   TurnEnded : Fin 6 -> Event (Combat NoCombat)
 
@@ -248,6 +251,7 @@ Show (Event seg) where
   show (StepLost side unit remain) = "Step Lost " ++ show unit ++ " @ " ++ show side ++  " (" ++ show remain++")"
   show (SegmentChanged from to) = "Segment Changed " ++ show from ++ " -> " ++ show to
   show AxisTurnDone = "Axis Turn Over"
+  show AlliesSetupDone = "Allies Set-up Done"
   show (TurnEnded n) = "Turn Ended: " ++ show (finToNat n)
   show GameEnded = "Game Ended"
 
