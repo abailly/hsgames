@@ -19,6 +19,7 @@ import Data.Nat
 
 %default total
 
+public
 export
 act : (game : Game) -> Command (curSegment game) -> Either GameError (Event (curSegment game))
 act (MkGame (MkGameState _ side Setup units) gameMap) (Place unitName pos) = placeAt side units gameMap unitName pos

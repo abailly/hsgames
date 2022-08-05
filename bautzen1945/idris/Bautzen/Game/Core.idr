@@ -76,6 +76,7 @@ combatInjective Refl = Refl
 
 public export
 DecEq GameSegment where
+  decEq Setup Setup = Yes Refl
   decEq Supply Supply = Yes Refl
   decEq Move Move = Yes Refl
   decEq (Combat phase) (Combat phase') = case decEq phase phase' of

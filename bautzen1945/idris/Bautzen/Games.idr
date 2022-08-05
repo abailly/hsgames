@@ -164,16 +164,16 @@ Cast (GamesResult games) JSON where
    cast (GamesResError error) = JObject [ ("tag", JString "GamesResError"), ("error", cast error) ]
 
 actAction : {gameSegment: GameSegment} -> PlayerAction gameSegment -> SingleGame -> Id -> Id -> (games : Games) -> GamesResult games
-actAction {gameSegment} act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) playerKey gameId games with (decEq (curSegment theGame) gameSegment)
-  actAction act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) playerKey gameId games | (Yes prf) =
-    let result = handleAction theGame $ rewrite prf in act
-        game' =  applyResult theGame result
-    in GamesResEvent $ PlayerPlayed playerKey ({ theGame := game' } single) result
-  actAction act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) playerKey gameId games | (No contra) =
-    case act of
+actAction {gameSegment} action single@(MkSingleGame xs axisPlayer alliesPlayer theGame) playerKey gameId games =
+  case action of
       Qry q => let result = query theGame q
                in GamesResQuery gameId result
-      Cmd _ => GamesResError $ InvalidSegment gameSegment (curSegment theGame) playerKey gameId
+      Cmd c =>
+         case decEq (curSegment theGame) gameSegment of
+           (Yes prf) =>  let result = handleAction theGame $ rewrite prf in action
+                             game' =  applyResult theGame result
+                         in GamesResEvent $ PlayerPlayed playerKey ({ theGame := game' } single) result
+           (No contra) => GamesResError $ InvalidSegment gameSegment (curSegment theGame) playerKey gameId
 
 removePlayerFromGame : Id -> SingleGame -> Maybe SingleGame
 removePlayerFromGame playerKey single@(MkSingleGame gameId (HumanPlayer xs) (HumanPlayer ys) theGame) =

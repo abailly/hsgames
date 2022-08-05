@@ -409,5 +409,8 @@ makePlayerAction game (JArray [ JString "next!" ] ) = pure $ Cmd NextSegment
 makePlayerAction game (JArray [ JString "supply-path?", JString unitName ] ) = Right $ Qry $ SupplyPath unitName
 makePlayerAction game (JArray [ JString "map?" ] ) = Right $ Qry TerrainMap
 makePlayerAction game (JArray [ JString "positions?" ] ) = Right $ Qry Positions
+makePlayerAction game (JObject [("tag", JString  "Place"), ("unitName", JString unitName), ("position", JArray [ JNumber col, JNumber row] )]) with (curSegment game)
+  makePlayerAction game (JObject [("tag", JString  "Place"), ("unitName", JString unitName), ("position", JArray [ JNumber col, JNumber row] )]) | Setup = makePos (cast col) (cast row) >>=   pure . Cmd . Place unitName
+  makePlayerAction game (JObject [("tag", JString  "Place"), ("unitName", JString unitName), ("position", JArray [ JNumber col, JNumber row] )]) | other  = Left ("Invalid command for segment " ++ show other)
 makePlayerAction game (JObject (("tag", JString  "GetCurrentSegment") :: _)) = Right $ Qry GetCurrentSegment
 makePlayerAction _ sexp = Left $ "Unknown command " ++ show @{Idris} sexp
