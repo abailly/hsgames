@@ -45,6 +45,11 @@ type alias Pos =
     ( Int, Int )
 
 
+encodePos : Pos -> Json.Value
+encodePos ( x, y ) =
+    Enc.list Enc.int [ y, x ]
+
+
 type alias UnitName =
     String
 
@@ -139,6 +144,7 @@ type Model
 
 type Action
     = GetCurrentSegment
+    | Place UnitName Pos
 
 
 encodeAction : Action -> Json.Value
@@ -147,6 +153,13 @@ encodeAction act =
         GetCurrentSegment ->
             Enc.object
                 [ ( "tag", Enc.string "GetCurrentSegment" )
+                ]
+
+        Place u p ->
+            Enc.object
+                [ ( "tag", Enc.string "Place" )
+                , ( "unitName", Enc.string u )
+                , ( "position", encodePos p )
                 ]
 
 
@@ -430,6 +443,7 @@ type Messages
     | PlayerJoined String
     | GameStarted String
     | CurrentGameSegment GameSegment
+    | Placed String Pos
     | Positions (List ( Unit, Pos ))
 
 
@@ -535,6 +549,9 @@ makeMessages tag =
                     (field "side" decodeSide)
                     (field "segment" decodeSegment)
 
+        "Placed" ->
+            Json.map2 Placed (field "unit" Json.string) (field "pos" decodePos)
+
         other ->
             Json.fail ("Unknown tag " ++ other)
 
@@ -603,8 +620,58 @@ handleMessages model s =
                 _ ->
                     ( model, Cmd.none )
 
+        Ok (Placed unitName position) ->
+            case model of
+                InGame game ->
+                    let
+                        setPos pos u =
+                            Maybe.map (\unit -> { unit | position = pos }) u
+
+                        newModel =
+                            InGame
+                                { game
+                                    | units =
+                                        Dict.update unitName (setPos position) game.units
+                                    , positions =
+                                        updatePositions (Dict.get unitName game.units) position game.positions
+                                }
+                    in
+                    ( newModel, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
         Err _ ->
             ( model, Cmd.none )
+
+
+updatePositions : Maybe Unit -> Pos -> Dict.Dict Pos (List Unit) -> Dict.Dict Pos (List Unit)
+updatePositions maybeUnit newPosition positions =
+    case maybeUnit of
+        Nothing ->
+            positions
+
+        Just unit ->
+            let
+                remove =
+                    Maybe.map (\us -> List.filter (\u -> u.name /= unit.name) us)
+
+                add units =
+                    let
+                        newPos =
+                            { unit | position = newPosition }
+                    in
+                    case units of
+                        Nothing ->
+                            Just [ newPos ]
+
+                        Just us ->
+                            Just (newPos :: us)
+            in
+            Dict.update newPosition add <|
+                Dict.update unit.position
+                    remove
+                    positions
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -661,53 +728,22 @@ update msg model =
                         setPos pos u =
                             Maybe.map (\unit -> { unit | position = pos }) u
 
-                        updatePositions maybeUnit newPosition positions =
-                            case maybeUnit of
-                                Nothing ->
-                                    positions
-
-                                Just unit ->
-                                    let
-                                        remove =
-                                            Maybe.map (\us -> List.filter (\u -> u.name /= unit.name) us)
-
-                                        add units =
-                                            let
-                                                newPos =
-                                                    { unit | position = newPosition }
-                                            in
-                                            case units of
-                                                Nothing ->
-                                                    Just [ newPos ]
-
-                                                Just us ->
-                                                    Just (newPos :: us)
-                                    in
-                                    Dict.update newPosition add <|
-                                        Dict.update unit.position
-                                            remove
-                                            positions
+                        newModel =
+                            InGame
+                                { game
+                                    | dragDrop = model_
+                                }
                     in
-                    ( InGame
-                        { game
-                            | dragDrop = model_
-                            , units =
-                                case result of
-                                    Nothing ->
-                                        game.units
+                    case result of
+                        Just ( unitName, position, _ ) ->
+                            ( newModel
+                            , case game.gameSegment.segment of
+                                Setup ->
+                                    sendCommand newModel (Action { gameId = game.gameId, action = Place unitName position })
+                            )
 
-                                    Just ( unitName, position, _ ) ->
-                                        Dict.update unitName (setPos position) game.units
-                            , positions =
-                                case result of
-                                    Nothing ->
-                                        game.positions
-
-                                    Just ( unitName, position, _ ) ->
-                                        updatePositions (Dict.get unitName game.units) position game.positions
-                        }
-                    , Cmd.none
-                    )
+                        Nothing ->
+                            ( newModel, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
