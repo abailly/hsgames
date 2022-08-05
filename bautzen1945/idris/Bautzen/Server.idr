@@ -34,6 +34,7 @@ record GameHandler where
 
 data MessageResult : Type where
   MsgError : (err : String) -> MessageResult
+  MsgQuery : (result : String) -> MessageResult
   MsgEvent : (event : String) -> (gameId : Id) -> MessageResult
 
 
@@ -77,7 +78,7 @@ mkGamesState = do
            (Right (GamesResEvent event)) =>
              MsgEvent (show $ cast { to = JSON } event) event.id
            (Right (GamesResQuery gameId r)) =>
-             MsgEvent (show $ cast { to = JSON } r) gameId
+             MsgQuery (show $ cast { to = JSON } r)
            (Right (GamesResError x)) =>
              MsgError $ show $ cast { to = JSON } x
 
@@ -165,6 +166,7 @@ commandLoop log cin cout clients gamesOutput clientId gamesState = do
   where
    handleOutputsForResult : MessageResult -> IO ()
    handleOutputsForResult (MsgError err) = channelPut cout err
+   handleOutputsForResult (MsgQuery q) = channelPut cout q
    handleOutputsForResult (MsgEvent event gameId) = do
       modifyIORef gamesOutput $ \ gmap => case lookup gameId gmap of
         Nothing => insert gameId (insert clientId cout empty) gmap
