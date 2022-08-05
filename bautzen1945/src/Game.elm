@@ -1,4 +1,18 @@
-port module Game exposing (Model, Msg(..), divStyle, init, isNothing, main, update, view, viewDiv)
+port module Game exposing
+    ( Messages(..)
+    , Model
+    , Msg(..)
+    , Segment(..)
+    , Side(..)
+    , decodeMessages
+    , divStyle
+    , init
+    , isNothing
+    , main
+    , update
+    , view
+    , viewDiv
+    )
 
 import Browser
 import Dict
@@ -515,10 +529,11 @@ makeMessages tag =
             Json.map GameStarted (field "gameId" Json.string)
 
         "CurrentGameSegment" ->
-            tuple3 (\t d s -> CurrentGameSegment { turn = t, side = d, segment = s })
-                (field "turn" decodeTurn)
-                (field "side" decodeSide)
-                (field "segment" decodeSegment)
+            Json.map CurrentGameSegment <|
+                Json.map3 GameSegment
+                    (field "turn" decodeTurn)
+                    (field "side" decodeSide)
+                    (field "segment" decodeSegment)
 
         other ->
             Json.fail ("Unknown tag " ++ other)
@@ -577,9 +592,13 @@ handleMessages model s =
             ( model, Cmd.none )
 
         Ok (CurrentGameSegment gameStage) ->
+            let
+                gs =
+                    Debug.log "Handling game segment" gameStage
+            in
             case model of
                 InGame g ->
-                    ( InGame { g | gameSegment = gameStage }, Cmd.none )
+                    ( InGame { g | gameSegment = gs }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
