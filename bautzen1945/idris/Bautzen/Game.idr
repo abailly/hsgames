@@ -125,7 +125,7 @@ record CurrentGameSegment where
   constructor MkCurrentGameSegment
   turn : Fin 6
   side : Side
-  segment : GameSegment
+  gameSegment : GameSegment
 
 ||| Query interface to retrieve information from a `Game`.
 |||
@@ -153,14 +153,14 @@ data Query : (result : Type) -> Type where
   Positions : Query AllPositions
 
   ||| Retrieve the stage (turn, side, segment) the game is currently at
-  GameStage : Query CurrentGameSegment
+  GetCurrentSegment : Query CurrentGameSegment
 
 export
 Show (Query a) where
   show (SupplyPath u) = "SupplyPath " ++ show u
   show TerrainMap = "TerrainMap"
   show Positions = "Positions"
-  show GameStage = "GameStage"
+  show GetCurrentSegment = "GetCurrentSegment"
 
 export
 query : (game : Game) -> (qry : Query result) -> result
@@ -173,7 +173,7 @@ query (MkGame (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
         x  => Right x
 query (MkGame (MkGameState _ side _ units) gameMap) TerrainMap = gameMap
 query (MkGame (MkGameState _ side _ positions) _) Positions = MkAllPositions positions
-query (MkGame (MkGameState turn side segment _) _) GameStage = MkCurrentGameSegment turn side segment
+query (MkGame (MkGameState turn side segment _) _) GetCurrentSegment = MkCurrentGameSegment turn side segment
 
 ||| A single player action, either a @Command@ or a @Query@.
 public export
@@ -211,7 +211,7 @@ initialPositions = [ (Bautzen.GameUnit.p13_5dp, hex 1 9)
 
 export
 initialState : GameState
-initialState = MkGameState 5 Axis Move initialPositions
+initialState = MkGameState 5 Allies Setup initialPositions
 
 export
 initialGame : Game

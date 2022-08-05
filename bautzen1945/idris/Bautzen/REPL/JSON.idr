@@ -409,5 +409,5 @@ makePlayerAction game (JArray [ JString "next!" ] ) = pure $ Cmd NextSegment
 makePlayerAction game (JArray [ JString "supply-path?", JString unitName ] ) = Right $ Qry $ SupplyPath unitName
 makePlayerAction game (JArray [ JString "map?" ] ) = Right $ Qry TerrainMap
 makePlayerAction game (JArray [ JString "positions?" ] ) = Right $ Qry Positions
-makePlayerAction game (JObject [ ("tag", JString  "GameStage") ] ) = Right $ Qry GameStage
-makePlayerAction _ sexp = Left $ "Unknown command " ++ show sexp
+makePlayerAction game (JObject (("tag", JString  "GetCurrentSegment") :: _)) = Right $ Qry GetCurrentSegment
+makePlayerAction _ sexp = Left $ "Unknown command " ++ show @{Idris} sexp

@@ -99,7 +99,7 @@ makeGameCommand games (JObject [ ("tag", JString "Action"), ("gameId", JString g
 makeGameCommand games (JObject [ ("tag", JString "Bye"), ("gameId", JString gameId) ]) = do
   gid <- makeId gameId
   pure $ Bye gid
-makeGameCommand _ json = Left $ "Unknown command " ++ show json
+makeGameCommand _ json = Left $ "Unknown command " ++ show @{Idris} json
 
 export
 data GamesEvent : Type where
@@ -149,16 +149,18 @@ Cast GamesError JSON where
   cast (SideTaken side playerKey) =
     JObject [ ("tag", JString "SideTaken"), ("side", cast side), ("playerKey", cast playerKey) ]
   cast (InvalidSegment actual expected playerKey gameId ) =
-    JObject [ ("tag", JString "SideTaken"), ("actual", cast actual), ("expected", cast expected), ("playerKey", cast playerKey), ("gameId", cast gameId) ]
+    JObject [ ("tag", JString "InvalidSegment"), ("actual", cast actual), ("expected", cast expected), ("playerKey", cast playerKey), ("gameId", cast gameId) ]
 
 public export
 data GamesResult : (0 games : Games) -> Type where
    GamesResEvent : (event : GamesEvent) -> GamesResult games
+   GamesResQuery : Cast result JSON => Id -> result -> GamesResult games
    GamesResError  : GamesError -> GamesResult games
 
 export
 Cast (GamesResult games) JSON where
    cast (GamesResEvent event) = JObject [ ("tag", JString "GamesResEvent"), ("event", cast event) ]
+   cast (GamesResQuery gid result) = JObject [ ("tag", JString "GamesResQuery"), ("gameId", cast gid), ("result", cast result) ]
    cast (GamesResError error) = JObject [ ("tag", JString "GamesResError"), ("error", cast error) ]
 
 actAction : {gameSegment: GameSegment} -> PlayerAction gameSegment -> SingleGame -> Id -> Id -> (games : Games) -> GamesResult games
@@ -168,7 +170,10 @@ actAction {gameSegment} act single@(MkSingleGame xs axisPlayer alliesPlayer theG
         game' =  applyResult theGame result
     in GamesResEvent $ PlayerPlayed playerKey ({ theGame := game' } single) result
   actAction act single@(MkSingleGame xs axisPlayer alliesPlayer theGame) playerKey gameId games | (No contra) =
-    GamesResError $ InvalidSegment gameSegment (curSegment theGame) playerKey gameId
+    case act of
+      Qry q => let result = query theGame q
+               in GamesResQuery gameId result
+      Cmd _ => GamesResError $ InvalidSegment gameSegment (curSegment theGame) playerKey gameId
 
 removePlayerFromGame : Id -> SingleGame -> Maybe SingleGame
 removePlayerFromGame playerKey single@(MkSingleGame gameId (HumanPlayer xs) (HumanPlayer ys) theGame) =
@@ -251,6 +256,7 @@ apply games (GamesResEvent (PlayerPlayed playerKey game' result)) =
 apply games (GamesResEvent (PlayerLeft playerKey game)) =
   insert game.gameId game games
 apply games (GamesResError x) = games
+apply games (GamesResQuery _  _) = games
 
 export
 interpret : Id -> GameCommand -> (games : Games) -> (GamesResult games, Games)

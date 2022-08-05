@@ -123,12 +123,25 @@ type Model
     | Waiting { gameId : String, mySide : Side }
 
 
+type Action
+    = GetCurrentSegment
+
+
+encodeAction : Action -> Json.Value
+encodeAction act =
+    case act of
+        GetCurrentSegment ->
+            Enc.object
+                [ ( "tag", Enc.string "GetCurrentSegment" )
+                ]
+
+
 type Request
     = {- Request current positions of all units -} PositionsQ
     | JoinGame { gameId : String, side : Side }
     | Connect { playerKey : String }
     | NewGame { gameId : String }
-    | GameStage
+    | Action { gameId : String, action : Action }
 
 
 encodeRequest : Request -> Json.Value
@@ -156,9 +169,12 @@ encodeRequest msg =
                 , ( "side", encodeSide j.side )
                 ]
 
-        GameStage ->
+        Action a ->
             Enc.object
-                [ ( "tag", Enc.string "GameStage" ) ]
+                [ ( "tag", Enc.string "Action" )
+                , ( "gameId", Enc.string a.gameId )
+                , ( "action", encodeAction a.action )
+                ]
 
 
 type Msg
@@ -355,8 +371,12 @@ inGame gameId =
             Dict.fromList [ ( ( 100, 100 ), russianUnits ), ( ( 200, 200 ), germanUnits ) ]
         , dragDrop = DragDrop.init
         , gameId = gameId
-        , gameSegment = { turn = 7, side = Axis, segment = Setup }
+        , gameSegment = { turn = 0, side = Axis, segment = Setup }
         }
+
+
+
+-- | The current turn of the game.
 
 
 type alias Turn =
@@ -365,7 +385,7 @@ type alias Turn =
 
 showTurn : Turn -> String
 showTurn turn =
-    fromInt (7 - turn)
+    fromInt turn
 
 
 type Segment
@@ -451,7 +471,15 @@ decodePos =
 
 decodeTurn : Json.Decoder Turn
 decodeTurn =
-    Json.int
+    let
+        mkTurn i =
+            if i >= 0 && i <= 5 then
+                succeed (6 - i)
+
+            else
+                Json.fail ("Invalid turn value: " ++ fromInt i)
+    in
+    andThen mkTurn Json.int
 
 
 decodeSegment : Json.Decoder Segment
@@ -540,7 +568,7 @@ handleMessages model s =
                         newModel =
                             inGame gid
                     in
-                    ( newModel, sendCommand model GameStage )
+                    ( newModel, sendCommand model (Action { gameId = gid, action = GetCurrentSegment }) )
 
                 _ ->
                     ( model, Cmd.none )
@@ -799,11 +827,11 @@ viewInGame game =
 viewSegment : GameSegment -> Html Msg
 viewSegment { turn, side, segment } =
     div []
-        [ span [] [ text "Turn" ]
+        [ span [] [ text "Turn: " ]
         , span [] [ text <| showTurn turn ]
-        , span [] [ text "Side" ]
+        , span [] [ text "Side: " ]
         , span [] [ text <| toString side ]
-        , span [] [ text "Segment" ]
+        , span [] [ text "Segment: " ]
         , span [] [ text <| showSegment segment ]
         ]
 
