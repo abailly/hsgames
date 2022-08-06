@@ -213,7 +213,7 @@ export
 Cast (Event seg) JSON where
   cast (Placed unit pos) =
       JObject [ ("tag", JString "Placed")
-            , ("unit", cast unit)
+            , ("unit", JString $ fullName unit)
             , ("pos", cast pos)
             ]
   cast (Moved unit from to cost) =

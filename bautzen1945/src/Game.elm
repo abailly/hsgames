@@ -2,9 +2,11 @@ port module Game exposing
     ( Messages(..)
     , Model
     , Msg(..)
+    , Play(..)
     , Segment(..)
     , Side(..)
     , decodeMessages
+    , decodePos
     , divStyle
     , init
     , isNothing
@@ -70,7 +72,11 @@ armyToString army =
 
 
 type alias Unit =
-    { name : UnitName, army : Army, position : Pos }
+    { name : UnitName
+    , img : String
+    , army : Army
+    , position : Pos
+    }
 
 
 type alias Game =
@@ -212,170 +218,170 @@ type Msg
     | SetSide Side
 
 
-germanOOB : List String
+germanOOB : List ( String, String )
 germanOOB =
-    [ "17-hq-recto"
-    , "17-kg1-recto"
-    , "17-kg1-verso"
-    , "17-kg2-recto"
-    , "17-kg2-verso"
-    , "20pz-112-recto"
-    , "20pz-112-verso"
-    , "20pz-21-recto"
-    , "20pz-21-verso"
-    , "20pz-59-recto"
-    , "20pz-59-verso"
-    , "20pz-hq-recto"
-    , "464-hq-recto"
-    , "464-kg1-recto"
-    , "464-kg1-verso"
-    , "464-kg2-recto"
-    , "464-kg2-verso"
-    , "546-kg1-recto"
-    , "546-kg1-verso"
-    , "546-kg2-recto"
-    , "546-kg2-verso"
-    , "546vg-hq-recto"
-    , "57pzk-hq-recto"
-    , "615-687-recto"
-    , "615-687-verso"
-    , "615-hq-recto"
-    , "615-kg-recto"
-    , "732-arty-recto"
-    , "777-arty-recto"
-    , "black-cross"
-    , "brgpzg-1-recto"
-    , "brgpzg-1-verso"
-    , "brgpzg-2-recto"
-    , "brgpzg-2-verso"
-    , "brgpzg-hq-recto"
-    , "brgpzg-pz-recto"
-    , "brgpzg-pz-verso"
-    , "gdpzk-hq-recto"
-    , "hg1-hq-recto"
-    , "hg1-pz1-recto"
-    , "hg1-pz1-verso"
-    , "hg1-pzg1-recto"
-    , "hg1-pzg1-verso"
-    , "hg1-pzg2-recto"
-    , "hg1-pzg2-verso"
-    , "hg2-hq-recto"
-    , "hg2-pzg3-recto"
-    , "hg2-pzg3-verso"
-    , "hg2-pzg4-recto"
-    , "hg2-pzg4-verso"
-    , "kg72-recto"
-    , "kg72-verso"
-    , "truck-recto"
+    [ ( "17-hq-recto", "17-hq-recto" )
+    , ( "17-kg1-recto", "17-kg1-recto" )
+    , ( "17-kg1-verso", "17-kg1-verso" )
+    , ( "17-kg2-recto", "17-kg2-recto" )
+    , ( "17-kg2-verso", "17-kg2-verso" )
+    , ( "20pz-112-recto", "20pz-112-recto" )
+    , ( "20pz-112-verso", "20pz-112-verso" )
+    , ( "20pz-21-recto", "20pz-21-recto" )
+    , ( "20pz-21-verso", "20pz-21-verso" )
+    , ( "20pz-59-recto", "20pz-59-recto" )
+    , ( "20pz-59-verso", "20pz-59-verso" )
+    , ( "20pz-hq-recto", "20pz-hq-recto" )
+    , ( "464-hq-recto", "464-hq-recto" )
+    , ( "464-kg1-recto", "464-kg1-recto" )
+    , ( "464-kg1-verso", "464-kg1-verso" )
+    , ( "464-kg2-recto", "464-kg2-recto" )
+    , ( "464-kg2-verso", "464-kg2-verso" )
+    , ( "546-kg1-recto", "546-kg1-recto" )
+    , ( "546-kg1-verso", "546-kg1-verso" )
+    , ( "546-kg2-recto", "546-kg2-recto" )
+    , ( "546-kg2-verso", "546-kg2-verso" )
+    , ( "546vg-hq-recto", "546vg-hq-recto" )
+    , ( "57pzk-hq-recto", "57pzk-hq-recto" )
+    , ( "615-687-recto", "615-687-recto" )
+    , ( "615-687-verso", "615-687-verso" )
+    , ( "615-hq-recto", "615-hq-recto" )
+    , ( "615-kg-recto", "615-kg-recto" )
+    , ( "732-arty-recto", "732-arty-recto" )
+    , ( "777-arty-recto", "777-arty-recto" )
+    , ( "black-cross", "black-cross" )
+    , ( "brgpzg-1-recto", "brgpzg-1-recto" )
+    , ( "brgpzg-1-verso", "brgpzg-1-verso" )
+    , ( "brgpzg-2-recto", "brgpzg-2-recto" )
+    , ( "brgpzg-2-verso", "brgpzg-2-verso" )
+    , ( "brgpzg-hq-recto", "brgpzg-hq-recto" )
+    , ( "brgpzg-pz-recto", "brgpzg-pz-recto" )
+    , ( "brgpzg-pz-verso", "brgpzg-pz-verso" )
+    , ( "gdpzk-hq-recto", "gdpzk-hq-recto" )
+    , ( "hg1-hq-recto", "hg1-hq-recto" )
+    , ( "hg1-pz1-recto", "hg1-pz1-recto" )
+    , ( "hg1-pz1-verso", "hg1-pz1-verso" )
+    , ( "hg1-pzg1-recto", "hg1-pzg1-recto" )
+    , ( "hg1-pzg1-verso", "hg1-pzg1-verso" )
+    , ( "hg1-pzg2-recto", "hg1-pzg2-recto" )
+    , ( "hg1-pzg2-verso", "hg1-pzg2-verso" )
+    , ( "hg2-hq-recto", "hg2-hq-recto" )
+    , ( "hg2-pzg3-recto", "hg2-pzg3-recto" )
+    , ( "hg2-pzg3-verso", "hg2-pzg3-verso" )
+    , ( "hg2-pzg4-recto", "hg2-pzg4-recto" )
+    , ( "hg2-pzg4-verso", "hg2-pzg4-verso" )
+    , ( "kg72-recto", "kg72-recto" )
+    , ( "kg72-verso", "kg72-verso" )
+    , ( "truck-recto", "truck-recto" )
     ]
 
 
-russianOOB : List String
+russianOOB : List ( String, String )
 russianOOB =
-    [ "10dp-25-recto"
-    , "10dp-27-recto"
-    , "10dp-29-recto"
-    , "10dp-hq-recto"
-    , "14gd-36-recto"
-    , "14gd-36-verso"
-    , "14gd-38-recto"
-    , "14gd-38-verso"
-    , "14gd-41-recto"
-    , "14gd-41-verso"
-    , "14gd-hq-recto"
-    , "14s-arty-recto"
-    , "14s-recto"
-    , "15gd-44-recto"
-    , "15gd-44-verso"
-    , "15gd-47-recto"
-    , "15gd-47-verso"
-    , "15gd-50-recto"
-    , "15gd-50-verso"
-    , "15gd-hq-recto"
-    , "1kp-recto"
-    , "1kp-verso"
-    , "214-776-recto"
-    , "214-780-recto"
-    , "214-788-recto"
-    , "214-hq-recto"
-    , "254-929-recto"
-    , "254-933-recto"
-    , "254-936-recto"
-    , "254-hq-recto"
-    , "294-857-recto"
-    , "294-859-recto"
-    , "294-861-recto"
-    , "294-hq-recto"
-    , "2awp-hq-recto"
-    , "4gd-12-recto"
-    , "4gd-13-recto"
-    , "4gd-14-recto"
-    , "4gd-29-recto"
-    , "4gd-3-recto"
-    , "4gd-3-verso"
-    , "4gtc-hq-recto"
-    , "5dp-13-recto"
-    , "5dp-13-verso"
-    , "5dp-15-recto"
-    , "5dp-15-verso"
-    , "5dp-17-recto"
-    , "5dp-17-verso"
-    , "5dp-hq-recto"
-    , "6l-arty-recto"
-    , "7dp-33-recto"
-    , "7dp-33-verso"
-    , "7dp-35-recto"
-    , "7dp-35-verso"
-    , "7dp-37-recto"
-    , "7dp-37-verso"
-    , "7dp-hq-recto"
-    , "7gd-24-recto"
-    , "7gd-24-verso"
-    , "7gd-25-recto"
-    , "7gd-25-verso"
-    , "7gd-26-recto"
-    , "7gd-26-verso"
-    , "7gd-57-recto"
-    , "7gmc-hq-recto"
-    , "7h-arty-recto"
-    , "8c-arty-recto"
-    , "8dp-32-recto"
-    , "8dp-32-verso"
-    , "8dp-34-recto"
-    , "8dp-34-verso"
-    , "8dp-36-recto"
-    , "8dp-36-verso"
-    , "8dp-hq-recto"
-    , "95gd-284-recto"
-    , "95gd-284-verso"
-    , "95gd-287-recto"
-    , "95gd-287-verso"
-    , "95gd-290-recto"
-    , "95gd-290-verso"
-    , "95gd-hq-recto"
-    , "9dp-26-recto"
-    , "9dp-26-verso"
-    , "9dp-28-recto"
-    , "9dp-28-verso"
-    , "9dp-30-recto"
-    , "9dp-30-verso"
-    , "9dp-hq-recto"
-    , "9s-arty-recto"
-    , "air-support-recto"
-    , "air-support-verso"
-    , "red-star"
-    , "truck-recto"
+    [ ( "10dp-25-recto", "10dp-25-recto" )
+    , ( "10dp-27-recto", "10dp-27-recto" )
+    , ( "10dp-29-recto", "10dp-29-recto" )
+    , ( "10dp-hq-recto", "10dp-hq-recto" )
+    , ( "14gd-36-recto", "14gd-36-recto" )
+    , ( "14gd-36-verso", "14gd-36-verso" )
+    , ( "14gd-38-recto", "14gd-38-recto" )
+    , ( "14gd-38-verso", "14gd-38-verso" )
+    , ( "14gd-41-recto", "14gd-41-recto" )
+    , ( "14gd-41-verso", "14gd-41-verso" )
+    , ( "14gd-hq-recto", "14gd-hq-recto" )
+    , ( "14s-arty-recto", "14s-arty-recto" )
+    , ( "14s-recto", "14s-recto" )
+    , ( "15gd-44-recto", "15gd-44-recto" )
+    , ( "15gd-44-verso", "15gd-44-verso" )
+    , ( "15gd-47-recto", "15gd-47-recto" )
+    , ( "15gd-47-verso", "15gd-47-verso" )
+    , ( "15gd-50-recto", "15gd-50-recto" )
+    , ( "15gd-50-verso", "15gd-50-verso" )
+    , ( "15gd-hq-recto", "15gd-hq-recto" )
+    , ( "1kp-recto", "1kp-recto" )
+    , ( "1kp-verso", "1kp-verso" )
+    , ( "214-776-recto", "214-776-recto" )
+    , ( "214-780-recto", "214-780-recto" )
+    , ( "214-788-recto", "214-788-recto" )
+    , ( "214-hq-recto", "214-hq-recto" )
+    , ( "254-929-recto", "254-929-recto" )
+    , ( "254-933-recto", "254-933-recto" )
+    , ( "254-936-recto", "254-936-recto" )
+    , ( "254-hq-recto", "254-hq-recto" )
+    , ( "294-857-recto", "294-857-recto" )
+    , ( "294-859-recto", "294-859-recto" )
+    , ( "294-861-recto", "294-861-recto" )
+    , ( "294-hq-recto", "294-hq-recto" )
+    , ( "2awp-hq-recto", "2awp-hq-recto" )
+    , ( "4gd-12-recto", "4gd-12-recto" )
+    , ( "4gd-13-recto", "4gd-13-recto" )
+    , ( "4gd-14-recto", "4gd-14-recto" )
+    , ( "4gd-29-recto", "4gd-29-recto" )
+    , ( "4gd-3-recto", "4gd-3-recto" )
+    , ( "4gd-3-verso", "4gd-3-verso" )
+    , ( "4gtc-hq-recto", "4gtc-hq-recto" )
+    , ( "13/5DP", "5dp-13-recto" )
+    , ( "13/5DP", "5dp-13-verso" )
+    , ( "15/5DP", "5dp-15-recto" )
+    , ( "15/5DP", "5dp-15-verso" )
+    , ( "17/5DP", "5dp-17-recto" )
+    , ( "17/5DP", "5dp-17-verso" )
+    , ( "HQ/5DP", "5dp-hq-recto" )
+    , ( "6l-arty-recto", "6l-arty-recto" )
+    , ( "7dp-33-recto", "7dp-33-recto" )
+    , ( "7dp-33-verso", "7dp-33-verso" )
+    , ( "7dp-35-recto", "7dp-35-recto" )
+    , ( "7dp-35-verso", "7dp-35-verso" )
+    , ( "7dp-37-recto", "7dp-37-recto" )
+    , ( "7dp-37-verso", "7dp-37-verso" )
+    , ( "7dp-hq-recto", "7dp-hq-recto" )
+    , ( "7gd-24-recto", "7gd-24-recto" )
+    , ( "7gd-24-verso", "7gd-24-verso" )
+    , ( "7gd-25-recto", "7gd-25-recto" )
+    , ( "7gd-25-verso", "7gd-25-verso" )
+    , ( "7gd-26-recto", "7gd-26-recto" )
+    , ( "7gd-26-verso", "7gd-26-verso" )
+    , ( "7gd-57-recto", "7gd-57-recto" )
+    , ( "7gmc-hq-recto", "7gmc-hq-recto" )
+    , ( "7h-arty-recto", "7h-arty-recto" )
+    , ( "8c-arty-recto", "8c-arty-recto" )
+    , ( "8dp-32-recto", "8dp-32-recto" )
+    , ( "8dp-32-verso", "8dp-32-verso" )
+    , ( "8dp-34-recto", "8dp-34-recto" )
+    , ( "8dp-34-verso", "8dp-34-verso" )
+    , ( "8dp-36-recto", "8dp-36-recto" )
+    , ( "8dp-36-verso", "8dp-36-verso" )
+    , ( "8dp-hq-recto", "8dp-hq-recto" )
+    , ( "95gd-284-recto", "95gd-284-recto" )
+    , ( "95gd-284-verso", "95gd-284-verso" )
+    , ( "95gd-287-recto", "95gd-287-recto" )
+    , ( "95gd-287-verso", "95gd-287-verso" )
+    , ( "95gd-290-recto", "95gd-290-recto" )
+    , ( "95gd-290-verso", "95gd-290-verso" )
+    , ( "95gd-hq-recto", "95gd-hq-recto" )
+    , ( "9dp-26-recto", "9dp-26-recto" )
+    , ( "9dp-26-verso", "9dp-26-verso" )
+    , ( "9dp-28-recto", "9dp-28-recto" )
+    , ( "9dp-28-verso", "9dp-28-verso" )
+    , ( "9dp-30-recto", "9dp-30-recto" )
+    , ( "9dp-30-verso", "9dp-30-verso" )
+    , ( "9dp-hq-recto", "9dp-hq-recto" )
+    , ( "9s-arty-recto", "9s-arty-recto" )
+    , ( "air-support-recto", "air-support-recto" )
+    , ( "air-support-verso", "air-support-verso" )
+    , ( "red-star", "red-star" )
+    , ( "truck-recto", "truck-recto" )
     ]
 
 
 russianUnits : List Unit
 russianUnits =
-    List.map (\n -> { name = n, army = Russian, position = ( 100, 100 ) }) russianOOB
+    List.map (\( n, img ) -> { name = n, img = img, army = Russian, position = ( 100, 100 ) }) russianOOB
 
 
 germanUnits : List Unit
 germanUnits =
-    List.map (\n -> { name = n, army = German, position = ( 200, 200 ) }) germanOOB
+    List.map (\( n, img ) -> { name = n, img = img, army = German, position = ( 200, 200 ) }) germanOOB
 
 
 init : { port_ : String, host : String, gameId : String, playerKey : String } -> ( Model, Cmd Msg )
@@ -437,13 +443,17 @@ type alias GameSegment =
     { turn : Turn, side : Side, segment : Segment }
 
 
+type Play
+    = Placed String Pos
+
+
 type Messages
     = {- Server acknowledged player's connection -} Connected
     | NewGameCreated String
     | PlayerJoined String
     | GameStarted String
     | CurrentGameSegment GameSegment
-    | Placed String Pos
+    | PlayerPlayed String Play
     | Positions (List ( Unit, Pos ))
 
 
@@ -464,7 +474,7 @@ decodeMessages =
 
 decodeUnit : Json.Decoder Unit
 decodeUnit =
-    tuple3 (\name army position -> { name = name, army = army, position = position })
+    tuple3 (\name army position -> { name = name, img = name, army = army, position = position })
         (field "name" Json.string)
         decodeArmy
         decodePos
@@ -492,9 +502,9 @@ decodeArmy =
 
 decodePos : Json.Decoder Pos
 decodePos =
-    tuple2 (\a b -> ( a, b ))
-        (index 0 Json.int)
+    Json.map2 (\a b -> ( a, b ))
         (index 1 Json.int)
+        (index 0 Json.int)
 
 
 decodeTurn : Json.Decoder Turn
@@ -549,11 +559,30 @@ makeMessages tag =
                     (field "side" decodeSide)
                     (field "segment" decodeSegment)
 
-        "Placed" ->
-            Json.map2 Placed (field "unit" Json.string) (field "pos" decodePos)
+        "PlayerPlayed" ->
+            Json.map2 PlayerPlayed
+                (field "gameId" Json.string)
+                (field "result" decodePlay)
 
         other ->
             Json.fail ("Unknown tag " ++ other)
+
+
+decodePlay : Json.Decoder Play
+decodePlay =
+    let
+        decodePlayBody : String -> Json.Decoder Play
+        decodePlayBody tag =
+            case tag of
+                "Placed" ->
+                    Json.map2 Placed (field "unit" Json.string) (field "pos" decodePos)
+
+                other ->
+                    Json.fail <| "Unknown play tag: " ++ other
+    in
+    field "tag" Json.string
+        |> andThen
+            decodePlayBody
 
 
 decodeUnitPos : Json.Decoder ( Unit, Pos )
@@ -620,7 +649,7 @@ handleMessages model s =
                 _ ->
                     ( model, Cmd.none )
 
-        Ok (Placed unitName position) ->
+        Ok (PlayerPlayed _ (Placed unitName position)) ->
             case model of
                 InGame game ->
                     let
@@ -631,7 +660,7 @@ handleMessages model s =
                             InGame
                                 { game
                                     | units =
-                                        Dict.update unitName (setPos position) game.units
+                                        Dict.update (Debug.log "unit name" unitName) (setPos position) game.units
                                     , positions =
                                         updatePositions (Dict.get unitName game.units) position game.positions
                                 }
@@ -671,7 +700,7 @@ updatePositions maybeUnit newPosition positions =
             Dict.update newPosition add <|
                 Dict.update unit.position
                     remove
-                    positions
+                    (Debug.log "updating positions" positions)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -1000,7 +1029,7 @@ viewUnits units styling =
     let
         mkImg unit ( otherUnits, index ) =
             ( img
-                (src ("assets/" ++ armyToString unit.army ++ "/" ++ unit.name ++ ".png")
+                (src ("assets/" ++ armyToString unit.army ++ "/" ++ unit.img ++ ".png")
                     :: DragDrop.draggable DragDropMsg unit.name
                     ++ styling index
                 )
