@@ -151,6 +151,7 @@ type Model
 type Action
     = GetCurrentSegment
     | Place UnitName Pos
+    | Next
 
 
 encodeAction : Action -> Json.Value
@@ -167,6 +168,10 @@ encodeAction act =
                 , ( "unitName", Enc.string u )
                 , ( "position", encodePos p )
                 ]
+
+        Next ->
+            Enc.object
+                [ ( "tag", Enc.string "Next" ) ]
 
 
 type Request
@@ -216,6 +221,7 @@ type Msg
     | Input String
     | NewGameWithId String
     | SetSide Side
+    | NextSegment
 
 
 germanOOB : List ( String, String )
@@ -445,6 +451,7 @@ type alias GameSegment =
 
 type Play
     = Placed String Pos
+    | SegmentChanged GameSegment GameSegment
 
 
 type Messages
@@ -534,6 +541,14 @@ decodeSegment =
     andThen mkSegment Json.string
 
 
+decodeGameSegment : Json.Decoder GameSegment
+decodeGameSegment =
+    Json.map3 GameSegment
+        (field "turn" decodeTurn)
+        (field "side" decodeSide)
+        (field "segment" decodeSegment)
+
+
 makeMessages : String -> Json.Decoder Messages
 makeMessages tag =
     case tag of
@@ -553,11 +568,7 @@ makeMessages tag =
             Json.map GameStarted (field "gameId" Json.string)
 
         "CurrentGameSegment" ->
-            Json.map CurrentGameSegment <|
-                Json.map3 GameSegment
-                    (field "turn" decodeTurn)
-                    (field "side" decodeSide)
-                    (field "segment" decodeSegment)
+            Json.map CurrentGameSegment <| decodeGameSegment
 
         "PlayerPlayed" ->
             Json.map2 PlayerPlayed
@@ -576,6 +587,9 @@ decodePlay =
             case tag of
                 "Placed" ->
                     Json.map2 Placed (field "unit" Json.string) (field "pos" decodePos)
+
+                "SegmentChanged" ->
+                    Json.map2 SegmentChanged (field "from" decodeGameSegment) (field "to" decodeGameSegment)
 
                 other ->
                     Json.fail <| "Unknown play tag: " ++ other
@@ -670,6 +684,14 @@ handleMessages model s =
                 _ ->
                     ( model, Cmd.none )
 
+        Ok (PlayerPlayed _ (SegmentChanged _ to)) ->
+            case model of
+                InGame game ->
+                    ( InGame { game | gameSegment = to }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
         Err _ ->
             ( model, Cmd.none )
 
@@ -727,6 +749,9 @@ update msg model =
                 SetSide side ->
                     ( NoGame { p | side = Just side }, Cmd.none )
 
+                NextSegment ->
+                    ( model, Cmd.none )
+
         Waiting _ ->
             case msg of
                 Input s ->
@@ -744,6 +769,9 @@ update msg model =
                 SetSide _ ->
                     ( model, Cmd.none )
 
+                NextSegment ->
+                    ( model, Cmd.none )
+
         InGame game ->
             case msg of
                 Input s ->
@@ -753,9 +781,6 @@ update msg model =
                     let
                         ( model_, result ) =
                             DragDrop.update msg_ game.dragDrop
-
-                        setPos pos u =
-                            Maybe.map (\unit -> { unit | position = pos }) u
 
                         newModel =
                             InGame
@@ -774,7 +799,16 @@ update msg model =
                         Nothing ->
                             ( newModel, Cmd.none )
 
-                _ ->
+                NextSegment ->
+                    ( model, sendCommand model (Action { gameId = game.gameId, action = Next }) )
+
+                StartNewGame ->
+                    ( model, Cmd.none )
+
+                NewGameWithId _ ->
+                    ( model, Cmd.none )
+
+                SetSide _ ->
                     ( model, Cmd.none )
 
 
@@ -910,13 +944,15 @@ viewInGame game =
 
 viewSegment : GameSegment -> Html Msg
 viewSegment { turn, side, segment } =
-    div []
-        [ span [] [ text "Turn: " ]
+    div
+        [ class "segment" ]
+        [ label [] [ text "Turn: " ]
         , span [] [ text <| showTurn turn ]
-        , span [] [ text "Side: " ]
+        , label [] [ text "Side: " ]
         , span [] [ text <| toString side ]
-        , span [] [ text "Segment: " ]
+        , label [] [ text "Segment: " ]
         , span [] [ text <| showSegment segment ]
+        , button [ onClick NextSegment ] [ text "Next" ]
         ]
 
 

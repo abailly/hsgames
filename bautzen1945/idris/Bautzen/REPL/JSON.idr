@@ -99,33 +99,34 @@ Cast a JSON => Cast b JSON => Cast c JSON => Cast (a, b, c) JSON where
 export
 Cast GameUnit JSON where
   cast (MkGameUnit nation unitType name parent size move currentMP steps hits combat) =
-    JObject [ ("nation", cast nation)
-          , ("type", cast unitType)
-          , ("name", cast name)
-          , ("parent", cast parent)
-          , ("size", cast size)
-          , ("move", cast move)
-          , ("mp", cast currentMP)
-          , ("steps", cast steps)
-          , ("hits", cast hits)
-          , ("combat", case unitType of
-              Armored       => cast combat
-              HeavyArmored  => cast combat
-              MechInfantry  => cast combat
-              Infantry      => cast combat
-              HeavyEngineer => cast combat
-              Artillery     => cast combat
-              AntiTank      => cast combat
-              HQ            => cast combat
-              SupplyColumn  => cast combat)
-          ]
+    JObject [ ("tag", JString "Unit")
+            , ("nation", cast nation)
+            , ("type", cast unitType)
+            , ("name", cast name)
+            , ("parent", cast parent)
+            , ("size", cast size)
+            , ("move", cast move)
+            , ("mp", cast currentMP)
+            , ("steps", cast steps)
+            , ("hits", cast hits)
+            , ("combat", case unitType of
+                Armored       => cast combat
+                HeavyArmored  => cast combat
+                MechInfantry  => cast combat
+                Infantry      => cast combat
+                HeavyEngineer => cast combat
+                Artillery     => cast combat
+                AntiTank      => cast combat
+                HQ            => cast combat
+                SupplyColumn  => cast combat)
+            ]
 
 public export
 Cast (P.Loc c r) JSON where
   cast (P.Hex col row) =
     JArray [ cast col
-          , cast row
-          ]
+           , cast row
+           ]
 
 export
 Cast Pos JSON where
@@ -251,7 +252,7 @@ Cast (Event seg) JSON where
             , ("remaining-losses", cast remain)
             ]
   cast (SegmentChanged from to) =
-      JObject [ ("tag", JString "segment-changed")
+      JObject [ ("tag", JString "SegmentChanged")
             , ("from", cast from)
             , ("to", cast to)
             ]
@@ -405,7 +406,7 @@ makePlayerAction game (JArray [ JString "resolve!" ] ) with (curSegment game)
 makePlayerAction game (JArray [ JString "lose-step!", JString unitName ] ) with (curSegment game)
   makePlayerAction game (JArray [ JString "lose-step!", JString unitName ] ) | Combat (ApplyLosses side state) = Cmd <$> makeLoseStepCommand unitName
   makePlayerAction game (JArray [ JString "lose-step!", JString unitName ] ) | other = Left $ "Invalid command for segment " ++ show other
-makePlayerAction game (JArray [ JString "next!" ] ) = pure $ Cmd NextSegment
+makePlayerAction game (JObject [("tag", JString  "Next")] ) = pure $ Cmd NextSegment
 makePlayerAction game (JArray [ JString "supply-path?", JString unitName ] ) = Right $ Qry $ SupplyPath unitName
 makePlayerAction game (JArray [ JString "map?" ] ) = Right $ Qry TerrainMap
 makePlayerAction game (JArray [ JString "positions?" ] ) = Right $ Qry Positions
