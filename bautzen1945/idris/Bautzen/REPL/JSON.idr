@@ -219,7 +219,7 @@ Cast (Event seg) JSON where
             ]
   cast (Moved unit from to cost) =
       JObject [ ("tag", JString "Moved")
-            , ("unit", cast unit)
+            , ("unit", JString $ fullName unit)
             , ("from", cast from)
             , ("to", cast to)
             , ("cost", cast cost)

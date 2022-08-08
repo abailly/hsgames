@@ -612,7 +612,7 @@ decodePlay =
                 "Placed" ->
                     Json.map2 Placed (field "unit" Json.string) (field "pos" decodePos)
 
-                "Moveed" ->
+                "Moved" ->
                     Json.map4 Moved (field "unit" Json.string) (field "from" decodePos) (field "to" decodePos) (field "cost" Json.int)
 
                 "AlliesSetupDone" ->

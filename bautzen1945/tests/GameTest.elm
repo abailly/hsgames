@@ -50,5 +50,15 @@ suite =
                             PlayerPlayed "YRFSXFRT" (SegmentChanged Setup Supply)
                     in
                     Expect.equal (Ok expected) (Json.decodeString decodeMessages msg)
+            , test "can parse moved result" <|
+                \_ ->
+                    let
+                        msg =
+                            "{\"tag\":\"PlayerPlayed\",\"gameId\":\"ASWGNPYZ\",\"result\":{\"tag\":\"Moved\",\"unit\":\"21/20Pz\",\"from\":[8.0,10.0],\"to\":[9.0,9.0],\"cost\":1.0}}"
+
+                        expected =
+                            PlayerPlayed "ASWGNPYZ" (Moved "21/20Pz" ( 10, 8 ) ( 9, 9 ) 1)
+                    in
+                    Expect.equal (Ok expected) (Json.decodeString decodeMessages msg)
             ]
         ]
