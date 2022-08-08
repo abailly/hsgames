@@ -9,7 +9,7 @@ import Data.Maybe (fromJust)
 import Data.Text (Text, pack)
 import qualified Data.Text as Text
 import Data.Text.Encoding (decodeUtf8, encodeUtf8)
-import GameServer.App (GameType, PlayerState (PlayerState), initialState, runApp)
+import GameServer.App (GameType (Acquire, Bautzen1945), PlayerState (PlayerState), initialState, runApp)
 import GameServer.Builder (
     aPlayer,
     anEmptyGame,
@@ -42,7 +42,7 @@ import Test.Hspec.Wai as W (
 import Test.Hspec.Wai.Internal (WaiSession (WaiSession))
 import Test.Hspec.Wai.Matcher as W (bodyEquals)
 import Test.Hspec.Wai.QuickCheck (Testable (State), property)
-import Test.QuickCheck (Arbitrary (arbitrary), forAll)
+import Test.QuickCheck (Arbitrary (arbitrary), elements, forAll)
 import Test.QuickCheck.Monadic (monadic, monadicIO)
 
 mkGameServerApp :: IO Application
@@ -149,6 +149,39 @@ spec =
                                     then Nothing
                                     else Just ("invalid content returned: " <> show body)
                             )
+
+                propW "on GET /games/<game type>/<id>/players/<playerKey>/whatever returns 'whatever'" $ \(gameType :: GameType) gameId playerKey extension ->
+                    get (encodeUtf8 $ "/games" </> pack (show gameType) </> unId gameId </> "players" </> unId playerKey </> selectExtension gameType extension)
+                        `shouldRespondWith` ResponseMatcher
+                            200
+                            []
+                            ( W.MatchBody $ \_ body ->
+                                if marker extension `isInfixOf` toStrict body
+                                    then Nothing
+                                    else Just ("invalid content returned: " <> show body)
+                            )
+
+marker :: Extension -> ByteString
+marker SomeJs = "function"
+marker SomeCSS = "width:"
+marker SomeImg = "PNG"
+
+selectExtension :: GameType -> Extension -> Text
+selectExtension Bautzen1945 SomeJs = "bautzen1945.js"
+selectExtension Bautzen1945 SomeCSS = "bautzen1945.css"
+selectExtension Bautzen1945 SomeImg = "assets/german/17-hq-recto.png"
+selectExtension Acquire SomeJs = "acquire.js"
+selectExtension Acquire SomeCSS = "acquire.css"
+selectExtension Acquire SomeImg = "images/ui-player.png"
+
+data Extension
+    = SomeJs
+    | SomeCSS
+    | SomeImg
+    deriving (Eq, Show)
+
+instance Arbitrary Extension where
+    arbitrary = elements [SomeJs, SomeImg, SomeCSS]
 
 propW :: Testable prop => String -> prop -> SpecWith (State prop, Application)
 propW s p = it s $ property p

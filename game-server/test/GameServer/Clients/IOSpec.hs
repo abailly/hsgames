@@ -7,7 +7,7 @@ import Control.Exception (bracket)
 import Control.Lens (ix, (^?))
 import Control.Monad (forM, forever)
 import Data.Aeson (Value, eitherDecode)
-import Data.Aeson.Lens (key, _Array)
+import Data.Aeson.Lens (key, _Array, _Object, _String)
 import Data.Binary.Get
 import Data.Binary.Put
 import Data.ByteString.Lazy (ByteString)
@@ -31,15 +31,15 @@ spec = describe "To-Server I/O Protocol" $ do
     around withBautzenServer $
         describe "Bautzen 1945 server" $
             it "can send and receive a sequence of commands" $ \ServerConnection{send, receive, close} -> do
-                send "12345678"
-                receive `shouldReturn` "OK"
-                send "[\"positions?\"]"
-                r <- eitherDecode @Value <$> receive
-                case r of
-                    Left e -> fail $ show e
+                send "{\"tag\":\"Connect\",\"playerKey\":\"12345678\"}"
+                receive `shouldReturn` "{\"tag\":\"Connected\"}"
+                send "{\"tag\":\"NewGame\",\"gameId\":\"HCDLKJPV\"}"
+                bs <- receive
+                case eitherDecode @Value bs of
+                    Left e -> expectationFailure $ show e
                     Right v ->
                         v `shouldSatisfy` \v ->
-                            (v ^? _Array . ix 0 . key "unit" . key "nation") == Just "Polish"
+                            (v ^? key "gameId" . _String) == Just "HCDLKJPV"
                 close
 
 newtype Exchange = Exchange {unExchange :: [ByteString]}
