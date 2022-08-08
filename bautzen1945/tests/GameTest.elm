@@ -27,7 +27,7 @@ suite =
                             "[15.0,5.0]"
 
                         expected =
-                            ( 15, 5 )
+                            ( 5, 15 )
                     in
                     Expect.equal (Ok expected) (Json.decodeString decodePos msg)
             , test "can parse play result" <|
@@ -37,7 +37,17 @@ suite =
                             "{\"tag\":\"PlayerPlayed\",\"gameId\":\"MYELUVOT\",\"result\":{\"tag\":\"Placed\",\"unit\":\"13/5DP\",\"pos\":[15.0,5.0]}}"
 
                         expected =
-                            PlayerPlayed "MYELUVOT" (Placed "13/5DP" ( 15, 5 ))
+                            PlayerPlayed "MYELUVOT" (Placed "13/5DP" ( 5, 15 ))
+                    in
+                    Expect.equal (Ok expected) (Json.decodeString decodeMessages msg)
+            , test "can parse segment changed" <|
+                \_ ->
+                    let
+                        msg =
+                            "{\"tag\":\"PlayerPlayed\",\"gameId\":\"YRFSXFRT\",\"result\":{\"tag\":\"SegmentChanged\",\"from\":\"Setup\",\"to\":\"Supply\"}}"
+
+                        expected =
+                            PlayerPlayed "YRFSXFRT" (SegmentChanged Setup Supply)
                     in
                     Expect.equal (Ok expected) (Json.decodeString decodeMessages msg)
             ]

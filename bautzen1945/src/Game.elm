@@ -152,6 +152,7 @@ type Action
     = GetCurrentSegment
     | Place UnitName Pos
     | Next
+    | MoveTo UnitName Pos
 
 
 encodeAction : Action -> Json.Value
@@ -167,6 +168,13 @@ encodeAction act =
                 [ ( "tag", Enc.string "Place" )
                 , ( "unitName", Enc.string u )
                 , ( "position", encodePos p )
+                ]
+
+        MoveTo u p ->
+            Enc.object
+                [ ( "tag", Enc.string "MoveTo" )
+                , ( "unit", Enc.string u )
+                , ( "to", encodePos p )
                 ]
 
         Next ->
@@ -231,13 +239,13 @@ germanOOB =
     , ( "17-kg1-verso", "17-kg1-verso" )
     , ( "17-kg2-recto", "17-kg2-recto" )
     , ( "17-kg2-verso", "17-kg2-verso" )
-    , ( "20pz-112-recto", "20pz-112-recto" )
-    , ( "20pz-112-verso", "20pz-112-verso" )
-    , ( "20pz-21-recto", "20pz-21-recto" )
-    , ( "20pz-21-verso", "20pz-21-verso" )
-    , ( "20pz-59-recto", "20pz-59-recto" )
-    , ( "20pz-59-verso", "20pz-59-verso" )
-    , ( "20pz-hq-recto", "20pz-hq-recto" )
+    , ( "112/20Pz", "20pz-112-recto" )
+    , ( "112/20Pz", "20pz-112-verso" )
+    , ( "21/20Pz", "20pz-21-recto" )
+    , ( "21/20Pz", "20pz-21-verso" )
+    , ( "59/20Pz", "20pz-59-recto" )
+    , ( "59/20Pz", "20pz-59-verso" )
+    , ( "HQ/20Pz", "20pz-hq-recto" )
     , ( "464-hq-recto", "464-hq-recto" )
     , ( "464-kg1-recto", "464-kg1-recto" )
     , ( "464-kg1-verso", "464-kg1-verso" )
@@ -429,6 +437,8 @@ showTurn turn =
 
 type Segment
     = Setup
+    | Supply
+    | Move
 
 
 showSegment : Segment -> String
@@ -436,6 +446,12 @@ showSegment s =
     case s of
         Setup ->
             "Setup"
+
+        Supply ->
+            "Supply"
+
+        Move ->
+            "Move"
 
 
 
@@ -451,7 +467,9 @@ type alias GameSegment =
 
 type Play
     = Placed String Pos
-    | SegmentChanged GameSegment GameSegment
+    | AlliesSetupDone
+    | SegmentChanged Segment Segment
+    | Moved String Pos Pos Int
 
 
 type Messages
@@ -535,6 +553,12 @@ decodeSegment =
                 "Setup" ->
                     succeed Setup
 
+                "Supply" ->
+                    succeed Supply
+
+                "Move" ->
+                    succeed Move
+
                 other ->
                     Json.fail ("Uknown Segment type " ++ other)
     in
@@ -588,8 +612,14 @@ decodePlay =
                 "Placed" ->
                     Json.map2 Placed (field "unit" Json.string) (field "pos" decodePos)
 
+                "Moveed" ->
+                    Json.map4 Moved (field "unit" Json.string) (field "from" decodePos) (field "to" decodePos) (field "cost" Json.int)
+
+                "AlliesSetupDone" ->
+                    Json.succeed AlliesSetupDone
+
                 "SegmentChanged" ->
-                    Json.map2 SegmentChanged (field "from" decodeGameSegment) (field "to" decodeGameSegment)
+                    Json.map2 SegmentChanged (field "from" decodeSegment) (field "to" decodeSegment)
 
                 other ->
                     Json.fail <| "Unknown play tag: " ++ other
@@ -666,34 +696,51 @@ handleMessages model s =
         Ok (PlayerPlayed _ (Placed unitName position)) ->
             case model of
                 InGame game ->
-                    let
-                        setPos pos u =
-                            Maybe.map (\unit -> { unit | position = pos }) u
-
-                        newModel =
-                            InGame
-                                { game
-                                    | units =
-                                        Dict.update (Debug.log "unit name" unitName) (setPos position) game.units
-                                    , positions =
-                                        updatePositions (Dict.get unitName game.units) position game.positions
-                                }
-                    in
-                    ( newModel, Cmd.none )
+                    ( InGame <| setUnitPositionTo unitName position game, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
 
-        Ok (PlayerPlayed _ (SegmentChanged _ to)) ->
+        Ok (PlayerPlayed _ (Moved unitName _ to _)) ->
             case model of
                 InGame game ->
-                    ( InGame { game | gameSegment = to }, Cmd.none )
+                    ( InGame <| setUnitPositionTo unitName to game, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        Ok (PlayerPlayed _ (SegmentChanged _ _)) ->
+            case model of
+                InGame game ->
+                    ( model, sendCommand model (Action { gameId = game.gameId, action = GetCurrentSegment }) )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        Ok (PlayerPlayed _ AlliesSetupDone) ->
+            case model of
+                InGame game ->
+                    ( model, sendCommand model (Action { gameId = game.gameId, action = GetCurrentSegment }) )
 
                 _ ->
                     ( model, Cmd.none )
 
         Err _ ->
             ( model, Cmd.none )
+
+
+setUnitPositionTo : String -> Pos -> Game -> Game
+setUnitPositionTo unitName position game =
+    let
+        setPos pos u =
+            Maybe.map (\unit -> { unit | position = pos }) u
+    in
+    { game
+        | units =
+            Dict.update (Debug.log "unit name" unitName) (setPos position) game.units
+        , positions =
+            updatePositions (Dict.get unitName game.units) position game.positions
+    }
 
 
 updatePositions : Maybe Unit -> Pos -> Dict.Dict Pos (List Unit) -> Dict.Dict Pos (List Unit)
@@ -794,6 +841,12 @@ update msg model =
                             , case game.gameSegment.segment of
                                 Setup ->
                                     sendCommand newModel (Action { gameId = game.gameId, action = Place unitName position })
+
+                                Move ->
+                                    sendCommand newModel (Action { gameId = game.gameId, action = MoveTo unitName position })
+
+                                _ ->
+                                    Cmd.none
                             )
 
                         Nothing ->
@@ -824,14 +877,12 @@ divStyle ( x, y ) =
                     x * 133
 
                    else
-                    x * 133 - 66
+                    x * 133 + 66
                   )
             , 67 + (truncate <| toFloat y * 133 * sine)
             )
     in
-    [ style "text-align" "center"
-    , style "width" "133px"
-    , style "height" "133px"
+    [ class "hex"
     , style "top" (String.fromInt top ++ "px")
     , style "left" (String.fromInt left ++ "px")
     ]
@@ -943,7 +994,7 @@ viewMap game =
             DragDrop.getDroppablePosition game.dragDrop
 
         pos j =
-            List.map (\i -> ( j, i )) <| List.range 0 21
+            List.map (\i -> ( j, i )) <| List.range 0 22
 
         positions =
             div [ class "positions" ] <| List.map (\p -> viewDiv (divStyle p) game.positions dropId droppablePosition p) <| List.concat (List.map pos <| List.range 0 12)

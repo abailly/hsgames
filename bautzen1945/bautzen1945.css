@@ -3,10 +3,7 @@ div.positions {
   width: 3000px;
   height: 2000px;
   float: left;
-}
-
-div.positions > div {
-  float: left;
+  position: relative;
 }
 
 div.russian {
@@ -27,4 +24,11 @@ div.german {
   top: 10px;
   left: 3650px;
   float: right;
+}
+
+.hex {
+  width: 133px;
+  height: 133px;
+  position: absolute;
+  text-align: center;
 }

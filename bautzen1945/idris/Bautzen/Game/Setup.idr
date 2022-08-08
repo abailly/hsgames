@@ -3,6 +3,7 @@ module Bautzen.Game.Setup
 import Bautzen.Game.Core
 import Bautzen.GameUnit
 import Bautzen.Terrain
+import Bautzen.Pos
 
 import Data.Fin
 import Data.List
@@ -30,6 +31,15 @@ findMatch u ((selector, rule) :: rest) =
   then Just rule
   else findMatch u rest
 
+southOf : Pos -> Fin 13 -> Bool
+southOf (MkPos (Hex col x)) row = x <= row
+
+westOf : Pos -> Fin 23 -> Bool
+westOf (MkPos (Hex x row)) col = x <= col
+
+infix 8 `southOf`
+infix 8 `westOf`
+
 public
 export
 initialPlacement : List (UnitSelector, PlacementRule)
@@ -42,7 +52,9 @@ initialPlacement =
                in  distance pos origin <= 1 ),
      (\ u => u.parent == Just "10DP",
       \ pos => let origin = hex 18 1
-               in  distance pos origin <= 1 )
+               in  distance pos origin <= 1 ),
+     (\ u => u.parent == Just "20Pz",
+      \ pos => pos `southOf` 11 || pos `westOf` 3 )
   ]
 
 public export

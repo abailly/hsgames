@@ -218,7 +218,7 @@ Cast (Event seg) JSON where
             , ("pos", cast pos)
             ]
   cast (Moved unit from to cost) =
-      JObject [ ("tag", JString "moved")
+      JObject [ ("tag", JString "Moved")
             , ("unit", cast unit)
             , ("from", cast from)
             , ("to", cast to)
@@ -391,9 +391,9 @@ makeLoseStepCommand unitName = pure $ LoseStep unitName
 
 export
 makePlayerAction : (game : Game) -> JSON -> Either String (PlayerAction (curSegment game))
-makePlayerAction game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) with (curSegment game)
-  makePlayerAction game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) | Move = Cmd <$> makeMoveCommand unitName (cast col) (cast row)
-  makePlayerAction game (JArray [ JString "move!", JString unitName, JArray [ JNumber col, JNumber row] ] ) | other = Left ("Invalid command for segment " ++ show other)
+makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JNumber col, JNumber row]) ] ) with (curSegment game)
+  makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JNumber col, JNumber row]) ] ) | Move = Cmd <$> makeMoveCommand unitName (cast col) (cast row)
+  makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JNumber col, JNumber row]) ] ) | other = Left ("Invalid command for segment " ++ show other)
 makePlayerAction game (JArray [ JString "attack!", unitNames, JArray [ JNumber col, JNumber row] ] ) with (curSegment game)
   makePlayerAction game (JArray [ JString "attack!", unitNames, JArray [ JNumber col, JNumber row] ] ) | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames (cast col) (cast row)
   makePlayerAction game (JArray [ JString "attack!", unitNames, JArray [ JNumber col, JNumber row] ] ) | other = Left $ "Invalid command for segment " ++ show other
