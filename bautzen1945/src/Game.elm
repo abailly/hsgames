@@ -832,7 +832,6 @@ divStyle ( x, y ) =
     [ style "text-align" "center"
     , style "width" "133px"
     , style "height" "133px"
-    , style "position" "absolute"
     , style "top" (String.fromInt top ++ "px")
     , style "left" (String.fromInt left ++ "px")
     ]
@@ -842,32 +841,10 @@ parkingStyle : Army -> List (Attribute msg)
 parkingStyle army =
     case army of
         Russian ->
-            [ style "text-align" "center"
-            , style "width" "600px"
-            , style "height" "2000px"
-            , style "border" "3px solid red"
-            , style "position" "absolute"
-            , style "top" "10px"
-            , style "left" "3000px"
-            ]
+            [ class "russian" ]
 
         German ->
-            [ style "text-align" "center"
-            , style "width" "600px"
-            , style "height" "2000px"
-            , style "border" "3px solid green"
-            , style "position" "absolute"
-            , style "top" "10px"
-            , style "left" "3650px"
-            ]
-
-
-mapStyle : List (Attribute msg)
-mapStyle =
-    [ style "background" "url('assets/carte.png') no-repeat"
-    , style "width" "3000px"
-    , style "height" "2000px"
-    ]
+            [ class "german" ]
 
 
 view : Model -> Html Msg
@@ -969,7 +946,7 @@ viewMap game =
             List.map (\i -> ( j, i )) <| List.range 0 21
 
         positions =
-            List.map (\p -> viewDiv (divStyle p) game.positions dropId droppablePosition p) <| List.concat (List.map pos <| List.range 0 12)
+            div [ class "positions" ] <| List.map (\p -> viewDiv (divStyle p) game.positions dropId droppablePosition p) <| List.concat (List.map pos <| List.range 0 12)
 
         russianParking =
             viewParking (parkingStyle Russian) game.positions dropId droppablePosition ( 100, 100 )
@@ -977,8 +954,8 @@ viewMap game =
         germanParking =
             viewParking (parkingStyle German) game.positions dropId droppablePosition ( 200, 200 )
     in
-    div mapStyle
-        (russianParking :: positions ++ [ germanParking ])
+    div [ class "map" ]
+        [ positions, russianParking, germanParking ]
 
 
 isNothing : Maybe a -> Bool
@@ -1020,8 +997,7 @@ viewParking style_ positions dropId droppablePosition position =
 
         styledFloating =
             always
-                [ style "margin" "5px"
-                ]
+                [ style "margin" "5px" ]
     in
     div
         (style_
@@ -1046,7 +1022,6 @@ viewDiv style_ positions dropId droppablePosition position =
                     index * 20
             in
             [ style "margin" "5px"
-            , style "position" "absolute"
             , style "top" (fromInt shift ++ "px")
             , style "left" (fromInt shift ++ "px")
             , style "z-index" (fromInt shift)

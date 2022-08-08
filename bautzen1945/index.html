@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8">
     <title>Bautzen1945</title>
+    <link type="text/css" rel="stylesheet" href="bautzen1945.css" />
   </head>
   <body>
     <div id="bautzen1945"></div>
@@ -10,13 +11,13 @@
     <script>
       const node = document.getElementById('bautzen1945');
       const path = window.location.pathname.split('/');
+      const wsPath = path.join('/');
       const app = Elm.Game.init({node: node,
                                  flags: { host: window.location.hostname,
                                           port_:window.location.port,
                                           gameId : path[3],
                                           playerKey : path [5]
                                         }});
-      const wsPath = path.slice(0, -1).join('/');
       const ws = new WebSocket("ws://" + window.location.hostname + ":" + window.location.port + wsPath);
       ws.onmessage = function(message)
       {
@@ -24,6 +25,11 @@
           if(message.data) {
               app.ports.websocketIn.send(message.data);
           }
+      };
+
+      ws.onclose = function(e)
+      {
+          console.log("ws connection closed: "  + e);
       };
 
       const sender = {

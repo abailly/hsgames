@@ -1,0 +1,30 @@
+div.positions {
+  background: url('assets/carte.png') no-repeat;
+  width: 3000px;
+  height: 2000px;
+  float: left;
+}
+
+div.positions > div {
+  float: left;
+}
+
+div.russian {
+  text-align: center;
+  width: 600px;
+  height: 2000px;
+  border: 3px solid red;
+  top: 10px;
+  left: 3000px;
+  float: right;
+}
+
+div.german {
+  text-align: center;
+  width: 600px;
+  height: 2000px;
+  border: 3px solid green;
+  top: 10px;
+  left: 3650px;
+  float: right;
+}
