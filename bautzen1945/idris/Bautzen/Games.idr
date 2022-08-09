@@ -56,28 +56,59 @@ Cast PlayerType JSON where
   cast NoPlayer =
     JObject [ ("tag", JString "NoPlayer") ]
 
-public export
-record SingleGame where
-  constructor MkSingleGame
-  gameId : Id
-  axisPlayer : PlayerType
-  alliesPlayer : PlayerType
-  theGame : Game
+mutual
+  public export
+  record SingleGame where
+    constructor MkSingleGame
+    gameId : Id
+    axisPlayer : PlayerType
+    alliesPlayer : PlayerType
+    theGame : Game
+    ||| All events accumulated on this game
+    events : Lazy (List GamesEvent)
 
-export
-Cast SingleGame JSON where
-  cast (MkSingleGame gameId axisPlayer alliesPlayer theGame) =
-    JObject [ ( "tag", JString "SingleGame")
-            , ("gameId", cast gameId)
-            , ("axisPlayer", cast axisPlayer)
-            , ("alliesPlayer", cast alliesPlayer)
-            , ("game", cast theGame)
-            ]
+  export
+  data GamesEvent : Type where
+     NewGameCreated : (gameId : Id) -> GamesEvent
+     PlayerJoined :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
+     PlayerReJoined :  (playerKey : Id) ->  (side : Side) -> (gameId : Id) ->  (events : List GamesEvent) -> GamesEvent
+     GameStarted :  (playerKey : Id) -> (gameId : Id) -> GamesEvent
+     PlayerPlayed :  (playerKey : Id) -> (gameId : Id) ->  (segment : GameSegment) -> (result : ActionResult segment) -> GamesEvent
+     PlayerLeft :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
+
+  partial
+  export
+  Cast SingleGame JSON where
+    cast (MkSingleGame gameId axisPlayer alliesPlayer theGame events) =
+      JObject [ ( "tag", JString "SingleGame")
+              , ("gameId", cast gameId)
+              , ("axisPlayer", cast axisPlayer)
+              , ("alliesPlayer", cast alliesPlayer)
+              , ("game", cast theGame)
+              , ("events", cast events)
+              ]
+
+  partial
+  export
+  Cast GamesEvent JSON where
+    cast (NewGameCreated gameId) =
+      JObject [ ("tag", JString "NewGameCreated"), ("gameId", cast gameId) ]
+    cast (PlayerJoined playerKey side gameId) =
+      JObject [ ("tag", JString "PlayerJoined"), ("side", cast side), ("gameId", cast gameId) ]
+    cast (PlayerReJoined playerKey side gameId events) =
+      JObject [ ("tag", JString "PlayerReJoined"), ("side", cast side), ("gameId", cast gameId), ("events", cast events) ]
+    cast (GameStarted playerKey gameId) =
+      JObject [ ("tag", JString "GameStarted"), ("gameId", cast gameId) ]
+    cast (PlayerPlayed playerKey gameId segment result) =
+      JObject [ ("tag", JString "PlayerPlayed"), ("gameId", cast gameId), ("segment", cast segment), ("result", cast result) ]
+    cast (PlayerLeft playerKey side gameId) =
+      JObject [ ("tag", JString "PlayerLeft"), ("side", cast side), ("gameId", cast gameId) ]
 
 export
 Games : Type
 Games = SortedMap Id SingleGame
 
+covering
 export
 Cast Games JSON where
   cast g = JObject $ ( "tag", JString "Games") :: map (\ (k,v) => (show k, cast v)) (SortedMap.toList g)
@@ -94,41 +125,23 @@ makeGameCommand games (JObject [ ("tag", JString "Action"), ("gameId", JString g
   gid <- makeId gameId
   case lookup gid games of
     Nothing => Left $ "Unknown gameId: " ++ show @{AsString} gid
-    Just (MkSingleGame _ _ _ game) =>
+    Just (MkSingleGame _ _ _ game _) =>
        makePlayerAction game action >>= Right . Action gid
 makeGameCommand games (JObject [ ("tag", JString "Bye"), ("gameId", JString gameId) ]) = do
   gid <- makeId gameId
   pure $ Bye gid
 makeGameCommand _ json = Left $ "Unknown command " ++ show @{Idris} json
 
-export
-data GamesEvent : Type where
-   NewGameCreated : (game : SingleGame) -> GamesEvent
-   PlayerJoined :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent
-   GameStarted :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent
-   PlayerPlayed :  (playerKey : Id) -> (game : SingleGame) ->  (result : ActionResult segment) -> GamesEvent
-   PlayerLeft :  (playerKey : Id) -> (game : SingleGame) ->  GamesEvent
 
 export
 (.id) : GamesEvent -> Id
-(NewGameCreated game).id  = game.gameId
-(PlayerJoined playerKey game).id  =  game.gameId
-(GameStarted playerKey game).id  =  game.gameId
-(PlayerPlayed playerKey game result).id  = game.gameId
-(PlayerLeft playerKey game).id  = game.gameId
+(NewGameCreated gameId).id  = gameId
+(PlayerJoined _ _ gameId).id  =  gameId
+(PlayerReJoined _ _ gameId _).id  =  gameId
+(GameStarted _ gameId).id  =  gameId
+(PlayerPlayed _ gameId _ result).id  = gameId
+(PlayerLeft _ _ gameId).id  = gameId
 
-export
-Cast GamesEvent JSON where
-  cast (NewGameCreated game) =
-    JObject [ ("tag", JString "NewGameCreated"), ("gameId", cast game.gameId) ]
-  cast (PlayerJoined playerKey game) =
-    JObject [ ("tag", JString "PlayerJoined"), ("gameId", cast game.gameId) ]
-  cast (GameStarted playerKey game) =
-    JObject [ ("tag", JString "GameStarted"), ("gameId", cast game.gameId) ]
-  cast (PlayerPlayed playerKey game result) =
-    JObject [ ("tag", JString "PlayerPlayed"), ("gameId", cast game.gameId), ("result", cast result) ]
-  cast (PlayerLeft playerKey game) =
-    JObject [ ("tag", JString "PlayerLeft"), ("gameId", cast game.gameId) ]
 
 export
 data GamesError =
@@ -157,6 +170,7 @@ data GamesResult : (0 games : Games) -> Type where
    GamesResQuery : Cast result JSON => Id -> result -> GamesResult games
    GamesResError  : GamesError -> GamesResult games
 
+covering
 export
 Cast (GamesResult games) JSON where
    cast (GamesResEvent event) = JObject [ ("tag", JString "GamesResEvent"), ("event", cast event) ]
@@ -164,33 +178,54 @@ Cast (GamesResult games) JSON where
    cast (GamesResError error) = JObject [ ("tag", JString "GamesResError"), ("error", cast error) ]
 
 actAction : {gameSegment: GameSegment} -> PlayerAction gameSegment -> SingleGame -> Id -> Id -> (games : Games) -> GamesResult games
-actAction {gameSegment} action single@(MkSingleGame xs axisPlayer alliesPlayer theGame) playerKey gameId games =
+actAction {gameSegment} action single@(MkSingleGame xs axisPlayer alliesPlayer theGame _) playerKey gameId games =
   case action of
       Qry q => let result = query theGame q
                in GamesResQuery gameId result
       Cmd c =>
          case decEq (curSegment theGame) gameSegment of
            (Yes prf) =>  let result = handleAction theGame $ rewrite prf in action
-                             game' =  applyResult theGame result
-                         in GamesResEvent $ PlayerPlayed playerKey ({ theGame := game' } single) result
+                         in GamesResEvent $ PlayerPlayed playerKey gameId (curSegment theGame) result
            (No contra) => GamesResError $ InvalidSegment gameSegment (curSegment theGame) playerKey gameId
 
-removePlayerFromGame : Id -> SingleGame -> Maybe SingleGame
-removePlayerFromGame playerKey single@(MkSingleGame gameId (HumanPlayer xs) (HumanPlayer ys) theGame) =
+data Removed : Type where
+  MkRemoved : (pk : Id) -> (side : Side) -> Removed
+  NotRemoved : (pk : Id) -> Removed
+
+removePlayerFromGame : Id -> SingleGame -> Removed
+removePlayerFromGame playerKey single@(MkSingleGame gameId (HumanPlayer xs) (HumanPlayer ys) theGame _) =
   if playerKey == xs
-  then Just $ { axisPlayer := NoPlayer } single
+  then MkRemoved playerKey Axis
   else if playerKey == ys
-       then Just $ { alliesPlayer := NoPlayer } single
-       else Nothing
-removePlayerFromGame playerKey single@(MkSingleGame gameId (HumanPlayer xs) _ theGame) =
+       then MkRemoved playerKey Allies
+       else NotRemoved playerKey
+removePlayerFromGame playerKey single@(MkSingleGame gameId (HumanPlayer xs) _ theGame _) =
   if playerKey == xs
-  then Just $ { axisPlayer := NoPlayer } single
-  else Nothing
-removePlayerFromGame playerKey single@(MkSingleGame gameId _ (HumanPlayer xs) theGame) =
+  then MkRemoved playerKey Axis
+  else NotRemoved playerKey
+removePlayerFromGame playerKey single@(MkSingleGame gameId _ (HumanPlayer xs) theGame _) =
   if playerKey == xs
-  then Just $ { alliesPlayer := NoPlayer } single
-  else Nothing
-removePlayerFromGame _ _ = Nothing
+  then MkRemoved playerKey Allies
+  else NotRemoved playerKey
+removePlayerFromGame playerKey _ = NotRemoved playerKey
+
+joinGame : SingleGame -> Id -> Side -> Either GamesError GamesEvent
+joinGame game@(MkSingleGame gameId (HumanPlayer xs) _ theGame events) playerKey Axis =
+      if xs == playerKey
+       then Right $ PlayerReJoined playerKey Axis gameId events
+       else Left $ SideTaken Axis playerKey
+joinGame (MkSingleGame gameId _ (HumanPlayer xs) theGame events) playerKey Allies =
+      if xs == playerKey
+       then Right $ PlayerReJoined playerKey Allies gameId events
+       else Left $ SideTaken Allies playerKey
+joinGame (MkSingleGame gameId _ alliesPlayer theGame _) playerKey Axis =
+   if alliesPlayer == NoPlayer
+    then Right $ PlayerJoined playerKey Axis gameId
+    else Right $ GameStarted playerKey gameId
+joinGame (MkSingleGame gameId axisPlayer _ theGame _) playerKey Allies =
+   if axisPlayer == NoPlayer
+    then Right $ PlayerJoined playerKey Allies gameId
+    else Right $ GameStarted playerKey gameId
 
 ||| Interpret @GameCommand@, returning a @GamesResult@
 export
@@ -200,61 +235,65 @@ act playerKey (NewGame gameId) games =
       Just _ =>
         GamesResError $ GameAlreadyExists gameId
       Nothing =>
-        GamesResEvent $ NewGameCreated $ MkSingleGame gameId NoPlayer NoPlayer initialGame
-act playerKey (JoinGame gameId Axis) games =
+        GamesResEvent $ NewGameCreated gameId
+act playerKey (JoinGame gameId side) games =
    case lookup gameId games of
-      Just (MkSingleGame gameId NoPlayer alliesPlayer theGame) =>
-        let game = (MkSingleGame gameId (HumanPlayer playerKey) alliesPlayer theGame)
-        in if alliesPlayer == NoPlayer
-           then GamesResEvent $ PlayerJoined playerKey game
-           else GamesResEvent $ GameStarted playerKey game
-      Just _ =>
-        GamesResError $ SideTaken Axis playerKey
-      Nothing => GamesResError $ UnknownGame gameId
-act playerKey (JoinGame gameId Allies) games =
-   case lookup gameId games of
-      Just (MkSingleGame gameId axisPlayer NoPlayer theGame) =>
-        let game = (MkSingleGame gameId axisPlayer (HumanPlayer playerKey) theGame)
-        in if axisPlayer == NoPlayer
-           then GamesResEvent $ PlayerJoined playerKey game
-           else GamesResEvent $ GameStarted playerKey game
-      Just _ =>
-        GamesResError $ SideTaken Allies gameId
+      Just game => case joinGame game playerKey Axis of
+                    Left err => GamesResError err
+                    Right event => GamesResEvent event
       Nothing => GamesResError $ UnknownGame gameId
 act playerKey (Bye gameId) games =
   case SortedMap.lookup gameId games of
     Nothing => GamesResError $ UnknownGame gameId
     Just single =>
       case removePlayerFromGame playerKey single of
-         Just game => GamesResEvent $ PlayerLeft playerKey game
-         Nothing => GamesResError (UnknownPlayer playerKey)
+         MkRemoved playerKey side => GamesResEvent $ PlayerLeft playerKey side gameId
+         NotRemoved playerKey => GamesResError (UnknownPlayer playerKey)
 act playerKey (Action {gameSegment} gameId action) games =
    case SortedMap.lookup gameId games of
      Nothing => GamesResError $ UnknownGame gameId
-     (Just single@(MkSingleGame _ _ _ game)) =>
+     (Just single@(MkSingleGame _ _ _ game _)) =>
        actAction action single playerKey gameId games
 
 ||| Apply a @GamesResult@ to current state of @Games@
 export
 apply : (games : Games) -> GamesResult games -> Games
-apply games (GamesResEvent  (NewGameCreated game)) =
- insert game.gameId game games
-apply games (GamesResEvent  (PlayerJoined playerKey game)) =
- insert game.gameId game games
-apply games (GamesResEvent  (GameStarted playerKey game)) =
- insert game.gameId game games
-apply games (GamesResEvent (PlayerPlayed playerKey game' result)) =
-   -- TODO: we know the gameId is in the games so we shouldn't pattern match
-   case SortedMap.lookup game'.gameId games of
+apply games (GamesResEvent  (NewGameCreated gameId)) =
+ let newGame = MkSingleGame gameId NoPlayer NoPlayer initialGame []
+ in insert gameId newGame games
+apply games (GamesResEvent (PlayerJoined playerKey side gameId)) =
+ case SortedMap.lookup gameId games of
+   Just game =>
+     case side of
+       Axis => insert game.gameId ({ axisPlayer := HumanPlayer playerKey} game) games
+       Allies => insert game.gameId ({ alliesPlayer := HumanPlayer playerKey} game) games
+   Nothing => games
+apply games (GamesResEvent (PlayerReJoined playerKey side gameId _)) =
+ games
+apply games (GamesResEvent (GameStarted playerKey gameId)) =
+ games
+apply games (GamesResEvent event@(PlayerPlayed playerKey gameId segment result)) =
+   case SortedMap.lookup gameId games of
      Nothing => games
-     (Just single@(MkSingleGame _ axis allies game)) =>
+     (Just single@(MkSingleGame _ axis allies game events)) =>
        case result of
-          (ResEvent _) =>
-            insert game'.gameId game' games
+          (ResEvent e) =>
+            -- TODO this is done twice, once here and when we run the command to
+            -- create the event, there should be a way to relate both?
+            case decEq (curSegment game) segment of
+              Yes prf => let game' = apply game $ rewrite prf in e
+                         in  insert gameId ({theGame := game', events := event :: events} single) games
+              No contra => games
           (ResError x) => games
           (ResQuery x) => games
-apply games (GamesResEvent (PlayerLeft playerKey game)) =
-  insert game.gameId game games
+apply games (GamesResEvent (PlayerLeft playerKey side gameId)) =
+   case SortedMap.lookup gameId games of
+     Nothing => games
+     (Just single) =>
+        let newGame = case side of
+                       Axis => { axisPlayer := NoPlayer} single
+                       Allies => { alliesPlayer := NoPlayer} single
+        in  insert gameId newGame games
 apply games (GamesResError x) = games
 apply games (GamesResQuery _  _) = games
 
