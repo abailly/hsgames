@@ -3,6 +3,7 @@ port module Game exposing
     , Model
     , Msg(..)
     , Play(..)
+    , Player(..)
     , Segment(..)
     , Side(..)
     , decodeMessages
@@ -136,16 +137,27 @@ fromString s =
 
 
 type alias PreGame =
-    { gameId : String
+    { games : List GameDescription
+    , gameId : String
     , playerKey : String
     , side : Maybe Side
     }
 
 
+type Player
+    = Human String
+    | Robot
+    | NoPlayer
+
+
+type alias GameDescription =
+    { gameId : String, axisPlayer : Player, alliesPlayer : Player, segment : GameSegment }
+
+
 type Model
     = NoGame PreGame
-    | InGame Game
     | Waiting { gameId : String, mySide : Side }
+    | InGame Game
 
 
 type Action
@@ -188,6 +200,7 @@ type Request
     | Connect { playerKey : String }
     | NewGame { gameId : String }
     | Action { gameId : String, action : Action }
+    | ListGames
 
 
 encodeRequest : Request -> Json.Value
@@ -207,6 +220,10 @@ encodeRequest msg =
                 [ ( "tag", Enc.string "NewGame" )
                 , ( "gameId", Enc.string g.gameId )
                 ]
+
+        ListGames ->
+            Enc.object
+                [ ( "tag", Enc.string "ListGames" ) ]
 
         JoinGame j ->
             Enc.object
@@ -402,7 +419,7 @@ init : { port_ : String, host : String, gameId : String, playerKey : String } ->
 init i =
     let
         model =
-            NoGame { gameId = i.gameId, playerKey = i.playerKey, side = Nothing }
+            NoGame { games = [], gameId = i.gameId, playerKey = i.playerKey, side = Nothing }
     in
     ( model
     , sendCommand model <| Connect { playerKey = i.playerKey }
@@ -474,6 +491,7 @@ type Play
 
 type Messages
     = {- Server acknowledged player's connection -} Connected
+    | GamesList (List GameDescription)
     | NewGameCreated String
     | PlayerJoined String
     | GameStarted String
@@ -582,6 +600,9 @@ makeMessages tag =
         "Connected" ->
             Json.succeed Connected
 
+        "GamesList" ->
+            Json.map GamesList (field "games" <| Json.list decodeSingleGame)
+
         "NewGameCreated" ->
             Json.map NewGameCreated (field "gameId" Json.string)
 
@@ -601,6 +622,35 @@ makeMessages tag =
 
         other ->
             Json.fail ("Unknown tag " ++ other)
+
+
+decodeSingleGame : Json.Decoder GameDescription
+decodeSingleGame =
+    Json.map4 GameDescription
+        (field "gameId" Json.string)
+        (field "axisPlayer" decodePlayer)
+        (field "alliesPlayer" decodePlayer)
+        (field "segment" decodeGameSegment)
+
+
+decodePlayer : Json.Decoder Player
+decodePlayer =
+    field "tag" Json.string
+        |> andThen
+            (\tag ->
+                case tag of
+                    "HumanPlayer" ->
+                        Json.map Human (field "playerKey" Json.string)
+
+                    "RobotPlayer" ->
+                        succeed Robot
+
+                    "NoPlayer" ->
+                        succeed NoPlayer
+
+                    _ ->
+                        Json.fail ("Unknown player type " ++ tag)
+            )
 
 
 decodePlay : Json.Decoder Play
@@ -638,7 +688,15 @@ handleMessages : Model -> String -> ( Model, Cmd Msg )
 handleMessages model s =
     case Json.decodeString decodeMessages s of
         Ok Connected ->
-            ( model, Cmd.none )
+            ( model, sendCommand model ListGames )
+
+        Ok (GamesList games) ->
+            case model of
+                NoGame p ->
+                    ( NoGame { p | games = games }, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
 
         Ok (NewGameCreated gid) ->
             case model of
@@ -938,9 +996,37 @@ viewNoGame p =
 
                 _ ->
                     [ button [ onClick StartNewGame ] [ text "New Game" ] ]
+
+        viewPlayer player =
+            case player of
+                Human pk ->
+                    text pk
+
+                Robot ->
+                    text "Robot"
+
+                NoPlayer ->
+                    text "-"
+
+        listGame description =
+            li []
+                [ label [] [ text "Game Id: " ]
+                , span [] [ text description.gameId ]
+                , label [] [ text "Axis : " ]
+                , span [] [ viewPlayer description.axisPlayer ]
+                , label [] [ text "Allies : " ]
+                , span [] [ viewPlayer description.alliesPlayer ]
+                , label [] [ text "Segment : " ]
+                , viewSegment description.segment
+                ]
+
+        listGames =
+            List.map listGame p.games
     in
     div []
-        ([ div []
+        ([ div [ class "games-list" ]
+            [ ul [] listGames ]
+         , div [ class "new-game" ]
             [ label [] [ text "Player: " ]
             , span [] [ text p.playerKey ]
             ]

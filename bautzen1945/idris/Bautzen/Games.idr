@@ -11,7 +11,7 @@ import Data.Vect
 import Decidable.Equality
 import Language.JSON
 
-%default total
+%default covering
 
 ||| Lifecycle protocol for games.
 |||
@@ -22,6 +22,9 @@ data GameCommand : Type where
 
   ||| Create a new game with given id.
   NewGame : (newGameId : Id) -> GameCommand
+
+  ||| List all known games this player can join
+  ListGames : GameCommand
 
   ||| A player identified by @playerKey@ joins given game
   JoinGame : (gameId : Id) -> (side : Side) -> GameCommand
@@ -56,67 +59,83 @@ Cast PlayerType JSON where
   cast NoPlayer =
     JObject [ ("tag", JString "NoPlayer") ]
 
-mutual
-  public export
-  record SingleGame where
-    constructor MkSingleGame
-    gameId : Id
-    axisPlayer : PlayerType
-    alliesPlayer : PlayerType
-    theGame : Game
-    ||| All events accumulated on this game
-    events : Lazy (List GamesEvent)
+export
+data GamesEvent : Type where
+   NewGameCreated : (gameId : Id) -> GamesEvent
+   PlayerJoined :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
+   PlayerReJoined :  (playerKey : Id) ->  (side : Side) -> (gameId : Id) ->  (events : List GamesEvent) -> GamesEvent
+   GameStarted :  (playerKey : Id) -> (gameId : Id) -> GamesEvent
+   PlayerPlayed :  (playerKey : Id) -> (gameId : Id) ->  (segment : GameSegment) -> (result : ActionResult segment) -> GamesEvent
+   PlayerLeft :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
 
-  export
-  data GamesEvent : Type where
-     NewGameCreated : (gameId : Id) -> GamesEvent
-     PlayerJoined :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
-     PlayerReJoined :  (playerKey : Id) ->  (side : Side) -> (gameId : Id) ->  (events : List GamesEvent) -> GamesEvent
-     GameStarted :  (playerKey : Id) -> (gameId : Id) -> GamesEvent
-     PlayerPlayed :  (playerKey : Id) -> (gameId : Id) ->  (segment : GameSegment) -> (result : ActionResult segment) -> GamesEvent
-     PlayerLeft :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
+convertToJSON : List GamesEvent -> JSON
 
-  partial
-  export
-  Cast SingleGame JSON where
-    cast (MkSingleGame gameId axisPlayer alliesPlayer theGame events) =
-      JObject [ ( "tag", JString "SingleGame")
-              , ("gameId", cast gameId)
-              , ("axisPlayer", cast axisPlayer)
-              , ("alliesPlayer", cast alliesPlayer)
-              , ("game", cast theGame)
-              , ("events", cast events)
-              ]
+export
+Cast GamesEvent JSON where
+  cast (NewGameCreated gameId) =
+    JObject [ ("tag", JString "NewGameCreated"), ("gameId", cast gameId) ]
+  cast (PlayerJoined playerKey side gameId) =
+    JObject [ ("tag", JString "PlayerJoined"), ("side", cast side), ("gameId", cast gameId) ]
+  cast (PlayerReJoined playerKey side gameId events) =
+    JObject [ ("tag", JString "PlayerReJoined"), ("side", cast side), ("gameId", cast gameId), ("events", convertToJSON events) ]
+  cast (GameStarted playerKey gameId) =
+    JObject [ ("tag", JString "GameStarted"), ("gameId", cast gameId) ]
+  cast (PlayerPlayed playerKey gameId segment result) =
+    JObject [ ("tag", JString "PlayerPlayed"), ("gameId", cast gameId), ("segment", cast segment), ("result", cast result) ]
+  cast (PlayerLeft playerKey side gameId) =
+    JObject [ ("tag", JString "PlayerLeft"), ("side", cast side), ("gameId", cast gameId) ]
 
-  partial
-  export
-  Cast GamesEvent JSON where
-    cast (NewGameCreated gameId) =
-      JObject [ ("tag", JString "NewGameCreated"), ("gameId", cast gameId) ]
-    cast (PlayerJoined playerKey side gameId) =
-      JObject [ ("tag", JString "PlayerJoined"), ("side", cast side), ("gameId", cast gameId) ]
-    cast (PlayerReJoined playerKey side gameId events) =
-      JObject [ ("tag", JString "PlayerReJoined"), ("side", cast side), ("gameId", cast gameId), ("events", cast events) ]
-    cast (GameStarted playerKey gameId) =
-      JObject [ ("tag", JString "GameStarted"), ("gameId", cast gameId) ]
-    cast (PlayerPlayed playerKey gameId segment result) =
-      JObject [ ("tag", JString "PlayerPlayed"), ("gameId", cast gameId), ("segment", cast segment), ("result", cast result) ]
-    cast (PlayerLeft playerKey side gameId) =
-      JObject [ ("tag", JString "PlayerLeft"), ("side", cast side), ("gameId", cast gameId) ]
+convertToJSON events =
+  JArray (doConvert events)
+  where
+    doConvert : List GamesEvent -> List JSON
+    doConvert [] = []
+    doConvert (x :: xs) = cast x :: doConvert xs
+
+public export
+record SingleGame where
+  constructor MkSingleGame
+  gameId : Id
+  axisPlayer : PlayerType
+  alliesPlayer : PlayerType
+  theGame : Game
+  ||| All events accumulated on this game
+  events : Lazy (List GamesEvent)
+
+
+export
+Cast SingleGame JSON where
+  cast (MkSingleGame gameId axisPlayer alliesPlayer theGame events) =
+    JObject [ ( "tag", JString "SingleGame")
+            , ("gameId", cast gameId)
+            , ("axisPlayer", cast axisPlayer)
+            , ("alliesPlayer", cast alliesPlayer)
+            , ("segment", cast $ makeCurrentSegment theGame)
+            ]
+
 
 export
 Games : Type
 Games = SortedMap Id SingleGame
 
-covering
 export
 Cast Games JSON where
   cast g = JObject $ ( "tag", JString "Games") :: map (\ (k,v) => (show k, cast v)) (SortedMap.toList g)
+
+
+record GamesList where
+  constructor MkGamesList
+  games : List SingleGame
+
+Cast GamesList JSON where
+  cast (MkGamesList gs) = JObject [ ( "tag", JString "GamesList") , ("games", cast gs) ]
 
 export
 makeGameCommand : Games -> JSON -> Either String GameCommand
 makeGameCommand _ (JObject [ ("tag", JString "NewGame"), ("gameId", JString gameId) ]) =
   makeId gameId >>= Right . NewGame
+makeGameCommand _ (JObject [ ("tag", JString "ListGames") ]) =
+  Right ListGames
 makeGameCommand _ (JObject [ ("tag", JString "JoinGame"), ("gameId", JString gameId) , ("side", side) ]) = do
   gid <- makeId gameId
   sd <- makeSide side
@@ -167,21 +186,20 @@ Cast GamesError JSON where
 public export
 data GamesResult : (0 games : Games) -> Type where
    GamesResEvent : (event : GamesEvent) -> GamesResult games
-   GamesResQuery : Cast result JSON => Id -> result -> GamesResult games
+   GamesResQuery : Cast result JSON => result -> GamesResult games
    GamesResError  : GamesError -> GamesResult games
 
-covering
 export
 Cast (GamesResult games) JSON where
    cast (GamesResEvent event) = JObject [ ("tag", JString "GamesResEvent"), ("event", cast event) ]
-   cast (GamesResQuery gid result) = JObject [ ("tag", JString "GamesResQuery"), ("gameId", cast gid), ("result", cast result) ]
+   cast (GamesResQuery result) = JObject [ ("tag", JString "GamesResQuery"), ("result", cast result) ]
    cast (GamesResError error) = JObject [ ("tag", JString "GamesResError"), ("error", cast error) ]
 
 actAction : {gameSegment: GameSegment} -> PlayerAction gameSegment -> SingleGame -> Id -> Id -> (games : Games) -> GamesResult games
 actAction {gameSegment} action single@(MkSingleGame xs axisPlayer alliesPlayer theGame _) playerKey gameId games =
   case action of
       Qry q => let result = query theGame q
-               in GamesResQuery gameId result
+               in GamesResQuery result
       Cmd c =>
          case decEq (curSegment theGame) gameSegment of
            (Yes prf) =>  let result = handleAction theGame $ rewrite prf in action
@@ -236,6 +254,8 @@ act playerKey (NewGame gameId) games =
         GamesResError $ GameAlreadyExists gameId
       Nothing =>
         GamesResEvent $ NewGameCreated gameId
+act playerKey ListGames games =
+  GamesResQuery $ MkGamesList $ values games
 act playerKey (JoinGame gameId side) games =
    case lookup gameId games of
       Just game => case joinGame game playerKey Axis of
@@ -295,7 +315,7 @@ apply games (GamesResEvent (PlayerLeft playerKey side gameId)) =
                        Allies => { alliesPlayer := NoPlayer} single
         in  insert gameId newGame games
 apply games (GamesResError x) = games
-apply games (GamesResQuery _  _) = games
+apply games (GamesResQuery  _) = games
 
 export
 interpret : Id -> GameCommand -> (games : Games) -> (GamesResult games, Games)

@@ -77,7 +77,7 @@ mkGamesState = do
              MsgError err
            (Right (GamesResEvent event)) =>
              MsgEvent (show $ cast { to = JSON } event) event.id
-           (Right (GamesResQuery gameId r)) =>
+           (Right (GamesResQuery r)) =>
              MsgQuery (show $ cast { to = JSON } r)
            (Right (GamesResError x)) =>
              MsgError $ show $ cast { to = JSON } x

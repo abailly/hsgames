@@ -60,5 +60,21 @@ suite =
                             PlayerPlayed "ASWGNPYZ" (Moved "21/20Pz" ( 10, 8 ) ( 9, 9 ) 1)
                     in
                     Expect.equal (Ok expected) (Json.decodeString decodeMessages msg)
+            , test "can parse games list" <|
+                \_ ->
+                    let
+                        msg =
+                            "{\"tag\":\"GamesList\",\"games\":[{\"tag\":\"SingleGame\",\"gameId\":\"TJULNGHS\",\"axisPlayer\":{\"tag\":\"HumanPlayer\",\"playerKey\":\"WUGQKKUH\"},\"alliesPlayer\":{\"tag\":\"NoPlayer\"},\"segment\":{\"tag\":\"CurrentGameSegment\",\"turn\":5.0,\"side\":\"Allies\",\"segment\":\"Setup\"}}]}"
+
+                        expected =
+                            GamesList
+                                [ { gameId = "TJULNGHS"
+                                  , axisPlayer = Human "WUGQKKUH"
+                                  , alliesPlayer = NoPlayer
+                                  , segment = { turn = 1, side = Allies, segment = Setup }
+                                  }
+                                ]
+                    in
+                    Expect.equal (Ok expected) (Json.decodeString decodeMessages msg)
             ]
         ]

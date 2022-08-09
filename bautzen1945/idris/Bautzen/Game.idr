@@ -128,6 +128,10 @@ record CurrentGameSegment where
   side : Side
   gameSegment : GameSegment
 
+export
+makeCurrentSegment : Game -> CurrentGameSegment
+makeCurrentSegment (MkGame (MkGameState turn side segment _) _) = MkCurrentGameSegment turn side segment
+
 ||| Query interface to retrieve information from a `Game`.
 |||
 ||| Queries do not change the state of the game  but provide various
@@ -174,7 +178,7 @@ query (MkGame (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
         x  => Right x
 query (MkGame (MkGameState _ side _ units) gameMap) TerrainMap = gameMap
 query (MkGame (MkGameState _ side _ positions) _) Positions = MkAllPositions positions
-query (MkGame (MkGameState turn side segment _) _) GetCurrentSegment = MkCurrentGameSegment turn side segment
+query game GetCurrentSegment = makeCurrentSegment game
 
 ||| A single player action, either a @Command@ or a @Query@.
 public export
