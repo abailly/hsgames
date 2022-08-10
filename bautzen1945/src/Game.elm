@@ -243,6 +243,7 @@ encodeRequest msg =
 type Msg
     = DragDropMsg (DragDrop.Msg UnitName Pos)
     | StartNewGame
+    | Join String Side
     | Input String
     | NewGameWithId String
     | SetSide Side
@@ -857,6 +858,9 @@ update msg model =
                 NextSegment ->
                     ( model, Cmd.none )
 
+                Join gameId side ->
+                    ( model, sendCommand model (JoinGame { gameId = gameId, side = side }) )
+
         Waiting _ ->
             case msg of
                 Input s ->
@@ -875,6 +879,9 @@ update msg model =
                     ( model, Cmd.none )
 
                 NextSegment ->
+                    ( model, Cmd.none )
+
+                Join _ _ ->
                     ( model, Cmd.none )
 
         InGame game ->
@@ -920,6 +927,9 @@ update msg model =
                     ( model, Cmd.none )
 
                 SetSide _ ->
+                    ( model, Cmd.none )
+
+                Join _ _ ->
                     ( model, Cmd.none )
 
 
@@ -1008,16 +1018,47 @@ viewNoGame p =
                 NoPlayer ->
                     text "-"
 
+        actionsForPlayer gameId player side =
+            case player of
+                NoPlayer ->
+                    [ button [ onClick <| Join gameId side ] [ text <| "Join " ++ toString side ] ]
+
+                Human pk ->
+                    if pk == p.playerKey then
+                        [ button [ onClick <| Join gameId side ] [ text <| "Join " ++ toString side ] ]
+
+                    else
+                        []
+
+                Robot ->
+                    []
+
+        actions description =
+            actionsForPlayer description.gameId description.axisPlayer Axis ++ actionsForPlayer description.gameId description.alliesPlayer Allies
+
+        viewGameState description =
+            div
+                [ class "segment" ]
+                ([ label [] [ text "Turn: " ]
+                 , span [] [ text <| showTurn description.segment.turn ]
+                 , label [] [ text "Side: " ]
+                 , span [] [ text <| toString description.segment.side ]
+                 , label [] [ text "Segment: " ]
+                 , span [] [ text <| showSegment description.segment.segment ]
+                 ]
+                    ++ actions description
+                )
+
         listGame description =
-            li []
+            li [ class "game-description" ]
                 [ label [] [ text "Game Id: " ]
                 , span [] [ text description.gameId ]
-                , label [] [ text "Axis : " ]
+                , label [] [ text "Axis: " ]
                 , span [] [ viewPlayer description.axisPlayer ]
-                , label [] [ text "Allies : " ]
+                , label [] [ text "Allies: " ]
                 , span [] [ viewPlayer description.alliesPlayer ]
-                , label [] [ text "Segment : " ]
-                , viewSegment description.segment
+                , label [] [ text "Segment: " ]
+                , viewGameState description
                 ]
 
         listGames =

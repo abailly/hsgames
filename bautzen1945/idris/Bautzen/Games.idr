@@ -258,7 +258,7 @@ act playerKey ListGames games =
   GamesResQuery $ MkGamesList $ values games
 act playerKey (JoinGame gameId side) games =
    case lookup gameId games of
-      Just game => case joinGame game playerKey Axis of
+      Just game => case joinGame game playerKey side of
                     Left err => GamesResError err
                     Right event => GamesResEvent event
       Nothing => GamesResError $ UnknownGame gameId
