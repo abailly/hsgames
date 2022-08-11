@@ -23,9 +23,6 @@ import Network.Socket.Raw
 import System
 import System.Concurrency
 
-Logger : Type
-Logger = String -> IO ()
-
 record GameHandler where
   constructor MkGameHandler
   cin : Channel String
@@ -82,39 +79,12 @@ mkGamesState = do
            (Right (GamesResError x)) =>
              MsgError $ show $ cast { to = JSON } x
 
-mkLogger : Verbosity -> Logger
-mkLogger Quiet _ = pure ()
-mkLogger (Verbose name) msg =
-  putStrLn  $ "[" ++ name ++ "] " ++ msg
-
-recvAll : Socket -> ByteLength -> IO (Either String String)
-recvAll socket len = go "" len
-  where
-    go : String -> ByteLength -> IO (Either String String)
-    go acc remaining = do
-      Right (str, res) <- recv socket remaining
-        | Left err => pure $ Left ("failed to receive length of message " ++ show err)
-      if res == remaining
-       then pure $ Right (acc ++ str)
-       else go (acc ++ str) (remaining - res)
-
-receive : Logger -> Socket -> IO (Either String String)
-receive log socket = do
-  log "waiting for input"
-  Right str <- recvAll socket 6 -- receive 6 characters representing the length of message to read
-    | Left err => pure $ Left ("failed to receive length of message " ++ show err)
-  log $ "received  " ++ str
-  case parseInteger (unpack str) 0 of
-    Nothing => pure $ Left ("fail to parse '" ++ str ++ "' to expected number of characters, ignoring")
-    Just len => do
-      Right msg <- recvAll socket (fromInteger len)
-        | Left err => pure $ Left (show err)
-      pure $ Right msg
-
-handleClient : Logger -> Socket -> SocketAddress -> GameHandler -> IO (ThreadID, ThreadID)
-handleClient log socket addr hdlr =
+handleClient : Logger -> Socket -> SocketAddress -> Id -> GameHandler -> IO (ThreadID, ThreadID)
+handleClient log socket addr clientId hdlr =
  (,) <$> fork handleInput <*> fork handleOutput
  where
+   client : String
+   client =  show @{AsString} clientId
 
    stopHandler : GameHandler -> IO ()
    stopHandler hdlr = channelPut hdlr.cin "STOP"
@@ -123,17 +93,17 @@ handleClient log socket addr hdlr =
    handleInput = do
       Right msg <- receive log socket
         | Left err => do log err ; close socket ; stopHandler hdlr
-      log $ "received '" ++ msg ++ "'"
+      log $ "[" ++ client ++ "] received '" ++ msg ++ "'"
       channelPut hdlr.cin msg
       handleInput
 
    handleOutput : IO ()
    handleOutput = do
      res <- channelGet hdlr.cout
-     log $ "dispatching result: '" ++ res ++ "'"
+     log $ "[" ++ client ++ "] dispatching result: '" ++ res ++ "'"
      Right l <- send socket (toWire res)
-       | Left err => do log ("failed to send message " ++ show err) ; close socket ; stopHandler hdlr
-     log $ "sent result"
+       | Left err => do log ("[" ++ client ++ "] failed to send message " ++ show err) ; close socket ; stopHandler hdlr
+     log $ "[" ++ client ++ "] sent result"
      handleOutput
 
 ||| Clients are expected to send their `Id` upon connection.
@@ -152,18 +122,39 @@ clientHandshake log sock = do
      other => pure $ Left $ "invalid handshake " ++ show other
 
 
-commandLoop : Logger -> Channel String -> Channel String -> IORef (SortedMap Id GameHandler) -> IORef (SortedMap Id (SortedMap Id (Channel String))) -> Id -> GamesState -> IO ()
+||| Input channel where commands/queries are read from as `String`
+||| Output channel where results are sent to as `String`
+||| Map of clients to their `GameHandler`s
+||| This is needed to ensure proper cleanup of handlers when the
+||| `commandLoop` stops.
+||| Map from games `Id` to a map from client `Id` to their output channels
+||| This is used to dispatch `GamesResEvent` results to all parties which are
+||| connected on a given game.
+||| The client `Id` this `commandLoop` is related to
+||| The message handler for the game this loop is related to.
+commandLoop : Logger ->
+              Channel String ->
+              Channel String ->
+              IORef (SortedMap Id GameHandler) ->
+              IORef (SortedMap Id (SortedMap Id (Channel String))) ->
+              Id ->
+              GamesState ->
+              IO ()
 commandLoop log cin cout clients gamesOutput clientId gamesState = do
    msg <- channelGet cin
    case msg of
      -- Poison pill
-     "STOP" =>
+     "STOP" => do
+       log $ "[" ++ client ++ "] Stopping command loop"
        modifyIORef clients (delete clientId)
      _ => do
        res <- gamesState.handleMessage clientId msg
        handleOutputsForResult res
        commandLoop log cin cout clients gamesOutput clientId gamesState
   where
+   client : String
+   client = show @{AsString} clientId
+
    handleOutputsForResult : MessageResult -> IO ()
    handleOutputsForResult (MsgError err) = channelPut cout err
    handleOutputsForResult (MsgQuery q) = channelPut cout q
@@ -176,28 +167,37 @@ commandLoop log cin cout clients gamesOutput clientId gamesState = do
             Just _ => gmap
       Just outs <- lookup gameId <$> readIORef gamesOutput
         | Nothing => pure () -- TODO: should never happen? prove it...
-      log $ "sending result: " ++ event
+      log $ "[" ++ client ++ "] sending result: " ++ event
       traverse_ (\out => channelPut out event) outs
 
-serve : Logger -> Socket -> IORef (SortedMap Id GameHandler) -> IORef (SortedMap Id (SortedMap Id (Channel String))) -> GamesState ->  IO (Either String ())
+||| Main server `accept`ing loop.
+serve : Logger ->
+        Socket ->
+        IORef (SortedMap Id GameHandler) ->
+        IORef (SortedMap Id (SortedMap Id (Channel String))) ->
+        GamesState ->
+        IO (Either String ())
 serve log sock clients gamesOutput gamesState = do
   log "awaiting clients"
   Right (s, addr) <- accept sock
     | Left err => pure (Left $ "Failed to accept on socket with error: " ++ show err)
   log $ "client connecting from " ++ show addr
   Right clientId <- clientHandshake log s
-    |  Left err => do log ("failed to identify client, " ++ show err) ; close s; serve log sock clients gamesOutput gamesState
+    |  Left err => do log ("failed to identify client: " ++ show err) ; close s; serve log sock clients gamesOutput gamesState
   cs <- readIORef clients
   hdlr <- maybe (mkChannelsFor clientId) pure (lookup clientId cs)
-  _ <- handleClient log s addr hdlr
-  log $ "forked client handler for " ++ show @{AsString} clientId
+  _ <- handleClient log s addr clientId hdlr
+  log $ "[" ++ show @{AsString} clientId ++ "] forked client handler"
   serve log sock clients gamesOutput gamesState
  where
+
    mkChannelsFor : Id -> IO GameHandler
    mkChannelsFor clientId = do
       cin <- makeChannel
       cout <- makeChannel
-      loopPid <- fork $ commandLoop log cin cout clients gamesOutput clientId gamesState
+      loopPid <- fork $ do
+        log $ "[" ++ show @{AsString} clientId ++ "] forked command loop"
+        commandLoop log cin cout clients gamesOutput clientId gamesState
       let hdlr = MkGameHandler cin cout loopPid
       modifyIORef clients (insert clientId hdlr)
       pure hdlr

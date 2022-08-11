@@ -29,6 +29,10 @@ data GameCommand : Type where
   ||| A player identified by @playerKey@ joins given game
   JoinGame : (gameId : Id) -> (side : Side) -> GameCommand
 
+  ||| Start a game.
+  ||| Game's players must all be set.
+  StartGame : (newGameId : Id) -> GameCommand
+
   ||| Game-specific action
   Action : { gameSegment : GameSegment} -> (gameId : Id) -> PlayerAction gameSegment -> GameCommand
 
@@ -64,7 +68,7 @@ data GamesEvent : Type where
    NewGameCreated : (gameId : Id) -> GamesEvent
    PlayerJoined :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
    PlayerReJoined :  (playerKey : Id) ->  (side : Side) -> (gameId : Id) ->  (events : List GamesEvent) -> GamesEvent
-   GameStarted :  (playerKey : Id) -> (gameId : Id) -> GamesEvent
+   GameStarted :  (gameId : Id) -> GamesEvent
    PlayerPlayed :  (playerKey : Id) -> (gameId : Id) ->  (segment : GameSegment) -> (result : ActionResult segment) -> GamesEvent
    PlayerLeft :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
 
@@ -78,7 +82,7 @@ Cast GamesEvent JSON where
     JObject [ ("tag", JString "PlayerJoined"), ("side", cast side), ("gameId", cast gameId) ]
   cast (PlayerReJoined playerKey side gameId events) =
     JObject [ ("tag", JString "PlayerReJoined"), ("side", cast side), ("gameId", cast gameId), ("events", convertToJSON events) ]
-  cast (GameStarted playerKey gameId) =
+  cast (GameStarted gameId) =
     JObject [ ("tag", JString "GameStarted"), ("gameId", cast gameId) ]
   cast (PlayerPlayed playerKey gameId segment result) =
     JObject [ ("tag", JString "PlayerPlayed"), ("gameId", cast gameId), ("segment", cast segment), ("result", cast result) ]
@@ -134,6 +138,8 @@ export
 makeGameCommand : Games -> JSON -> Either String GameCommand
 makeGameCommand _ (JObject [ ("tag", JString "NewGame"), ("gameId", JString gameId) ]) =
   makeId gameId >>= Right . NewGame
+makeGameCommand _ (JObject [ ("tag", JString "StartGame"), ("gameId", JString gameId) ]) =
+  makeId gameId >>= Right . StartGame
 makeGameCommand _ (JObject [ ("tag", JString "ListGames") ]) =
   Right ListGames
 makeGameCommand _ (JObject [ ("tag", JString "JoinGame"), ("gameId", JString gameId) , ("side", side) ]) = do
@@ -157,7 +163,7 @@ export
 (NewGameCreated gameId).id  = gameId
 (PlayerJoined _ _ gameId).id  =  gameId
 (PlayerReJoined _ _ gameId _).id  =  gameId
-(GameStarted _ gameId).id  =  gameId
+(GameStarted gameId).id  =  gameId
 (PlayerPlayed _ gameId _ result).id  = gameId
 (PlayerLeft _ _ gameId).id  = gameId
 
@@ -166,6 +172,7 @@ export
 data GamesError =
    UnknownGame Id
   | GameAlreadyExists Id
+  | GameIncomplete Id
   | UnknownPlayer Id
   | SideTaken Side Id
   | InvalidSegment GameSegment GameSegment Id Id
@@ -176,6 +183,8 @@ Cast GamesError JSON where
     JObject [ ("tag", JString "UnknownGame"), ("gameId", cast gameId) ]
   cast (GameAlreadyExists gameId) =
     JObject [ ("tag", JString "GameAlreadyExists"), ("gameId", cast gameId) ]
+  cast (GameIncomplete gameId) =
+    JObject [ ("tag", JString "GameIncomplete"), ("gameId", cast gameId) ]
   cast (UnknownPlayer playerKey) =
     JObject [ ("tag", JString "UnknownPlayer"), ("playerKey", cast playerKey) ]
   cast (SideTaken side playerKey) =
@@ -228,6 +237,14 @@ removePlayerFromGame playerKey single@(MkSingleGame gameId _ (HumanPlayer xs) th
 removePlayerFromGame playerKey _ = NotRemoved playerKey
 
 joinGame : SingleGame -> Id -> Side -> Either GamesError GamesEvent
+joinGame game@(MkSingleGame gameId (HumanPlayer xs) NoPlayer theGame events) playerKey Axis =
+      if xs == playerKey
+       then Right $ PlayerJoined playerKey Axis gameId
+       else Left $ SideTaken Axis playerKey
+joinGame (MkSingleGame gameId NoPlayer (HumanPlayer xs) theGame events) playerKey Allies =
+      if xs == playerKey
+       then Right $ PlayerJoined playerKey Allies gameId
+       else Left $ SideTaken Allies playerKey
 joinGame game@(MkSingleGame gameId (HumanPlayer xs) _ theGame events) playerKey Axis =
       if xs == playerKey
        then Right $ PlayerReJoined playerKey Axis gameId events
@@ -237,13 +254,9 @@ joinGame (MkSingleGame gameId _ (HumanPlayer xs) theGame events) playerKey Allie
        then Right $ PlayerReJoined playerKey Allies gameId events
        else Left $ SideTaken Allies playerKey
 joinGame (MkSingleGame gameId _ alliesPlayer theGame _) playerKey Axis =
-   if alliesPlayer == NoPlayer
-    then Right $ PlayerJoined playerKey Axis gameId
-    else Right $ GameStarted playerKey gameId
+    Right $ PlayerJoined playerKey Axis gameId
 joinGame (MkSingleGame gameId axisPlayer _ theGame _) playerKey Allies =
-   if axisPlayer == NoPlayer
-    then Right $ PlayerJoined playerKey Allies gameId
-    else Right $ GameStarted playerKey gameId
+    Right $ PlayerJoined playerKey Allies gameId
 
 ||| Interpret @GameCommand@, returning a @GamesResult@
 export
@@ -254,6 +267,13 @@ act playerKey (NewGame gameId) games =
         GamesResError $ GameAlreadyExists gameId
       Nothing =>
         GamesResEvent $ NewGameCreated gameId
+act playerKey (StartGame gameId) games =
+   case lookup gameId games of
+      Just (MkSingleGame xs axisPlayer alliesPlayer theGame events) =>
+         if axisPlayer == NoPlayer || alliesPlayer == NoPlayer
+         then GamesResError $ GameIncomplete gameId
+         else GamesResEvent $ GameStarted gameId
+      Nothing => GamesResError $ UnknownGame gameId
 act playerKey ListGames games =
   GamesResQuery $ MkGamesList $ values games
 act playerKey (JoinGame gameId side) games =
@@ -290,7 +310,7 @@ apply games (GamesResEvent (PlayerJoined playerKey side gameId)) =
    Nothing => games
 apply games (GamesResEvent (PlayerReJoined playerKey side gameId _)) =
  games
-apply games (GamesResEvent (GameStarted playerKey gameId)) =
+apply games (GamesResEvent (GameStarted gameId)) =
  games
 apply games (GamesResEvent event@(PlayerPlayed playerKey gameId segment result)) =
    case SortedMap.lookup gameId games of

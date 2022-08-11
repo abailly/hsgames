@@ -25,6 +25,7 @@ import Html.Events exposing (onClick, onInput)
 import Html5.DragDrop as DragDrop exposing (Position)
 import Json.Decode as Json exposing (andThen, field, index, succeed)
 import Json.Encode as Enc
+import List exposing (foldr)
 import Random
 import String exposing (fromInt)
 import Tuple exposing (first)
@@ -199,6 +200,7 @@ type Request
     | JoinGame { gameId : String, side : Side }
     | Connect { playerKey : String }
     | NewGame { gameId : String }
+    | StartGame { gameId : String }
     | Action { gameId : String, action : Action }
     | ListGames
 
@@ -218,6 +220,12 @@ encodeRequest msg =
         NewGame g ->
             Enc.object
                 [ ( "tag", Enc.string "NewGame" )
+                , ( "gameId", Enc.string g.gameId )
+                ]
+
+        StartGame g ->
+            Enc.object
+                [ ( "tag", Enc.string "StartGame" )
                 , ( "gameId", Enc.string g.gameId )
                 ]
 
@@ -494,11 +502,12 @@ type Messages
     = {- Server acknowledged player's connection -} Connected
     | GamesList (List GameDescription)
     | NewGameCreated String
-    | PlayerJoined String
+    | PlayerJoined String Side
     | GameStarted String
     | CurrentGameSegment GameSegment
     | PlayerPlayed String Play
     | Positions (List ( Unit, Pos ))
+    | PlayerReJoined String (List Messages)
 
 
 tuple2 : (a -> b -> c) -> Json.Decoder a -> Json.Decoder b -> Json.Decoder c
@@ -601,6 +610,9 @@ makeMessages tag =
         "Connected" ->
             Json.succeed Connected
 
+        "PlayerReJoined" ->
+            Json.map2 PlayerReJoined (field "gameId" Json.string) (field "events" <| Json.list decodeMessages)
+
         "GamesList" ->
             Json.map GamesList (field "games" <| Json.list decodeSingleGame)
 
@@ -608,7 +620,7 @@ makeMessages tag =
             Json.map NewGameCreated (field "gameId" Json.string)
 
         "PlayerJoined" ->
-            Json.map PlayerJoined (field "gameId" Json.string)
+            Json.map2 PlayerJoined (field "gameId" Json.string) (field "side" decodeSide)
 
         "GameStarted" ->
             Json.map GameStarted (field "gameId" Json.string)
@@ -687,11 +699,24 @@ decodeUnitPos =
 
 handleMessages : Model -> String -> ( Model, Cmd Msg )
 handleMessages model s =
-    case Json.decodeString decodeMessages s of
-        Ok Connected ->
+    Json.decodeString decodeMessages s
+        |> (\msg ->
+                case msg of
+                    Err _ ->
+                        ( model, Cmd.none )
+
+                    Ok m ->
+                        updateModel m model
+           )
+
+
+updateModel : Messages -> Model -> ( Model, Cmd Msg )
+updateModel msg model =
+    case msg of
+        Connected ->
             ( model, sendCommand model ListGames )
 
-        Ok (GamesList games) ->
+        GamesList games ->
             case model of
                 NoGame p ->
                     ( NoGame { p | games = games }, Cmd.none )
@@ -699,7 +724,7 @@ handleMessages model s =
                 _ ->
                     ( model, Cmd.none )
 
-        Ok (NewGameCreated gid) ->
+        NewGameCreated gid ->
             case model of
                 NoGame p ->
                     case p.side of
@@ -712,7 +737,7 @@ handleMessages model s =
                 _ ->
                     ( model, Cmd.none )
 
-        Ok (PlayerJoined gid) ->
+        PlayerJoined gid sd ->
             case model of
                 NoGame p ->
                     case p.side of
@@ -722,25 +747,42 @@ handleMessages model s =
                         Nothing ->
                             ( model, Cmd.none )
 
+                Waiting g ->
+                    if g.mySide /= sd then
+                        ( model, sendCommand model (StartGame { gameId = g.gameId }) )
+
+                    else
+                        ( model, Cmd.none )
+
+                InGame _ ->
+                    ( model, Cmd.none )
+
+        PlayerReJoined gid events ->
+            case model of
+                NoGame _ ->
+                    ( foldr (\mg mod -> first (updateModel mg mod)) model (List.reverse events)
+                    , sendCommand model (Action { gameId = gid, action = GetCurrentSegment })
+                    )
+
                 _ ->
                     ( model, Cmd.none )
 
-        Ok (GameStarted gid) ->
+        GameStarted gid ->
             case model of
-                Waiting _ ->
+                InGame _ ->
+                    ( model, Cmd.none )
+
+                _ ->
                     let
                         newModel =
                             inGame gid
                     in
                     ( newModel, sendCommand model (Action { gameId = gid, action = GetCurrentSegment }) )
 
-                _ ->
-                    ( model, Cmd.none )
-
-        Ok (Positions _) ->
+        Positions _ ->
             ( model, Cmd.none )
 
-        Ok (CurrentGameSegment gameStage) ->
+        CurrentGameSegment gameStage ->
             let
                 gs =
                     Debug.log "Handling game segment" gameStage
@@ -752,7 +794,7 @@ handleMessages model s =
                 _ ->
                     ( model, Cmd.none )
 
-        Ok (PlayerPlayed _ (Placed unitName position)) ->
+        PlayerPlayed _ (Placed unitName position) ->
             case model of
                 InGame game ->
                     ( InGame <| setUnitPositionTo unitName position game, Cmd.none )
@@ -760,7 +802,7 @@ handleMessages model s =
                 _ ->
                     ( model, Cmd.none )
 
-        Ok (PlayerPlayed _ (Moved unitName _ to _)) ->
+        PlayerPlayed _ (Moved unitName _ to _) ->
             case model of
                 InGame game ->
                     ( InGame <| setUnitPositionTo unitName to game, Cmd.none )
@@ -768,7 +810,7 @@ handleMessages model s =
                 _ ->
                     ( model, Cmd.none )
 
-        Ok (PlayerPlayed _ (SegmentChanged _ _)) ->
+        PlayerPlayed _ (SegmentChanged _ _) ->
             case model of
                 InGame game ->
                     ( model, sendCommand model (Action { gameId = game.gameId, action = GetCurrentSegment }) )
@@ -776,16 +818,13 @@ handleMessages model s =
                 _ ->
                     ( model, Cmd.none )
 
-        Ok (PlayerPlayed _ AlliesSetupDone) ->
+        PlayerPlayed _ AlliesSetupDone ->
             case model of
                 InGame game ->
                     ( model, sendCommand model (Action { gameId = game.gameId, action = GetCurrentSegment }) )
 
                 _ ->
                     ( model, Cmd.none )
-
-        Err _ ->
-            ( model, Cmd.none )
 
 
 setUnitPositionTo : String -> Pos -> Game -> Game
