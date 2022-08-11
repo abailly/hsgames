@@ -1,7 +1,7 @@
 -- | Handles interaction with game players' clients
 module GameServer.Clients where
 
-import Control.Concurrent.Async (Async, async, cancel, link, waitAnyCancel)
+import Control.Concurrent.Async (Async, async, cancel, link, race_, waitAnyCancel)
 import Control.Concurrent.Chan.Unagi (InChan, OutChan, newChan, readChan, writeChan)
 import Control.Concurrent.STM
 import Control.Exception (catch)
@@ -117,24 +117,24 @@ handleBautzen1945Client logger host port connection = do
     -- we run 2 asyncs:
     --  * one for handling player commands
     --  * the other to handle server's response
-    toServer <- async $ do
+    race_ (readLoop serverCnx) (writeLoop serverCnx)
+  where
+    writeLoop serverCnx = do
+        logInfo logger ("starting write loop" :: String)
+        forever $ do
+            message <- receive serverCnx
+            logInfo logger $ "sending to player: " ++ unpack (toStrict $ decodeUtf8 message)
+            sendTextData connection message
+            logInfo logger $ "sent to player: " ++ unpack (toStrict $ decodeUtf8 message)
+        logInfo logger ("stopping write loop" :: String)
+
+    readLoop serverCnx = do
         logInfo logger ("starting read loop" :: String)
         forever $ do
             Text message _ <- receiveDataMessage connection
             logInfo logger $ "from player: " ++ unpack (toStrict $ decodeUtf8 message)
             send serverCnx message
         logInfo logger ("stopping read loop" :: String)
-
-    toClient <- async $ do
-        logInfo logger ("starting response sender" :: String)
-        forever $ do
-            message <- receive serverCnx
-            logInfo logger $ "to player: " ++ unpack (toStrict $ decodeUtf8 message)
-            sendTextData connection message
-                `catch` (\(e :: ConnectionException) -> logInfo logger $ "response sender error: " ++ show e)
-    link toClient
-    link toServer
-    void $ waitAnyCancel [toClient, toServer]
 
 handleClient :: LoggerEnv IO -> IORef ClientConnection -> String -> PortNumber -> Connection -> IO ()
 handleClient logger channels host port connection =
