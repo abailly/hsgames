@@ -465,6 +465,7 @@ type Segment
     = Setup
     | Supply
     | Move
+    | Combat
 
 
 showSegment : Segment -> String
@@ -478,6 +479,9 @@ showSegment s =
 
         Move ->
             "Move"
+
+        Combat ->
+            "Combat"
 
 
 
@@ -587,10 +591,16 @@ decodeSegment =
                 "Move" ->
                     succeed Move
 
+                "Combat" ->
+                    succeed Combat
+
                 other ->
                     Json.fail ("Uknown Segment type " ++ other)
     in
-    andThen mkSegment Json.string
+    Json.oneOf
+        [ andThen mkSegment Json.string
+        , andThen mkSegment <| index 0 Json.string
+        ]
 
 
 decodeGameSegment : Json.Decoder GameSegment
@@ -722,7 +732,7 @@ updateModel msg model =
                     ( NoGame { p | games = games }, Cmd.none )
 
                 _ ->
-                    ( model, Cmd.none )
+                    ( Debug.log "model: " model, Cmd.none )
 
         NewGameCreated gid ->
             case model of
@@ -759,13 +769,13 @@ updateModel msg model =
 
         PlayerReJoined gid events ->
             case model of
-                NoGame _ ->
-                    ( foldr (\mg mod -> first (updateModel mg mod)) model (List.reverse events)
-                    , sendCommand model (Action { gameId = gid, action = GetCurrentSegment })
-                    )
+                InGame _ ->
+                    ( model, Cmd.none )
 
                 _ ->
-                    ( model, Cmd.none )
+                    ( List.foldl (\mg mod -> first (updateModel mg mod)) model (GameStarted gid :: List.reverse events)
+                    , sendCommand model (Action { gameId = gid, action = GetCurrentSegment })
+                    )
 
         GameStarted gid ->
             case model of
@@ -979,14 +989,12 @@ divStyle ( x, y ) =
             sin (pi / 3)
 
         ( top, left ) =
-            ( 15
-                + (if modBy 2 y == 0 then
-                    x * 133
+            ( if modBy 2 y == 0 then
+                x * 133
 
-                   else
-                    x * 133 + 66
-                  )
-            , 67 + (truncate <| toFloat y * 133 * sine)
+              else
+                x * 133 + 66
+            , truncate <| toFloat y * 133 * sine
             )
     in
     [ class "hex"
