@@ -57,11 +57,11 @@ mkGamesState = do
   where
     handleCommand' : Id -> (games : Games) -> String -> (Either String (GamesResult games), Games)
     handleCommand' clientId games input =
-    case parseCommand games input of
-      Left err => (Left err, games)
-      Right act =>
-        let (res, g) = interpret clientId act games
-        in (Right res, g)
+      case parseCommand games input of
+        Left err => (Left err, games)
+        Right act =>
+          let (res, g) = interpret clientId act games
+          in (Right res, g)
 
     handle : IORef Games -> Mutex -> Id -> String -> IO MessageResult
     handle refGames mutex clientId msg =
@@ -87,12 +87,17 @@ handleClient log socket addr clientId hdlr =
    client =  show @{AsString} clientId
 
    stopHandler : GameHandler -> IO ()
-   stopHandler hdlr = channelPut hdlr.cin "STOP"
+   stopHandler hdlr = do
+     channelPut hdlr.cin "STOP"
+
+   stopOutput : GameHandler -> IO ()
+   stopOutput hdlr =
+     channelPut hdlr.cout "STOP"
 
    handleInput : IO ()
    handleInput = do
       Right msg <- receive log socket
-        | Left err => do log err ; close socket ; stopHandler hdlr
+        | Left err => do log ("[" ++ client ++ "] closing input handler: " ++ err) ; close socket ; stopHandler hdlr ; stopOutput hdlr
       log $ "[" ++ client ++ "] received '" ++ msg ++ "'"
       channelPut hdlr.cin msg
       handleInput
@@ -100,11 +105,15 @@ handleClient log socket addr clientId hdlr =
    handleOutput : IO ()
    handleOutput = do
      res <- channelGet hdlr.cout
-     log $ "[" ++ client ++ "] dispatching result: '" ++ res ++ "'"
-     Right l <- send socket (toWire res)
-       | Left err => do log ("[" ++ client ++ "] failed to send message " ++ show err) ; close socket ; stopHandler hdlr
-     log $ "[" ++ client ++ "] sent result"
-     handleOutput
+     case res of
+        "STOP" => do
+           log $ "[" ++ client ++ "] closing output handler"
+        _ => do
+            log $ "[" ++ client ++ "] sending result: '" ++ res ++ "'"
+            Right l <- send socket (toWire res)
+              | Left err => do log ("[" ++ client ++ "] failed to send message " ++ show err) ; close socket ; stopHandler hdlr
+            log $ "[" ++ client ++ "] sent result"
+            handleOutput
 
 ||| Clients are expected to send their `Id` upon connection.
 clientHandshake : Logger -> Socket -> IO (Either String Id)
@@ -146,12 +155,17 @@ commandLoop log cin cout clients gamesOutput clientId gamesState = do
      -- Poison pill
      "STOP" => do
        log $ "[" ++ client ++ "] Stopping command loop"
+       modifyIORef gamesOutput $ map removeOutput
        modifyIORef clients (delete clientId)
      _ => do
        res <- gamesState.handleMessage clientId msg
        handleOutputsForResult res
        commandLoop log cin cout clients gamesOutput clientId gamesState
   where
+   removeOutput :  SortedMap Id (Channel String) ->
+                   SortedMap Id (Channel String)
+   removeOutput = delete clientId
+
    client : String
    client = show @{AsString} clientId
 
@@ -167,7 +181,7 @@ commandLoop log cin cout clients gamesOutput clientId gamesState = do
             Just _ => gmap
       Just outs <- lookup gameId <$> readIORef gamesOutput
         | Nothing => pure () -- TODO: should never happen? prove it...
-      log $ "[" ++ client ++ "] sending result: " ++ event
+      log $ "[" ++ client ++ "] dispatching result: " ++ event
       traverse_ (\out => channelPut out event) outs
 
 ||| Main server `accept`ing loop.

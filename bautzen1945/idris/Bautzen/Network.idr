@@ -69,7 +69,7 @@ receive : Logger -> Socket -> IO (Either String String)
 receive log socket = do
   log "waiting for input"
   Right str <- recvAll socket 6 -- receive 6 characters representing the length of message to read
-    | Left err => pure $ Left ("failed to receive length of message " ++ show err)
+    | Left err => pure $ Left err
   log $ "received  " ++ str
   case parseInteger (unpack str) 0 of
     Nothing => pure $ Left ("fail to parse '" ++ str ++ "' to expected number of characters, ignoring")
