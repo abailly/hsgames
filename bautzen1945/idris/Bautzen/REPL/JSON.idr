@@ -178,37 +178,37 @@ Cast AllPositions JSON where
 export
 Cast EngagedUnits JSON where
   cast (MkEngagedUnits base tacticalSupport strategicSupport) =
-    JObject [ ("tag", JString "engaged")
-          , ("base", cast base)
-          , ("tactical-support", cast tacticalSupport)
-          , ("strategic-support", cast strategicSupport)
-          ]
+    JObject [ ("tag", JString "EngagedUnits")
+            , ("base", cast base)
+            , ("tacticalSupport", cast tacticalSupport)
+            , ("strategicSupport", cast strategicSupport)
+            ]
 
 export
 Cast CombatState JSON where
   cast (MkCombatState hex attackers defenders losses) =
-    JObject  [ ("tag", JString "combat-state")
-          , ("combat-hex", cast hex)
-          , ("attackers", cast attackers)
-          , ("defenders", cast defenders)
-          , ("losses", cast losses)
-          ]
+    JObject  [ ("tag", JString "CombatState")
+             , ("combatHex", cast hex)
+             , ("attackers", cast attackers)
+             , ("defenders", cast defenders)
+             , ("losses", cast losses)
+             ]
 
 export
 Cast CombatPhase JSON where
-  cast NoCombat = JArray []
-  cast (AssignTacticalSupport side combat) = JArray [ JString "AssignTacticalSupport",  cast side, cast combat ]
-  cast (AssignStrategicSupport side combat) = JArray [ JString "AssignStrategicSupport",  cast side, cast combat ]
-  cast (ApplyLosses side combat) = JArray [ JString "ApplyLosses",  cast side, cast combat ]
-  cast (Resolve combat) = JArray [ JString "Resolve", cast combat ]
+  cast NoCombat = JObject [("tag", JString "NoCombat")]
+  cast (AssignTacticalSupport side combat) = JObject  [ ("tag", JString "AssignTacticalSupport"),  ("side", cast side), ("combat", cast combat) ]
+  cast (AssignStrategicSupport side combat) = JObject [ ("tag",  JString "AssignStrategicSupport"),  ("side", cast side), ("combat", cast combat) ]
+  cast (ApplyLosses side combat) = JObject [ ("tag",  JString "ApplyLosses"),  ("side", cast side), ("combat", cast combat) ]
+  cast (Resolve combat) = JObject [ ("tag", JString "Resolve"),("combat",  cast combat) ]
 
 export
 Cast GameSegment JSON where
-  cast Setup = JString "Setup"
-  cast Supply = JString "Supply"
-  cast Move = JString "Move"
-  cast (Combat phase) = JArray [ JString "Combat", cast phase ]
-  cast GameEnd = JString "GameEnd"
+  cast Setup = JObject [ ("tag", JString "Setup")]
+  cast Supply = JObject [ ("tag", JString "Supply")]
+  cast Move = JObject [ ("tag", JString "Move")]
+  cast (Combat phase) = JObject [ ("tag", JString "Combat"), ("phase", cast phase) ]
+  cast GameEnd = JObject [ ("tag", JString "GameEnd")]
 
 export
 Cast (Event seg) JSON where
@@ -225,7 +225,7 @@ Cast (Event seg) JSON where
             , ("cost", cast cost)
             ]
   cast (CombatEngaged atk def target) =
-      JObject [ ("tag", JString "combat-engaged")
+      JObject [ ("tag", JString "CombatEngaged")
             , ("attackers", cast atk)
             , ("defenders", cast def)
             , ("target", cast target)
@@ -394,9 +394,9 @@ makePlayerAction : (game : Game) -> JSON -> Either String (PlayerAction (curSegm
 makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JNumber col, JNumber row]) ] ) with (curSegment game)
   makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JNumber col, JNumber row]) ] ) | Move = Cmd <$> makeMoveCommand unitName (cast col) (cast row)
   makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JNumber col, JNumber row]) ] ) | other = Left ("Invalid command for segment " ++ show other)
-makePlayerAction game (JArray [ JString "attack!", unitNames, JArray [ JNumber col, JNumber row] ] ) with (curSegment game)
-  makePlayerAction game (JArray [ JString "attack!", unitNames, JArray [ JNumber col, JNumber row] ] ) | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames (cast col) (cast row)
-  makePlayerAction game (JArray [ JString "attack!", unitNames, JArray [ JNumber col, JNumber row] ] ) | other = Left $ "Invalid command for segment " ++ show other
+makePlayerAction game (JObject [ ("tag", JString "Attack"), ("units", unitNames), ("hex", JArray [ JNumber col, JNumber row]) ] ) with (curSegment game)
+  makePlayerAction game (JObject [ ("tag", JString "Attack"), ("units", unitNames), ("hex", JArray [ JNumber col, JNumber row]) ] ) | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames (cast col) (cast row)
+  makePlayerAction game (JObject [ ("tag", JString "Attack"), ("units", unitNames), ("hex", JArray [ JNumber col, JNumber row]) ] ) | other = Left $ "Invalid command for segment " ++ show other
 makePlayerAction game (JArray [ JString "support!", unitNames ] ) with (curSegment game)
   makePlayerAction game (JArray [ JString "support!", unitNames ] ) | Combat (AssignTacticalSupport side combatState) = Cmd <$> makeSupportCommand unitNames
   makePlayerAction game (JArray [ JString "support!", unitNames ] ) | other = Left $ "Invalid command for segment " ++ show other

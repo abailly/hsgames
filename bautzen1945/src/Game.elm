@@ -159,6 +159,7 @@ type Model
     = NoGame PreGame
     | Waiting { gameId : String, mySide : Side }
     | InGame Game
+    | InCombat Game CombatState
 
 
 type Action
@@ -166,6 +167,7 @@ type Action
     | Place UnitName Pos
     | Next
     | MoveTo UnitName Pos
+    | Attack (List UnitName) Pos
 
 
 encodeAction : Action -> Json.Value
@@ -188,6 +190,13 @@ encodeAction act =
                 [ ( "tag", Enc.string "MoveTo" )
                 , ( "unit", Enc.string u )
                 , ( "to", encodePos p )
+                ]
+
+        Attack us p ->
+            Enc.object
+                [ ( "tag", Enc.string "Attack" )
+                , ( "units", Enc.list Enc.string us )
+                , ( "hex", encodePos p )
                 ]
 
         Next ->
@@ -465,7 +474,7 @@ type Segment
     = Setup
     | Supply
     | Move
-    | Combat
+    | Combat CombatPhase
 
 
 showSegment : Segment -> String
@@ -480,14 +489,42 @@ showSegment s =
         Move ->
             "Move"
 
-        Combat ->
+        Combat _ ->
             "Combat"
 
 
+type CombatPhase
+    = NoCombat
+    | AssignTacticalSupport CombatSideAndState
+    | AssignStrategicSupport CombatSideAndState
+    | Resolve CombatState
+    | ApplyLosses CombatSideAndState
 
--- | Supply
--- | Move
--- | Combat | (phase | CombatPhase) ->
+
+type alias CombatSideAndState =
+    { side : Side, combat : CombatState }
+
+
+type alias CombatState =
+    { combatHex : Pos
+    , attackers : EngagedUnits
+    , defenders : EngagedUnits
+    , losses : Maybe Losses
+    }
+
+
+type alias EngagedUnits =
+    { base : List Unit
+    , tacticalSupport : List Unit
+    , strategicSupport : Int
+    }
+
+
+type alias Losses =
+    { attackerLoss : Int, defenderLoss : Int }
+
+
+
 --   GameEnd
 
 
@@ -500,6 +537,7 @@ type Play
     | AlliesSetupDone
     | SegmentChanged Segment Segment
     | Moved String Pos Pos Int
+    | CombatEngaged (List UnitName) (List UnitName) Pos
 
 
 type Messages
@@ -592,15 +630,81 @@ decodeSegment =
                     succeed Move
 
                 "Combat" ->
-                    succeed Combat
+                    Json.map Combat (field "phase" decodeCombatPhase)
 
                 other ->
                     Json.fail ("Uknown Segment type " ++ other)
     in
-    Json.oneOf
-        [ andThen mkSegment Json.string
-        , andThen mkSegment <| index 0 Json.string
-        ]
+    andThen mkSegment <| field "tag" Json.string
+
+
+decodeCombatPhase : Json.Decoder CombatPhase
+decodeCombatPhase =
+    let
+        mkCombatPhase s =
+            case s of
+                "NoCombat" ->
+                    Json.succeed NoCombat
+
+                "AssignStrategicSupport" ->
+                    Json.map AssignStrategicSupport decodeSideAndState
+
+                "AssignTacticalSupport" ->
+                    Json.map AssignTacticalSupport decodeSideAndState
+
+                "Resolve" ->
+                    Json.map Resolve decodeCombatState
+
+                "ApplyLosses" ->
+                    Json.map ApplyLosses decodeSideAndState
+
+                _ ->
+                    Json.fail <| "Unknown combat phase " ++ s
+    in
+    andThen mkCombatPhase <| field "tag" Json.string
+
+
+decodeSideAndState : Json.Decoder CombatSideAndState
+decodeSideAndState =
+    Json.map2 CombatSideAndState (field "side" decodeSide) (field "combat" decodeCombatState)
+
+
+decodeCombatState : Json.Decoder CombatState
+decodeCombatState =
+    Json.map4 CombatState
+        (field "combatHex" decodePos)
+        (field "attackers" decodeEngagedUnits)
+        (field "defenders" decodeEngagedUnits)
+        (field "losses" <| Json.maybe decodeLosses)
+
+
+decodeEngagedUnits : Json.Decoder EngagedUnits
+decodeEngagedUnits =
+    Json.map3 EngagedUnits
+        (field "base" <| Json.list decodeUnitAndPos)
+        (field "tacticalSupport" <| Json.list decodeUnitAndPos)
+        (field "strategicSupport" Json.int)
+
+
+decodeLosses : Json.Decoder Losses
+decodeLosses =
+    Json.map2 Losses
+        (index 0 Json.int)
+        (index 1 Json.int)
+
+
+decodeUnitAndPos : Json.Decoder Unit
+decodeUnitAndPos =
+    tuple2 (\a b -> { a | position = b })
+        decodeGameUnit
+        decodePos
+
+
+decodeGameUnit : Json.Decoder Unit
+decodeGameUnit =
+    Json.map2 (\n a -> { name = n, img = n, army = a, position = ( 0, 0 ) })
+        (Json.field "name" Json.string)
+        (Json.field "nation" decodeArmy)
 
 
 decodeGameSegment : Json.Decoder GameSegment
@@ -683,16 +787,30 @@ decodePlay =
         decodePlayBody tag =
             case tag of
                 "Placed" ->
-                    Json.map2 Placed (field "unit" Json.string) (field "pos" decodePos)
+                    Json.map2 Placed
+                        (field "unit" Json.string)
+                        (field "pos" decodePos)
 
                 "Moved" ->
-                    Json.map4 Moved (field "unit" Json.string) (field "from" decodePos) (field "to" decodePos) (field "cost" Json.int)
+                    Json.map4 Moved
+                        (field "unit" Json.string)
+                        (field "from" decodePos)
+                        (field "to" decodePos)
+                        (field "cost" Json.int)
+
+                "CombatEngaged" ->
+                    Json.map3 CombatEngaged
+                        (field "attackers" <| Json.list Json.string)
+                        (field "defenders" <| Json.list Json.string)
+                        (field "target" decodePos)
 
                 "AlliesSetupDone" ->
                     Json.succeed AlliesSetupDone
 
                 "SegmentChanged" ->
-                    Json.map2 SegmentChanged (field "from" decodeSegment) (field "to" decodeSegment)
+                    Json.map2 SegmentChanged
+                        (field "from" decodeSegment)
+                        (field "to" decodeSegment)
 
                 other ->
                     Json.fail <| "Unknown play tag: " ++ other
@@ -764,7 +882,7 @@ updateModel msg model =
                     else
                         ( model, Cmd.none )
 
-                InGame _ ->
+                _ ->
                     ( model, Cmd.none )
 
         PlayerReJoined gid events ->
@@ -801,6 +919,9 @@ updateModel msg model =
                 InGame g ->
                     ( InGame { g | gameSegment = gs }, Cmd.none )
 
+                InCombat g c ->
+                    ( InCombat { g | gameSegment = gs } c, Cmd.none )
+
                 _ ->
                     ( model, Cmd.none )
 
@@ -820,6 +941,18 @@ updateModel msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        PlayerPlayed _ (CombatEngaged atks defs pos) ->
+            case model of
+                InGame game ->
+                    let
+                        combatState =
+                            startCombat game atks defs pos
+                    in
+                    ( InCombat game combatState, Cmd.none )
+
+                _ ->
+                    ( model, Cmd.none )
+
         PlayerPlayed _ (SegmentChanged _ _) ->
             case model of
                 InGame game ->
@@ -835,6 +968,20 @@ updateModel msg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+
+startCombat : Game -> List UnitName -> List UnitName -> Pos -> CombatState
+startCombat game atks defs combatHex =
+    { combatHex = combatHex
+    , attackers = { base = List.filterMap (findUnitPosition game) atks, tacticalSupport = [], strategicSupport = 0 }
+    , defenders = { base = List.filterMap (findUnitPosition game) defs, tacticalSupport = [], strategicSupport = 0 }
+    , losses = Nothing
+    }
+
+
+findUnitPosition : Game -> UnitName -> Maybe Unit
+findUnitPosition game unitName =
+    Dict.get unitName game.units
 
 
 setUnitPositionTo : String -> Pos -> Game -> Game
@@ -959,6 +1106,9 @@ update msg model =
                                 Move ->
                                     sendCommand newModel (Action { gameId = game.gameId, action = MoveTo unitName position })
 
+                                Combat NoCombat ->
+                                    sendCommand newModel (Action { gameId = game.gameId, action = Attack [ unitName ] position })
+
                                 _ ->
                                     Cmd.none
                             )
@@ -980,6 +1130,9 @@ update msg model =
 
                 Join _ _ ->
                     ( model, Cmd.none )
+
+        InCombat game combat ->
+            ( model, Cmd.none )
 
 
 divStyle : Pos -> List (Attribute Msg)
@@ -1020,6 +1173,9 @@ view model =
             viewNoGame p
 
         InGame game ->
+            viewInGame game
+
+        InCombat game _ ->
             viewInGame game
 
         Waiting w ->
