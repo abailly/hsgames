@@ -72,6 +72,15 @@ data Cost : Type where
   Two : Cost -> Cost
 
 public export
+Eq Cost where
+  Impossible == Impossible = True
+  Zero == Zero = True
+  (Half x) == Half x' = x == x'
+  (One x) == One x' = x == x'
+  (Two x) == Two x' = x == x'
+  _ == _ = False
+
+public export
 cost : UnitType -> Terrain ->            Connection -> Cost
 cost   unitType    (SupplySource _ base) cnx        = cost unitType base cnx
 cost   _           _                     Lake       = Impossible

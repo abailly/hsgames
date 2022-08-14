@@ -6,6 +6,7 @@ import Bautzen.Terrain
 
 import Data.Fin
 import Data.Nat
+import Decidable.Decidable
 import Decidable.Equality
 
 %default total
@@ -86,6 +87,10 @@ DecEq GameSegment where
    -- TODO: Not sure how to prove all those negative cases
   decEq x x' = No believe_me
 
+export
+Eq GameSegment where
+  seg == seg' = isYes (decEq seg seg')
+
 public export
 Show GameSegment where
   show Setup = "Setup"
@@ -131,6 +136,45 @@ data GameError : Type where
   CombatInProgress : (side : Side) -> GameError
   InvalidPlacement : (pos : Pos) -> GameError
   GameHasEnded : GameError
+
+export
+Eq GameError where
+  (NoSuchUnits unitName) ==   (NoSuchUnits unitName')  =
+    unitName == unitName'
+  (NotYourTurn side) ==   (NotYourTurn side')  =
+      side == side'
+  (EnemyInHex unit hex) ==   (EnemyInHex unit' hex')  =
+     unit == unit' && hex == hex'
+  (MoveFromZocToZoc unit to) ==   (MoveFromZocToZoc unit' to')  =
+     unit == unit' && to == to'
+  (ForbiddenTerrain from to) ==   (ForbiddenTerrain from' to')  =
+     from == from' && to == to'
+  (InvalidMove from to) ==   (InvalidMove from' to')  =
+     from == from' && to == to'
+  (NotEnoughMPs unit from to mp) ==   (NotEnoughMPs unit' from' to' mp')  =
+     unit == unit' && from == from' && to == to' && mp == mp'
+  (NotAdjacentTo units target) ==   (NotAdjacentTo units' target')  =
+     units == units' && target == target'
+  (NothingToAttack target) ==   (NothingToAttack target')  =
+     target == target'
+  (AttackingOwnUnits units target) ==   (AttackingOwnUnits units' target')  =
+     units == units' && target == target'
+  (NotSupportingUnits units) ==   (NotSupportingUnits units')  =
+     units == units'
+  (NotInSupportRange units) ==   (NotInSupportRange units')  =
+     units == units'
+  (NotInChainOfCommand units) ==   (NotInChainOfCommand units')  =
+     units == units'
+  (NoSupplyColumnThere hex) ==   (NoSupplyColumnThere hex')  =
+     hex == hex'
+  (NoStepsToLose side) ==   (NoStepsToLose side')  =
+     side == side'
+  (CombatInProgress side) ==   (CombatInProgress side')  =
+     side == side'
+  (InvalidPlacement pos) ==   (InvalidPlacement pos')  =
+     pos == pos'
+  GameHasEnded ==   GameHasEnded  = True
+  _ == _ = False
 
 public export
 Show GameError where
@@ -240,6 +284,30 @@ data Event : (segment : GameSegment) -> Type where
 
   ||| Game has ended
   GameEnded : Event segment
+
+export
+Eq (Event seg) where
+  (Placed unit pos) == (Placed unit' pos')  =
+    unit == unit' && pos == pos'
+  (Moved unit from to cost) == (Moved unit' from' to' cost')  =
+    unit == unit' && from == from' && to == to' && cost == cost'
+  (CombatEngaged attackers defenders target) == (CombatEngaged attackers' defenders' target')  =
+    attackers == attackers' && defenders == defenders' && target == target'
+  (TacticalSupportProvided supportedSide supportUnits) == (TacticalSupportProvided supportedSide supportUnits')  =
+    supportUnits == supportUnits'
+  (SupplyColumnUsed supportedSide hex) == (SupplyColumnUsed supportedSide hex')  =
+    hex == hex'
+  (CombatResolved state losses) == (CombatResolved state' losses')  =
+    state == state' && losses == losses'
+  (StepLost side unit remainingLosses) == (StepLost side unit' remainingLosses')  =
+    unit == unit' && remainingLosses == remainingLosses'
+  (SegmentChanged seg to) == (SegmentChanged seg to')  =
+    to == to'
+  AxisTurnDone == AxisTurnDone  = True
+  AlliesSetupDone == AlliesSetupDone  = True
+  (TurnEnded x) == (TurnEnded x')  = x == x'
+  GameEnded == GameEnded  = True
+  _ == _ = False
 
 public export
 Show (Event seg) where

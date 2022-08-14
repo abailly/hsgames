@@ -192,6 +192,14 @@ data ActionResult : (seg : GameSegment) -> Type where
   ResError : GameError -> ActionResult seg
   ResQuery : Cast result JSON => result -> ActionResult seg
 
+export
+Eq (ActionResult seg) where
+  (ResEvent x) == (ResEvent y) = x == y
+  (ResError x) == (ResError y) = x == y
+  -- assume JSON representation is injective
+  (ResQuery x) == (ResQuery y) = show (cast {to = JSON} x) == show (cast {to = JSON} y)
+  _ == _ = False
+
 public export
 handleAction : (game : Game) -> PlayerAction (curSegment game) -> ActionResult (curSegment game)
 handleAction game (Cmd cmd) =

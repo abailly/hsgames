@@ -72,6 +72,21 @@ data GamesEvent : Type where
    PlayerPlayed :  (playerKey : Id) -> (gameId : Id) ->  (segment : GameSegment) -> (result : ActionResult segment) -> GamesEvent
    PlayerLeft :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
 
+Eq GamesEvent where
+  (NewGameCreated gameId) == (NewGameCreated gameId') = gameId == gameId'
+  (PlayerJoined playerKey side gameId) == (PlayerJoined playerKey' side' gameId') =
+    playerKey == playerKey' && side == side' && gameId == gameId'
+  (PlayerReJoined playerKey side gameId events) == (PlayerReJoined playerKey' side' gameId' events') =
+    playerKey == playerKey' && side == side' && gameId == gameId' -- && events == events'
+  (GameStarted gameId) == GameStarted gameId' =
+    gameId == gameId'
+  (PlayerPlayed playerKey gameId segment result) == (PlayerPlayed playerKey' gameId' segment' result') with (decEq segment segment')
+    (PlayerPlayed playerKey gameId segment result) == (PlayerPlayed playerKey' gameId' segment' result') | Yes prf = playerKey == playerKey' && gameId == gameId' && result == rewrite prf in result'
+    (PlayerPlayed playerKey gameId segment result) == (PlayerPlayed playerKey' gameId' segment' result') | No _ = False
+  (PlayerLeft playerKey side gameId) == (PlayerLeft playerKey' side' gameId') =
+    playerKey == playerKey' && side == side' && gameId == gameId'
+  _ == _ = False
+
 convertToJSON : List GamesEvent -> JSON
 
 export

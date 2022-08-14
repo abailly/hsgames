@@ -23,6 +23,7 @@ record Losses where
   ||| Steps lost by defender. Can be transformed in hexes of retreat.
   defenderLoss : Nat
 
+export
 Eq Losses where
   (/>) a d == (/>) a' d' =
    a == a' && d == d'
