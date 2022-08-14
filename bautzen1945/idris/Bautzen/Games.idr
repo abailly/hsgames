@@ -72,6 +72,23 @@ data GamesEvent : Type where
    PlayerPlayed :  (playerKey : Id) -> (gameId : Id) ->  (segment : GameSegment) -> (result : ActionResult segment) -> GamesEvent
    PlayerLeft :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
 
+partial
+export
+Show GamesEvent where
+  show (NewGameCreated gameId) =
+    "NewGameCreated { gameId = " ++ show gameId ++ " }"
+  show (PlayerJoined playerKey side gameId) =
+    "PlayerJoined { playerKey = " ++ show playerKey ++ ", side = " ++ show side ++ ", gameId = " ++ show gameId ++ " }"
+  show (PlayerReJoined playerKey side gameId events) =
+    "PlayerReJoined { playerKey = " ++ show playerKey ++ ", side = " ++ show side ++ ", gameId = " ++ show gameId ++ ", events = " ++ show events ++ " }"
+  show (GameStarted gameId) =
+    "GameStarted { gameId = " ++ show gameId ++ " }"
+  show (PlayerPlayed playerKey gameId segment result) =
+    "PlayerPlayed { playerKey = " ++ show playerKey ++ ", gameId = " ++ show gameId ++ ", segment = " ++ show segment ++ ", result = " ++ show result ++ " }"
+  show (PlayerLeft playerKey side gameId) =
+    "PlayerLeft { playerKey = " ++ show playerKey ++ ", side = " ++ show side ++ ", gameId = " ++ show gameId ++ " }"
+
+export
 Eq GamesEvent where
   (NewGameCreated gameId) == (NewGameCreated gameId') = gameId == gameId'
   (PlayerJoined playerKey side gameId) == (PlayerJoined playerKey' side' gameId') =
