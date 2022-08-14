@@ -5,7 +5,7 @@ module Bautzen.Game.Stacking
 import Bautzen.GameUnit
 import Bautzen.Terrain
 
-
+import Data.List
 
 
 -- section 5.1
@@ -30,7 +30,7 @@ stackingLimit RoughWood           = 4
 stackingLimit (Hill base)         = stackingLimit base
 stackingLimit (Village base)      = stackingLimit base
 stackingLimit Town                = 6
-stackingLimit (SupplySource base) = stackingLimit base
+stackingLimit (SupplySource side base) = stackingLimit base
 
 -- section 5.4, 5.5, 5.6
 
@@ -60,7 +60,7 @@ stacking units terrain =
     moreThan2DifferentFormations = (length . catMaybes . nub . map parent $ units) > 2
 
     sps : GameUnit -> Nat
-    sps (MkGameUnit nation unitType name parent size move currentMP hit combat) = stackingPoints nation size unitType
+    sps (MkGameUnit nation unitType name parent size move currentMP steps hit combat) = stackingPoints nation size unitType
 
 namespace StackingTest
 

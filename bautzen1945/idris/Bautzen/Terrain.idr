@@ -3,7 +3,6 @@ module Bautzen.Terrain
 import Bautzen.GameUnit
 import Bautzen.Pos as P
 
-import Data.Strings.Extra
 import Decidable.Equality
 
 import Data.Fin
@@ -11,6 +10,7 @@ import Data.List
 import Data.Maybe
 import Data.Nat
 import Data.Vect
+import Data.String
 
 %default total
 
