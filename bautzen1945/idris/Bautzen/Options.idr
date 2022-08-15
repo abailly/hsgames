@@ -78,24 +78,26 @@ processOptions args = doProcessOptions args defaultOptions
 
 namespace OptionsTest
 
+  -- FIXME: why can't I use `defaultId` here, why do I have to explicitly construct the default id?
+  -- It cannot even be factored out in a local variable
   can_parse_port_option :
-    doProcessOptions [ "--port" , "123" ] Options.defaultOptions = Right (MkOptions 123 "localhost" ServerMode (Verbose "bautzen1945") (replicate 8 '0'))
+    doProcessOptions [ "--port" , "123" ] Options.defaultOptions = Right (MkOptions 123 "localhost" ServerMode (Verbose "bautzen1945") (MkId $ replicate 8 '0'))
   can_parse_port_option = Refl
 
   can_parse_host_option :
-    doProcessOptions [ "--host" , "foo" ] Options.defaultOptions = Right (MkOptions 34567 "foo" ServerMode (Verbose "bautzen1945") (replicate 8 '0'))
+    doProcessOptions [ "--host" , "foo" ] Options.defaultOptions = Right (MkOptions 34567 "foo" ServerMode (Verbose "bautzen1945") (MkId $ replicate 8 '0'))
   can_parse_host_option = Refl
 
   can_parse_run_mode_option :
-    doProcessOptions [ "client" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ClientMode (Verbose "bautzen1945") (replicate 8 '0'))
+    doProcessOptions [ "client" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ClientMode (Verbose "bautzen1945") (MkId $ replicate 8 '0'))
   can_parse_run_mode_option = Refl
 
   can_parse_quiet_mode_option :
-    doProcessOptions [ "--quiet" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ServerMode Quiet (replicate 8 '0'))
+    doProcessOptions [ "--quiet" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ServerMode Quiet (MkId $ replicate 8 '0'))
   can_parse_quiet_mode_option = Refl
 
   can_parse_verbose_mode_option :
-    doProcessOptions [ "--verbose", "name" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ServerMode (Verbose "name") (replicate 8 '0'))
+    doProcessOptions [ "--verbose", "name" ] Options.defaultOptions = Right (MkOptions 34567 "localhost" ServerMode (Verbose "name") (MkId $ replicate 8 '0'))
   can_parse_verbose_mode_option = Refl
 
   can_parse_instance_id_option :
@@ -104,5 +106,5 @@ namespace OptionsTest
 
   can_parse_client_mode_with_host_port :
     doProcessOptions [ "client" ,  "--host" , "foo",  "--port" , "123"  ] Options.defaultOptions
-      = Right (MkOptions 123 "foo" ClientMode (Verbose "bautzen1945") (replicate 8 '0'))
+      = Right (MkOptions 123 "foo" ClientMode (Verbose "bautzen1945") (MkId $ replicate 8 '0'))
   can_parse_client_mode_with_host_port= Refl

@@ -11,6 +11,8 @@ import Data.Vect
 import Decidable.Equality
 import Language.JSON
 
+import JSON
+
 %default covering
 
 ||| Lifecycle protocol for games.
@@ -63,7 +65,7 @@ Cast PlayerType JSON where
   cast NoPlayer =
     JObject [ ("tag", JString "NoPlayer") ]
 
-export
+public export
 data GamesEvent : Type where
    NewGameCreated : (gameId : Id) -> GamesEvent
    PlayerJoined :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
@@ -128,6 +130,23 @@ convertToJSON events =
     doConvert [] = []
     doConvert (x :: xs) = cast x :: doConvert xs
 
+export
+FromJSON GamesEvent where
+  fromJSON = withObject "GamesEvent" $ \ obj => do
+     tag <- (.:) {a = String} obj "tag"
+     case tag of
+        "NewGameCreated" => NewGameCreated <$> (obj .: "gameId")
+        "PlayerJoined" =>  [| PlayerJoined (obj .: "playerKey") (obj .: "side") (obj .: "gameId") |]
+        "PlayerLeft" =>  [| PlayerLeft (obj .: "playerKey") (obj .: "side") (obj .: "gameId") |]
+        _ => fail $ "Unknown tag: " ++ tag
+
+  -- (JObject [ ("tag", JString "NewGameCreated"), ("gameId", gameId) ]) = ?hole
+  -- fromJSON (JObject [ ("tag", JString "PlayerJoined"), ("side", side), ("gameId", gameId) ]) = ?hole1
+  -- fromJSON (JObject [ ("tag", JString "GameStarted"), ("gameId", gameId) ]) = ?hole2
+  -- fromJSON (JObject [ ("tag", JString "PlayerPlayed"), ("gameId", gameId), ("segment", segment), ("result", result) ]) = ?hole3
+  -- fromJSON (JObject [ ("tag", JString "PlayerLeft"), ("side", side), ("gameId", gameId) ]) = ?hole4
+  -- fromJSON j = Left $ "Unknown JSON event: " ++ show j
+
 public export
 record SingleGame where
   constructor MkSingleGame
@@ -181,7 +200,7 @@ makeGameCommand _ (JObject [ ("tag", JString "JoinGame"), ("gameId", JString gam
 makeGameCommand games (JObject [ ("tag", JString "Action"), ("gameId", JString gameId) , ("action", action) ]) = do
   gid <- makeId gameId
   case lookup gid games of
-    Nothing => Left $ "Unknown gameId: " ++ show @{AsString} gid
+    Nothing => Left $ "Unknown gameId: " ++ show gid
     Just (MkSingleGame _ _ _ game _) =>
        makePlayerAction game action >>= Right . Action gid
 makeGameCommand games (JObject [ ("tag", JString "Bye"), ("gameId", JString gameId) ]) = do

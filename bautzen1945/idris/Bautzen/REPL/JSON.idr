@@ -13,6 +13,8 @@ import Data.Fin
 import Data.Vect
 import Control.WellFounded
 
+import JSON
+
 %default total
 
 export
@@ -21,10 +23,16 @@ Cast Side JSON where
   cast Allies = JString "Allies"
 
 export
+FromJSON Side where
+  fromJSON = withString "Side" $ \ s =>
+    case s of
+      "Axis" => pure Axis
+      "Allies" => pure Allies
+      _ => fail $ "Unknown side: " ++ s
+
+export
 makeSide : JSON -> Either String Side
-makeSide (JString "Axis") = pure Axis
-makeSide (JString "Allies") = pure Allies
-makeSide json = Left $ "Unknown side: " ++ show json
+makeSide = mapFst show . fromJSON
 
 export
 Cast Nation JSON where
@@ -347,7 +355,7 @@ Cast Game JSON where
             , ("gameMap" , cast gameMap)
             ]
 
-||| Convert a s-expression into a list of strings
+||| Convert a JSON into a list of strings
 |||
 ||| This function actually _flattens_ the given s-expression, traversing it depth-first and
 ||| expecting to find only _strings_.

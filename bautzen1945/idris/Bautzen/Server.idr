@@ -7,6 +7,7 @@ import Bautzen.Games
 import Bautzen.Id
 import Bautzen.Network
 import Bautzen.REPL
+import Bautzen.Store
 
 import Data.Strings.Extra
 
@@ -34,9 +35,8 @@ data MessageResult : Type where
   MsgQuery : (result : String) -> MessageResult
   MsgEvent : (event : String) -> (gameId : Id) -> MessageResult
 
-
-record GamesState where
-  constructor MkGamesState
+record GamesHandler where
+  constructor MkGamesHandler
   ||| Handle a single serialised command from given client @Id@.
   ||| This handler should be threadsafe and returns the result of executing the command, alongside
   ||| the `Id` of the game this command is related to, if it's not a `GamesResultErr`.
@@ -49,11 +49,11 @@ atomically mutex act = do
   mutexRelease mutex
   pure res
 
-mkGamesState : IO GamesState
-mkGamesState = do
+mkGamesHandler : Store store => store -> IO GamesHandler
+mkGamesHandler s = do
   games <- newIORef initialGames
   mutex <- makeMutex
-  pure $ MkGamesState (handle games mutex)
+  pure $ MkGamesHandler (handle games mutex)
   where
     handleCommand' : Id -> (games : Games) -> String -> (Either String (GamesResult games), Games)
     handleCommand' clientId games input =
@@ -84,7 +84,7 @@ handleClient log socket addr clientId hdlr =
  (,) <$> fork handleInput <*> fork handleOutput
  where
    client : String
-   client =  show @{AsString} clientId
+   client =  show clientId
 
    stopHandler : GameHandler -> IO ()
    stopHandler hdlr = do
@@ -147,7 +147,7 @@ commandLoop : Logger ->
               IORef (SortedMap Id GameHandler) ->
               IORef (SortedMap Id (SortedMap Id (Channel String))) ->
               Id ->
-              GamesState ->
+              GamesHandler ->
               IO ()
 commandLoop log cin cout clients gamesOutput clientId gamesState = do
    msg <- channelGet cin
@@ -167,7 +167,7 @@ commandLoop log cin cout clients gamesOutput clientId gamesState = do
    removeOutput = delete clientId
 
    client : String
-   client = show @{AsString} clientId
+   client = show clientId
 
    handleOutputsForResult : MessageResult -> IO ()
    handleOutputsForResult (MsgError err) = channelPut cout err
@@ -189,7 +189,7 @@ serve : Logger ->
         Socket ->
         IORef (SortedMap Id GameHandler) ->
         IORef (SortedMap Id (SortedMap Id (Channel String))) ->
-        GamesState ->
+        GamesHandler ->
         IO (Either String ())
 serve log sock clients gamesOutput gamesState = do
   log "awaiting clients"
@@ -201,7 +201,7 @@ serve log sock clients gamesOutput gamesState = do
   cs <- readIORef clients
   hdlr <- maybe (mkChannelsFor clientId) pure (lookup clientId cs)
   _ <- handleClient log s addr clientId hdlr
-  log $ "[" ++ show @{AsString} clientId ++ "] forked client handler"
+  log $ "[" ++ show clientId ++ "] forked client handler"
   serve log sock clients gamesOutput gamesState
  where
 
@@ -210,7 +210,7 @@ serve log sock clients gamesOutput gamesState = do
       cin <- makeChannel
       cout <- makeChannel
       loopPid <- fork $ do
-        log $ "[" ++ show @{AsString} clientId ++ "] forked command loop"
+        log $ "[" ++ show clientId ++ "] forked command loop"
         commandLoop log cin cout clients gamesOutput clientId gamesState
       let hdlr = MkGameHandler cin cout loopPid
       modifyIORef clients (insert clientId hdlr)
@@ -231,5 +231,5 @@ server (MkOptions port host _ verbosity _) = do
         else do
           hdlrs <- newIORef empty
           gamesOutput <- newIORef empty
-          gamesState <- mkGamesState
+          gamesState <- mkGamesHandler =<< makeFileStore "games.store"
           serve (mkLogger verbosity) sock hdlrs gamesOutput gamesState

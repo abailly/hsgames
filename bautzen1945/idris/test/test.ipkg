@@ -1,0 +1,20 @@
+package bautzen1945-test
+
+authors    = "Arnaud Bailly"
+version    = 0.1.0
+readme     = "README.md"
+license    = "BSD-3 Clause"
+
+main       = Main
+executable = "runTest"
+
+sourcedir  = "src"
+
+depends    = base         >= 0.5.1
+           , contrib
+           , pretty-show
+           , sop
+           , elab-util
+           , hedgehog
+           , bautzen1945
+           , json

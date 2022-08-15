@@ -4,29 +4,39 @@ import Data.String.Parser
 import public Data.Vect
 import Language.JSON
 
+import JSON
+
 %default total
 
 public export
-Id : Type
-Id = Vect 8 Char
+data Id  = MkId (Vect 8 Char)
 
 public export
 defaultId : Id
-defaultId = replicate 8 '0'
+defaultId = MkId $ replicate 8 '0'
 
 export
-[AsString] Show Id where
-  show = pack . toList
+Show Id where
+  show (MkId v) = pack $ toList v
 
-export
+public export
 makeId : String -> Either String Id
 makeId s =
   fst <$> parse idParser s
   where
     idParser : Parser Id
-    idParser = ntimes 8 alphaNum
+    idParser = MkId <$> ntimes 8 alphaNum
+
+public export
+Eq Id where
+  MkId v == MkId v' = v == v'
 
 export
+Ord Id where
+  MkId id  `compare` MkId id' =
+    id `compare` id'
+
+public export
 FromString Id where
   fromString s =
     case makeId s of
@@ -36,4 +46,11 @@ FromString Id where
 
 export
 Cast Id JSON where
-  cast = JString . pack . toList
+  cast (MkId v) = JString . pack . toList $ v
+
+export
+FromJSON Id where
+  fromJSON = withString "Id" $ \ s =>
+     case makeId s of
+         Left x => fail $ "Cannot parse Id " ++ s
+         Right v => pure v

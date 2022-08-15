@@ -1,4 +1,42 @@
-package xxi
-depends = contrib, network
+package bautzen1945
+depends = contrib, network, json, sop, elab-util
 main = Bautzen
 executable = bautzen1945
+modules = Bautzen.GameUnit
+   ,Bautzen.Combats
+   ,Bautzen.Client
+   ,Bautzen.REPL
+   ,Bautzen.Network
+   ,Bautzen.Pos
+   ,Bautzen.Options
+   ,Bautzen.REPL.JSON
+   ,Bautzen.Game.Core
+   ,Bautzen.Game.Turn
+   ,Bautzen.Game.Supply
+   ,Bautzen.Game.Setup
+   ,Bautzen.Game.Command
+   ,Bautzen.Game.Map
+   ,Bautzen.Game.Move
+   ,Bautzen.Game.Combat
+   ,Bautzen.Game.Stacking
+   ,Bautzen.Odds
+   ,Bautzen.Id
+   ,Bautzen.Games
+   ,Bautzen.ZoC
+   ,Bautzen.Game
+   ,Bautzen.Server
+   ,Bautzen.Store
+   ,Bautzen.Terrain
+   ,System.REPL.Extra
+   ,Prelude.Bound
+   ,Prelude.Either
+   ,Prelude.Enum
+   ,Data.Nat.DivMod
+   ,Data.Nat.Extra
+   ,Data.Nat.Parity
+   ,Data.Heap
+   ,Data.Sign
+   ,Data.ZZ.Extra
+   ,Data.Heap.LeftistHeap
+   ,Data.Heap.RawBinaryHeap
+   ,Data.ZZ
