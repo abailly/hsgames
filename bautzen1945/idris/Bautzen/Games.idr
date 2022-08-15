@@ -113,15 +113,15 @@ Cast GamesEvent JSON where
   cast (NewGameCreated gameId) =
     JObject [ ("tag", JString "NewGameCreated"), ("gameId", cast gameId) ]
   cast (PlayerJoined playerKey side gameId) =
-    JObject [ ("tag", JString "PlayerJoined"), ("side", cast side), ("gameId", cast gameId) ]
+    JObject [ ("tag", JString "PlayerJoined"), ("playerKey", cast playerKey), ("side", cast side), ("gameId", cast gameId) ]
   cast (PlayerReJoined playerKey side gameId events) =
-    JObject [ ("tag", JString "PlayerReJoined"), ("side", cast side), ("gameId", cast gameId), ("events", convertToJSON events) ]
+    JObject [ ("tag", JString "PlayerReJoined"), ("playerKey", cast playerKey), ("side", cast side), ("gameId", cast gameId), ("events", convertToJSON events) ]
   cast (GameStarted gameId) =
     JObject [ ("tag", JString "GameStarted"), ("gameId", cast gameId) ]
   cast (PlayerPlayed playerKey gameId segment result) =
-    JObject [ ("tag", JString "PlayerPlayed"), ("gameId", cast gameId), ("segment", cast segment), ("result", cast result) ]
+    JObject [ ("tag", JString "PlayerPlayed"), ("playerKey", cast playerKey), ("gameId", cast gameId), ("segment", cast segment), ("result", cast result) ]
   cast (PlayerLeft playerKey side gameId) =
-    JObject [ ("tag", JString "PlayerLeft"), ("side", cast side), ("gameId", cast gameId) ]
+    JObject [ ("tag", JString "PlayerLeft"), ("playerKey", cast playerKey), ("side", cast side), ("gameId", cast gameId) ]
 
 convertToJSON events =
   JArray (doConvert events)
@@ -137,14 +137,12 @@ FromJSON GamesEvent where
      case tag of
         "NewGameCreated" => NewGameCreated <$> (obj .: "gameId")
         "PlayerJoined" =>  [| PlayerJoined (obj .: "playerKey") (obj .: "side") (obj .: "gameId") |]
+        "PlayerReJoined" =>  [| PlayerReJoined (obj .: "playerKey") (obj .: "side") (obj .: "gameId") (obj .: "events") |]
         "PlayerLeft" =>  [| PlayerLeft (obj .: "playerKey") (obj .: "side") (obj .: "gameId") |]
+        "GameStarted" => GameStarted <$> (obj .: "gameId")
         _ => fail $ "Unknown tag: " ++ tag
 
-  -- (JObject [ ("tag", JString "NewGameCreated"), ("gameId", gameId) ]) = ?hole
-  -- fromJSON (JObject [ ("tag", JString "PlayerJoined"), ("side", side), ("gameId", gameId) ]) = ?hole1
-  -- fromJSON (JObject [ ("tag", JString "GameStarted"), ("gameId", gameId) ]) = ?hole2
   -- fromJSON (JObject [ ("tag", JString "PlayerPlayed"), ("gameId", gameId), ("segment", segment), ("result", result) ]) = ?hole3
-  -- fromJSON (JObject [ ("tag", JString "PlayerLeft"), ("side", side), ("gameId", gameId) ]) = ?hole4
   -- fromJSON j = Left $ "Unknown JSON event: " ++ show j
 
 public export

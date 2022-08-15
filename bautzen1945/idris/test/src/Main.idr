@@ -1,5 +1,6 @@
 module Main
 
+import Bautzen.GameUnit
 import Bautzen.Games
 import Bautzen.Id
 
@@ -16,13 +17,30 @@ roundTrip g = property $ do v <- forAll g
 someId : Gen Id
 someId = MkId <$> vect 8 alphaNum
 
-gamesEvent : Gen GamesEvent
-gamesEvent = choice [
-    NewGameCreated <$> someId
+someSide : Gen Side
+someSide = element [ Axis, Allies ]
+
+gamesEventNoRejoin : Vect 4 (Gen GamesEvent)
+gamesEventNoRejoin = [
+    NewGameCreated <$> someId,
+    [| PlayerJoined someId someSide someId |],
+    GameStarted <$> someId,
+    [| PlayerJoined someId someSide someId |]
   ]
 
+onlyGamesEventWithoutRejoin : Gen GamesEvent
+onlyGamesEventWithoutRejoin = choice gamesEventNoRejoin
+
+-- We don't recursively generate rejoined events list within a list of events
+allGamesEvent : Gen GamesEvent
+allGamesEvent = choice $
+   gamesEventNoRejoin ++
+   [
+     [| PlayerReJoined someId someSide someId (list (constant 0 10) onlyGamesEventWithoutRejoin) |]
+   ]
+
 prop_gamesEvent : Property
-prop_gamesEvent = roundTrip gamesEvent
+prop_gamesEvent = roundTrip allGamesEvent
 
 main : IO ()
 main = test . pure $ MkGroup "Store" [
