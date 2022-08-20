@@ -13,7 +13,7 @@ import Data.Fin
 import Data.Vect
 import Control.WellFounded
 
-import JSON
+import public JSON
 
 %default total
 
@@ -41,6 +41,15 @@ Cast Nation JSON where
   cast Polish = JString "Polish"
 
 export
+FromJSON Nation where
+  fromJSON = withString "Nation" $ \s =>
+    case s of
+     "German" => pure German
+     "Russian" => pure Russian
+     "Polish" => pure Polish
+     _ => fail $ "Unknown nation " ++ s
+
+export
 Cast UnitType JSON where
   cast Armored = JString "Armored"
   cast HeavyArmored = JString "HeavyArmored"
@@ -53,6 +62,21 @@ Cast UnitType JSON where
   cast SupplyColumn = JString "SupplyColumn"
 
 export
+FromJSON UnitType where
+  fromJSON = withString "UnitType" $ \ s =>
+    case s of
+       "Armored" => pure Armored
+       "HeavyArmored" => pure HeavyArmored
+       "MechInfantry" => pure MechInfantry
+       "Infantry" => pure Infantry
+       "HeavyEngineer" => pure HeavyEngineer
+       "Artillery" => pure Artillery
+       "AntiTank" => pure AntiTank
+       "HQ" => pure HQ
+       "SupplyColumn" => pure SupplyColumn
+       _ => fail $ "Unknown UnitType: "++ s
+
+export
 Cast UnitSize JSON where
   cast Regiment = JString "Regiment"
   cast Brigade = JString "Brigade"
@@ -61,26 +85,57 @@ Cast UnitSize JSON where
   cast Army = JString "Army"
 
 export
+FromJSON UnitSize where
+  fromJSON = withString "UnitSize" $ \ s =>
+    case s of
+       "Regiment" => pure Regiment
+       "Brigade" => pure Brigade
+       "Division" => pure Division
+       "Corps" => pure Corps
+       "Army" => pure Army
+       _ => fail $ "Unknown UnitSize: " ++ s
+
+export
 Cast Nat JSON where
   cast = cast . cast {to = Double} . natToInteger
 
 export
 Cast StdFactors JSON where
   cast (MkStdFactors attack defense) =
-    JObject [ ("attack", cast attack)
+    JObject [ ("tag", JString "StdFactors")
+            , ("attack", cast attack)
             , ("defense", cast defense)
             ]
 
 export
+FromJSON StdFactors where
+  fromJSON = withObject "StdFactors" $ \ obj =>
+     [| MkStdFactors (obj .: "attack") (obj .: "defense") |]
+
+export
 Cast Arty JSON where
   cast (MkArty support distance) =
-    JObject [ ("support", cast support)
+    JObject [ ("tag", JString "Arty")
+            , ("support", cast support)
             , ("distance", cast distance)
             ]
 
 export
+FromJSON Arty where
+  fromJSON = withObject "Arty" $ \ obj =>
+     [| MkArty (obj .: "support") (obj .: "distance") |]
+
+export
 Cast Pak JSON where
-  cast (MkPak antitank) = cast antitank
+  cast (MkPak antitank) =
+      JObject [ ("tag", JString "Pak")
+              , ("antitank", cast antitank)
+              ]
+
+export
+FromJSON Pak where
+  fromJSON = withObject "Arty" $ \ obj =>
+     MkPak <$> (obj .: "antitank")
 
 export
 Cast (Fin n) JSON where
@@ -107,8 +162,7 @@ Cast a JSON => Cast b JSON => Cast c JSON => Cast (a, b, c) JSON where
 export
 Cast GameUnit JSON where
   cast (MkGameUnit nation unitType name parent size move currentMP steps hits combat) =
-    JObject [ ("tag", JString "Unit")
-            , ("nation", cast nation)
+    JObject [ ("nation", cast nation)
             , ("type", cast unitType)
             , ("name", cast name)
             , ("parent", cast parent)
@@ -129,12 +183,50 @@ Cast GameUnit JSON where
                 SupplyColumn  => cast combat)
             ]
 
+parseFin : (n : Nat) -> (x : Nat) -> Either JSONErr (Fin n)
+parseFin n x with (natToFin x n)
+  parseFin n x | (Just k) = pure k
+  parseFin n x | Nothing = fail #"number greater than bound \#{show n}"#
+
+parseFactors : Value v obj => (steps : Nat) -> (unitType : UnitType) -> Parser v (Vect steps (Factors unitType))
+parseFactors s Armored = fromJSON
+parseFactors s HeavyArmored = fromJSON
+parseFactors s MechInfantry = fromJSON
+parseFactors s Infantry = fromJSON
+parseFactors s HeavyEngineer = fromJSON
+parseFactors s Artillery = fromJSON
+parseFactors s AntiTank = fromJSON
+parseFactors s HQ = fromJSON
+parseFactors s SupplyColumn = fromJSON
+
+export
+FromJSON GameUnit where
+  fromJSON = withObject "GameUnit" $ \ obj => do
+    nation <- (obj .: "nation")
+    unitType <- (obj .: "type")
+    name <- (obj .: "name")
+    parent <- (obj .: "parent")
+    size <- (obj .: "size")
+    move <- (obj .: "move")
+    mp <- (obj .: "mp")
+    steps <- (obj .: "steps")
+    hits <- parseFin steps =<< (obj .: "hits")
+    combat <- explicitParseField (parseFactors steps unitType) obj "combat"
+    pure $ MkGameUnit  nation unitType name parent size move mp steps hits combat
+
 public export
 Cast (P.Loc c r) JSON where
   cast (P.Hex col row) =
     JArray [ cast col
            , cast row
            ]
+
+export
+FromJSON Pos where
+  fromJSON = withArray "Pos" $ \ l =>
+    case l of
+       [x,y] => [| hex (parseFin 23 =<< fromJSON x) (parseFin 13 =<< fromJSON y) |]
+       _ => fail $ "Expected list of 2 integers"
 
 export
 Cast Pos JSON where
@@ -170,6 +262,13 @@ Cast Losses JSON where
   cast (attackerLoss /> defenderLoss) = JArray [ cast attackerLoss, cast defenderLoss ]
 
 export
+FromJSON Losses where
+  fromJSON = withArray "Losses" $ \ ls =>
+     case ls of
+       [ att, def ] => [| (/>) (fromJSON att) (fromJSON def) |]
+       otherwise => fail $ "Wrong number of elements, expected 2"
+
+export
 Cast (GameUnit, Pos) JSON where
   cast (u, p) =
     JObject [ ("unit", cast u),
@@ -193,14 +292,23 @@ Cast EngagedUnits JSON where
             ]
 
 export
+FromJSON EngagedUnits where
+  fromJSON = withObject "EngagedUnits" $ \ obj =>
+     [| MkEngagedUnits (obj .: "base") (obj .: "tacticalSupport") (obj .: "strategicSupport") |]
+
+export
 Cast CombatState JSON where
   cast (MkCombatState hex attackers defenders losses) =
-    JObject  [ ("tag", JString "CombatState")
-             , ("combatHex", cast hex)
+    JObject  [ ("combatHex", cast hex)
              , ("attackers", cast attackers)
              , ("defenders", cast defenders)
              , ("losses", cast losses)
              ]
+
+export
+FromJSON CombatState where
+  fromJSON = withObject "CombatState" $ \ obj =>
+      [| MkCombatState (obj .: "combatHex") (obj .: "attackers") (obj .: "defenders") (obj .: "losses") |]
 
 export
 Cast CombatPhase JSON where
@@ -211,12 +319,36 @@ Cast CombatPhase JSON where
   cast (Resolve combat) = JObject [ ("tag", JString "Resolve"),("combat",  cast combat) ]
 
 export
+FromJSON CombatPhase where
+  fromJSON = withObject "CombatPhase" $ \ obj => do
+     tag <- (.:) {a = String} obj "tag"
+     case tag of
+       "NoCombat" => pure NoCombat
+       "AssignStrategicSupport" => [| AssignStrategicSupport (obj .: "side") (obj .: "combat") |]
+       "AssignTacticalSupport" => [| AssignTacticalSupport (obj .: "side") (obj .: "combat") |]
+       "ApplyLosses" =>  [| ApplyLosses (obj .: "side") (obj .: "combat") |]
+       "Resolve" =>  Resolve <$> (obj .: "combat")
+       _ => fail $ "Unknown tag " ++ tag
+
+export
 Cast GameSegment JSON where
   cast Setup = JObject [ ("tag", JString "Setup")]
   cast Supply = JObject [ ("tag", JString "Supply")]
   cast Move = JObject [ ("tag", JString "Move")]
   cast (Combat phase) = JObject [ ("tag", JString "Combat"), ("phase", cast phase) ]
   cast GameEnd = JObject [ ("tag", JString "GameEnd")]
+
+export
+FromJSON GameSegment where
+  fromJSON = withObject "GameSegment" $ \ obj => do
+     tag <- (.:) {a = String} obj "tag"
+     case tag of
+        "Setup" => pure Setup
+        "Supply" => pure Supply
+        "Move" => pure Move
+        "Combat" => Combat <$> (obj .: "phase")
+        "GameEnd" => pure GameEnd
+        _ => fail $ "Unknown tag " ++ tag
 
 export
 Cast (Event seg) JSON where
