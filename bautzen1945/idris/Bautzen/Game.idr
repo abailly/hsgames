@@ -100,8 +100,8 @@ applyEvent (MkGameState turn side (Combat (AssignTacticalSupport supSide combat)
   applyTacticalSupportEvent supSide combat units (MkGameState turn side (Combat (AssignTacticalSupport supSide combat)) us)
 applyEvent (MkGameState turn side (Combat (AssignStrategicSupport supSide combat)) us) (SupplyColumnUsed supSide pos) =
   applySupplyColumnUsedEvent supSide combat pos (MkGameState turn side (Combat (AssignStrategicSupport supSide combat)) us)
-applyEvent (MkGameState turn side (Combat (Resolve st)) us) (CombatResolved state losses) =
-  MkGameState turn side (Combat $ ApplyLosses side ({ losses := Just losses } state)) us
+applyEvent (MkGameState turn side (Combat (Resolve st)) us) (CombatResolved st losses) =
+  MkGameState turn side (Combat $ ApplyLosses side ({ losses := Just losses } st)) us
 applyEvent (MkGameState turn side (Combat (ApplyLosses lossSide combatState)) us) (StepLost lossSide unit newLosses) =
    applyStepLostEvent lossSide unit newLosses combatState (MkGameState turn side (Combat (ApplyLosses lossSide combatState)) us)
 applyEvent game (SegmentChanged (game.stateSegment) to) =

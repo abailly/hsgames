@@ -254,7 +254,7 @@ data Event : (segment : GameSegment) -> Type where
   |||
   ||| @state the state of the combat (before any loss has been applied)
   ||| @losses losses to apply on engaged units
-  CombatResolved : (state : CombatState) -> (losses : Losses) -> Event (Combat $ Resolve combatState)
+  CombatResolved : (state : CombatState) -> (losses : Losses) -> Event (Combat $ Resolve state)
 
   ||| Given unit has lost a step
   |||
@@ -297,8 +297,8 @@ Eq (Event seg) where
     supportUnits == supportUnits'
   (SupplyColumnUsed supportedSide hex) == (SupplyColumnUsed supportedSide hex')  =
     hex == hex'
-  (CombatResolved state losses) == (CombatResolved state' losses')  =
-    state == state' && losses == losses'
+  (CombatResolved state losses) == (CombatResolved state losses')  =
+    losses == losses'
   (StepLost side unit remainingLosses) == (StepLost side unit' remainingLosses')  =
     unit == unit' && remainingLosses == remainingLosses'
   (SegmentChanged seg to) == (SegmentChanged seg to')  =

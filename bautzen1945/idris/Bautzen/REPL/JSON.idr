@@ -410,7 +410,7 @@ Cast (Event seg) JSON where
       JObject [ ("tag", JString  "StepLost")
             , ("side", cast side)
             , ("unit", cast unit)
-            , ("remaining-losses", cast remain)
+            , ("remainingLosses", cast remain)
             ]
   cast (SegmentChanged from to) =
       JObject [ ("tag", JString "SegmentChanged")
@@ -418,11 +418,11 @@ Cast (Event seg) JSON where
             , ("to", cast to)
             ]
   cast (TurnEnded n) =
-      JObject [ ("tag", JString "turn-ended")
-            , ("new-turn", cast n)
+      JObject [ ("tag", JString "TurnEnded")
+            , ("newTurn", cast n)
             ]
   cast AxisTurnDone =
-      JObject [ ("tag", JString "axis-turn-done") ]
+      JObject [ ("tag", JString "AxisTurnDone") ]
   cast AlliesSetupDone =
       JObject [ ("tag", JString "AlliesSetupDone") ]
   cast GameEnded =
@@ -432,37 +432,81 @@ Cast AnyEvent JSON where
   cast (MkAnyEvent {seg} e) =
     JObject [("segment", cast seg), ("event", cast e)]
 
+
+partial
+parseAnyEvent : Value v obj => GameSegment -> Parser v AnyEvent
+parseAnyEvent seg = withObject "Event" $ \ o => do
+     tag <- o .: "tag"
+     case the String tag of
+       "Placed" => MkAnyEvent <$> [| Placed (o .: "unit") (o .: "pos") |]
+       "Moved" => do
+          unit <- o .: "unit"
+          from <- (o .: "from")
+          to <- (o .: "to")
+          cost <- (o .: "cost")
+          case isLTE (toNat cost) (currentMP unit) of
+             Yes prf => pure $ MkAnyEvent $ Moved unit from to cost
+             No _ => fail #"Invalid Moved event, cost (#{show cost}) is greater than current MP (#{show $ currentMP unit })"#
+       "CombatEngaged" => do
+          atts <- o .: "attackers"
+          defs <- o .: "defenders"
+          tgt <- o .: "target"
+          pure $ MkAnyEvent $ CombatEngaged atts defs tgt
+       "TacticalSupportProvided" => do
+          supportingUnits <- o .: "supportingUnits"
+          let sup = the (List (GameUnit, Pos)) supportingUnits
+          case seg of
+            t@(Combat (AssignTacticalSupport supportedSide st)) =>
+               let e : Event t
+                   e = TacticalSupportProvided supportedSide sup
+               in  pure $ MkAnyEvent e
+            other => fail "inconsistent combat phase for tactical support"
+       "SupplyColumnUsed" => do
+          position <- o .: "position"
+          let pos = the Pos position
+          case seg of
+            t@(Combat (AssignStrategicSupport supportedSide st)) =>
+               let e : Event t
+                   e = SupplyColumnUsed supportedSide pos
+               in  pure $ MkAnyEvent e
+            other => fail "inconsistent combat phase for strategic support"
+       "CombatResolved" => do
+          ls <- o .: "losses"
+          let losses = the Losses ls
+          case seg of
+            Combat (Resolve st') =>
+               pure $ MkAnyEvent $ CombatResolved st' losses
+            other => fail "inconsistent combat phase for resolve combat"
+       "StepLost" => do
+          unit <- o .: "unit"
+          remain <- o .: "remainingLosses"
+          let u = the GameUnit unit
+          let r = the Losses remain
+          case seg of
+            t@(Combat (ApplyLosses side combatState)) =>
+               let e : Event t
+                   e = StepLost side u r
+               in  pure $ MkAnyEvent e
+            other => fail "inconsistent combat phase for step lost"
+       "SegmentChanged" => do
+         from <- o .: "from"
+         to <- o .: "to"
+         pure $ MkAnyEvent $ SegmentChanged from to
+       "TurnEnded" => do
+         newTurn <- parseFin 6 =<< o .: "newTurn"
+         pure $ MkAnyEvent $ TurnEnded newTurn
+       "AxisTurnDone" => pure $ MkAnyEvent AxisTurnDone
+       "AlliesSetupDone" => pure $ MkAnyEvent AlliesSetupDone
+       "GameEnded"  =>
+          pure $ MkAnyEvent {seg} GameEnded
+       other => fail #"Unknown tag for Event: #{tag}"#
+
 partial
 export
 FromJSON AnyEvent where
-  fromJSON = withObject "Event" $ \ o => do
-    tag <- o .: "tag"
-    seg <- o .: "segment"
-    case the String tag of
-      "Placed" => MkAnyEvent <$> [| Placed (o .: "unit") (o .: "pos") |]
-      "Moved" => do
-         unit <- o .: "unit"
-         from <- (o .: "from")
-         to <- (o .: "to")
-         cost <- (o .: "cost")
-         case isLTE (toNat cost) (currentMP unit) of
-            Yes prf => pure $ MkAnyEvent $ Moved unit from to cost
-            No _ => fail #"Invalid Moved event, cost (#{show cost}) is greater than current MP (#{show $ currentMP unit })"#
-      "CombatEngaged" => do
-         atts <- o .: "attackers"
-         defs <- o .: "defenders"
-         tgt <- o .: "target"
-         pure $ MkAnyEvent $ CombatEngaged atts defs tgt
-      "TacticalSupportProvided" => do
-         supportingUnits <- o .: "supportingUnits"
-         let sup = the (List (GameUnit, Pos)) supportingUnits
-         case seg of
-           t@(Combat (AssignTacticalSupport supportedSide st)) =>
-              let e : Event t
-                  e = TacticalSupportProvided supportedSide sup
-              in  pure $ MkAnyEvent e
-           other => fail "inconsistent combat phase for tactical support"
-      other => fail #"Unknown tag for Event: #{tag}"#
+  fromJSON = withObject "Event" $ \ any => do
+    seg <- any .: "segment"
+    explicitParseField (parseAnyEvent seg) any "event"
 
 export
 splice : JSON -> JSON -> JSON
@@ -528,20 +572,6 @@ Cast ActionResult JSON where
     JObject [ ("tag", JString "Error"), ("error", cast x)]
   cast (ResQuery x) =
     JObject [ ("tag", JString "Query"), ("result", cast x)]
-
--- export
--- FromJSON ActionResult where
---   fromJSON = withObject "ActionResult" $ \ obj => do
---     tag <- obj .: "tag"
---     case the String tag of
---       "Event" => do
---          seg <- obj .: "segment"
---          let segment = the GameSegment seg
---          e <- obj .: "event"
---          pure $ ResEvent e
---       "Error" => ResError <$> (obj .: "error")
---       "Query" => ResQuery <$> (obj .: "result")
---       other => fail #"Unknown action result type: #{tag}"#
 
 export
 Cast GameState JSON where

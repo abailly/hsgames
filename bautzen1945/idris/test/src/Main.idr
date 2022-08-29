@@ -3,6 +3,7 @@ module Main
 import Bautzen.GameUnit
 import Bautzen.Games
 import Bautzen.Id
+import Bautzen.Terrain
 
 import JSON
 import Language.JSON
@@ -42,7 +43,20 @@ allGamesEvent = choice $
 prop_gamesEvent : Property
 prop_gamesEvent = roundTrip allGamesEvent
 
+genCost : Gen Cost
+genCost = choice [
+   pure Impossible,
+   pure Zero,
+   Half <$> genCost,
+   One <$> genCost,
+   Two <$> genCost
+ ]
+
+prop_cost : Property
+prop_cost = roundTrip genCost
+
 main : IO ()
 main = test . pure $ MkGroup "Store" [
-  ( "roundtrip of GamesEvent", prop_gamesEvent)
+  ( "roundtrip of GamesEvent", prop_gamesEvent),
+  ( "roundtrip of Cost", prop_cost)
   ]
