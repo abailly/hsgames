@@ -12,6 +12,7 @@ import public Bautzen.Pos
 import public Bautzen.Terrain
 import public Bautzen.Game.Map
 
+import Decidable.Equality
 import Language.JSON
 import Data.List
 import Data.Fin
@@ -187,19 +188,19 @@ data PlayerAction : (seg : GameSegment) -> Type where
   Qry : Cast res JSON => (qry : Query res) -> PlayerAction seg
 
 public export
-data ActionResult : (seg : GameSegment) -> Type where
-  ResEvent : Event seg -> ActionResult seg
-  ResError : GameError -> ActionResult seg
-  ResQuery : Cast result JSON => result -> ActionResult seg
+data ActionResult : Type where
+  ResEvent : AnyEvent -> ActionResult
+  ResError : GameError -> ActionResult
+  ResQuery : Cast result JSON => result -> ActionResult
 
 export
-Show (ActionResult seg) where
+Show ActionResult where
   show (ResEvent x) = "ResEvent " ++ show x
   show (ResError x) = "ResError " ++ show x
   show (ResQuery x) = "ResQuery " ++ show (cast { to = JSON} x)
 
 export
-Eq (ActionResult seg) where
+Eq ActionResult where
   (ResEvent x) == (ResEvent y) = x == y
   (ResError x) == (ResError y) = x == y
   -- assume JSON representation is injective
@@ -207,18 +208,20 @@ Eq (ActionResult seg) where
   _ == _ = False
 
 public export
-handleAction : (game : Game) -> PlayerAction (curSegment game) -> ActionResult (curSegment game)
+handleAction : (game : Game) -> PlayerAction (curSegment game) -> ActionResult
 handleAction game (Cmd cmd) =
   case act game cmd of
       Left err => ResError err
-      Right event => ResEvent event
+      Right event => ResEvent $ MkAnyEvent event
 handleAction game (Qry qry) =
   let qryResult = query game qry
   in ResQuery qryResult
 
 public export
-applyResult : (game : Game) -> ActionResult (curSegment game) -> Game
-applyResult g (ResEvent x) = apply g x
+applyResult : (game : Game) -> ActionResult -> Game
+applyResult g (ResEvent $ MkAnyEvent {seg} x) with (decEq (curSegment g) seg)
+  applyResult g (ResEvent $ MkAnyEvent {seg = seg} x) | (Yes prf) = apply g (rewrite prf in x)
+  applyResult g (ResEvent $ MkAnyEvent {seg = seg} x) | (No contra) = g  -- TODO should be an error?
 applyResult g (ResError x) = g
 applyResult g (ResQuery x) = g
 

@@ -325,6 +325,30 @@ Show (Event seg) where
   show GameEnded = "Game Ended"
 
 public export
+data AnyEvent : Type where
+  MkAnyEvent : { seg : GameSegment } -> Event seg -> AnyEvent
+
+export
+Eq AnyEvent where
+  (MkAnyEvent x@(Placed _ _)) == (MkAnyEvent y@(Placed _ _)) = x == y
+  (MkAnyEvent x@(Moved _ _ _ _)) == (MkAnyEvent y@(Moved _ _ _ _)) = x == y
+  (MkAnyEvent x@(CombatEngaged _ _ _)) == (MkAnyEvent y@(CombatEngaged _ _ _)) = x == y
+  (MkAnyEvent (TacticalSupportProvided side units)) == (MkAnyEvent (TacticalSupportProvided side' units')) = side == side' && units == units'
+  (MkAnyEvent (SupplyColumnUsed side hex)) == (MkAnyEvent (SupplyColumnUsed side' hex')) = side == side' && hex == hex'
+  (MkAnyEvent (CombatResolved step losses)) == (MkAnyEvent (CombatResolved step' losses')) = step == step' && losses == losses'
+  (MkAnyEvent (StepLost side unit remain)) == (MkAnyEvent (StepLost side' unit' remain')) = side == side' && unit == unit' && remain == remain'
+  (MkAnyEvent (SegmentChanged from to)) == (MkAnyEvent (SegmentChanged from' to')) = from == from' && to == to'
+  (MkAnyEvent AxisTurnDone) == (MkAnyEvent AxisTurnDone) = True
+  (MkAnyEvent AlliesSetupDone) == (MkAnyEvent AlliesSetupDone) = True
+  (MkAnyEvent x@(TurnEnded _)) == (MkAnyEvent y@(TurnEnded _)) = x == y
+  (MkAnyEvent GameEnded) == (MkAnyEvent GameEnded) = True
+  _ == _ = False
+
+export
+Show AnyEvent where
+  show (MkAnyEvent e) = show e
+
+public export
 record Game  where
   constructor  MkGame
   curState : GameState

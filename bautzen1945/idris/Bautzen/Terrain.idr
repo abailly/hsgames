@@ -12,6 +12,9 @@ import Data.Nat
 import Data.Vect
 import Data.String
 
+import JSON
+import Language.JSON
+
 %default total
 
 -- Map & Terrain types
@@ -105,6 +108,28 @@ toNat Zero       = 0
 toNat (Half x)   = divNatNZ (toNat x) 2 SIsNonZero
 toNat (One x)    = S (toNat x)
 toNat (Two x)    = S (S (toNat x))
+
+export
+Cast Cost JSON where
+  cast Impossible = JObject [ ("tag", JString "∞") ]
+  cast Zero = JObject [("tag", JString "0" )]
+  cast (Half x) = JObject [ ("tag", JString "½"), ("rest", cast x) ]
+  cast (One x) = JObject [ ("tag", JString "1"), ("rest", cast x) ]
+  cast (Two x) = JObject [ ("tag", JString "2"), ("rest", cast x) ]
+
+
+partial
+export
+FromJSON Cost where
+  fromJSON = withObject "Cost" $ \ obj => do
+    tag <- obj .: "tag"
+    case the String tag of
+      "∞" => pure Impossible
+      "0" => pure Zero
+      "½" => Half <$> (obj .: "rest")
+      "1" => One <$> (obj .: "rest")
+      "2" => Two <$> (obj .: "rest")
+      _ => fail #"Invalid tag for Cost: #{tag}"#
 
 ||| The actual`Pos` type relevant for this game
 public export

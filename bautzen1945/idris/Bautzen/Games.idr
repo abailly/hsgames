@@ -138,12 +138,10 @@ FromJSON GamesEvent where
         "NewGameCreated" => NewGameCreated <$> (obj .: "gameId")
         "PlayerJoined" =>  [| PlayerJoined (obj .: "playerKey") (obj .: "side") (obj .: "gameId") |]
         "PlayerReJoined" =>  [| PlayerReJoined (obj .: "playerKey") (obj .: "side") (obj .: "gameId") (obj .: "events") |]
-        "PlayerLeft" =>  [| PlayerLeft (obj .: "playerKey") (obj .: "side") (obj .: "gameId") |]
         "GameStarted" => GameStarted <$> (obj .: "gameId")
+        "PlayerPlayed" => [| PlayerPlayed (obj .: "playerKey") (obj .: "gameId") (obj .: "segment") (obj .: "result") |]
+        "PlayerLeft" =>  [| PlayerLeft (obj .: "playerKey") (obj .: "side") (obj .: "gameId") |]
         _ => fail $ "Unknown tag: " ++ tag
-
-  -- fromJSON (JObject [ ("tag", JString "PlayerPlayed"), ("gameId", gameId), ("segment", segment), ("result", result) ]) = ?hole3
-  -- fromJSON j = Left $ "Unknown JSON event: " ++ show j
 
 public export
 record SingleGame where

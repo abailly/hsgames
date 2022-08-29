@@ -233,29 +233,50 @@ Cast Pos JSON where
   cast (MkPos p) = cast p
 
 export
-Cast Cost JSON where
-  cast = cast . toNat
+Cast GameError JSON where
+  cast (NoSuchUnits unitNames) = JObject [ ("tag", JString "NoSuchUnit"), ("unitNames", cast unitNames) ]
+  cast (NotYourTurn side) = JObject [ ("tag", JString "NotYourTurn"), ( "side", cast side) ]
+  cast (EnemyInHex unit hex) = JObject [ ("tag", JString "EnemyInHex"), ("unit", cast unit), ("hex", cast hex) ]
+  cast (MoveFromZocToZoc unit to) = JObject [ ("tag", JString "MoveFromZocToZoc"), ("unit", cast unit), ("to", cast to) ]
+  cast (ForbiddenTerrain from to) = JObject [ ("tag", JString "ForbiddenTerrain"), ("from", cast from), ("to", cast to) ]
+  cast (InvalidMove from to) = JObject [ ("tag", JString "InvalidMove"), ("from", cast from) , ( "to", cast to) ]
+  cast (NotEnoughMPs unit from to mp) = JObject [ ("tag", JString "NotEnoughMPs"), ("unit", cast unit), ("from", cast from) , ( "to", cast to), ( "mp", cast mp) ]
+  cast (NotAdjacentTo units to) = JObject [ ("tag", JString "NotAdjacentTo"), ("units", cast units) , ("to", cast to)  ]
+  cast (NothingToAttack target) = JObject [ ("tag", JString "NothingToAttack"), ( "target", cast target) ]
+  cast (AttackingOwnUnits units target) = JObject [ ("tag", JString "AttackingOwnUnits"), ("units", cast units) , ( "target", cast target) ]
+  cast (NotInSupportRange units) = JObject [ ("tag", JString "NotInSupportRange"), ("units", cast units) ]
+  cast (NotSupportingUnits units) = JObject [ ("tag", JString "NotSupportingUnits"), ("units", cast units) ]
+  cast (NotInChainOfCommand units) = JObject [ ("tag", JString "NotInChainOfCommand"), ("units", cast units) ]
+  cast (NoSupplyColumnThere hex) = JObject [ ("tag", JString "NoSupplyColumnThere"), ("hex", cast hex)  ]
+  cast (NoStepsToLose side) = JObject [ ("tag", JString "NoStepsToLose"), ( "side", cast side) ]
+  cast (CombatInProgress side) = JObject [ ("tag", JString "CombatInProgress"), ( "side", cast side) ]
+  cast (InvalidPlacement pos) = JObject [ ("tag", JString "InvalidPlacement"), ("pos", cast pos) ]
+  cast GameHasEnded = JObject [ ("tag", JString "GameHasEnded") ]
 
 export
-Cast GameError JSON where
-  cast (NoSuchUnits unitNames) = JArray [ JString ":error", JString "NoSuchUnit", cast unitNames ]
-  cast (NotYourTurn side) = JArray [ JString ":error", JString "NotYourTurn", cast side ]
-  cast (EnemyInHex unit hex) = JArray [ JString ":error", JString "EnemyInHex", cast unit, cast hex ]
-  cast (MoveFromZocToZoc unit to) = JArray [ JString ":error", JString "MoveFromZocToZoc", cast unit, cast to ]
-  cast (ForbiddenTerrain from to) = JArray [ JString ":error", JString "ForbiddenTerrain", cast from, cast to ]
-  cast (InvalidMove from to) = JArray [ JString ":error", JString "InvalidMove", cast from, cast to ]
-  cast (NotEnoughMPs unit from to mp) = JArray [ JString ":error", JString "NotEnoughMPs", cast unit, cast from, cast to, cast mp ]
-  cast (NotAdjacentTo units to) = JArray [ JString ":error", JString "NotAdjacentTo", cast units , cast to ]
-  cast (NothingToAttack target) = JArray [ JString ":error", JString "NothingToAttack", cast target ]
-  cast (AttackingOwnUnits units target) = JArray [ JString ":error", JString "AttackingOwnUnits", cast units , cast target ]
-  cast (NotInSupportRange units) = JArray [ JString ":error", JString "NotInSupportRange", cast units ]
-  cast (NotSupportingUnits units) = JArray [ JString ":error", JString "NotSupportingUnits", cast units ]
-  cast (NotInChainOfCommand units) = JArray [ JString ":error", JString "NotInChainOfCommand", cast units ]
-  cast (NoSupplyColumnThere hex) = JArray [ JString ":error", JString "NoSupplyColumnThere", cast hex ]
-  cast (NoStepsToLose side) = JArray [ JString ":error", JString "NoStepsToLose", cast side ]
-  cast (CombatInProgress side) = JArray [ JString ":error", JString "CombatInProgress", cast side ]
-  cast (InvalidPlacement pos) = JArray [ JString ":error", JString "InvalidPlacement", cast pos ]
-  cast GameHasEnded = JArray [ JString ":error", JString "GameHasEnded" ]
+FromJSON GameError where
+  fromJSON = withObject "GameError" $ \ o => do
+     tag <- o .: "tag"
+     case the String tag of
+       "NoSuchUnits" => [| NoSuchUnits (o .: "unitNames") |]
+       "NotYourTurn" => [| NotYourTurn (o .: "side") |]
+       "EnemyInHex"  => [| EnemyInHex (o .: "unit") (o .: "hex") |]
+       "MoveFromZocToZoc"  => [| MoveFromZocToZoc (o .: "unit") (o .: "to")|]
+       "ForbiddenTerrain"  => [| ForbiddenTerrain (o .: "from") (o .: "to")|]
+       "InvalidMove"  => [| InvalidMove (o .: "from") (o .: "to")|]
+       "NotEnoughMPs"  => [| NotEnoughMPs (o .: "unit") (o .: "from") (o .: "to") (o .: "mp")|]
+       "NotAdjacentTo"  => [| NotAdjacentTo (o .: "units") (o .: "to")|]
+       "NothingToAttack"  => [| NothingToAttack (o .: "target") |]
+       "AttackingOwnUnits"  => [| AttackingOwnUnits (o .: "units") (o .: "target") |]
+       "NotInSupportRange" => [| NotInSupportRange (o .: "units")|]
+       "NotSupportingUnits"  => [| NotSupportingUnits (o .: "units")|]
+       "NotInChainOfCommand"  => [| NotInChainOfCommand (o .: "units")|]
+       "NoSupplyColumnThere"  => [| NoSupplyColumnThere (o .: "hex") |]
+       "NoStepsToLose" => [| NoStepsToLose (o .: "side") |]
+       "CombatInProgress" => [| CombatInProgress (o .:  "side") |]
+       "InvalidPlacement" => [| InvalidPlacement (o .: "pos") |]
+       "GameHasEnded"  => pure GameHasEnded
+       _ => fail #"unknown error tag #{tag}"#
 
 export
 Cast Losses JSON where
@@ -354,12 +375,12 @@ export
 Cast (Event seg) JSON where
   cast (Placed unit pos) =
       JObject [ ("tag", JString "Placed")
-            , ("unit", JString $ fullName unit)
-            , ("pos", cast pos)
-            ]
+              , ("unit", cast unit)
+              , ("pos", cast pos)
+              ]
   cast (Moved unit from to cost) =
       JObject [ ("tag", JString "Moved")
-            , ("unit", JString $ fullName unit)
+            , ("unit", cast unit)
             , ("from", cast from)
             , ("to", cast to)
             , ("cost", cast cost)
@@ -371,22 +392,22 @@ Cast (Event seg) JSON where
             , ("target", cast target)
             ]
   cast (TacticalSupportProvided side units) =
-      JObject [ ("tag", JString "tactical-support-provided")
-            , ("supported-side", cast side)
-            , ("supporting-units", cast units)
+      JObject [ ("tag", JString "TacticalSupportProvided")
+            , ("supportedSide", cast side)
+            , ("supportingUnits", cast units)
             ]
   cast (SupplyColumnUsed side hex) =
-      JObject [ ("tag" , JString "supply-column-used")
-            , ("supported-side", cast side)
+      JObject [ ("tag" , JString "SupplyColumnUsed")
+            , ("supportedSide", cast side)
             , ("position", cast hex)
             ]
   cast (CombatResolved state losses) =
-      JObject [ ("tag", JString  "combat-resolved")
+      JObject [ ("tag", JString  "CombatResolved")
             , ("state", cast state)
             , ("losses", cast losses)
             ]
   cast (StepLost side unit remain) =
-      JObject [ ("tag", JString  "step-lost")
+      JObject [ ("tag", JString  "StepLost")
             , ("side", cast side)
             , ("unit", cast unit)
             , ("remaining-losses", cast remain)
@@ -406,6 +427,42 @@ Cast (Event seg) JSON where
       JObject [ ("tag", JString "AlliesSetupDone") ]
   cast GameEnded =
       JObject [ ("tag", JString "game-ended") ]
+
+Cast AnyEvent JSON where
+  cast (MkAnyEvent {seg} e) =
+    JObject [("segment", cast seg), ("event", cast e)]
+
+partial
+export
+FromJSON AnyEvent where
+  fromJSON = withObject "Event" $ \ o => do
+    tag <- o .: "tag"
+    seg <- o .: "segment"
+    case the String tag of
+      "Placed" => MkAnyEvent <$> [| Placed (o .: "unit") (o .: "pos") |]
+      "Moved" => do
+         unit <- o .: "unit"
+         from <- (o .: "from")
+         to <- (o .: "to")
+         cost <- (o .: "cost")
+         case isLTE (toNat cost) (currentMP unit) of
+            Yes prf => pure $ MkAnyEvent $ Moved unit from to cost
+            No _ => fail #"Invalid Moved event, cost (#{show cost}) is greater than current MP (#{show $ currentMP unit })"#
+      "CombatEngaged" => do
+         atts <- o .: "attackers"
+         defs <- o .: "defenders"
+         tgt <- o .: "target"
+         pure $ MkAnyEvent $ CombatEngaged atts defs tgt
+      "TacticalSupportProvided" => do
+         supportingUnits <- o .: "supportingUnits"
+         let sup = the (List (GameUnit, Pos)) supportingUnits
+         case seg of
+           t@(Combat (AssignTacticalSupport supportedSide st)) =>
+              let e : Event t
+                  e = TacticalSupportProvided supportedSide sup
+              in  pure $ MkAnyEvent e
+           other => fail "inconsistent combat phase for tactical support"
+      other => fail #"Unknown tag for Event: #{tag}"#
 
 export
 splice : JSON -> JSON -> JSON
@@ -464,10 +521,27 @@ Cast QueryError JSON where
   cast (UnitDoesNotExist unitName) = JObject [ ("reason", JString "UnitDoesNotExist"),
                                                ("unit" , JString unitName) ]
 export
-Cast (ActionResult seg) JSON where
-  cast (ResEvent x) = cast x
-  cast (ResError x) = cast x
-  cast (ResQuery x) = cast x
+Cast ActionResult JSON where
+  cast (ResEvent e) =
+    JObject [ ("tag", JString "Event"), ("event", cast e) ]
+  cast (ResError x) =
+    JObject [ ("tag", JString "Error"), ("error", cast x)]
+  cast (ResQuery x) =
+    JObject [ ("tag", JString "Query"), ("result", cast x)]
+
+-- export
+-- FromJSON ActionResult where
+--   fromJSON = withObject "ActionResult" $ \ obj => do
+--     tag <- obj .: "tag"
+--     case the String tag of
+--       "Event" => do
+--          seg <- obj .: "segment"
+--          let segment = the GameSegment seg
+--          e <- obj .: "event"
+--          pure $ ResEvent e
+--       "Error" => ResError <$> (obj .: "error")
+--       "Query" => ResQuery <$> (obj .: "result")
+--       other => fail #"Unknown action result type: #{tag}"#
 
 export
 Cast GameState JSON where
