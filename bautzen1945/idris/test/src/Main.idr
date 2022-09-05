@@ -21,12 +21,13 @@ someId = MkId <$> vect 8 alphaNum
 someSide : Gen Side
 someSide = element [ Axis, Allies ]
 
-gamesEventNoRejoin : Vect 4 (Gen GamesEvent)
+gamesEventNoRejoin : Vect 5 (Gen GamesEvent)
 gamesEventNoRejoin = [
     NewGameCreated <$> someId,
     [| PlayerJoined someId someSide someId |],
     GameStarted <$> someId,
-    [| PlayerJoined someId someSide someId |]
+    [| PlayerJoined someId someSide someId |],
+    [| PlayerLeft someId someSide someId |]
   ]
 
 onlyGamesEventWithoutRejoin : Gen GamesEvent

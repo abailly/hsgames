@@ -75,6 +75,14 @@ data Cost : Type where
   Two : Cost -> Cost
 
 public export
+Show Cost where
+  show Impossible = "∞"
+  show Zero = "0"
+  show (Half x) = "(" ++ show x ++ " / 2)"
+  show (One x) = "(" ++ show x ++ " + 1)"
+  show (Two x) = "(" ++ show x ++ " * 2)"
+
+public export
 Eq Cost where
   Impossible == Impossible = True
   Zero == Zero = True
