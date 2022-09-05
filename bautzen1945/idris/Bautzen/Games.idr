@@ -71,7 +71,7 @@ data GamesEvent : Type where
    PlayerJoined :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
    PlayerReJoined :  (playerKey : Id) ->  (side : Side) -> (gameId : Id) ->  (events : List GamesEvent) -> GamesEvent
    GameStarted :  (gameId : Id) -> GamesEvent
-   PlayerPlayed :  (playerKey : Id) -> (gameId : Id) ->  (segment : GameSegment) -> (result : ActionResult segment) -> GamesEvent
+   PlayerPlayed :  (playerKey : Id) -> (gameId : Id) ->  (segment : GameSegment) -> (result : ActionResult) -> GamesEvent
    PlayerLeft :  (playerKey : Id) -> (side : Side) -> (gameId : Id) ->  GamesEvent
 
 partial
@@ -100,7 +100,7 @@ Eq GamesEvent where
   (GameStarted gameId) == GameStarted gameId' =
     gameId == gameId'
   (PlayerPlayed playerKey gameId segment result) == (PlayerPlayed playerKey' gameId' segment' result') with (decEq segment segment')
-    (PlayerPlayed playerKey gameId segment result) == (PlayerPlayed playerKey' gameId' segment' result') | Yes prf = playerKey == playerKey' && gameId == gameId' && result == rewrite prf in result'
+    (PlayerPlayed playerKey gameId segment result) == (PlayerPlayed playerKey' gameId' segment' result') | Yes prf = playerKey == playerKey' && gameId == gameId' && result == result'
     (PlayerPlayed playerKey gameId segment result) == (PlayerPlayed playerKey' gameId' segment' result') | No _ = False
   (PlayerLeft playerKey side gameId) == (PlayerLeft playerKey' side' gameId') =
     playerKey == playerKey' && side == side' && gameId == gameId'
@@ -359,18 +359,18 @@ apply games (GamesResEvent (PlayerReJoined playerKey side gameId _)) =
  games
 apply games (GamesResEvent (GameStarted gameId)) =
  games
-apply games (GamesResEvent event@(PlayerPlayed playerKey gameId segment result)) =
+apply games (GamesResEvent event@(PlayerPlayed playerKey gameId _ result)) =
    case SortedMap.lookup gameId games of
      Nothing => games
      (Just single@(MkSingleGame _ axis allies game events)) =>
        case result of
-          (ResEvent e) =>
+          (ResEvent (MkAnyEvent {seg} e)) =>
             -- TODO this is done twice, once here and when we run the command to
             -- create the event, there should be a way to relate both?
-            case decEq (curSegment game) segment of
-              Yes prf => let game' = apply game $ rewrite prf in e
-                         in  insert gameId ({theGame := game', events := event :: events} single) games
-              No contra => games
+            case (decEq (curSegment game) seg) of
+              Yes prf => let game' = Game.apply game $ rewrite prf in e
+                                     in  insert gameId ({theGame := game', events := event :: events} single) games
+              _ => games
           (ResError x) => games
           (ResQuery x) => games
 apply games (GamesResEvent (PlayerLeft playerKey side gameId)) =

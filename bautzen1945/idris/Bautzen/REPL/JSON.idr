@@ -573,6 +573,22 @@ Cast ActionResult JSON where
   cast (ResQuery x) =
     JObject [ ("tag", JString "Query"), ("result", cast x)]
 
+partial
+export
+FromJSON ActionResult where
+  fromJSON = withObject "ActionResult" $ \ o => do
+     tag <- o .: "tag"
+     case the String tag of
+        "Event" => ResEvent <$> (o .: "event")
+        "Error" => ResError <$> (o .: "error")
+        -- We currently cannot deserialise ResQuery content because it's polymorphic
+        -- in the result type it contains and there's no witness packed in the JSON
+        -- to reconstruct it.
+        -- It should not be a problem in the short term because we are only supposed
+        -- to store and deserialise events
+        "Query" => fail "Cannot convert query results from JSON"
+        _ => fail #"Unexpected tag #{tag}"#
+
 export
 Cast GameState JSON where
   cast (MkGameState turn side stateSegment units) =
