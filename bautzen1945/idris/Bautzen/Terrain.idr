@@ -32,6 +32,19 @@ data Terrain : Type where
   SupplySource : (side : Side) -> (base : Terrain) -> Terrain
 
 public export
+Eq Terrain where
+  Clear == Clear = True
+  Wood == Wood = True
+  Rough == Rough = True
+  RoughWood == RoughWood = True
+  (Hill base) == Hill base' = base == base'
+  (Village base) == Village base' = base == base'
+  Town == Town = True
+  (SupplySource side base) == SupplySource side' base' =
+     side == side' && base == base'
+  _ == _ = False
+
+public export
 Show Terrain where
   show Clear                      = "Cl"
   show Wood                       = "Wd"
@@ -58,6 +71,14 @@ data Connection : Type where
   Road : (base : Connection) -> Connection
   River : (base : Connection) -> Connection
   Lake : Connection
+
+public export
+Eq Connection where
+  Plain == Plain = True
+  (Road base) == (Road base')  = base == base'
+  (River base) == (River base')  =  base == base'
+  Lake == Lake = True
+  _ == _ = False
 
 public export
 Show Connection where
@@ -184,6 +205,11 @@ record Map where
   constructor MkMap
   hexes : List (Pos, Terrain)
   edges : List (Pos, List (Pos, Connection))
+
+public export
+Eq Map where
+  MkMap hexes edges == MkMap hexes' edges'  =
+    hexes == hexes' && edges == edges'
 
 public export
 tabulate : List (Pos, a) -> Vect 13 (Vect 23 (Maybe a))

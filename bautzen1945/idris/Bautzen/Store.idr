@@ -2,6 +2,7 @@ module Bautzen.Store
 
 import Bautzen.Network
 import Bautzen.Games
+import Bautzen.Id
 
 import JSON
 

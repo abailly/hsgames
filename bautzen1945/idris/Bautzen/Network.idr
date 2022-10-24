@@ -3,7 +3,7 @@ module Bautzen.Network
 import Bautzen.Id
 import Bautzen.Options
 import Data.List
-import Data.Strings.Extra
+import Data.String
 import Language.JSON
 
 import Network.Socket
@@ -71,7 +71,7 @@ receive log socket = do
   Right str <- recvAll socket 6 -- receive 6 characters representing the length of message to read
     | Left err => pure $ Left err
   log $ "received  " ++ str
-  case parseInteger (unpack str) 0 of
+  case parseInteger str of
     Nothing => pure $ Left ("fail to parse '" ++ str ++ "' to expected number of characters, ignoring")
     Just len => do
       Right msg <- recvAll socket (fromInteger len)

@@ -15,45 +15,45 @@ import public Data.Heap
 import Data.Nat
 import public Data.Nat.Order
 
-%default covering
+%default total
 
--- namespace RawTree
+namespace RawTree
 
---   ||| A implementation of a leftist binary tree which is not `Nat`-indexed
---   data LeftistBinTree : (a : Type) -> Type where
---     Empty : LeftistBinTree a
---     Node : (elem : a) -> (rank : Int) -> (left : LeftistBinTree a) -> (right : LeftistBinTree a)
---          -> LeftistBinTree a
+  ||| A implementation of a leftist binary tree which is not `Nat`-indexed
+  data LeftistBinTree : (a : Type) -> Type where
+    Empty : LeftistBinTree a
+    Node : (elem : a) -> (rank : Int) -> (left : LeftistBinTree a) -> (right : LeftistBinTree a)
+         -> LeftistBinTree a
 
---   rank : LeftistBinTree a -> Int
---   rank Empty = 0
---   rank (Node _ rank _ _) = rank
+  rank : LeftistBinTree a -> Int
+  rank Empty = 0
+  rank (Node _ r _ _) = r
 
---   makeNode : (elem : a) -> LeftistBinTree a -> LeftistBinTree a -> LeftistBinTree a
---   makeNode elem left right =
---     if rank left < rank right
---     then Node elem (rank left + rank right) right left
---     else Node elem (rank left + rank right) left right
+  makeNode : (elem : a) -> LeftistBinTree a -> LeftistBinTree a -> LeftistBinTree a
+  makeNode elem left right =
+    if rank left < rank right
+    then Node elem (rank left + rank right) right left
+    else Node elem (rank left + rank right) left right
 
---   mergeTree : (Ord a) => (left : LeftistBinTree a) -> (right : LeftistBinTree a) -> LeftistBinTree a
---   mergeTree Empty right = right
---   mergeTree left  Empty = left
---   mergeTree l@(Node elem rank left right) r@(Node elem' rank' left' right') =
---     if (elem < elem')
---     then  makeNode elem left (mergeTree right r)
---     else  makeNode elem' left' (mergeTree l right')
+  mergeTree : (Ord a) => (left : LeftistBinTree a) -> (right : LeftistBinTree a) -> LeftistBinTree a
+  mergeTree Empty right = right
+  mergeTree left  Empty = left
+  mergeTree l@(Node elem rank left right) r@(Node elem' rank' left' right') =
+    if (elem < elem')
+    then  makeNode elem left (mergeTree right r)
+    else  makeNode elem' left' (mergeTree l right')
 
---   findMin : LeftistBinTree a -> Maybe a
---   findMin Empty           = Nothing
---   findMin (Node elem _ _ _) = Just elem
+  findMin : LeftistBinTree a -> Maybe a
+  findMin Empty           = Nothing
+  findMin (Node elem _ _ _) = Just elem
 
---   popMin : (Ord a) => LeftistBinTree a -> (LeftistBinTree a, Maybe a)
---   popMin Empty  = (Empty, Nothing)
---   popMin (Node elem _ left right) = (mergeTree left right, Just elem)
+  popMin : (Ord a) => LeftistBinTree a -> (LeftistBinTree a, Maybe a)
+  popMin Empty  = (Empty, Nothing)
+  popMin (Node elem _ left right) = (mergeTree left right, Just elem)
 
---   insert : (Ord a) => a -> LeftistBinTree a -> LeftistBinTree a
---   insert x Empty = Node x 1 Empty Empty
---   insert x node  = mergeTree (Node x 1 Empty Empty) node
+  insert : (Ord a) => a -> LeftistBinTree a -> LeftistBinTree a
+  insert x Empty = Node x 1 Empty Empty
+  insert x node  = mergeTree (Node x 1 Empty Empty) node
 
 
 
@@ -109,7 +109,9 @@ mergeTree (Node elem left right {k} {n}) (Node elem' left' right' {k=k1} {n=n1})
     rewrite plusSuccRightSucc (k1 + n1) (k + n) in
     rewrite sym (plusAssociative k1 n1 (S (k + n))) in
     rewrite plusCommutative n1 (S (plus k n)) in
-    makeNode elem' left' (mergeTree (Node elem left right) right')
+    -- this assert_total sucks but I can't find an easy way to convince the TC the recursive call
+    -- is smaller, which it obviously is (?)
+    makeNode elem' left' (assert_total $ mergeTree (Node elem left right) right')
 
 findMin : LeftistBinTree r a -> Maybe a
 findMin Empty           = Nothing

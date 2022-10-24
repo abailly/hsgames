@@ -9,6 +9,8 @@ main       = Main
 executable = "runTest"
 
 sourcedir  = "src"
+modules = Test.Bautzen.Store
+        , Test.Bautzen.Gen
 
 depends    = base         >= 0.5.1
            , contrib
@@ -18,3 +20,4 @@ depends    = base         >= 0.5.1
            , hedgehog
            , bautzen1945
            , json
+           , network

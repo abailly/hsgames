@@ -16,6 +16,8 @@ import Data.List
 import Data.Nat
 import Data.Vect
 
+%default total
+
 -- section 7.1.2
 
 ||| State for a single step of exploration in an instance of A*

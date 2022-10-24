@@ -5,13 +5,12 @@ import Bautzen.Options
 import Bautzen.Network
 import Bautzen.Id
 
-import Data.Strings.Extra
-
 import Language.JSON
 import Builtin
 import Prelude
 import Data.Nat
 import Data.List
+import Data.String
 import Debug.Trace
 import Network.Socket
 import Network.Socket.Data
@@ -23,7 +22,7 @@ receiveMessage : Socket -> IO (Either String String)
 receiveMessage socket = do
   Right (str, _) <- recv socket 6
     | Left err => pure $ Left ("failed to receive length of message: " ++ show err)
-  case parseInteger (unpack str) 0 of
+  case parseInteger str of
     Nothing => pure $ Left ("fail to parse '" ++ str ++ "' to expected number of characters, ignoring")
     Just len => do Right (msg, _) <- recv socket (fromInteger len)
                      | Left err => pure $ Left ("failed to read message: '" ++ show err ++ "'")

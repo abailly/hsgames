@@ -107,6 +107,15 @@ record GameState where
   stateSegment : GameSegment
   units : List (GameUnit, Pos)
 
+public
+export
+Eq GameState where
+  MkGameState turn side seg units == MkGameState turn' side' seg' units' =
+    turn == turn' &&
+    side == side' &&
+    seg == seg' &&
+    units == units'
+
 public export
 Show GameState where
   show (MkGameState turn side segment units) =
@@ -197,6 +206,9 @@ Show GameError where
   show (InvalidPlacement pos) = "Placement is invalid: " ++ show pos
   show GameHasEnded = "Game has ended"
 
+-- TODO: there is no need, and it's logically inconsistent, to index the `Command` type
+-- with `GameSegment`: A Command from the external world and there's no guarantee it applies
+-- to some segment, something which is verified by the `act` function
 public export
 data Command : (segment : GameSegment) -> Type where
   Place : (unitName : String) -> (pos : Pos) -> Command Setup
@@ -353,6 +365,10 @@ record Game  where
   constructor  MkGame
   curState : GameState
   gameMap : Map
+
+public export
+Eq Game where
+  MkGame s m == MkGame s' m' = s == s' && m == m'
 
 public export
 Show Game where

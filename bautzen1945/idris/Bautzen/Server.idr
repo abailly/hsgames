@@ -9,7 +9,6 @@ import Bautzen.Network
 import Bautzen.REPL
 import Bautzen.Store
 
-import Data.Strings.Extra
 
 import Builtin
 import Prelude
@@ -17,6 +16,7 @@ import Data.Nat
 import Data.IORef
 import Data.List
 import Data.SortedMap
+import Data.String
 import Language.JSON
 import Network.Socket
 import Network.Socket.Data
@@ -55,7 +55,7 @@ mkGamesHandler s = do
   mutex <- makeMutex
   pure $ MkGamesHandler (handle games mutex)
   where
-    handleCommand' : Id -> (games : Games) -> String -> (Either String (GamesResult games), Games)
+    handleCommand' : Id -> (games : Games) -> String -> (Either String GamesResult, Games)
     handleCommand' clientId games input =
       case parseCommand games input of
         Left err => (Left err, games)

@@ -1,0 +1,8 @@
+@startuml
+Client1 -> clientHandler1: Command (JSON)
+clientHandler1 --> commandLoop1 : Command (JSON)
+commandLoop1 -> messageHandler : Command
+messageHandler --> commandLoop1 : Result
+commandLoop1 -->  clientHandler1 : Result (JSON)
+clientHandler1 --> Client1 : Result (JSON)
+@enduml

@@ -5,7 +5,7 @@ import Bautzen.Game
 import Bautzen.Game.Core
 import Bautzen.Id
 import Bautzen.REPL.JSON
-import Data.SortedMap
+import public Data.SortedMap
 import Data.String.Parser
 import Data.Vect
 import Decidable.Equality
@@ -53,6 +53,11 @@ Eq PlayerType where
   RobotPlayer == RobotPlayer = True
   NoPlayer == NoPlayer = True
   _ == _ = False
+
+Show PlayerType where
+  show (HumanPlayer x) = "HumanPlayer " ++ show x
+  show RobotPlayer = "RobotPlayer"
+  show NoPlayer = "NoPlayer"
 
 export
 Cast PlayerType JSON where
@@ -164,7 +169,27 @@ Cast SingleGame JSON where
             , ("segment", cast $ makeCurrentSegment theGame)
             ]
 
+export
+Eq SingleGame where
+  (MkSingleGame gameId axisPlayer alliesPlayer theGame events) == (MkSingleGame gameId' axisPlayer' alliesPlayer' theGame' events')  =
+     gameId == gameId' &&
+     axisPlayer == axisPlayer' &&
+     alliesPlayer == alliesPlayer' &&
+     theGame == theGame' &&
+     events == events'
 
+partial
+export
+Show SingleGame where
+  show (MkSingleGame gameId axisPlayer alliesPlayer theGame events) =
+    "MkSingleGame { " ++
+      "gameId = "  ++ show gameId ++ "," ++
+      "axisPlayer = "  ++ show axisPlayer ++ "," ++
+      "alliesPlayer = "  ++ show alliesPlayer ++ "," ++
+      "theGame = "  ++ show theGame ++ "," ++
+      "events = "  ++ show events ++ "}"
+
+public
 export
 Games : Type
 Games = SortedMap Id SingleGame
@@ -240,18 +265,18 @@ Cast GamesError JSON where
     JObject [ ("tag", JString "InvalidSegment"), ("actual", cast actual), ("expected", cast expected), ("playerKey", cast playerKey), ("gameId", cast gameId) ]
 
 public export
-data GamesResult : (0 games : Games) -> Type where
-   GamesResEvent : (event : GamesEvent) -> GamesResult games
-   GamesResQuery : Cast result JSON => result -> GamesResult games
-   GamesResError  : GamesError -> GamesResult games
+data GamesResult : Type where
+   GamesResEvent : (event : GamesEvent) -> GamesResult
+   GamesResQuery : Cast result JSON => result -> GamesResult
+   GamesResError  : GamesError -> GamesResult
 
 export
-Cast (GamesResult games) JSON where
+Cast GamesResult JSON where
    cast (GamesResEvent event) = JObject [ ("tag", JString "GamesResEvent"), ("event", cast event) ]
    cast (GamesResQuery result) = JObject [ ("tag", JString "GamesResQuery"), ("result", cast result) ]
    cast (GamesResError error) = JObject [ ("tag", JString "GamesResError"), ("error", cast error) ]
 
-actAction : {gameSegment: GameSegment} -> PlayerAction gameSegment -> SingleGame -> Id -> Id -> (games : Games) -> GamesResult games
+actAction : {gameSegment: GameSegment} -> PlayerAction gameSegment -> SingleGame -> Id -> Id -> (games : Games) -> GamesResult
 actAction {gameSegment} action single@(MkSingleGame xs axisPlayer alliesPlayer theGame _) playerKey gameId games =
   case action of
       Qry q => let result = query theGame q
@@ -307,7 +332,7 @@ joinGame (MkSingleGame gameId axisPlayer _ theGame _) playerKey Allies =
 
 ||| Interpret @GameCommand@, returning a @GamesResult@
 export
-act : Id -> GameCommand -> (games : Games) -> GamesResult games
+act : Id -> GameCommand -> (games : Games) -> GamesResult
 act playerKey (NewGame gameId) games =
    case lookup gameId games of
       Just _ =>
@@ -344,7 +369,7 @@ act playerKey (Action {gameSegment} gameId action) games =
 
 ||| Apply a @GamesResult@ to current state of @Games@
 export
-apply : (games : Games) -> GamesResult games -> Games
+apply : (games : Games) -> GamesResult -> Games
 apply games (GamesResEvent  (NewGameCreated gameId)) =
  let newGame = MkSingleGame gameId NoPlayer NoPlayer initialGame []
  in insert gameId newGame games
@@ -385,7 +410,7 @@ apply games (GamesResError x) = games
 apply games (GamesResQuery  _) = games
 
 export
-interpret : Id -> GameCommand -> (games : Games) -> (GamesResult games, Games)
+interpret : Id -> GameCommand -> (games : Games) -> (GamesResult, Games)
 interpret clientId command games =
   let res = act clientId command games
   in (res, apply games res)
