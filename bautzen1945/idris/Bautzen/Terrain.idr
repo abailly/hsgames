@@ -15,6 +15,7 @@ import Data.String
 import JSON
 import Language.JSON
 
+%hide JSON.Parser.JSON
 %default total
 
 -- Map & Terrain types
@@ -151,13 +152,13 @@ partial
 export
 FromJSON Cost where
   fromJSON = withObject "Cost" $ \ obj => do
-    tag <- obj .: "tag"
+    tag <- field obj "tag"
     case the String tag of
       "∞" => pure Impossible
       "0" => pure Zero
-      "½" => Half <$> (obj .: "rest")
-      "1" => One <$> (obj .: "rest")
-      "2" => Two <$> (obj .: "rest")
+      "½" => Half <$> (field obj "rest")
+      "1" => One <$> (field obj "rest")
+      "2" => Two <$> (field obj "rest")
       _ => fail #"Invalid tag for Cost: #{tag}"#
 
 ||| The actual`Pos` type relevant for this game

@@ -13,6 +13,7 @@ import Language.JSON
 
 import JSON
 
+%hide JSON.Parser.JSON
 %default covering
 
 ||| Lifecycle protocol for games.
@@ -138,14 +139,14 @@ convertToJSON events =
 export
 FromJSON GamesEvent where
   fromJSON = withObject "GamesEvent" $ \ obj => do
-     tag <- (.:) {a = String} obj "tag"
+     tag <- field {a = String} obj "tag"
      case tag of
-        "NewGameCreated" => NewGameCreated <$> (obj .: "gameId")
-        "PlayerJoined" =>  [| PlayerJoined (obj .: "playerKey") (obj .: "side") (obj .: "gameId") |]
-        "PlayerReJoined" =>  [| PlayerReJoined (obj .: "playerKey") (obj .: "side") (obj .: "gameId") (obj .: "events") |]
-        "GameStarted" => GameStarted <$> (obj .: "gameId")
-        "PlayerPlayed" => [| PlayerPlayed (obj .: "playerKey") (obj .: "gameId") (obj .: "segment") (obj .: "result") |]
-        "PlayerLeft" =>  [| PlayerLeft (obj .: "playerKey") (obj .: "side") (obj .: "gameId") |]
+        "NewGameCreated" => NewGameCreated <$> (field obj "gameId")
+        "PlayerJoined" =>  [| PlayerJoined (field obj "playerKey") (field obj "side") (field obj "gameId") |]
+        "PlayerReJoined" =>  [| PlayerReJoined (field obj "playerKey") (field obj "side") (field obj "gameId") (field obj "events") |]
+        "GameStarted" => GameStarted <$> (field obj "gameId")
+        "PlayerPlayed" => [| PlayerPlayed (field obj "playerKey") (field obj "gameId") (field obj "segment") (field obj "result") |]
+        "PlayerLeft" =>  [| PlayerLeft (field obj "playerKey") (field obj "side") (field obj "gameId") |]
         _ => fail $ "Unknown tag: " ++ tag
 
 public export
@@ -214,7 +215,7 @@ makeGameCommand _ (JObject [ ("tag", JString "StartGame"), ("gameId", JString ga
   makeId gameId >>= Right . StartGame
 makeGameCommand _ (JObject [ ("tag", JString "ListGames") ]) =
   Right ListGames
-makeGameCommand _ (JObject [ ("tag", JString "JoinGame"), ("gameId", JString gameId) , ("side", side) ]) = do
+makeGameCommand _ (JObject [ ("tag", JString "JoinGame"), ("gameId", JString gameId) , ("side", JString side) ]) = do
   gid <- makeId gameId
   sd <- makeSide side
   pure $ JoinGame gid sd

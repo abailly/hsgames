@@ -15,6 +15,7 @@ import Control.WellFounded
 
 import public JSON
 
+%hide JSON.Parser.JSON
 %default total
 
 export
@@ -31,8 +32,12 @@ FromJSON Side where
       _ => fail $ "Unknown side: " ++ s
 
 export
-makeSide : JSON -> Either String Side
-makeSide = mapFst show . fromJSON
+makeSide : String -> Either String Side
+makeSide s =
+    case s of
+      "Axis" => Right Axis
+      "Allies" => Right Allies
+      _ => Left $ "Unknown side: " ++ s
 
 export
 Cast Nation JSON where
@@ -110,7 +115,7 @@ Cast StdFactors JSON where
 export
 FromJSON StdFactors where
   fromJSON = withObject "StdFactors" $ \ obj =>
-     [| MkStdFactors (obj .: "attack") (obj .: "defense") |]
+     [| MkStdFactors (field obj "attack") (field obj "defense") |]
 
 export
 Cast Arty JSON where
@@ -123,7 +128,7 @@ Cast Arty JSON where
 export
 FromJSON Arty where
   fromJSON = withObject "Arty" $ \ obj =>
-     [| MkArty (obj .: "support") (obj .: "distance") |]
+     [| MkArty (field obj "support") (field obj "distance") |]
 
 export
 Cast Pak JSON where
@@ -135,7 +140,7 @@ Cast Pak JSON where
 export
 FromJSON Pak where
   fromJSON = withObject "Arty" $ \ obj =>
-     MkPak <$> (obj .: "antitank")
+     MkPak <$> (field obj "antitank")
 
 export
 Cast (Fin n) JSON where
@@ -202,15 +207,15 @@ parseFactors s SupplyColumn = fromJSON
 export
 FromJSON GameUnit where
   fromJSON = withObject "GameUnit" $ \ obj => do
-    nation <- (obj .: "nation")
-    unitType <- (obj .: "type")
-    name <- (obj .: "name")
-    parent <- (obj .: "parent")
-    size <- (obj .: "size")
-    move <- (obj .: "move")
-    mp <- (obj .: "mp")
-    steps <- (obj .: "steps")
-    hits <- parseFin steps =<< (obj .: "hits")
+    nation <- (field obj "nation")
+    unitType <- (field obj "type")
+    name <- (field obj "name")
+    parent <- (field obj "parent")
+    size <- (field obj "size")
+    move <- (field obj "move")
+    mp <- (field obj "mp")
+    steps <- (field obj "steps")
+    hits <- parseFin steps =<< (field obj "hits")
     combat <- explicitParseField (parseFactors steps unitType) obj "combat"
     pure $ MkGameUnit  nation unitType name parent size move mp steps hits combat
 
@@ -256,25 +261,25 @@ Cast GameError JSON where
 export
 FromJSON GameError where
   fromJSON = withObject "GameError" $ \ o => do
-     tag <- o .: "tag"
+     tag <- field o "tag"
      case the String tag of
-       "NoSuchUnits" => [| NoSuchUnits (o .: "unitNames") |]
-       "NotYourTurn" => [| NotYourTurn (o .: "side") |]
-       "EnemyInHex"  => [| EnemyInHex (o .: "unit") (o .: "hex") |]
-       "MoveFromZocToZoc"  => [| MoveFromZocToZoc (o .: "unit") (o .: "to")|]
-       "ForbiddenTerrain"  => [| ForbiddenTerrain (o .: "from") (o .: "to")|]
-       "InvalidMove"  => [| InvalidMove (o .: "from") (o .: "to")|]
-       "NotEnoughMPs"  => [| NotEnoughMPs (o .: "unit") (o .: "from") (o .: "to") (o .: "mp")|]
-       "NotAdjacentTo"  => [| NotAdjacentTo (o .: "units") (o .: "to")|]
-       "NothingToAttack"  => [| NothingToAttack (o .: "target") |]
-       "AttackingOwnUnits"  => [| AttackingOwnUnits (o .: "units") (o .: "target") |]
-       "NotInSupportRange" => [| NotInSupportRange (o .: "units")|]
-       "NotSupportingUnits"  => [| NotSupportingUnits (o .: "units")|]
-       "NotInChainOfCommand"  => [| NotInChainOfCommand (o .: "units")|]
-       "NoSupplyColumnThere"  => [| NoSupplyColumnThere (o .: "hex") |]
-       "NoStepsToLose" => [| NoStepsToLose (o .: "side") |]
-       "CombatInProgress" => [| CombatInProgress (o .:  "side") |]
-       "InvalidPlacement" => [| InvalidPlacement (o .: "pos") |]
+       "NoSuchUnits" => [| NoSuchUnits (field o "unitNames") |]
+       "NotYourTurn" => [| NotYourTurn (field o "side") |]
+       "EnemyInHex"  => [| EnemyInHex (field o "unit") (field o "hex") |]
+       "MoveFromZocToZoc"  => [| MoveFromZocToZoc (field o "unit") (field o "to")|]
+       "ForbiddenTerrain"  => [| ForbiddenTerrain (field o "from") (field o "to")|]
+       "InvalidMove"  => [| InvalidMove (field o "from") (field o "to")|]
+       "NotEnoughMPs"  => [| NotEnoughMPs (field o "unit") (field o "from") (field o "to") (field o "mp")|]
+       "NotAdjacentTo"  => [| NotAdjacentTo (field o "units") (field o "to")|]
+       "NothingToAttack"  => [| NothingToAttack (field o "target") |]
+       "AttackingOwnUnits"  => [| AttackingOwnUnits (field o "units") (field o "target") |]
+       "NotInSupportRange" => [| NotInSupportRange (field o "units")|]
+       "NotSupportingUnits"  => [| NotSupportingUnits (field o "units")|]
+       "NotInChainOfCommand"  => [| NotInChainOfCommand (field o "units")|]
+       "NoSupplyColumnThere"  => [| NoSupplyColumnThere (field o "hex") |]
+       "NoStepsToLose" => [| NoStepsToLose (field o "side") |]
+       "CombatInProgress" => [| CombatInProgress (field o  "side") |]
+       "InvalidPlacement" => [| InvalidPlacement (field o "pos") |]
        "GameHasEnded"  => pure GameHasEnded
        _ => fail #"unknown error tag #{tag}"#
 
@@ -315,7 +320,7 @@ Cast EngagedUnits JSON where
 export
 FromJSON EngagedUnits where
   fromJSON = withObject "EngagedUnits" $ \ obj =>
-     [| MkEngagedUnits (obj .: "base") (obj .: "tacticalSupport") (obj .: "strategicSupport") |]
+     [| MkEngagedUnits (field obj "base") (field obj "tacticalSupport") (field obj "strategicSupport") |]
 
 export
 Cast CombatState JSON where
@@ -329,7 +334,7 @@ Cast CombatState JSON where
 export
 FromJSON CombatState where
   fromJSON = withObject "CombatState" $ \ obj =>
-      [| MkCombatState (obj .: "combatHex") (obj .: "attackers") (obj .: "defenders") (obj .: "losses") |]
+      [| MkCombatState (field obj "combatHex") (field obj "attackers") (field obj "defenders") (field obj "losses") |]
 
 export
 Cast CombatPhase JSON where
@@ -342,13 +347,13 @@ Cast CombatPhase JSON where
 export
 FromJSON CombatPhase where
   fromJSON = withObject "CombatPhase" $ \ obj => do
-     tag <- (.:) {a = String} obj "tag"
+     tag <- field {a = String} obj "tag"
      case tag of
        "NoCombat" => pure NoCombat
-       "AssignStrategicSupport" => [| AssignStrategicSupport (obj .: "side") (obj .: "combat") |]
-       "AssignTacticalSupport" => [| AssignTacticalSupport (obj .: "side") (obj .: "combat") |]
-       "ApplyLosses" =>  [| ApplyLosses (obj .: "side") (obj .: "combat") |]
-       "Resolve" =>  Resolve <$> (obj .: "combat")
+       "AssignStrategicSupport" => [| AssignStrategicSupport (field obj "side") (field obj "combat") |]
+       "AssignTacticalSupport" => [| AssignTacticalSupport (field obj "side") (field obj "combat") |]
+       "ApplyLosses" =>  [| ApplyLosses (field obj "side") (field obj "combat") |]
+       "Resolve" =>  Resolve <$> (field obj "combat")
        _ => fail $ "Unknown tag " ++ tag
 
 export
@@ -362,12 +367,12 @@ Cast GameSegment JSON where
 export
 FromJSON GameSegment where
   fromJSON = withObject "GameSegment" $ \ obj => do
-     tag <- (.:) {a = String} obj "tag"
+     tag <- field {a = String} obj "tag"
      case tag of
         "Setup" => pure Setup
         "Supply" => pure Supply
         "Move" => pure Move
-        "Combat" => Combat <$> (obj .: "phase")
+        "Combat" => Combat <$> (field obj "phase")
         "GameEnd" => pure GameEnd
         _ => fail $ "Unknown tag " ++ tag
 
@@ -436,24 +441,24 @@ Cast AnyEvent JSON where
 partial
 parseAnyEvent : Value v obj => GameSegment -> Parser v AnyEvent
 parseAnyEvent seg = withObject "Event" $ \ o => do
-     tag <- o .: "tag"
+     tag <- field o "tag"
      case the String tag of
-       "Placed" => MkAnyEvent <$> [| Placed (o .: "unit") (o .: "pos") |]
+       "Placed" => MkAnyEvent <$> [| Placed (field o "unit") (field o "pos") |]
        "Moved" => do
-          unit <- o .: "unit"
-          from <- (o .: "from")
-          to <- (o .: "to")
-          cost <- (o .: "cost")
+          unit <- field o "unit"
+          from <- (field o "from")
+          to <- (field o "to")
+          cost <- (field o "cost")
           case isLTE (toNat cost) (currentMP unit) of
              Yes prf => pure $ MkAnyEvent $ Moved unit from to cost
              No _ => fail #"Invalid Moved event, cost (#{show cost}) is greater than current MP (#{show $ currentMP unit })"#
        "CombatEngaged" => do
-          atts <- o .: "attackers"
-          defs <- o .: "defenders"
-          tgt <- o .: "target"
+          atts <- field o "attackers"
+          defs <- field o "defenders"
+          tgt <- field o "target"
           pure $ MkAnyEvent $ CombatEngaged atts defs tgt
        "TacticalSupportProvided" => do
-          supportingUnits <- o .: "supportingUnits"
+          supportingUnits <- field o "supportingUnits"
           let sup = the (List (GameUnit, Pos)) supportingUnits
           case seg of
             t@(Combat (AssignTacticalSupport supportedSide st)) =>
@@ -462,7 +467,7 @@ parseAnyEvent seg = withObject "Event" $ \ o => do
                in  pure $ MkAnyEvent e
             other => fail "inconsistent combat phase for tactical support"
        "SupplyColumnUsed" => do
-          position <- o .: "position"
+          position <- field o "position"
           let pos = the Pos position
           case seg of
             t@(Combat (AssignStrategicSupport supportedSide st)) =>
@@ -471,15 +476,15 @@ parseAnyEvent seg = withObject "Event" $ \ o => do
                in  pure $ MkAnyEvent e
             other => fail "inconsistent combat phase for strategic support"
        "CombatResolved" => do
-          ls <- o .: "losses"
+          ls <- field o "losses"
           let losses = the Losses ls
           case seg of
             Combat (Resolve st') =>
                pure $ MkAnyEvent $ CombatResolved st' losses
             other => fail "inconsistent combat phase for resolve combat"
        "StepLost" => do
-          unit <- o .: "unit"
-          remain <- o .: "remainingLosses"
+          unit <- field o "unit"
+          remain <- field o "remainingLosses"
           let u = the GameUnit unit
           let r = the Losses remain
           case seg of
@@ -489,11 +494,11 @@ parseAnyEvent seg = withObject "Event" $ \ o => do
                in  pure $ MkAnyEvent e
             other => fail "inconsistent combat phase for step lost"
        "SegmentChanged" => do
-         from <- o .: "from"
-         to <- o .: "to"
+         from <- field o "from"
+         to <- field o "to"
          pure $ MkAnyEvent $ SegmentChanged from to
        "TurnEnded" => do
-         newTurn <- parseFin 6 =<< o .: "newTurn"
+         newTurn <- parseFin 6 =<< field o "newTurn"
          pure $ MkAnyEvent $ TurnEnded newTurn
        "AxisTurnDone" => pure $ MkAnyEvent AxisTurnDone
        "AlliesSetupDone" => pure $ MkAnyEvent AlliesSetupDone
@@ -505,7 +510,7 @@ partial
 export
 FromJSON AnyEvent where
   fromJSON = withObject "Event" $ \ any => do
-    seg <- any .: "segment"
+    seg <- field any "segment"
     explicitParseField (parseAnyEvent seg) any "event"
 
 export
@@ -577,10 +582,10 @@ partial
 export
 FromJSON ActionResult where
   fromJSON = withObject "ActionResult" $ \ o => do
-     tag <- o .: "tag"
+     tag <- field o "tag"
      case the String tag of
-        "Event" => ResEvent <$> (o .: "event")
-        "Error" => ResError <$> (o .: "error")
+        "Event" => ResEvent <$> (field o "event")
+        "Error" => ResError <$> (field o "error")
         -- We currently cannot deserialise ResQuery content because it's polymorphic
         -- in the result type it contains and there's no witness packed in the JSON
         -- to reconstruct it.

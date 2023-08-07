@@ -53,11 +53,10 @@ Show (Loc c r) where
 
 public export
 Ord (Loc c r) where
-  compare (Hex col row) (Hex col' row') =
-    case compare col col' of
-      LT => LT
-      EQ => compare row row'
-      GT => GT
+  compare (Hex col row) (Hex col' row') with (compare col col')
+    compare (Hex col row) (Hex col' row') | LT = LT
+    compare (Hex col row) (Hex col' row') | EQ = compare row row'
+    compare (Hex col row) (Hex col' row') | GT = GT
 
 ||| Cube coordinates.
 ||| Cube coordinates stem from the observation a 2-D hexagonal grid is equivalent
@@ -110,33 +109,6 @@ data Mvmt : Type where
   Dec : Mvmt
   Neut : Mvmt
   Inc : Mvmt
-
-
-public export
-succNotLTEZ : Not (LTE (S m) Z)
-succNotLTEZ LTEZero impossible
-
-public export
-fromLTESucc : LTE (S m) (S n) -> LTE m n
-fromLTESucc (LTESucc x) = x
-
-public export
-lteSuccR : LTE n m -> LTE n (S m)
-lteSuccR LTEZero     = LTEZero
-lteSuccR (LTESucc x) = LTESucc (lteSuccR x)
-
-public export
-lteSuccL : LTE (S n) m -> LTE n m
-lteSuccL (LTESucc x) = lteSuccR x
-
-public export
-isLte : (m, n : Nat) -> Dec (LTE m n)
-isLte Z n = Yes LTEZero
-isLte (S k) Z = No succNotLTEZ
-isLte (S k) (S j)
-    = case isLte k j of
-           No contra => No (contra . fromLTESucc)
-           Yes prf => Yes (LTESucc prf)
 
 
 public export

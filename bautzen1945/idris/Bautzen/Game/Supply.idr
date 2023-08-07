@@ -52,11 +52,11 @@ Ord AState where
       ordering => ordering
 
 computeShortestPath : (fuel : Nat) -> (units : List (GameUnit, Pos)) -> (gameMap : Map) -> (unit : GameUnit) ->  (costsMap : SortedMap Pos Nat) -> BinaryHeap AState -> List Pos
-computeShortestPath Z _ _ _ _ queue = []
-computeShortestPath (S fuel) units gameMap unit costsMap queue =
-  if isEmpty queue
+computeShortestPath Z _ _ _ _ heap = []
+computeShortestPath (S fuel) units gameMap unit costsMap heap =
+  if isEmpty heap
   then []
-  else let (q, st) = Heap.pop queue
+  else let (q, st) = Heap.pop heap
        in case st of
             Nothing => []
             Just cur@(MkAState src tgt path _) =>
@@ -80,24 +80,24 @@ computeShortestPath (S fuel) units gameMap unit costsMap queue =
       enemyIn hex
 
     explore : Pos -> Nat -> AState -> (BinaryHeap AState, SortedMap Pos Nat) -> (BinaryHeap AState, SortedMap Pos Nat)
-    explore hex newCost state@(MkAState src tgt path costSoFar) (queue, costsMap) =
+    explore hex newCost state@(MkAState src tgt path costSoFar) (heap, costsMap) =
       let costEstimate = newCost + (distance hex tgt)
-      in (Heap.push (MkAState hex tgt (hex :: path) costEstimate) queue, insert hex newCost costsMap)
+      in (Heap.push (MkAState hex tgt (hex :: path) costEstimate) heap, insert hex newCost costsMap)
 
     addNeighbours : AState -> (BinaryHeap AState, SortedMap Pos Nat) -> Pos -> (BinaryHeap AState, SortedMap Pos Nat)
-    addNeighbours state@(MkAState src tgt path costSoFar) (queue, costsMap) hex =
+    addNeighbours state@(MkAState src tgt path costSoFar) (heap, costsMap) hex =
       if cannotMoveInto hex
-      then (queue, costsMap)
+      then (heap, costsMap)
       else case movementCost unit units gameMap src hex False of
-             (Left l) => (queue, costsMap)
+             (Left l) => (heap, costsMap)
              (Right (x ** _)) =>
                let newCost = costSoFar + toNat x
                    costTox = lookup hex costsMap
                in case costTox of
                     Just oldCost => if newCost < oldCost
-                                    then explore hex newCost state (queue, costsMap)
-                                    else (queue, costsMap)
-                    Nothing => explore hex newCost state (queue, costsMap)
+                                    then explore hex newCost state (heap, costsMap)
+                                    else (heap, costsMap)
+                    Nothing => explore hex newCost state (heap, costsMap)
 
 
 

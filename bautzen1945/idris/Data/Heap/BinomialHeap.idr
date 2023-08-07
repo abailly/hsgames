@@ -3,7 +3,7 @@
 ||| found on pp.20-25 of his book.
 ||| SEe also:
 ||| * [BinomialHeap in Agda](https://github.com/ericpony/FLOLAC-2014/blob/master/Analysis%20and%20synthesis%20of%20inductive%20families/Examples/BinomialHeap.agda)
-||| *  [BinomialHeap in Haskell](https://jaspervdj.be/posts/2018-09-04-binomial-heaps-101.html#binomial-heaps-lets-build-it-up)
+||| * [BinomialHeap in Haskell](https://jaspervdj.be/posts/2018-09-04-binomial-heaps-101.html#binomial-heaps-lets-build-it-up)
 module Data.Heap.BinomialHeap
 
 import Data.Vect

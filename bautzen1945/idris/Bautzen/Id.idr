@@ -6,6 +6,7 @@ import Language.JSON
 
 import JSON
 
+%hide JSON.Parser.JSON
 %default total
 
 public export

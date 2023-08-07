@@ -13,6 +13,8 @@ import Data.String.Extra
 import System.Concurrency
 import System.File
 
+%hide JSON.Parser.JSON
+
 export
 interface Store (store : Type) where
   read : HasIO io => store -> io (Either String Games)
