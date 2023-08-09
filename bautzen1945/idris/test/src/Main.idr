@@ -7,9 +7,10 @@ import JSON
 import JSON.Parser
 import Hedgehog
 
-roundTrip : Eq a => FromJSON a => Cast a JSON => Show a => Gen a -> Property
+roundTrip : Eq a => FromJSON a => ToJSON a => Show a => Gen a -> Property
 roundTrip g = property $ do v <- forAll g
-                            let enc = cast { to = JSON } v
+                            let enc : JSON
+                                enc = toJSON v
                             footnote (show enc)
                             Right v === fromJSON enc
 
