@@ -17,12 +17,14 @@ import Data.IORef
 import Data.List
 import Data.SortedMap
 import Data.String
-import Language.JSON
+import JSON
 import Network.Socket
 import Network.Socket.Data
 import Network.Socket.Raw
 import System
 import System.Concurrency
+
+%hide JSON.Option.Options
 
 record GameHandler where
   constructor MkGameHandler
@@ -73,11 +75,11 @@ mkGamesHandler s = do
            (Left err) =>
              MsgError err
            (Right (GamesResEvent event)) =>
-             MsgEvent (show $ cast { to = JSON } event) event.id
+             MsgEvent (show {ty = JSON} $ toJSON event) event.id
            (Right (GamesResQuery r)) =>
-             MsgQuery (show $ cast { to = JSON } r)
+             MsgQuery (show {ty = JSON} $ toJSON r)
            (Right (GamesResError x)) =>
-             MsgError $ show $ cast { to = JSON } x
+             MsgError $ show {ty = JSON} $ toJSON x
 
 handleClient : Logger -> Socket -> SocketAddress -> Id -> GameHandler -> IO (ThreadID, ThreadID)
 handleClient log socket addr clientId hdlr =
@@ -120,11 +122,11 @@ clientHandshake : Logger -> Socket -> IO (Either String Id)
 clientHandshake log sock = do
    Right msg <- receive log sock
      | Left err => pure (Left err)
-   case parse msg of
-     Just (JObject [("tag", JString "Connect"), ("playerKey", JString k)]) =>
+   case parseJSON Virtual msg of
+     Right (JObject [("tag", JString "Connect"), ("playerKey", JString k)]) =>
        case makeId k of
           Right id => do
-            Right _ <- send sock (toWire $ show $ cast {to = JSON } Connected)
+            Right _ <- send sock (toWire $ show {ty = JSON} $ toJSON Connected)
               | Left err => pure (Left $ show err)
             pure $ Right id
           Left err => pure $ Left err

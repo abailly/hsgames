@@ -6,22 +6,22 @@ import Bautzen.Game
 import Bautzen.Game.Core
 import Bautzen.Pos as P
 import Bautzen.Terrain
-import Language.JSON
-import Language.JSON.Data
+import JSON.Parser
 
 import Data.Fin
 import Data.Vect
 import Control.WellFounded
 
 import public JSON
+import public JSON.ToJSON
 
-%hide JSON.Parser.JSON
+%hide Text.Lex.Shift.string
 %default total
 
 export
-Cast Side JSON where
-  cast Axis = JString "Axis"
-  cast Allies = JString "Allies"
+ToJSON Side where
+  toJSON Axis = string "Axis"
+  toJSON Allies = string "Allies"
 
 export
 FromJSON Side where
@@ -40,10 +40,10 @@ makeSide s =
       _ => Left $ "Unknown side: " ++ s
 
 export
-Cast Nation JSON where
-  cast German = JString "German"
-  cast Russian = JString "Russian"
-  cast Polish = JString "Polish"
+ToJSON Nation where
+  toJSON German = string "German"
+  toJSON Russian = string "Russian"
+  toJSON Polish = string "Polish"
 
 export
 FromJSON Nation where
@@ -55,16 +55,16 @@ FromJSON Nation where
      _ => fail $ "Unknown nation " ++ s
 
 export
-Cast UnitType JSON where
-  cast Armored = JString "Armored"
-  cast HeavyArmored = JString "HeavyArmored"
-  cast MechInfantry = JString "MechInfantry"
-  cast Infantry = JString "Infantry"
-  cast HeavyEngineer = JString "HeavyEngineer"
-  cast Artillery = JString "Artillery"
-  cast AntiTank = JString "AntiTank"
-  cast HQ = JString "HQ"
-  cast SupplyColumn = JString "SupplyColumn"
+ToJSON UnitType where
+  toJSON Armored = string "Armored"
+  toJSON HeavyArmored = string "HeavyArmored"
+  toJSON MechInfantry = string "MechInfantry"
+  toJSON Infantry = string "Infantry"
+  toJSON HeavyEngineer = string "HeavyEngineer"
+  toJSON Artillery = string "Artillery"
+  toJSON AntiTank = string "AntiTank"
+  toJSON HQ = string "HQ"
+  toJSON SupplyColumn = string "SupplyColumn"
 
 export
 FromJSON UnitType where
@@ -82,12 +82,12 @@ FromJSON UnitType where
        _ => fail $ "Unknown UnitType: "++ s
 
 export
-Cast UnitSize JSON where
-  cast Regiment = JString "Regiment"
-  cast Brigade = JString "Brigade"
-  cast Division = JString "Division"
-  cast Corps = JString "Corps"
-  cast Army = JString "Army"
+ToJSON UnitSize where
+  toJSON Regiment = string "Regiment"
+  toJSON Brigade = string "Brigade"
+  toJSON Division = string "Division"
+  toJSON Corps = string "Corps"
+  toJSON Army = string "Army"
 
 export
 FromJSON UnitSize where
@@ -101,15 +101,11 @@ FromJSON UnitSize where
        _ => fail $ "Unknown UnitSize: " ++ s
 
 export
-Cast Nat JSON where
-  cast = cast . cast {to = Double} . natToInteger
-
-export
-Cast StdFactors JSON where
-  cast (MkStdFactors attack defense) =
-    JObject [ ("tag", JString "StdFactors")
-            , ("attack", cast attack)
-            , ("defense", cast defense)
+ToJSON StdFactors where
+  toJSON (MkStdFactors attack defense) =
+    object [ ("tag", string "StdFactors")
+            , ("attack", toJSON attack)
+            , ("defense", toJSON defense)
             ]
 
 export
@@ -118,11 +114,11 @@ FromJSON StdFactors where
      [| MkStdFactors (field obj "attack") (field obj "defense") |]
 
 export
-Cast Arty JSON where
-  cast (MkArty support distance) =
-    JObject [ ("tag", JString "Arty")
-            , ("support", cast support)
-            , ("distance", cast distance)
+ToJSON Arty where
+  toJSON (MkArty support distance) =
+    object [ ("tag", string "Arty")
+            , ("support", toJSON support)
+            , ("distance", toJSON distance)
             ]
 
 export
@@ -131,10 +127,10 @@ FromJSON Arty where
      [| MkArty (field obj "support") (field obj "distance") |]
 
 export
-Cast Pak JSON where
-  cast (MkPak antitank) =
-      JObject [ ("tag", JString "Pak")
-              , ("antitank", cast antitank)
+ToJSON Pak where
+  toJSON (MkPak antitank) =
+      object [ ("tag", string "Pak")
+              , ("antitank", toJSON antitank)
               ]
 
 export
@@ -143,49 +139,35 @@ FromJSON Pak where
      MkPak <$> (field obj "antitank")
 
 export
-Cast (Fin n) JSON where
-  cast = cast . cast { to = Double} . finToInteger
+ToJSON (Fin n) where
+  toJSON = toJSON { a = Integer} . finToInteger
 
 export
-Cast a JSON => Cast (Maybe a) JSON where
-  cast Nothing = JNull
-  cast (Just a) = cast a
+ToJSON a => ToJSON b => ToJSON c => ToJSON (a, b, c) where
+  toJSON (a,b,c) = array [ toJSON a, toJSON b, toJSON c ]
 
 export
-Cast a JSON => Cast (Vect n a) JSON where
-  cast = cast . toList
-
-export
-Cast a JSON => Cast b JSON => Cast (Either a b) JSON where
-  cast (Right r) = cast r
-  cast (Left l) = cast l
-
-export
-Cast a JSON => Cast b JSON => Cast c JSON => Cast (a, b, c) JSON where
-  cast (a,b,c) = JArray [ cast a, cast b, cast c ]
-
-export
-Cast GameUnit JSON where
-  cast (MkGameUnit nation unitType name parent size move currentMP steps hits combat) =
-    JObject [ ("nation", cast nation)
-            , ("type", cast unitType)
-            , ("name", cast name)
-            , ("parent", cast parent)
-            , ("size", cast size)
-            , ("move", cast move)
-            , ("mp", cast currentMP)
-            , ("steps", cast steps)
-            , ("hits", cast hits)
+ToJSON GameUnit where
+  toJSON (MkGameUnit nation unitType name parent size move currentMP steps hits combat) =
+    object [ ("nation", toJSON nation)
+            , ("type", toJSON unitType)
+            , ("name", toJSON name)
+            , ("parent", toJSON parent)
+            , ("size", toJSON size)
+            , ("move", toJSON move)
+            , ("mp", toJSON currentMP)
+            , ("steps", toJSON steps)
+            , ("hits", toJSON hits)
             , ("combat", case unitType of
-                Armored       => cast combat
-                HeavyArmored  => cast combat
-                MechInfantry  => cast combat
-                Infantry      => cast combat
-                HeavyEngineer => cast combat
-                Artillery     => cast combat
-                AntiTank      => cast combat
-                HQ            => cast combat
-                SupplyColumn  => cast combat)
+                Armored       => toJSON combat
+                HeavyArmored  => toJSON combat
+                MechInfantry  => toJSON combat
+                Infantry      => toJSON combat
+                HeavyEngineer => toJSON combat
+                Artillery     => toJSON combat
+                AntiTank      => toJSON combat
+                HQ            => toJSON combat
+                SupplyColumn  => toJSON combat)
             ]
 
 parseFin : (n : Nat) -> (x : Nat) -> Either JSONErr (Fin n)
@@ -220,10 +202,10 @@ FromJSON GameUnit where
     pure $ MkGameUnit  nation unitType name parent size move mp steps hits combat
 
 public export
-Cast (P.Loc c r) JSON where
-  cast (P.Hex col row) =
-    JArray [ cast col
-           , cast row
+ToJSON (P.Loc c r) where
+  toJSON (P.Hex col row) =
+    array [ toJSON col
+           , toJSON row
            ]
 
 export
@@ -234,29 +216,29 @@ FromJSON Pos where
        _ => fail $ "Expected list of 2 integers"
 
 export
-Cast Pos JSON where
-  cast (MkPos p) = cast p
+ToJSON Pos where
+  toJSON (MkPos p) = toJSON p
 
 export
-Cast GameError JSON where
-  cast (NoSuchUnits unitNames) = JObject [ ("tag", JString "NoSuchUnit"), ("unitNames", cast unitNames) ]
-  cast (NotYourTurn side) = JObject [ ("tag", JString "NotYourTurn"), ( "side", cast side) ]
-  cast (EnemyInHex unit hex) = JObject [ ("tag", JString "EnemyInHex"), ("unit", cast unit), ("hex", cast hex) ]
-  cast (MoveFromZocToZoc unit to) = JObject [ ("tag", JString "MoveFromZocToZoc"), ("unit", cast unit), ("to", cast to) ]
-  cast (ForbiddenTerrain from to) = JObject [ ("tag", JString "ForbiddenTerrain"), ("from", cast from), ("to", cast to) ]
-  cast (InvalidMove from to) = JObject [ ("tag", JString "InvalidMove"), ("from", cast from) , ( "to", cast to) ]
-  cast (NotEnoughMPs unit from to mp) = JObject [ ("tag", JString "NotEnoughMPs"), ("unit", cast unit), ("from", cast from) , ( "to", cast to), ( "mp", cast mp) ]
-  cast (NotAdjacentTo units to) = JObject [ ("tag", JString "NotAdjacentTo"), ("units", cast units) , ("to", cast to)  ]
-  cast (NothingToAttack target) = JObject [ ("tag", JString "NothingToAttack"), ( "target", cast target) ]
-  cast (AttackingOwnUnits units target) = JObject [ ("tag", JString "AttackingOwnUnits"), ("units", cast units) , ( "target", cast target) ]
-  cast (NotInSupportRange units) = JObject [ ("tag", JString "NotInSupportRange"), ("units", cast units) ]
-  cast (NotSupportingUnits units) = JObject [ ("tag", JString "NotSupportingUnits"), ("units", cast units) ]
-  cast (NotInChainOfCommand units) = JObject [ ("tag", JString "NotInChainOfCommand"), ("units", cast units) ]
-  cast (NoSupplyColumnThere hex) = JObject [ ("tag", JString "NoSupplyColumnThere"), ("hex", cast hex)  ]
-  cast (NoStepsToLose side) = JObject [ ("tag", JString "NoStepsToLose"), ( "side", cast side) ]
-  cast (CombatInProgress side) = JObject [ ("tag", JString "CombatInProgress"), ( "side", cast side) ]
-  cast (InvalidPlacement pos) = JObject [ ("tag", JString "InvalidPlacement"), ("pos", cast pos) ]
-  cast GameHasEnded = JObject [ ("tag", JString "GameHasEnded") ]
+ToJSON GameError where
+  toJSON (NoSuchUnits unitNames) = object [ ("tag", string "NoSuchUnit"), ("unitNames", toJSON unitNames) ]
+  toJSON (NotYourTurn side) = object [ ("tag", string "NotYourTurn"), ( "side", toJSON side) ]
+  toJSON (EnemyInHex unit hex) = object [ ("tag", string "EnemyInHex"), ("unit", toJSON unit), ("hex", toJSON hex) ]
+  toJSON (MoveFromZocToZoc unit to) = object [ ("tag", string "MoveFromZocToZoc"), ("unit", toJSON unit), ("to", toJSON to) ]
+  toJSON (ForbiddenTerrain from to) = object [ ("tag", string "ForbiddenTerrain"), ("from", toJSON from), ("to", toJSON to) ]
+  toJSON (InvalidMove from to) = object [ ("tag", string "InvalidMove"), ("from", toJSON from) , ( "to", toJSON to) ]
+  toJSON (NotEnoughMPs unit from to mp) = object [ ("tag", string "NotEnoughMPs"), ("unit", toJSON unit), ("from", toJSON from) , ( "to", toJSON to), ( "mp", toJSON mp) ]
+  toJSON (NotAdjacentTo units to) = object [ ("tag", string "NotAdjacentTo"), ("units", toJSON units) , ("to", toJSON to)  ]
+  toJSON (NothingToAttack target) = object [ ("tag", string "NothingToAttack"), ( "target", toJSON target) ]
+  toJSON (AttackingOwnUnits units target) = object [ ("tag", string "AttackingOwnUnits"), ("units", toJSON units) , ( "target", toJSON target) ]
+  toJSON (NotInSupportRange units) = object [ ("tag", string "NotInSupportRange"), ("units", toJSON units) ]
+  toJSON (NotSupportingUnits units) = object [ ("tag", string "NotSupportingUnits"), ("units", toJSON units) ]
+  toJSON (NotInChainOfCommand units) = object [ ("tag", string "NotInChainOfCommand"), ("units", toJSON units) ]
+  toJSON (NoSupplyColumnThere hex) = object [ ("tag", string "NoSupplyColumnThere"), ("hex", toJSON hex)  ]
+  toJSON (NoStepsToLose side) = object [ ("tag", string "NoStepsToLose"), ( "side", toJSON side) ]
+  toJSON (CombatInProgress side) = object [ ("tag", string "CombatInProgress"), ( "side", toJSON side) ]
+  toJSON (InvalidPlacement pos) = object [ ("tag", string "InvalidPlacement"), ("pos", toJSON pos) ]
+  toJSON GameHasEnded = object [ ("tag", string "GameHasEnded") ]
 
 export
 FromJSON GameError where
@@ -284,8 +266,8 @@ FromJSON GameError where
        _ => fail #"unknown error tag #{tag}"#
 
 export
-Cast Losses JSON where
-  cast (attackerLoss /> defenderLoss) = JArray [ cast attackerLoss, cast defenderLoss ]
+ToJSON Losses where
+  toJSON (attackerLoss /> defenderLoss) = array [ toJSON attackerLoss, toJSON defenderLoss ]
 
 export
 FromJSON Losses where
@@ -295,26 +277,19 @@ FromJSON Losses where
        otherwise => fail $ "Wrong number of elements, expected 2"
 
 export
-Cast (GameUnit, Pos) JSON where
-  cast (u, p) =
-    JObject [ ("unit", cast u),
-              ("pos", cast p)
-              ]
+ToJSON AllPositions where
+  toJSON (MkAllPositions positions)  =
+    object [ ("tag", toJSON "Positions"),
+             ("positions", toJSON positions)
+           ]
 
 export
-Cast AllPositions JSON where
-  cast (MkAllPositions positions)  =
-    JObject [ ("tag", cast "Positions"),
-              ("positions", cast positions)
-              ]
-
-export
-Cast EngagedUnits JSON where
-  cast (MkEngagedUnits base tacticalSupport strategicSupport) =
-    JObject [ ("tag", JString "EngagedUnits")
-            , ("base", cast base)
-            , ("tacticalSupport", cast tacticalSupport)
-            , ("strategicSupport", cast strategicSupport)
+ToJSON EngagedUnits where
+  toJSON (MkEngagedUnits base tacticalSupport strategicSupport) =
+    object [ ("tag", string "EngagedUnits")
+            , ("base", toJSON base)
+            , ("tacticalSupport", toJSON tacticalSupport)
+            , ("strategicSupport", toJSON strategicSupport)
             ]
 
 export
@@ -323,12 +298,12 @@ FromJSON EngagedUnits where
      [| MkEngagedUnits (field obj "base") (field obj "tacticalSupport") (field obj "strategicSupport") |]
 
 export
-Cast CombatState JSON where
-  cast (MkCombatState hex attackers defenders losses) =
-    JObject  [ ("combatHex", cast hex)
-             , ("attackers", cast attackers)
-             , ("defenders", cast defenders)
-             , ("losses", cast losses)
+ToJSON CombatState where
+  toJSON (MkCombatState hex attackers defenders losses) =
+    object  [ ("combatHex", toJSON hex)
+             , ("attackers", toJSON attackers)
+             , ("defenders", toJSON defenders)
+             , ("losses", toJSON losses)
              ]
 
 export
@@ -337,12 +312,12 @@ FromJSON CombatState where
       [| MkCombatState (field obj "combatHex") (field obj "attackers") (field obj "defenders") (field obj "losses") |]
 
 export
-Cast CombatPhase JSON where
-  cast NoCombat = JObject [("tag", JString "NoCombat")]
-  cast (AssignTacticalSupport side combat) = JObject  [ ("tag", JString "AssignTacticalSupport"),  ("side", cast side), ("combat", cast combat) ]
-  cast (AssignStrategicSupport side combat) = JObject [ ("tag",  JString "AssignStrategicSupport"),  ("side", cast side), ("combat", cast combat) ]
-  cast (ApplyLosses side combat) = JObject [ ("tag",  JString "ApplyLosses"),  ("side", cast side), ("combat", cast combat) ]
-  cast (Resolve combat) = JObject [ ("tag", JString "Resolve"),("combat",  cast combat) ]
+ToJSON CombatPhase where
+  toJSON NoCombat = object [("tag", string "NoCombat")]
+  toJSON (AssignTacticalSupport side combat) = object  [ ("tag", string "AssignTacticalSupport"),  ("side", toJSON side), ("combat", toJSON combat) ]
+  toJSON (AssignStrategicSupport side combat) = object [ ("tag",  string "AssignStrategicSupport"),  ("side", toJSON side), ("combat", toJSON combat) ]
+  toJSON (ApplyLosses side combat) = object [ ("tag",  string "ApplyLosses"),  ("side", toJSON side), ("combat", toJSON combat) ]
+  toJSON (Resolve combat) = object [ ("tag", string "Resolve"),("combat",  toJSON combat) ]
 
 export
 FromJSON CombatPhase where
@@ -357,12 +332,12 @@ FromJSON CombatPhase where
        _ => fail $ "Unknown tag " ++ tag
 
 export
-Cast GameSegment JSON where
-  cast Setup = JObject [ ("tag", JString "Setup")]
-  cast Supply = JObject [ ("tag", JString "Supply")]
-  cast Move = JObject [ ("tag", JString "Move")]
-  cast (Combat phase) = JObject [ ("tag", JString "Combat"), ("phase", cast phase) ]
-  cast GameEnd = JObject [ ("tag", JString "GameEnd")]
+ToJSON GameSegment where
+  toJSON Setup = object [ ("tag", string "Setup")]
+  toJSON Supply = object [ ("tag", string "Supply")]
+  toJSON Move = object [ ("tag", string "Move")]
+  toJSON (Combat phase) = object [ ("tag", string "Combat"), ("phase", toJSON phase) ]
+  toJSON GameEnd = object [ ("tag", string "GameEnd")]
 
 export
 FromJSON GameSegment where
@@ -377,65 +352,65 @@ FromJSON GameSegment where
         _ => fail $ "Unknown tag " ++ tag
 
 export
-Cast (Event seg) JSON where
-  cast (Placed unit pos) =
-      JObject [ ("tag", JString "Placed")
-              , ("unit", cast unit)
-              , ("pos", cast pos)
+ToJSON (Event seg) where
+  toJSON (Placed unit pos) =
+      object [ ("tag", string "Placed")
+              , ("unit", toJSON unit)
+              , ("pos", toJSON pos)
               ]
-  cast (Moved unit from to cost) =
-      JObject [ ("tag", JString "Moved")
-            , ("unit", cast unit)
-            , ("from", cast from)
-            , ("to", cast to)
-            , ("cost", cast cost)
+  toJSON (Moved unit from to cost) =
+      object [ ("tag", string "Moved")
+            , ("unit", toJSON unit)
+            , ("from", toJSON from)
+            , ("to", toJSON to)
+            , ("cost", toJSON cost)
             ]
-  cast (CombatEngaged atk def target) =
-      JObject [ ("tag", JString "CombatEngaged")
-            , ("attackers", cast atk)
-            , ("defenders", cast def)
-            , ("target", cast target)
+  toJSON (CombatEngaged atk def target) =
+      object [ ("tag", string "CombatEngaged")
+            , ("attackers", toJSON atk)
+            , ("defenders", toJSON def)
+            , ("target", toJSON target)
             ]
-  cast (TacticalSupportProvided side units) =
-      JObject [ ("tag", JString "TacticalSupportProvided")
-            , ("supportedSide", cast side)
-            , ("supportingUnits", cast units)
+  toJSON (TacticalSupportProvided side units) =
+      object [ ("tag", string "TacticalSupportProvided")
+            , ("supportedSide", toJSON side)
+            , ("supportingUnits", toJSON units)
             ]
-  cast (SupplyColumnUsed side hex) =
-      JObject [ ("tag" , JString "SupplyColumnUsed")
-            , ("supportedSide", cast side)
-            , ("position", cast hex)
+  toJSON (SupplyColumnUsed side hex) =
+      object [ ("tag" , string "SupplyColumnUsed")
+            , ("supportedSide", toJSON side)
+            , ("position", toJSON hex)
             ]
-  cast (CombatResolved state losses) =
-      JObject [ ("tag", JString  "CombatResolved")
-            , ("state", cast state)
-            , ("losses", cast losses)
+  toJSON (CombatResolved state losses) =
+      object [ ("tag", string  "CombatResolved")
+            , ("state", toJSON state)
+            , ("losses", toJSON losses)
             ]
-  cast (StepLost side unit remain) =
-      JObject [ ("tag", JString  "StepLost")
-            , ("side", cast side)
-            , ("unit", cast unit)
-            , ("remainingLosses", cast remain)
+  toJSON (StepLost side unit remain) =
+      object [ ("tag", string  "StepLost")
+            , ("side", toJSON side)
+            , ("unit", toJSON unit)
+            , ("remainingLosses", toJSON remain)
             ]
-  cast (SegmentChanged from to) =
-      JObject [ ("tag", JString "SegmentChanged")
-            , ("from", cast from)
-            , ("to", cast to)
+  toJSON (SegmentChanged from to) =
+      object [ ("tag", string "SegmentChanged")
+            , ("from", toJSON from)
+            , ("to", toJSON to)
             ]
-  cast (TurnEnded n) =
-      JObject [ ("tag", JString "TurnEnded")
-            , ("newTurn", cast n)
+  toJSON (TurnEnded n) =
+      object [ ("tag", string "TurnEnded")
+            , ("newTurn", toJSON n)
             ]
-  cast AxisTurnDone =
-      JObject [ ("tag", JString "AxisTurnDone") ]
-  cast AlliesSetupDone =
-      JObject [ ("tag", JString "AlliesSetupDone") ]
-  cast GameEnded =
-      JObject [ ("tag", JString "game-ended") ]
+  toJSON AxisTurnDone =
+      object [ ("tag", string "AxisTurnDone") ]
+  toJSON AlliesSetupDone =
+      object [ ("tag", string "AlliesSetupDone") ]
+  toJSON GameEnded =
+      object [ ("tag", string "game-ended") ]
 
-Cast AnyEvent JSON where
-  cast (MkAnyEvent {seg} e) =
-    JObject [("segment", cast seg), ("event", cast e)]
+ToJSON AnyEvent where
+  toJSON (MkAnyEvent {seg} e) =
+    object [("segment", toJSON seg), ("event", toJSON e)]
 
 
 partial
@@ -514,69 +489,54 @@ FromJSON AnyEvent where
     explicitParseField (parseAnyEvent seg) any "event"
 
 export
-splice : JSON -> JSON -> JSON
-splice first (JArray xs) = JArray $ first :: xs
-splice first s  = JArray [ first, s ]
+ToJSON Terrain where
+  toJSON Clear = string "Clear"
+  toJSON Wood = string "Wood"
+  toJSON Rough = string "Rough"
+  toJSON RoughWood = string "RoughWood"
+  toJSON (Hill base) = array [(string "Hill"),  (toJSON base)]
+  toJSON (Village base) = array [(string "Village") , (toJSON base) ]
+  toJSON Town = string "Town"
+  toJSON (SupplySource side base) = array [toJSON ( "Supply" ,side), (toJSON base) ]
 
 export
-Cast Terrain JSON where
-  cast Clear = JString "Clear"
-  cast Wood = JString "Wood"
-  cast Rough = JString "Rough"
-  cast RoughWood = JString "RoughWood"
-  cast (Hill base) = splice (JString "Hill") (cast base)
-  cast (Village base) = splice (JString "Village") (cast base)
-  cast Town = JString "Town"
-  cast (SupplySource side base) = splice (JArray [ JString "Supply", cast side] ) (cast base)
+ToJSON Connection where
+  toJSON Plain = string "Plain"
+  toJSON (Road base) = array [ (string "Road") , (toJSON base)]
+  toJSON (River base) = array [ (string "River"),  (toJSON base) ]
+  toJSON Lake = string "Lake"
 
 export
-Cast Connection JSON where
-  cast Plain = JString "Plain"
-  cast (Road base) = splice (JString "Road") (cast base)
-  cast (River base) = splice (JString "River") (cast base)
-  cast Lake = JString "Lake"
-
-export
-Cast (Pos, Connection) JSON where
-  cast (p, c) =
-    JObject [ ("hex", cast p), ("link", cast c) ]
-
-export
-Cast (Pos, List (Pos, Connection)) JSON where
-  cast (p, ns) =
-    JObject [ ("hex", cast p), ("n", cast ns) ]
-
-export
-Cast Map JSON where
-  cast (MkMap hexes edges) = JObject [ ("tag", JString "Map")
-                                     , ("hexes", cast (tabulate hexes))
-                                     , ("edges", cast edges)
+ToJSON Map where
+  toJSON (MkMap hexes edges) = object [ ("tag", string "Map")
+                                     , ("hexes", toJSON (tabulate hexes))
+                                     , ("edges", toJSON edges)
                                      ]
 
 export
-Cast CurrentGameSegment JSON where
-  cast (MkCurrentGameSegment turn side segment) =
-    JObject [ ("tag", JString "CurrentGameSegment")
-            , ("turn", cast turn)
-            , ("side", cast side)
-            , ("segment", cast segment)
+ToJSON CurrentGameSegment where
+  toJSON (MkCurrentGameSegment turn side segment) =
+    object [ ("tag", string "CurrentGameSegment")
+            , ("turn", toJSON turn)
+            , ("side", toJSON side)
+            , ("segment", toJSON segment)
             ]
 
 export
-Cast QueryError JSON where
-  cast (NoSupplyPathFor unitName pos) = JObject [ ("reason", JString "NoSupplyPathFor"),
-                                                ("unit", JString unitName),
-                                                 ("pos" , cast pos) ]
-  cast (UnitDoesNotExist unitName) = JObject [ ("reason", JString "UnitDoesNotExist"),
-                                               ("unit" , JString unitName) ]
+ToJSON QueryError where
+  toJSON (NoSupplyPathFor unitName pos) = object [ ("reason", string "NoSupplyPathFor"),
+                                                ("unit", string unitName),
+                                                 ("pos" , toJSON pos) ]
+  toJSON (UnitDoesNotExist unitName) = object [ ("reason", string "UnitDoesNotExist"),
+                                               ("unit" , string unitName) ]
 export
-Cast ActionResult JSON where
-  cast (ResEvent e) =
-    JObject [ ("tag", JString "Event"), ("event", cast e) ]
-  cast (ResError x) =
-    JObject [ ("tag", JString "Error"), ("error", cast x)]
-  cast (ResQuery x) =
-    JObject [ ("tag", JString "Query"), ("result", cast x)]
+ToJSON ActionResult where
+  toJSON (ResEvent e) =
+    object [ ("tag", string "Event"), ("event", toJSON e) ]
+  toJSON (ResError x) =
+    object [ ("tag", string "Error"), ("error", toJSON x)]
+  toJSON (ResQuery x) =
+    object [ ("tag", string "Query"), ("result", toJSON x)]
 
 partial
 export
@@ -595,21 +555,21 @@ FromJSON ActionResult where
         _ => fail #"Unexpected tag #{tag}"#
 
 export
-Cast GameState JSON where
-  cast (MkGameState turn side stateSegment units) =
-    JObject [ ("tag", JString "GameState")
-            , ("turn" , cast turn)
-            , ("side", cast side)
-            , ("stateSegment", cast stateSegment)
-            , ("units", cast units)
+ToJSON GameState where
+  toJSON (MkGameState turn side stateSegment units) =
+    object [ ("tag", string "GameState")
+            , ("turn" , toJSON turn)
+            , ("side", toJSON side)
+            , ("stateSegment", toJSON stateSegment)
+            , ("units", toJSON units)
             ]
 
 export
-Cast Game JSON where
-  cast (MkGame curState gameMap) =
-    JObject [ ("tag", JString "Game")
-            , ("curState", cast curState)
-            , ("gameMap" , cast gameMap)
+ToJSON Game where
+  toJSON (MkGame curState gameMap) =
+    object [ ("tag", string "Game")
+            , ("curState", toJSON curState)
+            , ("gameMap" , toJSON gameMap)
             ]
 
 ||| Convert a JSON into a list of strings
@@ -656,12 +616,12 @@ makeLoseStepCommand unitName = pure $ LoseStep unitName
 
 export
 makePlayerAction : (game : Game) -> JSON -> Either String (PlayerAction (curSegment game))
-makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JNumber col, JNumber row]) ] ) with (curSegment game)
-  makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JNumber col, JNumber row]) ] ) | Move = Cmd <$> makeMoveCommand unitName (cast col) (cast row)
-  makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JNumber col, JNumber row]) ] ) | other = Left ("Invalid command for segment " ++ show other)
-makePlayerAction game (JObject [ ("tag", JString "Attack"), ("units", unitNames), ("hex", JArray [ JNumber col, JNumber row]) ] ) with (curSegment game)
-  makePlayerAction game (JObject [ ("tag", JString "Attack"), ("units", unitNames), ("hex", JArray [ JNumber col, JNumber row]) ] ) | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames (cast col) (cast row)
-  makePlayerAction game (JObject [ ("tag", JString "Attack"), ("units", unitNames), ("hex", JArray [ JNumber col, JNumber row]) ] ) | other = Left $ "Invalid command for segment " ++ show other
+makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JInteger col, JInteger row]) ] ) with (curSegment game)
+  makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JInteger col, JInteger row]) ] ) | Move = Cmd <$> makeMoveCommand unitName (cast col) (cast row)
+  makePlayerAction game (JObject [ ("tag", JString "MoveTo"), ("unit", JString unitName), ("to", JArray [ JInteger col, JInteger row]) ] ) | other = Left ("Invalid command for segment " ++ show other)
+makePlayerAction game (JObject [ ("tag", JString "Attack"), ("units", unitNames), ("hex", JArray [ JInteger col, JInteger row]) ] ) with (curSegment game)
+  makePlayerAction game (JObject [ ("tag", JString "Attack"), ("units", unitNames), ("hex", JArray [ JInteger col, JInteger row]) ] ) | Combat NoCombat = Cmd <$> makeAttackWithCommand unitNames (cast col) (cast row)
+  makePlayerAction game (JObject [ ("tag", JString "Attack"), ("units", unitNames), ("hex", JArray [ JInteger col, JInteger row]) ] ) | other = Left $ "Invalid command for segment " ++ show other
 makePlayerAction game (JArray [ JString "support!", unitNames ] ) with (curSegment game)
   makePlayerAction game (JArray [ JString "support!", unitNames ] ) | Combat (AssignTacticalSupport side combatState) = Cmd <$> makeSupportCommand unitNames
   makePlayerAction game (JArray [ JString "support!", unitNames ] ) | other = Left $ "Invalid command for segment " ++ show other
@@ -675,8 +635,8 @@ makePlayerAction game (JObject [("tag", JString  "Next")] ) = pure $ Cmd NextSeg
 makePlayerAction game (JArray [ JString "supply-path?", JString unitName ] ) = Right $ Qry $ SupplyPath unitName
 makePlayerAction game (JArray [ JString "map?" ] ) = Right $ Qry TerrainMap
 makePlayerAction game (JArray [ JString "positions?" ] ) = Right $ Qry Positions
-makePlayerAction game (JObject [("tag", JString  "Place"), ("unitName", JString unitName), ("position", JArray [ JNumber col, JNumber row] )]) with (curSegment game)
-  makePlayerAction game (JObject [("tag", JString  "Place"), ("unitName", JString unitName), ("position", JArray [ JNumber col, JNumber row] )]) | Setup = makePos (cast col) (cast row) >>=   pure . Cmd . Place unitName
-  makePlayerAction game (JObject [("tag", JString  "Place"), ("unitName", JString unitName), ("position", JArray [ JNumber col, JNumber row] )]) | other  = Left ("Invalid command for segment " ++ show other)
+makePlayerAction game (JObject [("tag", JString  "Place"), ("unitName", JString unitName), ("position", JArray [ JInteger col, JInteger row] )]) with (curSegment game)
+  makePlayerAction game (JObject [("tag", JString  "Place"), ("unitName", JString unitName), ("position", JArray [ JInteger col, JInteger row] )]) | Setup = makePos (cast col) (cast row) >>=   pure . Cmd . Place unitName
+  makePlayerAction game (JObject [("tag", JString  "Place"), ("unitName", JString unitName), ("position", JArray [ JInteger col, JInteger row] )]) | other  = Left ("Invalid command for segment " ++ show other)
 makePlayerAction game (JObject (("tag", JString  "GetCurrentSegment") :: _)) = Right $ Qry GetCurrentSegment
-makePlayerAction _ sexp = Left $ "Unknown command " ++ show @{Idris} sexp
+makePlayerAction _ sexp = Left $ "Unknown command " ++ show sexp

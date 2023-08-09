@@ -4,7 +4,7 @@ import Bautzen.Id
 import Bautzen.Options
 import Data.List
 import Data.String
-import Language.JSON
+import JSON
 
 import Network.Socket
 
@@ -36,9 +36,9 @@ data Handshake =
    | Connected
 
 export
-Cast Handshake JSON where
-  cast (Connect k) = JObject [( "tag", JString "Connect"), ("playerKey", cast k)]
-  cast Connected = JObject [( "tag", JString "Connected")]
+ToJSON Handshake where
+  toJSON (Connect k) = object [( "tag", string "Connect"), ("playerKey", toJSON k)]
+  toJSON Connected = object [( "tag", string "Connected")]
 
 public
 export

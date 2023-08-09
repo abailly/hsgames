@@ -5,7 +5,7 @@ import Bautzen.Options
 import Bautzen.Network
 import Bautzen.Id
 
-import Language.JSON
+import JSON
 import Builtin
 import Prelude
 import Data.Nat
@@ -17,6 +17,9 @@ import Network.Socket.Data
 import Network.Socket.Raw
 import System
 import System.File
+
+%hide JSON.Option.Options
+
 
 receiveMessage : Socket -> IO (Either String String)
 receiveMessage socket = do
@@ -52,11 +55,11 @@ openConnection host port instanceId = do
   res <- connect sock (Hostname host) port
   if res /= 0
     then pure (Left $ "Failed to connect socket with error: " ++ show res)
-    else let clientId = toWire (show $ cast {to = JSON} $ Connect instanceId)
+    else let clientId = toWire (show {ty = JSON} $ toJSON $ Connect instanceId)
          in do
             Right l <- send sock clientId
              | Left err => pure $ Left ("failed to send message " ++ show err)
-            Right (Just (JObject [ ("tag", JString "Connected")])) <- map parse <$> receiveMessage sock
+            Right (Right (JObject [ ("tag", JString "Connected")])) <- map (parseJSON Virtual) <$> receiveMessage sock
               | Left err => pure $ Left err
               | Right m => pure $ Left ("Unexpected handshake: " ++ show m)
             pure (Right sock)
@@ -68,12 +71,12 @@ runREPL sock =
      if eof
        then pure ()
        else do x <- getLine
-               case parse x of
-                    Just out =>
+               case parseJSON Virtual x of
+                    Right out =>
                         do Right () <- sendCommand sock out
                                  | Left err => do putStrLn ("Error sending command: " ++ err) ; runREPL sock
                            runREPL sock
-                    Nothing => do putStrLn ("Invalid command: " ++ x) ; runREPL sock
+                    err => do putStrLn ("Invalid command: " ++ x ++ " (" ++ show err ++ ")") ; runREPL sock
 
 export
 client : Options -> IO (Either String ())

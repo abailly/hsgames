@@ -5,15 +5,12 @@ import Bautzen.Games
 import Bautzen.Id
 
 import JSON
-
-import Language.JSON
+import JSON.Encoder
 
 import Data.String.Extra
 
 import System.Concurrency
 import System.File
-
-%hide JSON.Parser.JSON
 
 export
 interface Store (store : Type) where
@@ -35,12 +32,12 @@ initialise : Games -> List String -> Either String Games
 initialise games [] = Right games
 initialise games (line :: lines) =
       -- lines have newline character at end
-      case parse (dropLast 1 line) of
-        Just json => case fromJSON json of
+      case parseJSON Virtual (dropLast 1 line) of
+        Right json => case fromJSON json of
                        Left err => Left (show err)
                        Right event =>
                           initialise (Games.apply games (GamesResEvent event)) lines
-        Nothing => Left ("Failed to parse line: " ++ line)
+        Left err => Left ("Failed to parse line: " ++ line ++ "(" ++ show err ++ ")")
 
 export
 Store FileStore where
@@ -56,6 +53,6 @@ Store FileStore where
 
   write (MkFileStore path lock) event = do
     mutexAcquire lock
-    Right () <- appendFile path $ (show $ cast {to = JSON} event) ++ "\n"
+    Right () <- appendFile path $ (show {ty = JSON} $ toJSON event) ++ "\n"
       | Left err => do mutexRelease lock; pure $ Left $ show err
     Right <$> mutexRelease lock

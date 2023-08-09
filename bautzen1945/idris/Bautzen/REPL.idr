@@ -9,13 +9,15 @@ import System.REPL.Extra
 
 import Data.Fin
 import Data.Nat
-import Language.JSON
+import JSON.Parser
+import JSON
 
+%hide JSON.Option.Options
 
 export
 parseCommand : (games : Games) -> String -> Either String GameCommand
 parseCommand game input =
-  maybe (Left $ "cannot parse JSON: " ++ input) Right (parse input) >>= makeGameCommand game
+  either (Left . show) Right (parseJSON Virtual input) >>= makeGameCommand game
 
 export
 handleCommand : Id -> Games -> String -> (String, Games)
@@ -24,10 +26,10 @@ handleCommand clientId games input =
     Left err => (err, games)
     Right act =>
        let (res, g) = interpret clientId act games
-       in (show $ cast {to = JSON} res, g)
+       in (show {ty = JSON} $ toJSON res, g)
 
 eoiHandler : Games -> String
-eoiHandler = show . cast {to = JSON}
+eoiHandler = show {ty = JSON} . toJSON
 
 export
 partial

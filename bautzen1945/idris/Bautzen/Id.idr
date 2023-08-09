@@ -2,11 +2,11 @@ module Bautzen.Id
 
 import Data.String.Parser
 import public Data.Vect
-import Language.JSON
+import JSON.Parser
 
 import JSON
 
-%hide JSON.Parser.JSON
+
 %default total
 
 public export
@@ -46,8 +46,8 @@ FromString Id where
        (Right x) => x
 
 export
-Cast Id JSON where
-  cast (MkId v) = JString . pack . toList $ v
+ToJSON Id where
+  toJSON (MkId v) = string . pack . toList $ v
 
 export
 FromJSON Id where

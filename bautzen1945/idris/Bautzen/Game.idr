@@ -13,7 +13,9 @@ import public Bautzen.Terrain
 import public Bautzen.Game.Map
 
 import Decidable.Equality
-import Language.JSON
+import JSON
+import JSON.ToJSON
+import JSON.Parser
 import Data.List
 import Data.Fin
 import Data.Nat
@@ -185,26 +187,26 @@ query game GetCurrentSegment = makeCurrentSegment game
 public export
 data PlayerAction : (seg : GameSegment) -> Type where
   Cmd : (cmd : Command seg) -> PlayerAction seg
-  Qry : Cast res JSON => (qry : Query res) -> PlayerAction seg
+  Qry : ToJSON res => (qry : Query res) -> PlayerAction seg
 
 public export
 data ActionResult : Type where
   ResEvent : AnyEvent -> ActionResult
   ResError : GameError -> ActionResult
-  ResQuery : Cast result JSON => result -> ActionResult
+  ResQuery : ToJSON result => result -> ActionResult
 
 export
 Show ActionResult where
   show (ResEvent x) = "ResEvent " ++ show x
   show (ResError x) = "ResError " ++ show x
-  show (ResQuery x) = "ResQuery " ++ show (cast { to = JSON} x)
+  show (ResQuery x) = "ResQuery " ++ show (toJSON  {v = JSON} x)
 
 export
 Eq ActionResult where
   (ResEvent x) == (ResEvent y) = x == y
   (ResError x) == (ResError y) = x == y
   -- assume JSON representation is injective
-  (ResQuery x) == (ResQuery y) = show (cast {to = JSON} x) == show (cast {to = JSON} y)
+  (ResQuery x) == (ResQuery y) = show (toJSON  {v = JSON} x) == show (toJSON {v = JSON} y)
   _ == _ = False
 
 public export

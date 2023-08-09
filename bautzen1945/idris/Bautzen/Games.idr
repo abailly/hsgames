@@ -9,11 +9,11 @@ import public Data.SortedMap
 import Data.String.Parser
 import Data.Vect
 import Decidable.Equality
-import Language.JSON
+import JSON.Parser
 
 import JSON
 
-%hide JSON.Parser.JSON
+
 %default covering
 
 ||| Lifecycle protocol for games.
@@ -61,15 +61,15 @@ Show PlayerType where
   show NoPlayer = "NoPlayer"
 
 export
-Cast PlayerType JSON where
-  cast (HumanPlayer xs) =
-    JObject [ ("tag", JString "HumanPlayer")
-            , ("playerKey", cast xs)
+ToJSON PlayerType  where
+  toJSON (HumanPlayer xs) =
+    object [ ("tag", string "HumanPlayer")
+            , ("playerKey", toJSON xs)
             ]
-  cast RobotPlayer =
-    JObject [ ("tag", JString "RobotPlayer") ]
-  cast NoPlayer =
-    JObject [ ("tag", JString "NoPlayer") ]
+  toJSON RobotPlayer =
+    object [ ("tag", string "RobotPlayer") ]
+  toJSON NoPlayer =
+    object [ ("tag", string "NoPlayer") ]
 
 public export
 data GamesEvent : Type where
@@ -112,29 +112,30 @@ Eq GamesEvent where
     playerKey == playerKey' && side == side' && gameId == gameId'
   _ == _ = False
 
-convertToJSON : List GamesEvent -> JSON
+convertToJSON : Encoder v => List GamesEvent -> v
 
 export
-Cast GamesEvent JSON where
-  cast (NewGameCreated gameId) =
-    JObject [ ("tag", JString "NewGameCreated"), ("gameId", cast gameId) ]
-  cast (PlayerJoined playerKey side gameId) =
-    JObject [ ("tag", JString "PlayerJoined"), ("playerKey", cast playerKey), ("side", cast side), ("gameId", cast gameId) ]
-  cast (PlayerReJoined playerKey side gameId events) =
-    JObject [ ("tag", JString "PlayerReJoined"), ("playerKey", cast playerKey), ("side", cast side), ("gameId", cast gameId), ("events", convertToJSON events) ]
-  cast (GameStarted gameId) =
-    JObject [ ("tag", JString "GameStarted"), ("gameId", cast gameId) ]
-  cast (PlayerPlayed playerKey gameId segment result) =
-    JObject [ ("tag", JString "PlayerPlayed"), ("playerKey", cast playerKey), ("gameId", cast gameId), ("segment", cast segment), ("result", cast result) ]
-  cast (PlayerLeft playerKey side gameId) =
-    JObject [ ("tag", JString "PlayerLeft"), ("playerKey", cast playerKey), ("side", cast side), ("gameId", cast gameId) ]
+ToJSON GamesEvent  where
+  toJSON (NewGameCreated gameId) =
+    object [ ("tag", string "NewGameCreated"), ("gameId", toJSON gameId) ]
+  toJSON (PlayerJoined playerKey side gameId) =
+    object [ ("tag", string "PlayerJoined"), ("playerKey", toJSON playerKey), ("side", toJSON side), ("gameId", toJSON gameId) ]
+  toJSON (PlayerReJoined playerKey side gameId events) =
+    object [ ("tag", string "PlayerReJoined"), ("playerKey", toJSON playerKey), ("side", toJSON side), ("gameId", toJSON gameId), ("events", convertToJSON events) ]
+  toJSON (GameStarted gameId) =
+    object [ ("tag", string "GameStarted"), ("gameId", toJSON gameId) ]
+  toJSON (PlayerPlayed playerKey gameId segment result) =
+    object [ ("tag", string "PlayerPlayed"), ("playerKey", toJSON playerKey), ("gameId", toJSON gameId), ("segment", toJSON segment), ("result", toJSON result) ]
+  toJSON (PlayerLeft playerKey side gameId) =
+    object [ ("tag", string "PlayerLeft"), ("playerKey", toJSON playerKey), ("side", toJSON side), ("gameId", toJSON gameId) ]
+
 
 convertToJSON events =
-  JArray (doConvert events)
+  array (doConvert events)
   where
-    doConvert : List GamesEvent -> List JSON
+    doConvert : List GamesEvent -> List v
     doConvert [] = []
-    doConvert (x :: xs) = cast x :: doConvert xs
+    doConvert (x :: xs) = toJSON x :: doConvert xs
 
 export
 FromJSON GamesEvent where
@@ -161,13 +162,13 @@ record SingleGame where
 
 
 export
-Cast SingleGame JSON where
-  cast (MkSingleGame gameId axisPlayer alliesPlayer theGame events) =
-    JObject [ ( "tag", JString "SingleGame")
-            , ("gameId", cast gameId)
-            , ("axisPlayer", cast axisPlayer)
-            , ("alliesPlayer", cast alliesPlayer)
-            , ("segment", cast $ makeCurrentSegment theGame)
+ToJSON SingleGame  where
+  toJSON (MkSingleGame gameId axisPlayer alliesPlayer theGame events) =
+    object [ ( "tag", string "SingleGame")
+            , ("gameId", toJSON gameId)
+            , ("axisPlayer", toJSON axisPlayer)
+            , ("alliesPlayer", toJSON alliesPlayer)
+            , ("segment", toJSON $ makeCurrentSegment theGame)
             ]
 
 export
@@ -196,16 +197,16 @@ Games : Type
 Games = SortedMap Id SingleGame
 
 export
-Cast Games JSON where
-  cast g = JObject $ ( "tag", JString "Games") :: map (\ (k,v) => (show k, cast v)) (SortedMap.toList g)
+ToJSON Games where
+  toJSON g = object $ ( "tag", string "Games") :: map (\ (k,v) => (show k, toJSON v)) (SortedMap.toList g)
 
 
 record GamesList where
   constructor MkGamesList
   games : List SingleGame
 
-Cast GamesList JSON where
-  cast (MkGamesList gs) = JObject [ ( "tag", JString "GamesList") , ("games", cast gs) ]
+ToJSON GamesList where
+  toJSON (MkGamesList gs) = object [ ( "tag", string "GamesList") , ("games", toJSON gs) ]
 
 export
 makeGameCommand : Games -> JSON -> Either String GameCommand
@@ -228,7 +229,7 @@ makeGameCommand games (JObject [ ("tag", JString "Action"), ("gameId", JString g
 makeGameCommand games (JObject [ ("tag", JString "Bye"), ("gameId", JString gameId) ]) = do
   gid <- makeId gameId
   pure $ Bye gid
-makeGameCommand _ json = Left $ "Unknown command " ++ show @{Idris} json
+makeGameCommand _ json = Left $ "Unknown command " ++ show json
 
 
 export
@@ -251,31 +252,31 @@ data GamesError =
   | InvalidSegment GameSegment GameSegment Id Id
 
 export
-Cast GamesError JSON where
-  cast (UnknownGame gameId) =
-    JObject [ ("tag", JString "UnknownGame"), ("gameId", cast gameId) ]
-  cast (GameAlreadyExists gameId) =
-    JObject [ ("tag", JString "GameAlreadyExists"), ("gameId", cast gameId) ]
-  cast (GameIncomplete gameId) =
-    JObject [ ("tag", JString "GameIncomplete"), ("gameId", cast gameId) ]
-  cast (UnknownPlayer playerKey) =
-    JObject [ ("tag", JString "UnknownPlayer"), ("playerKey", cast playerKey) ]
-  cast (SideTaken side playerKey) =
-    JObject [ ("tag", JString "SideTaken"), ("side", cast side), ("playerKey", cast playerKey) ]
-  cast (InvalidSegment actual expected playerKey gameId ) =
-    JObject [ ("tag", JString "InvalidSegment"), ("actual", cast actual), ("expected", cast expected), ("playerKey", cast playerKey), ("gameId", cast gameId) ]
+ToJSON GamesError where
+  toJSON (UnknownGame gameId) =
+    object [ ("tag", string "UnknownGame"), ("gameId", toJSON gameId) ]
+  toJSON (GameAlreadyExists gameId) =
+    object [ ("tag", string "GameAlreadyExists"), ("gameId", toJSON gameId) ]
+  toJSON (GameIncomplete gameId) =
+    object [ ("tag", string "GameIncomplete"), ("gameId", toJSON gameId) ]
+  toJSON (UnknownPlayer playerKey) =
+    object [ ("tag", string "UnknownPlayer"), ("playerKey", toJSON playerKey) ]
+  toJSON (SideTaken side playerKey) =
+    object [ ("tag", string "SideTaken"), ("side", toJSON side), ("playerKey", toJSON playerKey) ]
+  toJSON (InvalidSegment actual expected playerKey gameId ) =
+    object [ ("tag", string "InvalidSegment"), ("actual", toJSON actual), ("expected", toJSON expected), ("playerKey", toJSON playerKey), ("gameId", toJSON gameId) ]
 
 public export
 data GamesResult : Type where
    GamesResEvent : (event : GamesEvent) -> GamesResult
-   GamesResQuery : Cast result JSON => result -> GamesResult
+   GamesResQuery : ToJSON res => res -> GamesResult
    GamesResError  : GamesError -> GamesResult
 
 export
-Cast GamesResult JSON where
-   cast (GamesResEvent event) = JObject [ ("tag", JString "GamesResEvent"), ("event", cast event) ]
-   cast (GamesResQuery result) = JObject [ ("tag", JString "GamesResQuery"), ("result", cast result) ]
-   cast (GamesResError error) = JObject [ ("tag", JString "GamesResError"), ("error", cast error) ]
+ToJSON GamesResult where
+   toJSON (GamesResEvent event) = object [ ("tag", string "GamesResEvent"), ("event", toJSON event) ]
+   toJSON (GamesResQuery result) = object [ ("tag", string "GamesResQuery"), ("result", toJSON result) ]
+   toJSON (GamesResError error) = object [ ("tag", string "GamesResError"), ("error", toJSON error) ]
 
 actAction : {gameSegment: GameSegment} -> PlayerAction gameSegment -> SingleGame -> Id -> Id -> (games : Games) -> GamesResult
 actAction {gameSegment} action single@(MkSingleGame xs axisPlayer alliesPlayer theGame _) playerKey gameId games =

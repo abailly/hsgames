@@ -4,7 +4,7 @@ import Test.Bautzen.Gen
 import Test.Bautzen.Store
 
 import JSON
-import Language.JSON
+import JSON.Parser
 import Hedgehog
 
 roundTrip : Eq a => FromJSON a => Cast a JSON => Show a => Gen a -> Property

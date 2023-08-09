@@ -13,9 +13,8 @@ import Data.Vect
 import Data.String
 
 import JSON
-import Language.JSON
+import JSON.Parser
 
-%hide JSON.Parser.JSON
 %default total
 
 -- Map & Terrain types
@@ -140,12 +139,12 @@ toNat (One x)    = S (toNat x)
 toNat (Two x)    = S (S (toNat x))
 
 export
-Cast Cost JSON where
-  cast Impossible = JObject [ ("tag", JString "∞") ]
-  cast Zero = JObject [("tag", JString "0" )]
-  cast (Half x) = JObject [ ("tag", JString "½"), ("rest", cast x) ]
-  cast (One x) = JObject [ ("tag", JString "1"), ("rest", cast x) ]
-  cast (Two x) = JObject [ ("tag", JString "2"), ("rest", cast x) ]
+ToJSON Cost where
+  toJSON Impossible = object [ ("tag", string "∞") ]
+  toJSON Zero = object [("tag", string "0" )]
+  toJSON (Half x) = object [ ("tag", string "½"), ("rest", toJSON x) ]
+  toJSON (One x) = object [ ("tag", string "1"), ("rest", toJSON x) ]
+  toJSON (Two x) = object [ ("tag", string "2"), ("rest", toJSON x) ]
 
 
 partial
