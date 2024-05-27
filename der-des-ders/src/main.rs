@@ -1,52 +1,130 @@
 use core::fmt;
+use std::io::{prelude::*, stdin, stdout, Stdin, Stdout};
 use std::{
     collections::HashMap,
     fmt::{Display, Formatter},
 };
 
-trait Output {
-    fn output(&self);
+enum Output {
+    CurrentState(GameState),
+    ChooseInitiative,
 }
 
-impl Output for String {
-    fn output(&self) {
-        println!("{}", self);
+impl Display for Output {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Output::CurrentState(st) => write!(f, "Current state: {}", st),
+            Output::ChooseInitiative => todo!(),
+        }
     }
 }
 
-fn input(prompt: &str) -> Command {
-    prompt.to_string().output();
-    let mut command_string: String = String::new();
-    std::io::stdin().read_line(&mut command_string).unwrap();
-    parse(command_string.trim().to_string()).unwrap_or_else(|()| {
-        "Invalid command".to_string().output();
-        input(prompt)
-    })
-}
-
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
-enum Command {
+enum Input {
+    PRForInitiative(u8),
     Next,
 }
 
-fn parse(string: String) -> Result<Command, ()> {
+trait Player {
+    fn output(&self, message: Output);
+    fn input(&self) -> Input;
+}
+
+struct Console {
+    inp: Stdin,
+    outp: Stdout,
+}
+
+impl Player for Console {
+    fn output(&self, message: Output) {
+        let mut stdout = self.outp.lock();
+        stdout.write_all(format!("{}\n", message).as_bytes());
+    }
+
+    fn input(&self) -> Input {
+        let mut command_string: String = String::new();
+        self.inp.read_line(&mut command_string).unwrap();
+        parse(command_string.trim().to_string()).unwrap_or_else(|()| self.input())
+    }
+}
+
+struct RobotIO {}
+
+impl Player for RobotIO {
+    fn output(&self, message: Output) {
+        todo!()
+    }
+
+    fn input(&self) -> Input {
+        todo!()
+    }
+}
+
+fn parse(string: String) -> Result<Input, ()> {
     match string.to_lowercase().as_str() {
-        "next" => Ok(Command::Next),
-        "n" => Ok(Command::Next),
+        "next" => Ok(Input::Next),
+        "n" => Ok(Input::Next),
         _ => Err(()),
     }
 }
 
+enum PlayerType {
+    Human,
+    Robot,
+}
+
+struct Options {
+    allies: PlayerType,
+    empires: PlayerType,
+}
+
+const DEFAULT_OPTIONS: Options = Options {
+    allies: PlayerType::Human,
+    empires: PlayerType::Robot,
+};
+
+struct Players {
+    allies_player: Box<dyn Player>,
+    empires_player: Box<dyn Player>,
+}
+
 fn main() {
     let mut game_state = initial_game_state();
+    let players = initialise_players(DEFAULT_OPTIONS);
     while game_state.current_turn < 15 {
-        game_state.output();
-        let command = input("Next turn");
-        match command {
-            Command::Next => {
-                game_state.current_turn += 1;
-            }
+        run_turn(&players, &mut game_state);
+    }
+}
+
+fn initialise_players(default_options: Options) -> Players {
+    let allies_player = make_player(default_options.allies);
+    let empires_player = make_player(default_options.empires);
+    Players {
+        allies_player,
+        empires_player,
+    }
+}
+
+fn make_player(player_type: PlayerType) -> Box<dyn Player> {
+    match player_type {
+        PlayerType::Human => Box::new(Console {
+            inp: stdin(),
+            outp: stdout(),
+        }),
+        PlayerType::Robot => Box::new(RobotIO {}),
+    }
+}
+
+fn run_turn(players: &Players, game_state: &mut GameState) {
+    players
+        .allies_player
+        .output(Output::CurrentState(game_state.to_owned()));
+    let inp = players.allies_player.input();
+    match inp {
+        Input::Next => {
+            game_state.current_turn += 1;
         }
+        _ => {}
     }
 }
 
@@ -228,25 +306,22 @@ struct GameState {
     state_of_war: Box<HashMap<Side, WarState>>,
 }
 
-impl Output for GameState {
-    fn output(&self) {
-        println!("Turn: {}", self.current_turn);
-        println!("Russian Revolution: {}", self.russian_revolution);
-        println!("Breakdown:");
-        for (nation, resources) in self.breakdown.iter() {
-            println!("{}: {}", nation, resources);
+impl Display for GameState {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        writeln!(f, "Turn: {}", self.current_turn);
+        writeln!(f, "Russian Revolution: {}", self.russian_revolution);
+        writeln!(f, "Breakdown:");
+        for (nation, breakdown) in self.breakdown.iter() {
+            writeln!(f, "\t{}: {}", nation, breakdown);
         }
-        println!("State of War:");
+        writeln!(f, "State of War:");
         for (side, war_state) in self.state_of_war.iter() {
-            println!("{}:", side);
-            println!("Resources: {}", war_state.resources);
-            println!("VP: {}", war_state.vp);
-            println!("Technologies:");
-            println!("Attack: {}", war_state.technologies.attack);
-            println!("Defense: {}", war_state.technologies.defense);
-            println!("Artillery: {}", war_state.technologies.artillery);
-            println!("Air: {}", war_state.technologies.air);
+            writeln!(f, "\t{}:", side);
+            writeln!(f, "\t\tResources: {}", war_state.resources);
+            writeln!(f, "\t\tVP: {}", war_state.vp);
+            writeln!(f, "\t\tTechnologies: {}", war_state.technologies);
         }
+        Ok(())
     }
 }
 
@@ -306,6 +381,16 @@ struct Technologies {
     defense: u8,
     artillery: u8,
     air: u8,
+}
+
+impl Display for Technologies {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(
+            f,
+            "Att {}, Def {}, Art {}, Air {}",
+            self.attack, self.defense, self.artillery, self.air
+        )
+    }
 }
 
 fn initial_technologies() -> Technologies {
