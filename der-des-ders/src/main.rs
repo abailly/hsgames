@@ -24,15 +24,15 @@ fn input(prompt: &str) -> Command {
     })
 }
 
+#[derive(Eq, PartialEq, Copy, Clone, Debug)]
 enum Command {
     Next,
 }
 
 fn parse(string: String) -> Result<Command, ()> {
-    match string.as_str() {
+    match string.to_lowercase().as_str() {
         "next" => Ok(Command::Next),
         "n" => Ok(Command::Next),
-        "N" => Ok(Command::Next),
         _ => Err(()),
     }
 }
@@ -519,8 +519,19 @@ const ALLIES_TECHNOLOGIES: [[Option<Technology>; 7]; 4] = [
 
 #[cfg(test)]
 mod tests {
+    use crate::{parse, Command::*};
+
     #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
+    fn parses_valid_commands() {
+        for command in &["next", "n", "N", "Next"] {
+            assert_eq!(parse(command.to_string()), Ok(Next));
+        }
+    }
+
+    #[test]
+    fn rejects_invalid_commands() {
+        for command in &["ne", "x", ""] {
+            assert_eq!(parse(command.to_string()), Err(()));
+        }
     }
 }
