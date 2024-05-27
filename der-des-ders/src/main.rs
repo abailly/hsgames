@@ -14,19 +14,19 @@ impl Display for Output {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Output::CurrentState(st) => write!(f, "Current state: {}", st),
-            Output::ChooseInitiative => todo!(),
+            Output::ChooseInitiative => write!(f, "Select PR for initiative"),
         }
     }
 }
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 enum Input {
-    PRForInitiative(u8),
+    Number(u8),
     Next,
 }
 
 trait Player {
-    fn output(&self, message: Output);
+    fn output(&self, message: &Output);
     fn input(&self) -> Input;
 }
 
@@ -36,7 +36,7 @@ struct Console {
 }
 
 impl Player for Console {
-    fn output(&self, message: Output) {
+    fn output(&self, message: &Output) {
         let mut stdout = self.outp.lock();
         stdout.write_all(format!("{}\n", message).as_bytes());
     }
@@ -51,12 +51,12 @@ impl Player for Console {
 struct RobotIO {}
 
 impl Player for RobotIO {
-    fn output(&self, message: Output) {
-        todo!()
+    fn output(&self, message: &Output) {
+        // TODO
     }
 
     fn input(&self) -> Input {
-        todo!()
+        Input::Next
     }
 }
 
@@ -115,10 +115,22 @@ fn make_player(player_type: PlayerType) -> Box<dyn Player> {
     }
 }
 
+impl Player for Players {
+    fn output(&self, message: &Output) {
+        self.allies_player.output(message);
+        self.empires_player.output(message);
+    }
+
+    fn input(&self) -> Input {
+        todo!()
+    }
+}
+
 fn run_turn(players: &Players, game_state: &mut GameState) {
-    players
-        .allies_player
-        .output(Output::CurrentState(game_state.to_owned()));
+    players.output(&Output::CurrentState(game_state.to_owned()));
+    if game_state.current_turn > 1 {
+        determine_initiative(players, game_state);
+    }
     let inp = players.allies_player.input();
     match inp {
         Input::Next => {
@@ -126,6 +138,30 @@ fn run_turn(players: &Players, game_state: &mut GameState) {
         }
         _ => {}
     }
+}
+
+/// Decide whose player has the initiative
+/// This is only valid when turn > 1 as the empires automatically have the
+/// initiative on the first turn
+fn determine_initiative(players: &Players, game_state: &mut GameState) {
+    players.output(&Output::ChooseInitiative);
+    let allies_pr = match players.allies_player.input() {
+        Input::Number(pr) => pr,
+        _ => 0,
+    };
+    let empires_pr = match players.empires_player.input() {
+        Input::Number(pr) => pr,
+        _ => 0,
+    };
+    let allies_die = 0; //game_state.roll();
+    let empires_die = 0; //game_state.roll();
+
+    if allies_die + allies_pr > empires_die + empires_pr {
+        game_state.initiative = Side::Empires;
+        game_state.reduce_pr(Side::Allies, allies_pr);
+        game_state.reduce_pr(Side::Empires, empires_pr);
+    }
+    players.output(&Output::CurrentState(game_state.to_owned()));
 }
 
 #[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
@@ -301,9 +337,26 @@ struct WarState {
 #[derive(Eq, PartialEq, Clone, Debug)]
 struct GameState {
     current_turn: u8,
+    initiative: Side,
     russian_revolution: u8,
     breakdown: Box<HashMap<Nation, u8>>,
     state_of_war: Box<HashMap<Side, WarState>>,
+}
+
+impl GameState {
+    fn reduce_pr(&mut self, side: Side, pr: u8) -> &mut Self {
+        let st = self.state_of_war.get_mut(&side).unwrap();
+        if st.resources >= pr {
+            st.resources -= pr;
+        }
+        self
+    }
+
+    fn increase_pr(&mut self, side: Side, pr: u8) -> &mut Self {
+        let st = self.state_of_war.get_mut(&side).unwrap();
+        st.resources += pr;
+        self
+    }
 }
 
 impl Display for GameState {
@@ -369,6 +422,7 @@ fn initial_game_state() -> GameState {
 
     GameState {
         current_turn: 1,
+        initiative: Side::Empires,
         russian_revolution: 0,
         breakdown: Box::new(breakdown),
         state_of_war: Box::new(initial_state_of_war),
@@ -604,13 +658,18 @@ const ALLIES_TECHNOLOGIES: [[Option<Technology>; 7]; 4] = [
 
 #[cfg(test)]
 mod tests {
-    use crate::{parse, Command::*};
+    use crate::{initial_game_state, parse, Input::*, Side::*};
 
     #[test]
-    fn parses_valid_commands() {
+    fn parses_next_command() {
         for command in &["next", "n", "N", "Next"] {
             assert_eq!(parse(command.to_string()), Ok(Next));
         }
+    }
+
+    #[test]
+    fn parses_number() {
+        assert_eq!(parse("12".to_string()), Ok(Number(12)));
     }
 
     #[test]
@@ -618,5 +677,21 @@ mod tests {
         for command in &["ne", "x", ""] {
             assert_eq!(parse(command.to_string()), Err(()));
         }
+    }
+
+    #[test]
+    fn adjusts_resources_given_a_side_and_some_amount() {
+        let mut state = initial_game_state();
+        state.increase_pr(Allies, 4);
+        assert_eq!(4, state.state_of_war.get(&Allies).unwrap().resources);
+        state.reduce_pr(Allies, 3);
+        assert_eq!(1, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn cannot_reduce_resources_below_0() {
+        let mut state = initial_game_state();
+        state.reduce_pr(Allies, 3);
+        assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
