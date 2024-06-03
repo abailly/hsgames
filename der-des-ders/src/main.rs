@@ -1,9 +1,17 @@
+#![feature(assert_matches)]
+
 use core::fmt;
 use std::io::{prelude::*, stdin, stdout, Stdin, Stdout};
 use std::{
     collections::HashMap,
     fmt::{Display, Formatter},
 };
+
+use nom::branch::alt;
+use nom::bytes::complete::{tag, tag_no_case};
+use nom::character::complete::digit1;
+use nom::combinator::{all_consuming, map, map_res};
+use nom::IResult;
 
 enum Output {
     CurrentState(GameState),
@@ -44,7 +52,7 @@ impl Player for Console {
     fn input(&self) -> Input {
         let mut command_string: String = String::new();
         self.inp.read_line(&mut command_string).unwrap();
-        parse(command_string.trim().to_string()).unwrap_or_else(|()| self.input())
+        parse(command_string.trim()).unwrap_or_else(|_| self.input())
     }
 }
 
@@ -60,11 +68,28 @@ impl Player for RobotIO {
     }
 }
 
-fn parse(string: String) -> Result<Input, ()> {
-    match string.to_lowercase().as_str() {
-        "next" => Ok(Input::Next),
-        "n" => Ok(Input::Next),
-        _ => Err(()),
+pub fn num(input: &str) -> IResult<&str, Input> {
+    map(map_res(digit1, |s: &str| s.parse::<u8>()), |n| {
+        Input::Number(n)
+    })(input)
+}
+
+#[derive(Debug, PartialEq, Eq)]
+enum ParseError {
+    TooManyCharacters(String),
+    ParserFailed(String),
+}
+
+fn parse(string: &str) -> Result<Input, ParseError> {
+    let next = map(
+        alt((all_consuming(tag_no_case("n")), tag_no_case("next"))),
+        |_| Input::Next,
+    );
+    let res = alt((next, num))(string);
+    match res {
+        Ok(("", res)) => Ok(res),
+        Ok((rem, _)) => Err(ParseError::TooManyCharacters(rem.to_string())),
+        Err(err) => Err(ParseError::ParserFailed(err.to_string())),
     }
 }
 
@@ -658,24 +683,26 @@ const ALLIES_TECHNOLOGIES: [[Option<Technology>; 7]; 4] = [
 
 #[cfg(test)]
 mod tests {
+    use std::assert_matches::assert_matches;
+
     use crate::{initial_game_state, parse, Input::*, Side::*};
 
     #[test]
     fn parses_next_command() {
         for command in &["next", "n", "N", "Next"] {
-            assert_eq!(parse(command.to_string()), Ok(Next));
+            assert_eq!(parse(command), Ok(Next));
         }
     }
 
     #[test]
     fn parses_number() {
-        assert_eq!(parse("12".to_string()), Ok(Number(12)));
+        assert_eq!(parse("12"), Ok(Number(12)));
     }
 
     #[test]
     fn rejects_invalid_commands() {
         for command in &["ne", "x", ""] {
-            assert_eq!(parse(command.to_string()), Err(()));
+            assert_matches!(parse(command), Err(_));
         }
     }
 
