@@ -183,10 +183,12 @@ fn determine_initiative(players: &mut Players, game_state: &mut GameState) {
         let empires_die = 0; //game_state.roll();
 
         if allies_die + allies_pr > empires_die + empires_pr {
+            game_state.initiative = Side::Allies;
+        } else {
             game_state.initiative = Side::Empires;
-            game_state.reduce_pr(Side::Allies, allies_pr);
-            game_state.reduce_pr(Side::Empires, empires_pr);
         }
+        game_state.reduce_pr(Side::Allies, allies_pr);
+        game_state.reduce_pr(Side::Empires, empires_pr);
     }
     players.output(&Output::CurrentState(game_state.to_owned()));
 }
@@ -732,6 +734,7 @@ mod tests {
 
     struct PlayerDouble {
         out: Box<Vec<Output>>,
+        inp: Box<Vec<Input>>,
     }
 
     impl Player for PlayerDouble {
@@ -740,7 +743,7 @@ mod tests {
         }
 
         fn input(&mut self) -> Input {
-            todo!()
+            self.inp.pop().unwrap()
         }
     }
 
@@ -749,9 +752,11 @@ mod tests {
         let mut state = initial_game_state();
         let allies = PlayerDouble {
             out: Box::new(Vec::new()),
+            inp: Box::new(vec![]),
         };
         let empires = PlayerDouble {
             out: Box::new(Vec::new()),
+            inp: Box::new(vec![]),
         };
         let mut players = Players {
             allies_player: Box::new(allies),
@@ -760,5 +765,86 @@ mod tests {
         determine_initiative(&mut players, &mut state);
 
         assert_eq!(Empires, state.initiative)
+    }
+
+    #[test]
+    fn allies_have_initiative_on_second_turn_given_they_bid_more_pr() {
+        let mut state = initial_game_state();
+        state.current_turn = 2;
+
+        let allies = PlayerDouble {
+            out: Box::new(Vec::new()),
+            inp: Box::new(vec![Number(2)]),
+        };
+        let empires = PlayerDouble {
+            out: Box::new(Vec::new()),
+            inp: Box::new(vec![Number(1)]),
+        };
+        let mut players = Players {
+            allies_player: Box::new(allies),
+            empires_player: Box::new(empires),
+        };
+        determine_initiative(&mut players, &mut state);
+
+        assert_eq!(Allies, state.initiative)
+    }
+
+    #[test]
+    fn empires_have_initiative_on_second_turn_given_they_bid_more_pr() {
+        let mut state = initial_game_state();
+        state.current_turn = 2;
+
+        let allies = PlayerDouble {
+            out: Box::new(Vec::new()),
+            inp: Box::new(vec![Number(1)]),
+        };
+        let empires = PlayerDouble {
+            out: Box::new(Vec::new()),
+            inp: Box::new(vec![Number(2)]),
+        };
+        let mut players = Players {
+            allies_player: Box::new(allies),
+            empires_player: Box::new(empires),
+        };
+        determine_initiative(&mut players, &mut state);
+
+        assert_eq!(Empires, state.initiative)
+    }
+
+    #[test]
+    fn initiative_consumes_bid_pr_from_both_sides() {
+        let mut state = initial_game_state();
+        let initial_allies_resources = 4;
+        let initial_empires_resources = 5;
+        let allies_bid = 1;
+        let empires_bid = 2;
+
+        state.increase_pr(Allies, initial_allies_resources);
+        state.increase_pr(Empires, initial_empires_resources);
+
+        state.current_turn = 2;
+
+        let allies = PlayerDouble {
+            out: Box::new(Vec::new()),
+            inp: Box::new(vec![Number(allies_bid)]),
+        };
+        let empires = PlayerDouble {
+            out: Box::new(Vec::new()),
+            inp: Box::new(vec![Number(empires_bid)]),
+        };
+        let mut players = Players {
+            allies_player: Box::new(allies),
+            empires_player: Box::new(empires),
+        };
+        determine_initiative(&mut players, &mut state);
+
+        assert_eq!(
+            initial_allies_resources - allies_bid,
+            state.state_of_war.get(&Allies).unwrap().resources
+        );
+        assert_eq!(
+            initial_empires_resources - empires_bid,
+            state.state_of_war.get(&Empires).unwrap().resources
+        )
     }
 }
