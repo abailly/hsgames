@@ -13,6 +13,7 @@ use nom::character::complete::digit1;
 use nom::combinator::{all_consuming, map, map_res};
 use nom::IResult;
 
+#[derive(Eq, PartialEq, Clone, Debug)]
 enum Output {
     CurrentState(GameState),
     ChooseInitiative,
@@ -34,8 +35,8 @@ enum Input {
 }
 
 trait Player {
-    fn output(&self, message: &Output);
-    fn input(&self) -> Input;
+    fn output(&mut self, message: &Output);
+    fn input(&mut self) -> Input;
 }
 
 struct Console {
@@ -44,12 +45,12 @@ struct Console {
 }
 
 impl Player for Console {
-    fn output(&self, message: &Output) {
+    fn output(&mut self, message: &Output) {
         let mut stdout = self.outp.lock();
         stdout.write_all(format!("{}\n", message).as_bytes());
     }
 
-    fn input(&self) -> Input {
+    fn input(&mut self) -> Input {
         let mut command_string: String = String::new();
         self.inp.read_line(&mut command_string).unwrap();
         parse(command_string.trim()).unwrap_or_else(|_| self.input())
@@ -59,16 +60,16 @@ impl Player for Console {
 struct RobotIO {}
 
 impl Player for RobotIO {
-    fn output(&self, message: &Output) {
+    fn output(&mut self, message: &Output) {
         // TODO
     }
 
-    fn input(&self) -> Input {
+    fn input(&mut self) -> Input {
         Input::Next
     }
 }
 
-pub fn num(input: &str) -> IResult<&str, Input> {
+fn num(input: &str) -> IResult<&str, Input> {
     map(map_res(digit1, |s: &str| s.parse::<u8>()), |n| {
         Input::Number(n)
     })(input)
@@ -115,9 +116,9 @@ struct Players {
 
 fn main() {
     let mut game_state = initial_game_state();
-    let players = initialise_players(DEFAULT_OPTIONS);
+    let mut players = initialise_players(DEFAULT_OPTIONS);
     while game_state.current_turn < 15 {
-        run_turn(&players, &mut game_state);
+        run_turn(&mut players, &mut game_state);
     }
 }
 
@@ -141,21 +142,20 @@ fn make_player(player_type: PlayerType) -> Box<dyn Player> {
 }
 
 impl Player for Players {
-    fn output(&self, message: &Output) {
+    fn output(&mut self, message: &Output) {
         self.allies_player.output(message);
         self.empires_player.output(message);
     }
 
-    fn input(&self) -> Input {
+    fn input(&mut self) -> Input {
         todo!()
     }
 }
 
-fn run_turn(players: &Players, game_state: &mut GameState) {
+fn run_turn(players: &mut Players, game_state: &mut GameState) {
     players.output(&Output::CurrentState(game_state.to_owned()));
-    if game_state.current_turn > 1 {
-        determine_initiative(players, game_state);
-    }
+    determine_initiative(players, game_state);
+
     let inp = players.allies_player.input();
     match inp {
         Input::Next => {
@@ -168,23 +168,25 @@ fn run_turn(players: &Players, game_state: &mut GameState) {
 /// Decide whose player has the initiative
 /// This is only valid when turn > 1 as the empires automatically have the
 /// initiative on the first turn
-fn determine_initiative(players: &Players, game_state: &mut GameState) {
-    players.output(&Output::ChooseInitiative);
-    let allies_pr = match players.allies_player.input() {
-        Input::Number(pr) => pr,
-        _ => 0,
-    };
-    let empires_pr = match players.empires_player.input() {
-        Input::Number(pr) => pr,
-        _ => 0,
-    };
-    let allies_die = 0; //game_state.roll();
-    let empires_die = 0; //game_state.roll();
+fn determine_initiative(players: &mut Players, game_state: &mut GameState) {
+    if game_state.current_turn > 1 {
+        players.output(&Output::ChooseInitiative);
+        let allies_pr = match players.allies_player.input() {
+            Input::Number(pr) => pr,
+            _ => 0,
+        };
+        let empires_pr = match players.empires_player.input() {
+            Input::Number(pr) => pr,
+            _ => 0,
+        };
+        let allies_die = 0; //game_state.roll();
+        let empires_die = 0; //game_state.roll();
 
-    if allies_die + allies_pr > empires_die + empires_pr {
-        game_state.initiative = Side::Empires;
-        game_state.reduce_pr(Side::Allies, allies_pr);
-        game_state.reduce_pr(Side::Empires, empires_pr);
+        if allies_die + allies_pr > empires_die + empires_pr {
+            game_state.initiative = Side::Empires;
+            game_state.reduce_pr(Side::Allies, allies_pr);
+            game_state.reduce_pr(Side::Empires, empires_pr);
+        }
     }
     players.output(&Output::CurrentState(game_state.to_owned()));
 }
@@ -685,7 +687,13 @@ const ALLIES_TECHNOLOGIES: [[Option<Technology>; 7]; 4] = [
 mod tests {
     use std::assert_matches::assert_matches;
 
-    use crate::{initial_game_state, parse, Input::*, Side::*};
+    use crate::{
+        determine_initiative, initial_game_state, parse,
+        Input::{self, *},
+        Output::{self, *},
+        Player, Players,
+        Side::*,
+    };
 
     #[test]
     fn parses_next_command() {
@@ -720,5 +728,37 @@ mod tests {
         let mut state = initial_game_state();
         state.reduce_pr(Allies, 3);
         assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    struct PlayerDouble {
+        out: Box<Vec<Output>>,
+    }
+
+    impl Player for PlayerDouble {
+        fn output(&mut self, message: &Output) {
+            self.out.push(message.clone());
+        }
+
+        fn input(&mut self) -> Input {
+            todo!()
+        }
+    }
+
+    #[test]
+    fn empires_has_initiative_on_first_turn() {
+        let mut state = initial_game_state();
+        let allies = PlayerDouble {
+            out: Box::new(Vec::new()),
+        };
+        let empires = PlayerDouble {
+            out: Box::new(Vec::new()),
+        };
+        let mut players = Players {
+            allies_player: Box::new(allies),
+            empires_player: Box::new(empires),
+        };
+        determine_initiative(&mut players, &mut state);
+
+        assert_eq!(Empires, state.initiative)
     }
 }
