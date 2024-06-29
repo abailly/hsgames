@@ -2,6 +2,7 @@
 
 use core::fmt;
 use rand::prelude::*;
+use std::cmp::Ordering;
 use std::io::{prelude::*, stdin, stdout, Stdin, Stdout};
 use std::{
     collections::HashMap,
@@ -166,11 +167,8 @@ fn run_turn(players: &mut Players, game_state: &mut GameState) {
     determine_initiative(players, game_state);
 
     let inp = players.allies_player.input();
-    match inp {
-        Input::Next => {
-            game_state.current_turn += 1;
-        }
-        _ => {}
+    if let Input::Next = inp {
+        game_state.current_turn += 1;
     }
 }
 
@@ -192,8 +190,11 @@ const DEFAULT_INITIATIVE: [Side; 14] = [
 ];
 
 /// Decide whose player has the initiative
-/// This is only valid when turn > 1 as the empires automatically have the
-/// initiative on the first turn
+///
+/// * On turn 1, the empires automatically have the initiative
+/// * On subsequent turns, players bid PR for initiative and add a die roll. The player with the highest
+///   total has the initiative. In case of a tie, the initiative is defined from the DEFAULT_INITIATIVE
+///   array.
 fn determine_initiative(players: &mut Players, game_state: &mut GameState) {
     if game_state.current_turn > 1 {
         players.output(&Output::ChooseInitiative);
@@ -208,13 +209,11 @@ fn determine_initiative(players: &mut Players, game_state: &mut GameState) {
         let allies_initiative = allies_pr + game_state.roll();
         let empires_initiative = empires_pr + game_state.roll();
 
-        if allies_initiative > empires_initiative {
-            game_state.initiative = Side::Allies;
-        } else if allies_initiative < empires_initiative {
-            game_state.initiative = Side::Empires;
-        } else {
-            game_state.initiative = DEFAULT_INITIATIVE[game_state.current_turn as usize - 1];
-        }
+        game_state.initiative = match allies_initiative.cmp(&empires_initiative) {
+            Ordering::Greater => Side::Allies,
+            Ordering::Less => Side::Empires,
+            Ordering::Equal => DEFAULT_INITIATIVE[game_state.current_turn as usize - 1],
+        };
 
         game_state.reduce_pr(Side::Allies, allies_pr);
         game_state.reduce_pr(Side::Empires, empires_pr);
@@ -234,8 +233,8 @@ struct GameState {
     current_turn: u8,
     initiative: Side,
     russian_revolution: u8,
-    breakdown: Box<HashMap<Nation, u8>>,
-    state_of_war: Box<HashMap<Side, WarState>>,
+    breakdown: HashMap<Nation, u8>,
+    state_of_war: HashMap<Side, WarState>,
     seed: u64,
     rng: StdRng,
 }
@@ -269,8 +268,8 @@ impl GameState {
             current_turn: 1,
             initiative: Side::Empires,
             russian_revolution: 0,
-            breakdown: Box::new(breakdown),
-            state_of_war: Box::new(initial_state_of_war),
+            breakdown,
+            state_of_war: initial_state_of_war,
             seed,
             rng: StdRng::seed_from_u64(seed),
         }
