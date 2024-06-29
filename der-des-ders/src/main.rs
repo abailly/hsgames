@@ -14,6 +14,12 @@ use nom::character::complete::digit1;
 use nom::combinator::{all_consuming, map, map_res};
 use nom::IResult;
 
+mod tech;
+use tech::*;
+
+mod side;
+use side::*;
+
 #[derive(Eq, PartialEq, Clone, Debug)]
 enum Output {
     CurrentState(GameState),
@@ -168,6 +174,23 @@ fn run_turn(players: &mut Players, game_state: &mut GameState) {
     }
 }
 
+const DEFAULT_INITIATIVE: [Side; 14] = [
+    Side::Empires,
+    Side::Empires,
+    Side::Empires,
+    Side::Allies,
+    Side::Empires,
+    Side::Allies,
+    Side::Allies,
+    Side::Allies,
+    Side::Allies,
+    Side::Allies,
+    Side::Empires,
+    Side::Empires,
+    Side::Allies,
+    Side::Allies,
+];
+
 /// Decide whose player has the initiative
 /// This is only valid when turn > 1 as the empires automatically have the
 /// initiative on the first turn
@@ -182,182 +205,22 @@ fn determine_initiative(players: &mut Players, game_state: &mut GameState) {
             Input::Number(pr) => pr,
             _ => 0,
         };
-        let allies_die = game_state.roll();
-        let empires_die = game_state.roll();
+        let allies_initiative = allies_pr + game_state.roll();
+        let empires_initiative = empires_pr + game_state.roll();
 
-        if allies_die + allies_pr > empires_die + empires_pr {
+        if allies_initiative > empires_initiative {
             game_state.initiative = Side::Allies;
-        } else {
+        } else if allies_initiative < empires_initiative {
             game_state.initiative = Side::Empires;
+        } else {
+            game_state.initiative = DEFAULT_INITIATIVE[game_state.current_turn as usize - 1];
         }
+
         game_state.reduce_pr(Side::Allies, allies_pr);
         game_state.reduce_pr(Side::Empires, empires_pr);
     }
     players.output(&Output::CurrentState(game_state.to_owned()));
 }
-
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
-enum Nation {
-    France,
-    Italy,
-    Russia,
-    Egypt,
-    Serbia,
-    Romania,
-    Greece,
-    FrenchAfrica,
-    Germany,
-    AustriaHungary,
-    OttomanEmpire,
-    Bulgaria,
-    GermanAfrica,
-}
-
-impl Display for Nation {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Nation::France => "France",
-                Nation::Italy => "Italy",
-                Nation::Russia => "Russia",
-                Nation::Egypt => "Egypt",
-                Nation::Serbia => "Serbia",
-                Nation::Romania => "Romania",
-                Nation::Greece => "Greece",
-                Nation::FrenchAfrica => "French Africa",
-                Nation::Germany => "Germany",
-                Nation::AustriaHungary => "Austria-Hungary",
-                Nation::OttomanEmpire => "Ottoman Empire",
-                Nation::Bulgaria => "Bulgaria",
-                Nation::GermanAfrica => "German Africa",
-            }
-        )
-    }
-}
-
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
-enum Side {
-    Allies,
-    Empires,
-}
-
-impl Display for Side {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{}",
-            match self {
-                Side::Allies => "Allies",
-                Side::Empires => "Empires",
-            }
-        )
-    }
-}
-
-#[derive(Eq, PartialEq, Clone, Debug)]
-pub struct Country {
-    nation: Nation,
-    side: Side,
-    max_tech_level: u8,
-    resources: u8,
-    attack_factor: u8,
-}
-
-pub const COUNTRIES: [Country; 13] = [
-    Country {
-        nation: Nation::France,
-        side: Side::Allies,
-        max_tech_level: 7,
-        resources: 3,
-        attack_factor: 4,
-    },
-    Country {
-        nation: Nation::Italy,
-        side: Side::Allies,
-        max_tech_level: 3,
-        resources: 2,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Russia,
-        side: Side::Allies,
-        max_tech_level: 3,
-        resources: 0,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Egypt,
-        side: Side::Allies,
-        max_tech_level: 2,
-        resources: 2,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Serbia,
-        side: Side::Allies,
-        max_tech_level: 2,
-        resources: 1,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Romania,
-        side: Side::Allies,
-        max_tech_level: 2,
-        resources: 1,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Greece,
-        side: Side::Allies,
-        max_tech_level: 2,
-        resources: 0,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::FrenchAfrica,
-        side: Side::Allies,
-        max_tech_level: 0,
-        resources: 2,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Germany,
-        side: Side::Empires,
-        max_tech_level: 8,
-        resources: 4,
-        attack_factor: 4,
-    },
-    Country {
-        nation: Nation::AustriaHungary,
-        side: Side::Empires,
-        max_tech_level: 3,
-        resources: 2,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::OttomanEmpire,
-        side: Side::Empires,
-        max_tech_level: 2,
-        resources: 2,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Bulgaria,
-        side: Side::Empires,
-        max_tech_level: 2,
-        resources: 1,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::GermanAfrica,
-        side: Side::Empires,
-        max_tech_level: 0,
-        resources: 1,
-        attack_factor: 5,
-    },
-];
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 struct WarState {
@@ -453,258 +316,99 @@ impl Display for GameState {
     }
 }
 
-const INITIAL_BREAKDOWN: [(Nation, u8); 13] = [
-    (Nation::France, 7),
-    (Nation::Italy, 5),
-    (Nation::Russia, 7),
-    (Nation::Egypt, 4),
-    (Nation::Serbia, 3),
-    (Nation::Romania, 3),
-    (Nation::Greece, 3),
-    (Nation::FrenchAfrica, 4),
-    (Nation::Germany, 8),
-    (Nation::AustriaHungary, 5),
-    (Nation::OttomanEmpire, 5),
-    (Nation::Bulgaria, 3),
-    (Nation::GermanAfrica, 4),
-];
+#[cfg(test)]
+mod fixtures {
+    use crate::{GameState, Output, Player, Side::*};
+    use crate::{Input, Players, Side};
 
-#[derive(Eq, PartialEq, Clone, Debug)]
-struct Technologies {
-    attack: u8,
-    defense: u8,
-    artillery: u8,
-    air: u8,
-}
+    pub struct PlayerDouble {
+        pub out: Box<Vec<Output>>,
+        pub inp: Box<Vec<Input>>,
+    }
 
-impl Display for Technologies {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(
-            f,
-            "Att {}, Def {}, Art {}, Air {}",
-            self.attack, self.defense, self.artillery, self.air
-        )
+    impl Player for PlayerDouble {
+        fn output(&mut self, message: &Output) {
+            self.out.push(message.clone());
+        }
+
+        fn input(&mut self) -> Input {
+            self.inp.pop().unwrap()
+        }
+    }
+
+    pub struct PlayersBuilder {
+        allies_input: Vec<Input>,
+        empires_input: Vec<Input>,
+    }
+
+    impl PlayersBuilder {
+        pub fn new() -> Self {
+            Self {
+                allies_input: Vec::new(),
+                empires_input: Vec::new(),
+            }
+        }
+
+        pub fn with_input(&mut self, side: Side, input: Input) -> &mut Self {
+            match side {
+                Allies => self.allies_input.push(input),
+                Empires => self.empires_input.push(input),
+            }
+            self
+        }
+
+        pub fn build(&self) -> Players {
+            let allies = PlayerDouble {
+                out: Box::new(Vec::new()),
+                inp: Box::new(self.allies_input.clone()),
+            };
+            let empires = PlayerDouble {
+                out: Box::new(Vec::new()),
+                inp: Box::new(self.empires_input.clone()),
+            };
+            Players {
+                allies_player: Box::new(allies),
+                empires_player: Box::new(empires),
+            }
+        }
+    }
+
+    pub struct StateBuilder {
+        state: GameState,
+    }
+
+    impl StateBuilder {
+        pub fn new(seed: i32) -> Self {
+            StateBuilder {
+                state: GameState::new(seed as u64),
+            }
+        }
+
+        pub fn with_resources(&mut self, side: Side, pr: u8) -> &mut Self {
+            self.state.increase_pr(side, pr);
+            self
+        }
+
+        pub fn on_turn(&mut self, turn: u8) -> &mut Self {
+            self.state.current_turn = turn;
+            self
+        }
+
+        pub fn build(&self) -> GameState {
+            self.state.clone()
+        }
     }
 }
-
-fn initial_technologies() -> Technologies {
-    Technologies {
-        attack: 0,
-        defense: 0,
-        artillery: 0,
-        air: 0,
-    }
-}
-
-pub struct Technology {
-    pub name: &'static str,
-    pub date: u16,
-    pub min_dice_unlock: u8,
-}
-
-pub const EMPIRE_TECHNOLOGIES: [[Option<Technology>; 7]; 4] = [
-    // Attack
-    [
-        Some(Technology {
-            name: "Combat Gas",
-            date: 1915,
-            min_dice_unlock: 4,
-        }),
-        Some(Technology {
-            name: "Firepower",
-            date: 1916,
-            min_dice_unlock: 5,
-        }),
-        Some(Technology {
-            name: "Stosstruppen",
-            date: 1917,
-            min_dice_unlock: 6,
-        }),
-        None,
-        None,
-        None,
-        None,
-    ],
-    // Defense
-    [
-        Some(Technology {
-            name: "Machine guns",
-            date: 1914,
-            min_dice_unlock: 4,
-        }),
-        Some(Technology {
-            name: "Trench warfare",
-            date: 1915,
-            min_dice_unlock: 5,
-        }),
-        Some(Technology {
-            name: "Bunkers",
-            date: 1916,
-            min_dice_unlock: 5,
-        }),
-        Some(Technology {
-            name: "Hindenburg line",
-            date: 1917,
-            min_dice_unlock: 6,
-        }),
-        None,
-        None,
-        None,
-    ],
-    // Artillery
-    [
-        Some(Technology {
-            name: "Heavy artillery",
-            date: 1915,
-            min_dice_unlock: 4,
-        }),
-        Some(Technology {
-            name: "Barrage fire",
-            date: 1916,
-            min_dice_unlock: 5,
-        }),
-        Some(Technology {
-            name: "Bruchmüller",
-            date: 1917,
-            min_dice_unlock: 6,
-        }),
-        None,
-        None,
-        None,
-        None,
-    ],
-    // Air
-    [
-        Some(Technology {
-            name: "Reco",
-            date: 1915,
-            min_dice_unlock: 5,
-        }),
-        None,
-        None,
-        None,
-        Some(Technology {
-            name: "Jagdstaffeln",
-            date: 1916,
-            min_dice_unlock: 5,
-        }),
-        Some(Technology {
-            name: "Fokker D.VII",
-            date: 1918,
-            min_dice_unlock: 5,
-        }),
-        None,
-    ],
-];
-
-pub const ALLIES_TECHNOLOGIES: [[Option<Technology>; 7]; 4] = [
-    // Attack
-    [
-        Some(Technology {
-            name: "Combat Gas",
-            date: 1915,
-            min_dice_unlock: 4,
-        }),
-        Some(Technology {
-            name: "New Tactics",
-            date: 1916,
-            min_dice_unlock: 5,
-        }),
-        Some(Technology {
-            name: "English Tanks Mark",
-            date: 1917,
-            min_dice_unlock: 6,
-        }),
-        Some(Technology {
-            name: "French Tanks Renault FT",
-            date: 1918,
-            min_dice_unlock: 6,
-        }),
-        None,
-        None,
-        None,
-    ],
-    // Defense
-    [
-        Some(Technology {
-            name: "Machine guns",
-            date: 1914,
-            min_dice_unlock: 4,
-        }),
-        Some(Technology {
-            name: "Trench warfare",
-            date: 1915,
-            min_dice_unlock: 5,
-        }),
-        Some(Technology {
-            name: "Bunkers",
-            date: 1916,
-            min_dice_unlock: 6,
-        }),
-        None,
-        None,
-        None,
-        None,
-    ],
-    // Artillery
-    [
-        Some(Technology {
-            name: "Heavy artillery",
-            date: 1915,
-            min_dice_unlock: 4,
-        }),
-        Some(Technology {
-            name: "Barrage fire",
-            date: 1916,
-            min_dice_unlock: 5,
-        }),
-        Some(Technology {
-            name: "Rolling barrage",
-            date: 1916,
-            min_dice_unlock: 6,
-        }),
-        None,
-        None,
-        None,
-        None,
-    ],
-    // Air
-    [
-        Some(Technology {
-            name: "Reco",
-            date: 1915,
-            min_dice_unlock: 5,
-        }),
-        None,
-        None,
-        Some(Technology {
-            name: "Nieuport 11",
-            date: 1916,
-            min_dice_unlock: 5,
-        }),
-        Some(Technology {
-            name: "Spad",
-            date: 1917,
-            min_dice_unlock: 5,
-        }),
-        None,
-        Some(Technology {
-            name: "Air division",
-            date: 1918,
-            min_dice_unlock: 6,
-        }),
-    ],
-];
 
 #[cfg(test)]
 mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        determine_initiative, parse, GameState,
-        Input::{self, *},
-        Output::{self},
-        Player, Players,
+        determine_initiative,
+        fixtures::{PlayersBuilder, StateBuilder},
+        parse, GameState,
+        Input::*,
         Side::*,
     };
 
@@ -743,36 +447,11 @@ mod tests {
         assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
     }
 
-    struct PlayerDouble {
-        out: Box<Vec<Output>>,
-        inp: Box<Vec<Input>>,
-    }
-
-    impl Player for PlayerDouble {
-        fn output(&mut self, message: &Output) {
-            self.out.push(message.clone());
-        }
-
-        fn input(&mut self) -> Input {
-            self.inp.pop().unwrap()
-        }
-    }
-
     #[test]
     fn empires_has_initiative_on_first_turn() {
-        let mut state = GameState::new(12);
-        let allies = PlayerDouble {
-            out: Box::new(Vec::new()),
-            inp: Box::new(vec![]),
-        };
-        let empires = PlayerDouble {
-            out: Box::new(Vec::new()),
-            inp: Box::new(vec![]),
-        };
-        let mut players = Players {
-            allies_player: Box::new(allies),
-            empires_player: Box::new(empires),
-        };
+        let mut state = StateBuilder::new(12).build();
+        let mut players = PlayersBuilder::new().build();
+
         determine_initiative(&mut players, &mut state);
 
         assert_eq!(Empires, state.initiative)
@@ -780,21 +459,12 @@ mod tests {
 
     #[test]
     fn allies_have_initiative_on_second_turn_given_they_bid_more_pr() {
-        let mut state = GameState::new(12);
-        state.current_turn = 2;
+        let mut state = StateBuilder::new(12).on_turn(2).build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Number(2))
+            .with_input(Empires, Number(1))
+            .build();
 
-        let allies = PlayerDouble {
-            out: Box::new(Vec::new()),
-            inp: Box::new(vec![Number(2)]),
-        };
-        let empires = PlayerDouble {
-            out: Box::new(Vec::new()),
-            inp: Box::new(vec![Number(1)]),
-        };
-        let mut players = Players {
-            allies_player: Box::new(allies),
-            empires_player: Box::new(empires),
-        };
         determine_initiative(&mut players, &mut state);
 
         assert_eq!(Allies, state.initiative)
@@ -802,21 +472,12 @@ mod tests {
 
     #[test]
     fn empires_have_initiative_on_second_turn_given_they_bid_more_pr() {
-        let mut state = GameState::new(12);
-        state.current_turn = 2;
+        let mut state = StateBuilder::new(12).on_turn(2).build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Number(1))
+            .with_input(Empires, Number(2))
+            .build();
 
-        let allies = PlayerDouble {
-            out: Box::new(Vec::new()),
-            inp: Box::new(vec![Number(1)]),
-        };
-        let empires = PlayerDouble {
-            out: Box::new(Vec::new()),
-            inp: Box::new(vec![Number(2)]),
-        };
-        let mut players = Players {
-            allies_player: Box::new(allies),
-            empires_player: Box::new(empires),
-        };
         determine_initiative(&mut players, &mut state);
 
         assert_eq!(Empires, state.initiative)
@@ -824,29 +485,21 @@ mod tests {
 
     #[test]
     fn initiative_consumes_bid_pr_from_both_sides() {
-        let mut state = GameState::new(12);
-        let initial_allies_resources = 4;
-        let initial_empires_resources = 5;
         let allies_bid = 1;
         let empires_bid = 2;
+        let initial_allies_resources = 4;
+        let initial_empires_resources = 5;
 
-        state.increase_pr(Allies, initial_allies_resources);
-        state.increase_pr(Empires, initial_empires_resources);
+        let mut state = StateBuilder::new(12)
+            .with_resources(Allies, initial_allies_resources)
+            .with_resources(Empires, initial_empires_resources)
+            .on_turn(2)
+            .build();
 
-        state.current_turn = 2;
-
-        let allies = PlayerDouble {
-            out: Box::new(Vec::new()),
-            inp: Box::new(vec![Number(allies_bid)]),
-        };
-        let empires = PlayerDouble {
-            out: Box::new(Vec::new()),
-            inp: Box::new(vec![Number(empires_bid)]),
-        };
-        let mut players = Players {
-            allies_player: Box::new(allies),
-            empires_player: Box::new(empires),
-        };
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Number(allies_bid))
+            .with_input(Empires, Number(empires_bid))
+            .build();
 
         determine_initiative(&mut players, &mut state);
 
@@ -862,28 +515,55 @@ mod tests {
 
     #[test]
     fn allies_have_initiative_if_die_roll_is_better_given_equal_bid() {
-        let mut state = GameState::new(14);
-        let initial_allies_resources = 4;
-        let initial_empires_resources = 5;
-        state.increase_pr(Allies, initial_allies_resources);
-        state.increase_pr(Empires, initial_empires_resources);
-        state.current_turn = 2;
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_resources(Empires, 5)
+            .on_turn(2)
+            .build();
 
         let allies_bid = 2;
         let empires_bid = 2;
 
-        let allies = PlayerDouble {
-            out: Box::new(Vec::new()),
-            inp: Box::new(vec![Number(allies_bid)]),
-        };
-        let empires = PlayerDouble {
-            out: Box::new(Vec::new()),
-            inp: Box::new(vec![Number(empires_bid)]),
-        };
-        let mut players = Players {
-            allies_player: Box::new(allies),
-            empires_player: Box::new(empires),
-        };
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Number(allies_bid))
+            .with_input(Empires, Number(empires_bid))
+            .build();
+
+        determine_initiative(&mut players, &mut state);
+
+        assert_eq!(Allies, state.initiative)
+    }
+
+    #[test]
+    fn empires_have_initiative_on_turn_2_given_equal_bid_and_die() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_resources(Empires, 5)
+            .on_turn(2)
+            .build();
+
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Number(2))
+            .with_input(Empires, Number(4))
+            .build();
+
+        determine_initiative(&mut players, &mut state);
+
+        assert_eq!(Empires, state.initiative)
+    }
+
+    #[test]
+    fn allies_have_initiative_on_turn_4_given_equal_bid_and_die() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_resources(Empires, 5)
+            .on_turn(4)
+            .build();
+
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Number(2))
+            .with_input(Empires, Number(4))
+            .build();
 
         determine_initiative(&mut players, &mut state);
 
