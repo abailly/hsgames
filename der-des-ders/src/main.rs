@@ -1,6 +1,7 @@
 #![feature(assert_matches)]
 
 use core::fmt;
+use rand::prelude::*;
 use std::io::{prelude::*, stdin, stdout, Stdin, Stdout};
 use std::{
     collections::HashMap,
@@ -8,7 +9,7 @@ use std::{
 };
 
 use nom::branch::alt;
-use nom::bytes::complete::{tag, tag_no_case};
+use nom::bytes::complete::tag_no_case;
 use nom::character::complete::digit1;
 use nom::combinator::{all_consuming, map, map_res};
 use nom::IResult;
@@ -47,7 +48,9 @@ struct Console {
 impl Player for Console {
     fn output(&mut self, message: &Output) {
         let mut stdout = self.outp.lock();
-        stdout.write_all(format!("{}\n", message).as_bytes());
+        stdout
+            .write_all(format!("{}\n", message).as_bytes())
+            .expect("Failed to write to stdout");
     }
 
     fn input(&mut self) -> Input {
@@ -60,7 +63,7 @@ impl Player for Console {
 struct RobotIO {}
 
 impl Player for RobotIO {
-    fn output(&mut self, message: &Output) {
+    fn output(&mut self, _message: &Output) {
         // TODO
     }
 
@@ -115,7 +118,7 @@ struct Players {
 }
 
 fn main() {
-    let mut game_state = initial_game_state();
+    let mut game_state = GameState::new(42);
     let mut players = initialise_players(DEFAULT_OPTIONS);
     while game_state.current_turn < 15 {
         run_turn(&mut players, &mut game_state);
@@ -179,8 +182,8 @@ fn determine_initiative(players: &mut Players, game_state: &mut GameState) {
             Input::Number(pr) => pr,
             _ => 0,
         };
-        let allies_die = 0; //game_state.roll();
-        let empires_die = 0; //game_state.roll();
+        let allies_die = game_state.roll();
+        let empires_die = game_state.roll();
 
         if allies_die + allies_pr > empires_die + empires_pr {
             game_state.initiative = Side::Allies;
@@ -254,7 +257,7 @@ impl Display for Side {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
-struct Country {
+pub struct Country {
     nation: Nation,
     side: Side,
     max_tech_level: u8,
@@ -262,7 +265,7 @@ struct Country {
     attack_factor: u8,
 }
 
-const COUNTRIES: [Country; 13] = [
+pub const COUNTRIES: [Country; 13] = [
     Country {
         nation: Nation::France,
         side: Side::Allies,
@@ -370,9 +373,46 @@ struct GameState {
     russian_revolution: u8,
     breakdown: Box<HashMap<Nation, u8>>,
     state_of_war: Box<HashMap<Side, WarState>>,
+    seed: u64,
+    rng: StdRng,
 }
 
 impl GameState {
+    fn new(seed: u64) -> Self {
+        let breakdown = INITIAL_BREAKDOWN.iter().cloned().collect();
+        let initial_state_of_war: HashMap<Side, WarState> = [
+            (
+                Side::Allies,
+                WarState {
+                    resources: 0,
+                    vp: 0,
+                    technologies: Box::new(initial_technologies()),
+                },
+            ),
+            (
+                Side::Empires,
+                WarState {
+                    resources: 0,
+                    vp: 0,
+                    technologies: Box::new(initial_technologies()),
+                },
+            ),
+        ]
+        .iter()
+        .cloned()
+        .collect();
+
+        GameState {
+            current_turn: 1,
+            initiative: Side::Empires,
+            russian_revolution: 0,
+            breakdown: Box::new(breakdown),
+            state_of_war: Box::new(initial_state_of_war),
+            seed,
+            rng: StdRng::seed_from_u64(seed),
+        }
+    }
+
     fn reduce_pr(&mut self, side: Side, pr: u8) -> &mut Self {
         let st = self.state_of_war.get_mut(&side).unwrap();
         if st.resources >= pr {
@@ -386,9 +426,15 @@ impl GameState {
         st.resources += pr;
         self
     }
+
+    fn roll(&mut self) -> u8 {
+        self.rng.gen_range(1..=6)
+    }
 }
 
 impl Display for GameState {
+    /// TODO: take care of writeln! result
+    #[allow(unused_must_use)]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(f, "Turn: {}", self.current_turn);
         writeln!(f, "Russian Revolution: {}", self.russian_revolution);
@@ -423,41 +469,6 @@ const INITIAL_BREAKDOWN: [(Nation, u8); 13] = [
     (Nation::GermanAfrica, 4),
 ];
 
-/// Initialises the game state
-/// per section 5 of the rulebook
-fn initial_game_state() -> GameState {
-    let breakdown = INITIAL_BREAKDOWN.iter().cloned().collect();
-    let initial_state_of_war: HashMap<Side, WarState> = [
-        (
-            Side::Allies,
-            WarState {
-                resources: 0,
-                vp: 0,
-                technologies: Box::new(initial_technologies()),
-            },
-        ),
-        (
-            Side::Empires,
-            WarState {
-                resources: 0,
-                vp: 0,
-                technologies: Box::new(initial_technologies()),
-            },
-        ),
-    ]
-    .iter()
-    .cloned()
-    .collect();
-
-    GameState {
-        current_turn: 1,
-        initiative: Side::Empires,
-        russian_revolution: 0,
-        breakdown: Box::new(breakdown),
-        state_of_war: Box::new(initial_state_of_war),
-    }
-}
-
 #[derive(Eq, PartialEq, Clone, Debug)]
 struct Technologies {
     attack: u8,
@@ -485,13 +496,13 @@ fn initial_technologies() -> Technologies {
     }
 }
 
-struct Technology {
-    name: &'static str,
-    date: u16,
-    min_dice_unlock: u8,
+pub struct Technology {
+    pub name: &'static str,
+    pub date: u16,
+    pub min_dice_unlock: u8,
 }
 
-const EMPIRE_TECHNOLOGIES: [[Option<Technology>; 7]; 4] = [
+pub const EMPIRE_TECHNOLOGIES: [[Option<Technology>; 7]; 4] = [
     // Attack
     [
         Some(Technology {
@@ -586,7 +597,7 @@ const EMPIRE_TECHNOLOGIES: [[Option<Technology>; 7]; 4] = [
     ],
 ];
 
-const ALLIES_TECHNOLOGIES: [[Option<Technology>; 7]; 4] = [
+pub const ALLIES_TECHNOLOGIES: [[Option<Technology>; 7]; 4] = [
     // Attack
     [
         Some(Technology {
@@ -690,9 +701,9 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        determine_initiative, initial_game_state, parse,
+        determine_initiative, parse, GameState,
         Input::{self, *},
-        Output::{self, *},
+        Output::{self},
         Player, Players,
         Side::*,
     };
@@ -718,7 +729,7 @@ mod tests {
 
     #[test]
     fn adjusts_resources_given_a_side_and_some_amount() {
-        let mut state = initial_game_state();
+        let mut state = GameState::new(12);
         state.increase_pr(Allies, 4);
         assert_eq!(4, state.state_of_war.get(&Allies).unwrap().resources);
         state.reduce_pr(Allies, 3);
@@ -727,7 +738,7 @@ mod tests {
 
     #[test]
     fn cannot_reduce_resources_below_0() {
-        let mut state = initial_game_state();
+        let mut state = GameState::new(12);
         state.reduce_pr(Allies, 3);
         assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
     }
@@ -749,7 +760,7 @@ mod tests {
 
     #[test]
     fn empires_has_initiative_on_first_turn() {
-        let mut state = initial_game_state();
+        let mut state = GameState::new(12);
         let allies = PlayerDouble {
             out: Box::new(Vec::new()),
             inp: Box::new(vec![]),
@@ -769,7 +780,7 @@ mod tests {
 
     #[test]
     fn allies_have_initiative_on_second_turn_given_they_bid_more_pr() {
-        let mut state = initial_game_state();
+        let mut state = GameState::new(12);
         state.current_turn = 2;
 
         let allies = PlayerDouble {
@@ -791,7 +802,7 @@ mod tests {
 
     #[test]
     fn empires_have_initiative_on_second_turn_given_they_bid_more_pr() {
-        let mut state = initial_game_state();
+        let mut state = GameState::new(12);
         state.current_turn = 2;
 
         let allies = PlayerDouble {
@@ -813,7 +824,7 @@ mod tests {
 
     #[test]
     fn initiative_consumes_bid_pr_from_both_sides() {
-        let mut state = initial_game_state();
+        let mut state = GameState::new(12);
         let initial_allies_resources = 4;
         let initial_empires_resources = 5;
         let allies_bid = 1;
@@ -836,6 +847,7 @@ mod tests {
             allies_player: Box::new(allies),
             empires_player: Box::new(empires),
         };
+
         determine_initiative(&mut players, &mut state);
 
         assert_eq!(
@@ -846,5 +858,35 @@ mod tests {
             initial_empires_resources - empires_bid,
             state.state_of_war.get(&Empires).unwrap().resources
         )
+    }
+
+    #[test]
+    fn allies_have_initiative_if_die_roll_is_better_given_equal_bid() {
+        let mut state = GameState::new(14);
+        let initial_allies_resources = 4;
+        let initial_empires_resources = 5;
+        state.increase_pr(Allies, initial_allies_resources);
+        state.increase_pr(Empires, initial_empires_resources);
+        state.current_turn = 2;
+
+        let allies_bid = 2;
+        let empires_bid = 2;
+
+        let allies = PlayerDouble {
+            out: Box::new(Vec::new()),
+            inp: Box::new(vec![Number(allies_bid)]),
+        };
+        let empires = PlayerDouble {
+            out: Box::new(Vec::new()),
+            inp: Box::new(vec![Number(empires_bid)]),
+        };
+        let mut players = Players {
+            allies_player: Box::new(allies),
+            empires_player: Box::new(empires),
+        };
+
+        determine_initiative(&mut players, &mut state);
+
+        assert_eq!(Allies, state.initiative)
     }
 }
