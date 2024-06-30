@@ -25,6 +25,7 @@ use side::*;
 enum Output {
     CurrentState(GameState),
     ChooseInitiative,
+    ImproveTechnologies,
 }
 
 impl Display for Output {
@@ -32,6 +33,7 @@ impl Display for Output {
         match self {
             Output::CurrentState(st) => write!(f, "Current state: {}", st),
             Output::ChooseInitiative => write!(f, "Select PR for initiative"),
+            Output::ImproveTechnologies => write!(f, "Select PR to improve technologies"),
         }
     }
 }
@@ -172,10 +174,27 @@ fn run_turn(players: &mut Players, game_state: &mut GameState) {
     determine_initiative(players, game_state);
     collect_resources(game_state);
 
+    run_player_turn(game_state.initiative, players, game_state);
+
     let inp = players.allies_player.input();
     if let Input::Next = inp {
         game_state.current_turn += 1;
     }
+}
+
+fn run_player_turn(initiative: Side, players: &mut Players, game_state: &mut GameState) {
+    improve_technologies(initiative, players, game_state);
+}
+
+fn improve_technologies(initiative: Side, players: &mut Players, game_state: &mut GameState) {
+    match initiative {
+        Side::Allies => players.allies_player.output(&Output::ImproveTechnologies),
+        Side::Empires => players.empires_player.output(&Output::ImproveTechnologies),
+    }
+
+    match players.empires_player.input() {
+        _ => return,
+    };
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
@@ -452,6 +471,11 @@ mod fixtures {
             self.state.nations.insert(nation, status);
             self
         }
+
+        pub(crate) fn with_initiative(&mut self, initiative: Side) -> &mut Self {
+            self.state.initiative = initiative;
+            self
+        }
     }
 }
 
@@ -462,11 +486,12 @@ mod tests {
     use crate::{
         collect_resources, determine_initiative,
         fixtures::{PlayersBuilder, StateBuilder},
-        operational_level, parse, GameState,
+        improve_technologies, operational_level, parse, GameState,
         Input::*,
         Nation::*,
         NationState::*,
         Side::*,
+        ZERO_TECHNOLOGIES,
     };
 
     #[test]
@@ -681,5 +706,18 @@ mod tests {
 
         assert_eq!(14, state.state_of_war.get(&Allies).unwrap().resources);
         assert_eq!(10, state.state_of_war.get(&Empires).unwrap().resources);
+    }
+
+    #[test]
+    fn technology_does_not_change_given_player_passes_on_it() {
+        let mut state = StateBuilder::new(14).with_initiative(Empires).build();
+        let mut players = PlayersBuilder::new().with_input(Empires, Pass).build();
+
+        improve_technologies(Empires, &mut players, &mut state);
+
+        assert_eq!(
+            ZERO_TECHNOLOGIES,
+            *state.state_of_war.get(&Empires).unwrap().technologies
+        );
     }
 }

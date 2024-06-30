@@ -9,6 +9,13 @@ pub struct Technologies {
     air: u8,
 }
 
+pub const ZERO_TECHNOLOGIES: Technologies = Technologies {
+    attack: 0,
+    defense: 0,
+    artillery: 0,
+    air: 0,
+};
+
 impl Display for Technologies {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
