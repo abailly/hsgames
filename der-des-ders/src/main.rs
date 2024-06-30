@@ -39,6 +39,7 @@ impl Display for Output {
 #[derive(Eq, PartialEq, Copy, Clone, Debug)]
 enum Input {
     Number(u8),
+    Pass,
     Next,
 }
 
@@ -96,7 +97,11 @@ fn parse(string: &str) -> Result<Input, ParseError> {
         alt((all_consuming(tag_no_case("n")), tag_no_case("next"))),
         |_| Input::Next,
     );
-    let res = alt((next, num))(string);
+    let pass = map(
+        alt((all_consuming(tag_no_case("p")), tag_no_case("pass"))),
+        |_| Input::Pass,
+    );
+    let res = alt((next, pass, num))(string);
     match res {
         Ok(("", res)) => Ok(res),
         Ok((rem, _)) => Err(ParseError::TooManyCharacters(rem.to_string())),
@@ -468,6 +473,13 @@ mod tests {
     fn parses_next_command() {
         for command in &["next", "n", "N", "Next"] {
             assert_eq!(parse(command), Ok(Next));
+        }
+    }
+
+    #[test]
+    fn parses_pass_command() {
+        for command in &["pass", "p", "P", "Pass"] {
+            assert_eq!(parse(command), Ok(Pass));
         }
     }
 
