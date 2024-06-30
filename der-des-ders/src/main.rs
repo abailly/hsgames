@@ -214,8 +214,11 @@ fn improve_technology(
     n: u8,
     die: u8,
 ) {
-    let st = game_state.state_of_war.get_mut(&initiative).unwrap();
-    let techs = &mut st.technologies;
+    let techs = &mut game_state
+        .state_of_war
+        .get_mut(&initiative)
+        .unwrap()
+        .technologies;
     match tech {
         TechnologyType::Attack => {
             let current = techs.attack;
@@ -223,6 +226,7 @@ fn improve_technology(
                 if die + n >= technology.min_dice_unlock {
                     techs.attack += 1;
                 }
+                game_state.reduce_pr(initiative, n);
             }
         }
         _ => todo!(),
@@ -763,7 +767,10 @@ mod tests {
 
     #[test]
     fn empires_improve_attack_technology_1_level_given_player_spends_resources() {
-        let mut state = StateBuilder::new(14).with_initiative(Empires).build();
+        let mut state = StateBuilder::new(14)
+            .with_resources(Empires, 4)
+            .with_initiative(Empires)
+            .build();
         let mut players = PlayersBuilder::new()
             .with_input(Empires, Select(Attack, 2))
             .build();
@@ -777,5 +784,6 @@ mod tests {
             },
             *state.state_of_war.get(&Empires).unwrap().technologies
         );
+        assert_eq!(2, state.state_of_war.get(&Empires).unwrap().resources);
     }
 }
