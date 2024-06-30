@@ -243,8 +243,8 @@ fn collect_resources(game_state: &mut GameState) {
         .nations
         .iter()
         .fold(0, |acc, (nation, status)| match status {
-            NationState::AtWar(_) => match game_state.countries.get(nation) {
-                Some(_) if *nation == Nation::Russia => acc + 6,
+            NationState::AtWar(breakdown) => match game_state.countries.get(nation) {
+                Some(_) if *nation == Nation::Russia => acc + operational_level(*breakdown) * 2,
                 Some(Country {
                     side, resources, ..
                 }) if *side == Side::Allies => acc + resources,
@@ -639,6 +639,16 @@ mod tests {
         collect_resources(&mut state);
 
         assert_eq!(16, state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(9, state.state_of_war.get(&Empires).unwrap().resources);
+    }
+
+    #[test]
+    fn collect_resources_changes_allies_pr_when_russia_breakdown_changes() {
+        let mut state = StateBuilder::new(14).with_nation(Russia, AtWar(3)).build();
+
+        collect_resources(&mut state);
+
+        assert_eq!(10, state.state_of_war.get(&Allies).unwrap().resources);
         assert_eq!(9, state.state_of_war.get(&Empires).unwrap().resources);
     }
 }
