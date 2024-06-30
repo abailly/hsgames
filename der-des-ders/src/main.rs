@@ -222,6 +222,22 @@ fn determine_initiative(players: &mut Players, game_state: &mut GameState) {
     players.output(&Output::CurrentState(game_state.to_owned()));
 }
 
+fn operational_level(breakdown: u8) -> u8 {
+    match breakdown {
+        0 => 0,
+        1 => 0,
+        2 => 1,
+        3 => 1,
+        4 => 2,
+        5 => 2,
+        6 => 2,
+        7 => 3,
+        8 => 3,
+        9 => 3,
+        _ => panic!("Invalid breakdown value"),
+    }
+}
+
 fn collect_resources(game_state: &mut GameState) {
     let allies_pr = game_state
         .nations
@@ -434,7 +450,7 @@ mod tests {
     use crate::{
         collect_resources, determine_initiative,
         fixtures::{PlayersBuilder, StateBuilder},
-        parse, GameState,
+        operational_level, parse, GameState,
         Input::*,
         Nation::*,
         NationState::*,
@@ -597,6 +613,13 @@ mod tests {
         determine_initiative(&mut players, &mut state);
 
         assert_eq!(Allies, state.initiative)
+    }
+
+    #[test]
+    fn operational_level_depends_on_breakdown_value() {
+        assert_eq!(0, operational_level(0));
+        assert_eq!(1, operational_level(3));
+        assert_eq!(3, operational_level(7));
     }
 
     #[test]
