@@ -174,7 +174,10 @@ fn run_turn(players: &mut Players, game_state: &mut GameState) {
 }
 
 fn collect_resources(game_state: &mut GameState) {
-    todo!()
+    let allies_pr = 14;
+    let empires_pr = 9;
+    game_state.increase_pr(Side::Allies, allies_pr);
+    game_state.increase_pr(Side::Empires, empires_pr);
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
@@ -580,7 +583,7 @@ mod tests {
 
         collect_resources(&mut state);
 
-        assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
-        assert_eq!(3, state.state_of_war.get(&Empires).unwrap().resources);
+        assert_eq!(14, state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(9, state.state_of_war.get(&Empires).unwrap().resources);
     }
 }
