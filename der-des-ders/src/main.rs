@@ -14,7 +14,7 @@ use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
 use nom::character::complete::{char, digit1};
 use nom::combinator::{all_consuming, map, map_res};
-use nom::IResult;
+use nom::{IResult, Parser};
 
 mod tech;
 use tech::*;
@@ -106,9 +106,16 @@ fn parse(string: &str) -> Result<Input, ParseError> {
         |_| Input::Pass,
     );
     let select = map(
-        all_consuming(separated_pair(tag_no_case("attack"), char(' '), num)),
-        |(_, inp)| match inp {
-            Input::Number(n) => Input::Select(TechnologyType::Attack, n),
+        all_consuming(separated_pair(
+            alt((
+                tag_no_case("attack").map(|_| TechnologyType::Attack),
+                tag_no_case("defense").map(|_| TechnologyType::Defense),
+            )),
+            char(' '),
+            num,
+        )),
+        |(tech, inp)| match inp {
+            Input::Number(n) => Input::Select(tech, n),
             _ => panic!("Invalid input"), // never reached
         },
     );
@@ -197,14 +204,22 @@ fn run_player_turn(initiative: Side, players: &mut Players, game_state: &mut Gam
 
 fn improve_technologies(initiative: Side, players: &mut Players, game_state: &mut GameState) {
     match initiative {
-        Side::Allies => players.allies_player.output(&Output::ImproveTechnologies),
-        Side::Empires => players.empires_player.output(&Output::ImproveTechnologies),
-    }
+        Side::Allies => {
+            players.allies_player.output(&Output::ImproveTechnologies);
+            if let Input::Select(tech, n) = players.allies_player.input() {
+                let die = game_state.roll();
+                improve_technology(game_state, initiative, tech, n, die);
+            };
+        }
 
-    if let Input::Select(tech, n) = players.empires_player.input() {
-        let die = game_state.roll();
-        improve_technology(game_state, initiative, tech, n, die);
-    };
+        Side::Empires => {
+            players.empires_player.output(&Output::ImproveTechnologies);
+            if let Input::Select(tech, n) = players.empires_player.input() {
+                let die = game_state.roll();
+                improve_technology(game_state, initiative, tech, n, die);
+            };
+        }
+    }
 }
 
 fn improve_technology(
@@ -227,6 +242,17 @@ fn improve_technology(
                 if year >= technology.date {
                     if die + n >= technology.min_dice_unlock {
                         techs.attack += 1;
+                    }
+                    game_state.reduce_pr(initiative, n);
+                }
+            }
+        }
+        TechnologyType::Defense => {
+            let current = techs.attack;
+            if let Some(technology) = &EMPIRE_TECHNOLOGIES[0][current as usize] {
+                if year >= technology.date {
+                    if die + n >= technology.min_dice_unlock {
+                        techs.defense += 1;
                     }
                     game_state.reduce_pr(initiative, n);
                 }
@@ -564,6 +590,7 @@ mod tests {
     #[test]
     fn parses_select_command() {
         assert_eq!(parse("attack 2"), Ok(Select(Attack, 2)));
+        assert_eq!(parse("defense 3"), Ok(Select(Defense, 3)));
         assert_matches!(parse("attack foo"), Err(_));
     }
 
@@ -824,5 +851,28 @@ mod tests {
             *state.state_of_war.get(&Empires).unwrap().technologies
         );
         assert_eq!(4, state.state_of_war.get(&Empires).unwrap().resources);
+    }
+
+    #[test]
+    fn allies_improve_defense_technology_1_level_given_player_spends_resources() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(2)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Select(Defense, 2))
+            .build();
+
+        improve_technologies(Allies, &mut players, &mut state);
+
+        assert_eq!(
+            Technologies {
+                defense: 1,
+                ..ZERO_TECHNOLOGIES
+            },
+            *state.state_of_war.get(&Allies).unwrap().technologies
+        );
+        assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
