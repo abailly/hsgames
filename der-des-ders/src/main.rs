@@ -214,6 +214,7 @@ fn improve_technology(
     n: u8,
     die: u8,
 ) {
+    let year = game_state.current_year();
     let techs = &mut game_state
         .state_of_war
         .get_mut(&initiative)
@@ -222,11 +223,13 @@ fn improve_technology(
     match tech {
         TechnologyType::Attack => {
             let current = techs.attack;
-            if let Some(technology) = &EMPIRE_TECHNOLOGIES[0][1 + (current as usize)] {
-                if die + n >= technology.min_dice_unlock {
-                    techs.attack += 1;
+            if let Some(technology) = &EMPIRE_TECHNOLOGIES[0][current as usize] {
+                if year >= technology.date {
+                    if die + n >= technology.min_dice_unlock {
+                        techs.attack += 1;
+                    }
+                    game_state.reduce_pr(initiative, n);
                 }
-                game_state.reduce_pr(initiative, n);
             }
         }
         _ => todo!(),
@@ -397,6 +400,18 @@ impl GameState {
 
     fn roll(&mut self) -> u8 {
         self.rng.gen_range(1..=6)
+    }
+
+    fn current_year(&self) -> u16 {
+        match self.current_turn {
+            1 => 1914,
+            2..=4 => 1915,
+            5..=7 => 1916,
+            8..=10 => 1917,
+            11..=13 => 1918,
+            14 => 1919,
+            _ => panic!("Invalid turn"),
+        }
     }
 }
 
@@ -770,6 +785,7 @@ mod tests {
         let mut state = StateBuilder::new(14)
             .with_resources(Empires, 4)
             .with_initiative(Empires)
+            .on_turn(2)
             .build();
         let mut players = PlayersBuilder::new()
             .with_input(Empires, Select(Attack, 2))
@@ -785,5 +801,28 @@ mod tests {
             *state.state_of_war.get(&Empires).unwrap().technologies
         );
         assert_eq!(2, state.state_of_war.get(&Empires).unwrap().resources);
+    }
+
+    #[test]
+    fn empires_cannot_improve_attack_technology_too_soon() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Empires, 4)
+            .with_initiative(Empires)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Empires, Select(Attack, 2))
+            .build();
+
+        improve_technologies(Empires, &mut players, &mut state);
+
+        assert_eq!(
+            Technologies {
+                attack: 0,
+                ..ZERO_TECHNOLOGIES
+            },
+            *state.state_of_war.get(&Empires).unwrap().technologies
+        );
+        assert_eq!(4, state.state_of_war.get(&Empires).unwrap().resources);
     }
 }
