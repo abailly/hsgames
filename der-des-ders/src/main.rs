@@ -1,6 +1,7 @@
 #![feature(assert_matches)]
 
 use core::fmt;
+use nom::sequence::separated_pair;
 use rand::prelude::*;
 use std::cmp::Ordering;
 use std::io::{prelude::*, stdin, stdout, Stdin, Stdout};
@@ -11,7 +12,7 @@ use std::{
 
 use nom::branch::alt;
 use nom::bytes::complete::tag_no_case;
-use nom::character::complete::digit1;
+use nom::character::complete::{char, digit1};
 use nom::combinator::{all_consuming, map, map_res};
 use nom::IResult;
 
@@ -42,6 +43,7 @@ impl Display for Output {
 enum Input {
     Number(u8),
     Pass,
+    Select(TechnologyType, u8),
     Next,
 }
 
@@ -103,7 +105,14 @@ fn parse(string: &str) -> Result<Input, ParseError> {
         alt((all_consuming(tag_no_case("p")), tag_no_case("pass"))),
         |_| Input::Pass,
     );
-    let res = alt((next, pass, num))(string);
+    let select = map(
+        separated_pair(tag_no_case("attack"), char(' '), num),
+        |(_, inp)| match inp {
+            Input::Number(n) => Input::Select(TechnologyType::Attack, n),
+            _ => panic!("Invalid input"),
+        },
+    );
+    let res = alt((next, pass, select, num))(string);
     match res {
         Ok(("", res)) => Ok(res),
         Ok((rem, _)) => Err(ParseError::TooManyCharacters(rem.to_string())),
@@ -491,6 +500,8 @@ mod tests {
         Nation::*,
         NationState::*,
         Side::*,
+        Technologies,
+        TechnologyType::*,
         ZERO_TECHNOLOGIES,
     };
 
@@ -506,6 +517,11 @@ mod tests {
         for command in &["pass", "p", "P", "Pass"] {
             assert_eq!(parse(command), Ok(Pass));
         }
+    }
+
+    #[test]
+    fn parses_select_command() {
+        assert_eq!(parse("attack 2"), Ok(Select(Attack, 2)));
     }
 
     #[test]

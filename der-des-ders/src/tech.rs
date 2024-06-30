@@ -1,12 +1,20 @@
 use core::fmt;
 use std::fmt::{Display, Formatter};
 
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+pub enum TechnologyType {
+    Attack,
+    Defense,
+    Artillery,
+    Air,
+}
+
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Technologies {
-    attack: u8,
-    defense: u8,
-    artillery: u8,
-    air: u8,
+    pub attack: u8,
+    pub defense: u8,
+    pub artillery: u8,
+    pub air: u8,
 }
 
 pub const ZERO_TECHNOLOGIES: Technologies = Technologies {
