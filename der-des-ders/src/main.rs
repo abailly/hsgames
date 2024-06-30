@@ -239,33 +239,29 @@ fn operational_level(breakdown: u8) -> u8 {
 }
 
 fn collect_resources(game_state: &mut GameState) {
-    let allies_pr = game_state
+    game_state.increase_pr(Side::Allies, tally_resources(game_state, &Side::Allies));
+    game_state.increase_pr(Side::Empires, tally_resources(game_state, &Side::Empires));
+}
+
+fn tally_resources(game_state: &GameState, pr_for_side: &Side) -> u8 {
+    game_state
         .nations
         .iter()
         .fold(0, |acc, (nation, status)| match status {
             NationState::AtWar(breakdown) => match game_state.countries.get(nation) {
-                Some(_) if *nation == Nation::Russia => acc + operational_level(*breakdown) * 2,
                 Some(Country {
                     side, resources, ..
-                }) if *side == Side::Allies => acc + resources,
+                }) if side == pr_for_side => {
+                    acc + if *nation == Nation::Russia {
+                        operational_level(*breakdown) * 2
+                    } else {
+                        *resources
+                    }
+                }
                 _ => acc,
             },
             _ => acc,
-        });
-    let empires_pr = game_state
-        .nations
-        .iter()
-        .fold(0, |acc, (nation, status)| match status {
-            NationState::AtWar(_) => match game_state.countries.get(nation) {
-                Some(Country {
-                    side, resources, ..
-                }) if *side == Side::Empires => acc + resources,
-                _ => acc,
-            },
-            _ => acc,
-        });
-    game_state.increase_pr(Side::Allies, allies_pr);
-    game_state.increase_pr(Side::Empires, empires_pr);
+        })
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -371,8 +367,8 @@ mod fixtures {
     use crate::{Input, Players, Side};
 
     pub struct PlayerDouble {
-        pub out: Box<Vec<Output>>,
-        pub inp: Box<Vec<Input>>,
+        pub out: Vec<Output>,
+        pub inp: Vec<Input>,
     }
 
     impl Player for PlayerDouble {
@@ -408,12 +404,12 @@ mod fixtures {
 
         pub fn build(&self) -> Players {
             let allies = PlayerDouble {
-                out: Box::new(Vec::new()),
-                inp: Box::new(self.allies_input.clone()),
+                out: Vec::new(),
+                inp: self.allies_input.clone(),
             };
             let empires = PlayerDouble {
-                out: Box::new(Vec::new()),
-                inp: Box::new(self.empires_input.clone()),
+                out: Vec::new(),
+                inp: self.empires_input.clone(),
             };
             Players {
                 allies_player: Box::new(allies),
