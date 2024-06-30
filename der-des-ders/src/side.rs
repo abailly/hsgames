@@ -18,6 +18,21 @@ pub enum Nation {
     GermanAfrica,
 }
 
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub enum NationState {
+    AtWar(u8),
+    AtPeace,
+}
+
+impl Display for NationState {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            AtWar(breakdown) => write!(f, "At war: {}", breakdown),
+            AtPeace => write!(f, "At peace"),
+        }
+    }
+}
+
 impl Display for Nation {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
@@ -164,18 +179,20 @@ pub const COUNTRIES: [Country; 13] = [
     },
 ];
 
-pub const INITIAL_BREAKDOWN: [(Nation, u8); 13] = [
-    (Nation::France, 7),
-    (Nation::Italy, 5),
-    (Nation::Russia, 7),
-    (Nation::Egypt, 4),
-    (Nation::Serbia, 3),
-    (Nation::Romania, 3),
-    (Nation::Greece, 3),
-    (Nation::FrenchAfrica, 4),
-    (Nation::Germany, 8),
-    (Nation::AustriaHungary, 5),
-    (Nation::OttomanEmpire, 5),
-    (Nation::Bulgaria, 3),
-    (Nation::GermanAfrica, 4),
+use NationState::*;
+
+pub const INITIAL_NATION_STATE: [(Nation, NationState); 13] = [
+    (Nation::France, AtWar(7)),
+    (Nation::Italy, AtPeace),
+    (Nation::Russia, AtWar(7)),
+    (Nation::Egypt, AtWar(4)),
+    (Nation::Serbia, AtWar(3)),
+    (Nation::Romania, AtPeace),
+    (Nation::Greece, AtPeace),
+    (Nation::FrenchAfrica, AtWar(4)),
+    (Nation::Germany, AtWar(8)),
+    (Nation::AustriaHungary, AtWar(5)),
+    (Nation::OttomanEmpire, AtWar(5)),
+    (Nation::Bulgaria, AtPeace),
+    (Nation::GermanAfrica, AtWar(4)),
 ];

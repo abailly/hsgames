@@ -165,11 +165,16 @@ impl Player for Players {
 fn run_turn(players: &mut Players, game_state: &mut GameState) {
     players.output(&Output::CurrentState(game_state.to_owned()));
     determine_initiative(players, game_state);
+    collect_resources(game_state);
 
     let inp = players.allies_player.input();
     if let Input::Next = inp {
         game_state.current_turn += 1;
     }
+}
+
+fn collect_resources(game_state: &mut GameState) {
+    todo!()
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
@@ -233,7 +238,7 @@ struct GameState {
     current_turn: u8,
     initiative: Side,
     russian_revolution: u8,
-    breakdown: HashMap<Nation, u8>,
+    nations: HashMap<Nation, NationState>,
     state_of_war: HashMap<Side, WarState>,
     seed: u64,
     rng: StdRng,
@@ -241,7 +246,7 @@ struct GameState {
 
 impl GameState {
     fn new(seed: u64) -> Self {
-        let breakdown = INITIAL_BREAKDOWN.iter().cloned().collect();
+        let nations = INITIAL_NATION_STATE.iter().cloned().collect();
         let initial_state_of_war: HashMap<Side, WarState> = [
             (
                 Side::Allies,
@@ -268,7 +273,7 @@ impl GameState {
             current_turn: 1,
             initiative: Side::Empires,
             russian_revolution: 0,
-            breakdown,
+            nations,
             state_of_war: initial_state_of_war,
             seed,
             rng: StdRng::seed_from_u64(seed),
@@ -301,8 +306,8 @@ impl Display for GameState {
         writeln!(f, "Turn: {}", self.current_turn);
         writeln!(f, "Russian Revolution: {}", self.russian_revolution);
         writeln!(f, "Breakdown:");
-        for (nation, breakdown) in self.breakdown.iter() {
-            writeln!(f, "\t{}: {}", nation, breakdown);
+        for (nation, status) in self.nations.iter() {
+            writeln!(f, "\t{}: {}", nation, status);
         }
         writeln!(f, "State of War:");
         for (side, war_state) in self.state_of_war.iter() {
@@ -404,7 +409,7 @@ mod tests {
     use std::assert_matches::assert_matches;
 
     use crate::{
-        determine_initiative,
+        collect_resources, determine_initiative,
         fixtures::{PlayersBuilder, StateBuilder},
         parse, GameState,
         Input::*,
@@ -567,5 +572,15 @@ mod tests {
         determine_initiative(&mut players, &mut state);
 
         assert_eq!(Allies, state.initiative)
+    }
+
+    #[test]
+    fn increase_pr_for_each_side() {
+        let mut state = StateBuilder::new(14).build();
+
+        collect_resources(&mut state);
+
+        assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(3, state.state_of_war.get(&Empires).unwrap().resources);
     }
 }
