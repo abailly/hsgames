@@ -235,10 +235,14 @@ fn improve_technology(
         .get_mut(&initiative)
         .unwrap()
         .technologies;
+    let technologies = match initiative {
+        Side::Allies => &ALLIES_TECHNOLOGIES,
+        Side::Empires => &EMPIRE_TECHNOLOGIES,
+    };
     match tech {
         TechnologyType::Attack => {
             let current = techs.attack;
-            if let Some(technology) = &EMPIRE_TECHNOLOGIES[0][current as usize] {
+            if let Some(technology) = &technologies[0][current as usize] {
                 if year >= technology.date {
                     if die + n >= technology.min_dice_unlock {
                         techs.attack += 1;
@@ -249,7 +253,7 @@ fn improve_technology(
         }
         TechnologyType::Defense => {
             let current = techs.attack;
-            if let Some(technology) = &EMPIRE_TECHNOLOGIES[0][current as usize] {
+            if let Some(technology) = &technologies[1][current as usize] {
                 if year >= technology.date {
                     if die + n >= technology.min_dice_unlock {
                         techs.defense += 1;
@@ -551,6 +555,15 @@ mod fixtures {
 
         pub(crate) fn with_initiative(&mut self, initiative: Side) -> &mut Self {
             self.state.initiative = initiative;
+            self
+        }
+
+        pub(crate) fn with_technologies(
+            &mut self,
+            side: Side,
+            technologies: crate::Technologies,
+        ) -> &mut Self {
+            self.state.state_of_war.get_mut(&side).unwrap().technologies = Box::new(technologies);
             self
         }
     }
@@ -874,5 +887,35 @@ mod tests {
             *state.state_of_war.get(&Allies).unwrap().technologies
         );
         assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn allies_improve_attack_technology_1_level_given_player_spends_resources() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_technologies(
+                Allies,
+                Technologies {
+                    attack: 3,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .with_initiative(Allies)
+            .on_turn(11)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Select(Attack, 4))
+            .build();
+
+        improve_technologies(Allies, &mut players, &mut state);
+
+        assert_eq!(
+            Technologies {
+                attack: 4,
+                ..ZERO_TECHNOLOGIES
+            },
+            *state.state_of_war.get(&Allies).unwrap().technologies
+        );
+        assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
