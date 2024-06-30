@@ -252,7 +252,18 @@ fn collect_resources(game_state: &mut GameState) {
             },
             _ => acc,
         });
-    let empires_pr = 9;
+    let empires_pr = game_state
+        .nations
+        .iter()
+        .fold(0, |acc, (nation, status)| match status {
+            NationState::AtWar(_) => match game_state.countries.get(nation) {
+                Some(Country {
+                    side, resources, ..
+                }) if *side == Side::Empires => acc + resources,
+                _ => acc,
+            },
+            _ => acc,
+        });
     game_state.increase_pr(Side::Allies, allies_pr);
     game_state.increase_pr(Side::Empires, empires_pr);
 }
@@ -650,5 +661,17 @@ mod tests {
 
         assert_eq!(10, state.state_of_war.get(&Allies).unwrap().resources);
         assert_eq!(9, state.state_of_war.get(&Empires).unwrap().resources);
+    }
+
+    #[test]
+    fn collect_resources_changes_empires_pr_when_bulgaria_goes_at_war() {
+        let mut state = StateBuilder::new(14)
+            .with_nation(Bulgaria, AtWar(3))
+            .build();
+
+        collect_resources(&mut state);
+
+        assert_eq!(14, state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(10, state.state_of_war.get(&Empires).unwrap().resources);
     }
 }
