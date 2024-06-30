@@ -78,121 +78,162 @@ impl Display for Side {
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Country {
-    nation: Nation,
-    side: Side,
-    max_tech_level: u8,
-    resources: u8,
-    attack_factor: u8,
+    pub nation: Nation,
+    pub side: Side,
+    pub max_tech_level: u8,
+    pub resources: u8,
+    pub attack_factor: u8,
 }
 
-pub const COUNTRIES: [Country; 13] = [
-    Country {
-        nation: Nation::France,
-        side: Side::Allies,
-        max_tech_level: 7,
-        resources: 3,
-        attack_factor: 4,
-    },
-    Country {
-        nation: Nation::Italy,
-        side: Side::Allies,
-        max_tech_level: 3,
-        resources: 2,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Russia,
-        side: Side::Allies,
-        max_tech_level: 3,
-        resources: 0,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Egypt,
-        side: Side::Allies,
-        max_tech_level: 2,
-        resources: 2,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Serbia,
-        side: Side::Allies,
-        max_tech_level: 2,
-        resources: 1,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Romania,
-        side: Side::Allies,
-        max_tech_level: 2,
-        resources: 1,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Greece,
-        side: Side::Allies,
-        max_tech_level: 2,
-        resources: 0,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::FrenchAfrica,
-        side: Side::Allies,
-        max_tech_level: 0,
-        resources: 2,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Germany,
-        side: Side::Empires,
-        max_tech_level: 8,
-        resources: 4,
-        attack_factor: 4,
-    },
-    Country {
-        nation: Nation::AustriaHungary,
-        side: Side::Empires,
-        max_tech_level: 3,
-        resources: 2,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::OttomanEmpire,
-        side: Side::Empires,
-        max_tech_level: 2,
-        resources: 2,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::Bulgaria,
-        side: Side::Empires,
-        max_tech_level: 2,
-        resources: 1,
-        attack_factor: 5,
-    },
-    Country {
-        nation: Nation::GermanAfrica,
-        side: Side::Empires,
-        max_tech_level: 0,
-        resources: 1,
-        attack_factor: 5,
-    },
+use Nation::*;
+
+pub const COUNTRIES: [(Nation, Country); 13] = [
+    (
+        France,
+        Country {
+            nation: France,
+            side: Side::Allies,
+            max_tech_level: 7,
+            resources: 3,
+            attack_factor: 4,
+        },
+    ),
+    (
+        Italy,
+        Country {
+            nation: Italy,
+            side: Side::Allies,
+            max_tech_level: 3,
+            resources: 2,
+            attack_factor: 5,
+        },
+    ),
+    (
+        Russia,
+        Country {
+            nation: Russia,
+            side: Side::Allies,
+            max_tech_level: 3,
+            resources: 0,
+            attack_factor: 5,
+        },
+    ),
+    (
+        Egypt,
+        Country {
+            nation: Egypt,
+            side: Side::Allies,
+            max_tech_level: 2,
+            resources: 2,
+            attack_factor: 5,
+        },
+    ),
+    (
+        Serbia,
+        Country {
+            nation: Serbia,
+            side: Side::Allies,
+            max_tech_level: 2,
+            resources: 1,
+            attack_factor: 5,
+        },
+    ),
+    (
+        Romania,
+        Country {
+            nation: Romania,
+            side: Side::Allies,
+            max_tech_level: 2,
+            resources: 1,
+            attack_factor: 5,
+        },
+    ),
+    (
+        Greece,
+        Country {
+            nation: Greece,
+            side: Side::Allies,
+            max_tech_level: 2,
+            resources: 0,
+            attack_factor: 5,
+        },
+    ),
+    (
+        FrenchAfrica,
+        Country {
+            nation: FrenchAfrica,
+            side: Side::Allies,
+            max_tech_level: 0,
+            resources: 2,
+            attack_factor: 5,
+        },
+    ),
+    (
+        Germany,
+        Country {
+            nation: Germany,
+            side: Side::Empires,
+            max_tech_level: 8,
+            resources: 4,
+            attack_factor: 4,
+        },
+    ),
+    (
+        AustriaHungary,
+        Country {
+            nation: AustriaHungary,
+            side: Side::Empires,
+            max_tech_level: 3,
+            resources: 2,
+            attack_factor: 5,
+        },
+    ),
+    (
+        OttomanEmpire,
+        Country {
+            nation: OttomanEmpire,
+            side: Side::Empires,
+            max_tech_level: 2,
+            resources: 2,
+            attack_factor: 5,
+        },
+    ),
+    (
+        Bulgaria,
+        Country {
+            nation: Bulgaria,
+            side: Side::Empires,
+            max_tech_level: 2,
+            resources: 1,
+            attack_factor: 5,
+        },
+    ),
+    (
+        GermanAfrica,
+        Country {
+            nation: GermanAfrica,
+            side: Side::Empires,
+            max_tech_level: 0,
+            resources: 1,
+            attack_factor: 5,
+        },
+    ),
 ];
 
 use NationState::*;
 
 pub const INITIAL_NATION_STATE: [(Nation, NationState); 13] = [
-    (Nation::France, AtWar(7)),
-    (Nation::Italy, AtPeace),
-    (Nation::Russia, AtWar(7)),
-    (Nation::Egypt, AtWar(4)),
-    (Nation::Serbia, AtWar(3)),
-    (Nation::Romania, AtPeace),
-    (Nation::Greece, AtPeace),
-    (Nation::FrenchAfrica, AtWar(4)),
-    (Nation::Germany, AtWar(8)),
-    (Nation::AustriaHungary, AtWar(5)),
-    (Nation::OttomanEmpire, AtWar(5)),
-    (Nation::Bulgaria, AtPeace),
-    (Nation::GermanAfrica, AtWar(4)),
+    (France, AtWar(7)),
+    (Italy, AtPeace),
+    (Russia, AtWar(7)),
+    (Egypt, AtWar(4)),
+    (Serbia, AtWar(3)),
+    (Romania, AtPeace),
+    (Greece, AtPeace),
+    (FrenchAfrica, AtWar(4)),
+    (Germany, AtWar(8)),
+    (AustriaHungary, AtWar(5)),
+    (OttomanEmpire, AtWar(5)),
+    (Bulgaria, AtPeace),
+    (GermanAfrica, AtWar(4)),
 ];

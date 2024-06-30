@@ -173,13 +173,6 @@ fn run_turn(players: &mut Players, game_state: &mut GameState) {
     }
 }
 
-fn collect_resources(game_state: &mut GameState) {
-    let allies_pr = 14;
-    let empires_pr = 9;
-    game_state.increase_pr(Side::Allies, allies_pr);
-    game_state.increase_pr(Side::Empires, empires_pr);
-}
-
 const DEFAULT_INITIATIVE: [Side; 14] = [
     Side::Empires,
     Side::Empires,
@@ -229,6 +222,25 @@ fn determine_initiative(players: &mut Players, game_state: &mut GameState) {
     players.output(&Output::CurrentState(game_state.to_owned()));
 }
 
+fn collect_resources(game_state: &mut GameState) {
+    let allies_pr = game_state
+        .nations
+        .iter()
+        .fold(0, |acc, (nation, status)| match status {
+            NationState::AtWar(_) => match game_state.countries.get(nation) {
+                Some(_) if *nation == Nation::Russia => acc + 6,
+                Some(Country {
+                    side, resources, ..
+                }) if *side == Side::Allies => acc + resources,
+                _ => acc,
+            },
+            _ => acc,
+        });
+    let empires_pr = 9;
+    game_state.increase_pr(Side::Allies, allies_pr);
+    game_state.increase_pr(Side::Empires, empires_pr);
+}
+
 #[derive(Eq, PartialEq, Clone, Debug)]
 struct WarState {
     resources: u8,
@@ -242,6 +254,7 @@ struct GameState {
     initiative: Side,
     russian_revolution: u8,
     nations: HashMap<Nation, NationState>,
+    countries: HashMap<Nation, Country>,
     state_of_war: HashMap<Side, WarState>,
     seed: u64,
     rng: StdRng,
@@ -250,6 +263,7 @@ struct GameState {
 impl GameState {
     fn new(seed: u64) -> Self {
         let nations = INITIAL_NATION_STATE.iter().cloned().collect();
+        let countries = COUNTRIES.iter().cloned().collect();
         let initial_state_of_war: HashMap<Side, WarState> = [
             (
                 Side::Allies,
@@ -277,6 +291,7 @@ impl GameState {
             initiative: Side::Empires,
             russian_revolution: 0,
             nations,
+            countries,
             state_of_war: initial_state_of_war,
             seed,
             rng: StdRng::seed_from_u64(seed),
@@ -325,7 +340,7 @@ impl Display for GameState {
 
 #[cfg(test)]
 mod fixtures {
-    use crate::{GameState, Output, Player, Side::*};
+    use crate::{GameState, Nation, NationState, Output, Player, Side::*};
     use crate::{Input, Players, Side};
 
     pub struct PlayerDouble {
@@ -404,6 +419,11 @@ mod fixtures {
         pub fn build(&self) -> GameState {
             self.state.clone()
         }
+
+        pub(crate) fn with_nation(&mut self, nation: Nation, status: NationState) -> &mut Self {
+            self.state.nations.insert(nation, status);
+            self
+        }
     }
 }
 
@@ -416,6 +436,8 @@ mod tests {
         fixtures::{PlayersBuilder, StateBuilder},
         parse, GameState,
         Input::*,
+        Nation::*,
+        NationState::*,
         Side::*,
     };
 
@@ -578,12 +600,22 @@ mod tests {
     }
 
     #[test]
-    fn increase_pr_for_each_side() {
+    fn collect_resources_increase_pr_for_each_side() {
         let mut state = StateBuilder::new(14).build();
 
         collect_resources(&mut state);
 
         assert_eq!(14, state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(9, state.state_of_war.get(&Empires).unwrap().resources);
+    }
+
+    #[test]
+    fn collect_resources_changes_allies_pr_when_italy_goes_at_war() {
+        let mut state = StateBuilder::new(14).with_nation(Italy, AtWar(5)).build();
+
+        collect_resources(&mut state);
+
+        assert_eq!(16, state.state_of_war.get(&Allies).unwrap().resources);
         assert_eq!(9, state.state_of_war.get(&Empires).unwrap().resources);
     }
 }
