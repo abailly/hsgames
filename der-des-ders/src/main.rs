@@ -106,10 +106,10 @@ fn parse(string: &str) -> Result<Input, ParseError> {
         |_| Input::Pass,
     );
     let select = map(
-        separated_pair(tag_no_case("attack"), char(' '), num),
+        all_consuming(separated_pair(tag_no_case("attack"), char(' '), num)),
         |(_, inp)| match inp {
             Input::Number(n) => Input::Select(TechnologyType::Attack, n),
-            _ => panic!("Invalid input"),
+            _ => panic!("Invalid input"), // never reached
         },
     );
     let res = alt((next, pass, select, num))(string);
@@ -201,9 +201,32 @@ fn improve_technologies(initiative: Side, players: &mut Players, game_state: &mu
         Side::Empires => players.empires_player.output(&Output::ImproveTechnologies),
     }
 
-    match players.empires_player.input() {
-        _ => return,
+    if let Input::Select(tech, n) = players.empires_player.input() {
+        let die = game_state.roll();
+        improve_technology(game_state, initiative, tech, n, die);
     };
+}
+
+fn improve_technology(
+    game_state: &mut GameState,
+    initiative: Side,
+    tech: TechnologyType,
+    n: u8,
+    die: u8,
+) {
+    let st = game_state.state_of_war.get_mut(&initiative).unwrap();
+    let techs = &mut st.technologies;
+    match tech {
+        TechnologyType::Attack => {
+            let current = techs.attack;
+            if let Some(technology) = &EMPIRE_TECHNOLOGIES[0][1 + (current as usize)] {
+                if die + n >= technology.min_dice_unlock {
+                    techs.attack += 1;
+                }
+            }
+        }
+        _ => todo!(),
+    }
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
@@ -522,6 +545,7 @@ mod tests {
     #[test]
     fn parses_select_command() {
         assert_eq!(parse("attack 2"), Ok(Select(Attack, 2)));
+        assert_matches!(parse("attack foo"), Err(_));
     }
 
     #[test]
@@ -733,6 +757,24 @@ mod tests {
 
         assert_eq!(
             ZERO_TECHNOLOGIES,
+            *state.state_of_war.get(&Empires).unwrap().technologies
+        );
+    }
+
+    #[test]
+    fn empires_improve_attack_technology_1_level_given_player_spends_resources() {
+        let mut state = StateBuilder::new(14).with_initiative(Empires).build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Empires, Select(Attack, 2))
+            .build();
+
+        improve_technologies(Empires, &mut players, &mut state);
+
+        assert_eq!(
+            Technologies {
+                attack: 1,
+                ..ZERO_TECHNOLOGIES
+            },
             *state.state_of_war.get(&Empires).unwrap().technologies
         );
     }
