@@ -110,6 +110,7 @@ fn parse(string: &str) -> Result<Input, ParseError> {
             alt((
                 tag_no_case("attack").map(|_| TechnologyType::Attack),
                 tag_no_case("defense").map(|_| TechnologyType::Defense),
+                tag_no_case("artillery").map(|_| TechnologyType::Artillery),
             )),
             char(' '),
             num,
@@ -259,7 +260,7 @@ fn improve_technology(
             }
         }
         TechnologyType::Defense => {
-            let current = techs.attack;
+            let current = techs.defense;
             if let Some(technology) = &technologies[1][current as usize] {
                 if year >= technology.date {
                     if die + n >= technology.min_dice_unlock {
@@ -271,7 +272,7 @@ fn improve_technology(
         }
         TechnologyType::Artillery => {
             let current = techs.artillery;
-            if let Some(technology) = &technologies[1][current as usize] {
+            if let Some(technology) = &technologies[2][current as usize] {
                 if year >= technology.date {
                     if die + n >= technology.min_dice_unlock {
                         techs.artillery += 1;
@@ -622,6 +623,7 @@ mod tests {
     fn parses_select_command() {
         assert_eq!(parse("attack 2"), Ok(Select(Attack, 2)));
         assert_eq!(parse("defense 3"), Ok(Select(Defense, 3)));
+        assert_eq!(parse("artillery 1"), Ok(Select(Artillery, 1)));
         assert_matches!(parse("attack foo"), Err(_));
     }
 
@@ -888,11 +890,18 @@ mod tests {
     fn allies_improve_defense_technology_1_level_given_player_spends_resources() {
         let mut state = StateBuilder::new(14)
             .with_resources(Allies, 4)
+            .with_technologies(
+                Allies,
+                Technologies {
+                    defense: 1,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
             .with_initiative(Allies)
             .on_turn(2)
             .build();
         let mut players = PlayersBuilder::new()
-            .with_input(Allies, Select(Defense, 2))
+            .with_input(Allies, Select(Defense, 4))
             .with_input(Allies, Pass)
             .build();
 
@@ -900,12 +909,32 @@ mod tests {
 
         assert_eq!(
             Technologies {
-                defense: 1,
+                defense: 2,
                 ..ZERO_TECHNOLOGIES
             },
             *state.state_of_war.get(&Allies).unwrap().technologies
         );
-        assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn allies_cannot_improve_artillery_technology_1_level_before_year_available() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Select(Artillery, 4))
+            .with_input(Allies, Pass)
+            .build();
+
+        improve_technologies(Allies, &mut players, &mut state);
+
+        assert_eq!(
+            ZERO_TECHNOLOGIES,
+            *state.state_of_war.get(&Allies).unwrap().technologies
+        );
+        assert_eq!(4, state.state_of_war.get(&Allies).unwrap().resources);
     }
 
     #[test]
