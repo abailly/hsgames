@@ -63,6 +63,15 @@ pub enum Side {
     Empires,
 }
 
+impl Side {
+    pub(crate) fn other(&self) -> Side {
+        match self {
+            Side::Allies => Side::Empires,
+            Side::Empires => Side::Allies,
+        }
+    }
+}
+
 impl Display for Side {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(

@@ -53,6 +53,7 @@ trait Player {
 }
 
 struct Console {
+    side: Side,
     inp: Stdin,
     outp: Stdout,
 }
@@ -61,7 +62,7 @@ impl Player for Console {
     fn output(&mut self, message: &Output) {
         let mut stdout = self.outp.lock();
         stdout
-            .write_all(format!("{}\n", message).as_bytes())
+            .write_all(format!("{}: {}\n", self.side, message).as_bytes())
             .expect("Failed to write to stdout");
     }
 
@@ -140,7 +141,7 @@ struct Options {
 
 const DEFAULT_OPTIONS: Options = Options {
     allies: PlayerType::Human,
-    empires: PlayerType::Robot,
+    empires: PlayerType::Human,
 };
 
 struct Players {
@@ -157,17 +158,18 @@ fn main() {
 }
 
 fn initialise_players(default_options: Options) -> Players {
-    let allies_player = make_player(default_options.allies);
-    let empires_player = make_player(default_options.empires);
+    let allies_player = make_player(Side::Allies, default_options.allies);
+    let empires_player = make_player(Side::Empires, default_options.empires);
     Players {
         allies_player,
         empires_player,
     }
 }
 
-fn make_player(player_type: PlayerType) -> Box<dyn Player> {
+fn make_player(side: Side, player_type: PlayerType) -> Box<dyn Player> {
     match player_type {
         PlayerType::Human => Box::new(Console {
+            side,
             inp: stdin(),
             outp: stdout(),
         }),
@@ -191,7 +193,9 @@ fn run_turn(players: &mut Players, game_state: &mut GameState) {
     determine_initiative(players, game_state);
     collect_resources(game_state);
 
+    players.output(&Output::CurrentState(game_state.to_owned()));
     run_player_turn(game_state.initiative, players, game_state);
+    run_player_turn(game_state.initiative.other(), players, game_state);
 
     let inp = players.allies_player.input();
     if let Input::Next = inp {
@@ -204,26 +208,17 @@ fn run_player_turn(initiative: Side, players: &mut Players, game_state: &mut Gam
 }
 
 fn improve_technologies(initiative: Side, players: &mut Players, game_state: &mut GameState) {
-    match initiative {
-        Side::Allies => improve_allies_technologies(&mut players.allies_player, game_state),
+    let player = match initiative {
+        Side::Allies => &mut players.allies_player,
+        Side::Empires => &mut players.empires_player,
+    };
 
-        Side::Empires => {
-            players.empires_player.output(&Output::ImproveTechnologies);
-            if let Input::Select(tech, n) = players.empires_player.input() {
-                let die = game_state.roll();
-                improve_technology(game_state, initiative, tech, n, die);
-            };
-        }
-    }
-}
-
-fn improve_allies_technologies(player: &mut Box<dyn Player>, game_state: &mut GameState) {
     player.output(&Output::ImproveTechnologies);
     match player.input() {
         Input::Select(tech, n) => {
             let die = game_state.roll();
-            improve_technology(game_state, Side::Allies, tech, n, die);
-            improve_allies_technologies(player, game_state);
+            improve_technology(game_state, initiative, tech, n, die);
+            improve_technologies(initiative, players, game_state);
         }
         Input::Pass => {}
         _ => todo!(),
@@ -849,6 +844,7 @@ mod tests {
             .build();
         let mut players = PlayersBuilder::new()
             .with_input(Empires, Select(Attack, 2))
+            .with_input(Empires, Pass)
             .build();
 
         improve_technologies(Empires, &mut players, &mut state);
@@ -872,6 +868,7 @@ mod tests {
             .build();
         let mut players = PlayersBuilder::new()
             .with_input(Empires, Select(Attack, 2))
+            .with_input(Empires, Pass)
             .build();
 
         improve_technologies(Empires, &mut players, &mut state);
