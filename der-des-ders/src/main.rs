@@ -204,13 +204,7 @@ fn run_player_turn(initiative: Side, players: &mut Players, game_state: &mut Gam
 
 fn improve_technologies(initiative: Side, players: &mut Players, game_state: &mut GameState) {
     match initiative {
-        Side::Allies => {
-            players.allies_player.output(&Output::ImproveTechnologies);
-            if let Input::Select(tech, n) = players.allies_player.input() {
-                let die = game_state.roll();
-                improve_technology(game_state, initiative, tech, n, die);
-            };
-        }
+        Side::Allies => improve_allies_technologies(&mut players.allies_player, game_state),
 
         Side::Empires => {
             players.empires_player.output(&Output::ImproveTechnologies);
@@ -220,6 +214,19 @@ fn improve_technologies(initiative: Side, players: &mut Players, game_state: &mu
             };
         }
     }
+}
+
+fn improve_allies_technologies(player: &mut Box<dyn Player>, game_state: &mut GameState) {
+    player.output(&Output::ImproveTechnologies);
+    match player.input() {
+        Input::Select(tech, n) => {
+            let die = game_state.roll();
+            improve_technology(game_state, Side::Allies, tech, n, die);
+            improve_allies_technologies(player, game_state);
+        }
+        Input::Pass => {}
+        _ => todo!(),
+    };
 }
 
 fn improve_technology(
@@ -257,6 +264,17 @@ fn improve_technology(
                 if year >= technology.date {
                     if die + n >= technology.min_dice_unlock {
                         techs.defense += 1;
+                    }
+                    game_state.reduce_pr(initiative, n);
+                }
+            }
+        }
+        TechnologyType::Artillery => {
+            let current = techs.artillery;
+            if let Some(technology) = &technologies[1][current as usize] {
+                if year >= technology.date {
+                    if die + n >= technology.min_dice_unlock {
+                        techs.artillery += 1;
                     }
                     game_state.reduce_pr(initiative, n);
                 }
@@ -501,8 +519,8 @@ mod fixtures {
 
         pub fn with_input(&mut self, side: Side, input: Input) -> &mut Self {
             match side {
-                Allies => self.allies_input.push(input),
-                Empires => self.empires_input.push(input),
+                Allies => self.allies_input.insert(0, input),
+                Empires => self.empires_input.insert(0, input),
             }
             self
         }
@@ -875,6 +893,7 @@ mod tests {
             .build();
         let mut players = PlayersBuilder::new()
             .with_input(Allies, Select(Defense, 2))
+            .with_input(Allies, Pass)
             .build();
 
         improve_technologies(Allies, &mut players, &mut state);
@@ -905,6 +924,7 @@ mod tests {
             .build();
         let mut players = PlayersBuilder::new()
             .with_input(Allies, Select(Attack, 4))
+            .with_input(Allies, Pass)
             .build();
 
         improve_technologies(Allies, &mut players, &mut state);
@@ -912,6 +932,32 @@ mod tests {
         assert_eq!(
             Technologies {
                 attack: 4,
+                ..ZERO_TECHNOLOGIES
+            },
+            *state.state_of_war.get(&Allies).unwrap().technologies
+        );
+        assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn allies_can_improve_technologies_1_level_until_pass() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(2)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Select(Attack, 2))
+            .with_input(Allies, Select(Artillery, 2))
+            .with_input(Allies, Pass)
+            .build();
+
+        improve_technologies(Allies, &mut players, &mut state);
+
+        assert_eq!(
+            Technologies {
+                attack: 1,
+                artillery: 1,
                 ..ZERO_TECHNOLOGIES
             },
             *state.state_of_war.get(&Allies).unwrap().technologies
