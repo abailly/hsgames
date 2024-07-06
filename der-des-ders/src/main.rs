@@ -112,6 +112,7 @@ fn parse(string: &str) -> Result<Input, ParseError> {
                 tag_no_case("attack").map(|_| TechnologyType::Attack),
                 tag_no_case("defense").map(|_| TechnologyType::Defense),
                 tag_no_case("artillery").map(|_| TechnologyType::Artillery),
+                tag_no_case("air").map(|_| TechnologyType::Air),
             )),
             char(' '),
             num,
@@ -213,16 +214,23 @@ fn improve_technologies(initiative: Side, players: &mut Players, game_state: &mu
         Side::Empires => &mut players.empires_player,
     };
 
-    player.output(&Output::ImproveTechnologies);
-    match player.input() {
-        Input::Select(tech, n) => {
-            let die = game_state.roll();
-            improve_technology(game_state, initiative, tech, n, die);
-            improve_technologies(initiative, players, game_state);
+    let mut improved: Vec<TechnologyType> = vec![];
+
+    while improved.len() < 4 {
+        player.output(&Output::ImproveTechnologies);
+        match player.input() {
+            Input::Select(tech, n) => {
+                if improved.contains(&tech) {
+                    continue;
+                }
+                let die = game_state.roll();
+                improve_technology(game_state, initiative, tech, n, die);
+                improved.push(tech);
+            }
+            Input::Pass => break,
+            _ => todo!(),
         }
-        Input::Pass => {}
-        _ => todo!(),
-    };
+    }
 }
 
 fn improve_technology(
@@ -276,7 +284,17 @@ fn improve_technology(
                 }
             }
         }
-        _ => todo!(),
+        TechnologyType::Air => {
+            let current = techs.air;
+            if let Some(technology) = &technologies[3][current as usize] {
+                if year >= technology.date {
+                    if die + n >= technology.min_dice_unlock {
+                        techs.air += 1;
+                    }
+                    game_state.reduce_pr(initiative, n);
+                }
+            }
+        }
     }
 }
 
@@ -619,6 +637,7 @@ mod tests {
         assert_eq!(parse("attack 2"), Ok(Select(Attack, 2)));
         assert_eq!(parse("defense 3"), Ok(Select(Defense, 3)));
         assert_eq!(parse("artillery 1"), Ok(Select(Artillery, 1)));
+        assert_eq!(parse("air 4"), Ok(Select(Air, 4)));
         assert_matches!(parse("attack foo"), Err(_));
     }
 
@@ -984,6 +1003,84 @@ mod tests {
             Technologies {
                 attack: 1,
                 artillery: 1,
+                ..ZERO_TECHNOLOGIES
+            },
+            *state.state_of_war.get(&Allies).unwrap().technologies
+        );
+        assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn allies_cannot_improve_defense_technology_level_past_3() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .with_technologies(
+                Allies,
+                Technologies {
+                    defense: 3,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .on_turn(2)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Select(Defense, 2))
+            .with_input(Allies, Pass)
+            .build();
+
+        improve_technologies(Allies, &mut players, &mut state);
+
+        assert_eq!(
+            Technologies {
+                defense: 3,
+                ..ZERO_TECHNOLOGIES
+            },
+            *state.state_of_war.get(&Allies).unwrap().technologies
+        );
+    }
+
+    #[test]
+    fn cannot_improve_same_technology_twice() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(2)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Select(Defense, 2))
+            .with_input(Allies, Select(Defense, 2))
+            .with_input(Allies, Pass)
+            .build();
+
+        improve_technologies(Allies, &mut players, &mut state);
+
+        assert_eq!(
+            Technologies {
+                defense: 1,
+                ..ZERO_TECHNOLOGIES
+            },
+            *state.state_of_war.get(&Allies).unwrap().technologies
+        );
+    }
+
+    #[test]
+    fn allies_improve_air_technology_1_level_given_player_spends_resources() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(3)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Select(Air, 4))
+            .with_input(Allies, Pass)
+            .build();
+
+        improve_technologies(Allies, &mut players, &mut state);
+
+        assert_eq!(
+            Technologies {
+                air: 1,
                 ..ZERO_TECHNOLOGIES
             },
             *state.state_of_war.get(&Allies).unwrap().technologies
