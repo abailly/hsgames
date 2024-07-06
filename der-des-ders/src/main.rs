@@ -31,6 +31,7 @@ enum Output {
     WrongInput(Input),
     NotEnoughResources(u8, u8),
     CountryAlreadyAttacked(Nation),
+    AttackingNonAdjacentCountry(Nation, Nation),
 }
 
 impl Display for Output {
@@ -46,6 +47,9 @@ impl Display for Output {
             }
             Output::CountryAlreadyAttacked(country) => {
                 write!(f, "Country already attacked: {}", country)
+            }
+            Output::AttackingNonAdjacentCountry(from, to) => {
+                write!(f, "{} is not adjacent to  {}", from, to)
             }
         }
     }
@@ -377,8 +381,11 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut G
     while !nations.is_empty() {
         player.output(&Output::LaunchOffensive);
         match player.input() {
-            Input::Offensive(from, to, pr) if !nations.contains(&from) => {
+            Input::Offensive(from, _, _) if !nations.contains(&from) => {
                 player.output(&Output::CountryAlreadyAttacked(from));
+            }
+            Input::Offensive(from, to, _) if !from.adjacent_to(&to) => {
+                player.output(&Output::AttackingNonAdjacentCountry(from, to));
             }
             Input::Offensive(from, to, pr) => {
                 let resources = game_state.state_of_war.get(&initiative).unwrap().resources;
@@ -1320,6 +1327,31 @@ mod tests {
         assert_eq!(AtWar(7), *state.nations.get(&Germany).unwrap());
         assert_eq!(AtWar(4), *state.nations.get(&OttomanEmpire).unwrap());
         assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn cannot_launch_offensive_to_not_adjacent_country() {
+        let mut state = StateBuilder::new(16)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(France, AustriaHungary, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(
+            vec![
+                Output::LaunchOffensive,
+                Output::AttackingNonAdjacentCountry(France, AustriaHungary),
+                Output::LaunchOffensive,
+            ],
+            players.allies_player.out()
+        );
+        assert_eq!(4, state.state_of_war.get(&Allies).unwrap().resources);
     }
 
     #[test]
