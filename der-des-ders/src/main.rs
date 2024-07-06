@@ -29,6 +29,7 @@ enum Output {
     ImproveTechnologies,
     LaunchOffensive,
     WrongInput(Input),
+    NotEnoughResources(u8, u8),
 }
 
 impl Display for Output {
@@ -39,6 +40,9 @@ impl Display for Output {
             Output::ImproveTechnologies => write!(f, "Select PR to improve technologies, or Pass"),
             Output::LaunchOffensive => write!(f, "Spend PR to launch offensive, or Pass"),
             Output::WrongInput(inp) => write!(f, "Invalid input: {:?}", inp),
+            Output::NotEnoughResources(wanted, actual) => {
+                write!(f, "Not enough resources ({}) to spend {}", actual, wanted)
+            }
         }
     }
 }
@@ -367,9 +371,14 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut G
     player.output(&Output::LaunchOffensive);
     match player.input() {
         Input::Offensive(from, to, pr) => {
-            let die = game_state.roll();
-            resolve_offensive(game_state, initiative, from, to, die);
-            game_state.reduce_pr(initiative, pr);
+            let resources = game_state.state_of_war.get(&initiative).unwrap().resources;
+            if resources < pr {
+                player.output(&Output::NotEnoughResources(pr, resources));
+            } else {
+                let die = game_state.roll();
+                resolve_offensive(game_state, initiative, from, to, die);
+                game_state.reduce_pr(initiative, pr);
+            }
         }
         Input::Pass => return,
         _ => todo!(),
@@ -1243,5 +1252,26 @@ mod tests {
 
         assert_eq!(AtWar(7), *state.nations.get(&Germany).unwrap());
         assert_eq!(3, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn player_cannot_spend_more_pr_than_available_for_offensives() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 2)
+            .with_initiative(Allies)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(France, Germany, 3))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(
+            vec![Output::LaunchOffensive, Output::NotEnoughResources(3, 2),],
+            players.allies_player.out()
+        );
+        assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
