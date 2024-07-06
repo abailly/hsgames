@@ -35,7 +35,7 @@ impl Display for Output {
         match self {
             Output::CurrentState(st) => write!(f, "Current state: {}", st),
             Output::ChooseInitiative => write!(f, "Select PR for initiative"),
-            Output::ImproveTechnologies => write!(f, "Select PR to improve technologies"),
+            Output::ImproveTechnologies => write!(f, "Select PR to improve technologies, or Pass"),
             Output::WrongInput(inp) => write!(f, "Invalid input: {:?}", inp),
         }
     }
@@ -480,6 +480,9 @@ impl GameState {
     fn increase_pr(&mut self, side: Side, pr: u8) -> &mut Self {
         let st = self.state_of_war.get_mut(&side).unwrap();
         st.resources += pr;
+        if st.resources > 20 {
+            st.resources = 20;
+        }
         self
     }
 
@@ -835,6 +838,17 @@ mod tests {
 
         assert_eq!(14, state.state_of_war.get(&Allies).unwrap().resources);
         assert_eq!(9, state.state_of_war.get(&Empires).unwrap().resources);
+    }
+
+    #[test]
+    fn collect_resources_cannot_increase_pr_over_20() {
+        let mut state = StateBuilder::new(14).build();
+
+        collect_resources(&mut state);
+        collect_resources(&mut state);
+
+        assert_eq!(20, state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(18, state.state_of_war.get(&Empires).unwrap().resources);
     }
 
     #[test]
