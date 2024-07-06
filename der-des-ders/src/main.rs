@@ -27,6 +27,7 @@ enum Output {
     CurrentState(GameState),
     ChooseInitiative,
     ImproveTechnologies,
+    WrongInput(Input),
 }
 
 impl Display for Output {
@@ -35,6 +36,7 @@ impl Display for Output {
             Output::CurrentState(st) => write!(f, "Current state: {}", st),
             Output::ChooseInitiative => write!(f, "Select PR for initiative"),
             Output::ImproveTechnologies => write!(f, "Select PR to improve technologies"),
+            Output::WrongInput(inp) => write!(f, "Invalid input: {:?}", inp),
         }
     }
 }
@@ -50,16 +52,19 @@ enum Input {
 trait Player {
     fn output(&mut self, message: &Output);
     fn input(&mut self) -> Input;
+    fn out(&self) -> Vec<Output>;
 }
 
 struct Console {
     side: Side,
     inp: Stdin,
     outp: Stdout,
+    out: Vec<Output>,
 }
 
 impl Player for Console {
     fn output(&mut self, message: &Output) {
+        self.out.push(message.clone());
         let mut stdout = self.outp.lock();
         stdout
             .write_all(format!("{}: {}\n", self.side, message).as_bytes())
@@ -71,17 +76,25 @@ impl Player for Console {
         self.inp.read_line(&mut command_string).unwrap();
         parse(command_string.trim()).unwrap_or_else(|_| self.input())
     }
+
+    fn out(&self) -> Vec<Output> {
+        self.out.clone()
+    }
 }
 
 struct RobotIO {}
 
 impl Player for RobotIO {
-    fn output(&mut self, _message: &Output) {
+    fn output(&mut self, message: &Output) {
         // TODO
     }
 
     fn input(&mut self) -> Input {
         Input::Next
+    }
+
+    fn out(&self) -> Vec<Output> {
+        vec![]
     }
 }
 
@@ -173,6 +186,7 @@ fn make_player(side: Side, player_type: PlayerType) -> Box<dyn Player> {
             side,
             inp: stdin(),
             outp: stdout(),
+            out: vec![],
         }),
         PlayerType::Robot => Box::new(RobotIO {}),
     }
@@ -186,6 +200,15 @@ impl Player for Players {
 
     fn input(&mut self) -> Input {
         todo!()
+    }
+
+    fn out(&self) -> Vec<Output> {
+        self.allies_player
+            .out()
+            .iter()
+            .chain(self.empires_player.out().iter())
+            .cloned()
+            .collect()
     }
 }
 
@@ -228,7 +251,7 @@ fn improve_technologies(initiative: Side, players: &mut Players, game_state: &mu
                 improved.push(tech);
             }
             Input::Pass => break,
-            _ => todo!(),
+            other => player.output(&Output::WrongInput(other)),
         }
     }
 }
@@ -516,6 +539,10 @@ mod fixtures {
         fn input(&mut self) -> Input {
             self.inp.pop().unwrap()
         }
+
+        fn out(&self) -> Vec<Output> {
+            self.out.clone()
+        }
     }
 
     pub struct PlayersBuilder {
@@ -612,6 +639,7 @@ mod tests {
         Input::*,
         Nation::*,
         NationState::*,
+        Output,
         Side::*,
         Technologies,
         TechnologyType::*,
@@ -1086,5 +1114,25 @@ mod tests {
             *state.state_of_war.get(&Allies).unwrap().technologies
         );
         assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn message_player_given_input_is_inappropriate_for_improve_tech_phase() {
+        let mut state = StateBuilder::new(14).with_resources(Empires, 4).build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Empires, Number(2))
+            .with_input(Empires, Pass)
+            .build();
+
+        improve_technologies(Empires, &mut players, &mut state);
+
+        assert_eq!(
+            vec![
+                Output::ImproveTechnologies,
+                Output::WrongInput(Number(2)),
+                Output::ImproveTechnologies
+            ],
+            players.empires_player.out()
+        );
     }
 }
