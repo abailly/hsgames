@@ -30,6 +30,7 @@ enum Output {
     LaunchOffensive,
     WrongInput(Input),
     NotEnoughResources(u8, u8),
+    CountryAlreadyAttacked(Nation),
 }
 
 impl Display for Output {
@@ -42,6 +43,9 @@ impl Display for Output {
             Output::WrongInput(inp) => write!(f, "Invalid input: {:?}", inp),
             Output::NotEnoughResources(wanted, actual) => {
                 write!(f, "Not enough resources ({}) to spend {}", actual, wanted)
+            }
+            Output::CountryAlreadyAttacked(country) => {
+                write!(f, "Country already attacked: {}", country)
             }
         }
     }
@@ -368,9 +372,14 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut G
         Side::Empires => &mut players.empires_player,
     };
 
-    while game_state.state_of_war.get(&initiative).unwrap().resources > 0 {
+    let mut nations = game_state.all_nations_at_war(initiative);
+
+    while !nations.is_empty() {
         player.output(&Output::LaunchOffensive);
         match player.input() {
+            Input::Offensive(from, to, pr) if !nations.contains(&from) => {
+                player.output(&Output::CountryAlreadyAttacked(from));
+            }
             Input::Offensive(from, to, pr) => {
                 let resources = game_state.state_of_war.get(&initiative).unwrap().resources;
                 if resources < pr {
@@ -379,6 +388,7 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut G
                     let die = game_state.roll();
                     resolve_offensive(game_state, initiative, from, to, die);
                     game_state.reduce_pr(initiative, pr);
+                    nations.retain(|&nat| nat != from);
                 }
             }
             Input::Pass => return,
@@ -580,6 +590,17 @@ impl GameState {
             14 => 1919,
             _ => panic!("Invalid turn"),
         }
+    }
+
+    fn all_nations_at_war(&self, initiative: Side) -> Vec<Nation> {
+        self.nations
+            .iter()
+            .filter_map(|(nation, status)| match status {
+                NationState::AtWar(_) => Some(*nation),
+                _ => None,
+            })
+            .filter(|nation| self.countries.get(nation).unwrap().side == initiative)
+            .collect()
     }
 }
 
@@ -1299,5 +1320,33 @@ mod tests {
         assert_eq!(AtWar(7), *state.nations.get(&Germany).unwrap());
         assert_eq!(AtWar(4), *state.nations.get(&OttomanEmpire).unwrap());
         assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn initiative_player_launch_cannot_launch_several_offensives_from_same_country() {
+        let mut state = StateBuilder::new(16)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(Russia, Germany, 1))
+            .with_input(Allies, Offensive(Russia, AustriaHungary, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(AtWar(7), *state.nations.get(&Germany).unwrap());
+        assert_eq!(
+            vec![
+                Output::LaunchOffensive,
+                Output::LaunchOffensive,
+                Output::CountryAlreadyAttacked(Russia),
+                Output::LaunchOffensive,
+            ],
+            players.allies_player.out()
+        );
+        assert_eq!(3, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
