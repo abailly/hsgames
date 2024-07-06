@@ -1,7 +1,7 @@
 #![feature(assert_matches)]
 
 use core::fmt;
-use nom::sequence::separated_pair;
+use nom::sequence::{separated_pair, tuple};
 use rand::prelude::*;
 use std::cmp::Ordering;
 use std::io::{prelude::*, stdin, stdout, Stdin, Stdout};
@@ -46,6 +46,7 @@ enum Input {
     Number(u8),
     Pass,
     Select(TechnologyType, u8),
+    Offensive(Nation, Nation, u8),
     Next,
 }
 
@@ -104,6 +105,18 @@ fn num(input: &str) -> IResult<&str, Input> {
     })(input)
 }
 
+fn country(input: &str) -> IResult<&str, Nation> {
+    alt((
+        tag_no_case("france").map(|_| Nation::France),
+        tag_no_case("germany").map(|_| Nation::Germany),
+        tag_no_case("italy").map(|_| Nation::Italy),
+        tag_no_case("austria").map(|_| Nation::AustriaHungary),
+        tag_no_case("russia").map(|_| Nation::Russia),
+        tag_no_case("ottoman").map(|_| Nation::OttomanEmpire),
+        tag_no_case("bulgaria").map(|_| Nation::Bulgaria),
+    ))(input)
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum ParseError {
     TooManyCharacters(String),
@@ -135,7 +148,28 @@ fn parse(string: &str) -> Result<Input, ParseError> {
             _ => panic!("Invalid input"), // never reached
         },
     );
-    let res = alt((next, pass, select, num))(string);
+    let offensive = map(
+        all_consuming(tuple((
+            alt((
+                tag_no_case("offensive").map(|_| ()),
+                tag_no_case("off").map(|_| ()),
+            )),
+            char(' '),
+            country,
+            char(' '),
+            country,
+            char(' '),
+            num,
+        ))),
+        |(_, _, attacker, _, defender, _, inp)| {
+            match inp {
+                Input::Number(n) => Input::Offensive(attacker, defender, n),
+                _ => panic!("Invalid input"), // never reached
+            }
+        },
+    );
+
+    let res = alt((next, pass, select, offensive, num))(string);
     match res {
         Ok(("", res)) => Ok(res),
         Ok((rem, _)) => Err(ParseError::TooManyCharacters(rem.to_string())),
@@ -670,6 +704,14 @@ mod tests {
         assert_eq!(parse("artillery 1"), Ok(Select(Artillery, 1)));
         assert_eq!(parse("air 4"), Ok(Select(Air, 4)));
         assert_matches!(parse("attack foo"), Err(_));
+    }
+
+    #[test]
+    fn parses_offensive_command() {
+        assert_eq!(
+            parse("offensive France Germany 2"),
+            Ok(Offensive(France, Germany, 2))
+        );
     }
 
     #[test]
