@@ -368,20 +368,22 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut G
         Side::Empires => &mut players.empires_player,
     };
 
-    player.output(&Output::LaunchOffensive);
-    match player.input() {
-        Input::Offensive(from, to, pr) => {
-            let resources = game_state.state_of_war.get(&initiative).unwrap().resources;
-            if resources < pr {
-                player.output(&Output::NotEnoughResources(pr, resources));
-            } else {
-                let die = game_state.roll();
-                resolve_offensive(game_state, initiative, from, to, die);
-                game_state.reduce_pr(initiative, pr);
+    while game_state.state_of_war.get(&initiative).unwrap().resources > 0 {
+        player.output(&Output::LaunchOffensive);
+        match player.input() {
+            Input::Offensive(from, to, pr) => {
+                let resources = game_state.state_of_war.get(&initiative).unwrap().resources;
+                if resources < pr {
+                    player.output(&Output::NotEnoughResources(pr, resources));
+                } else {
+                    let die = game_state.roll();
+                    resolve_offensive(game_state, initiative, from, to, die);
+                    game_state.reduce_pr(initiative, pr);
+                }
             }
+            Input::Pass => return,
+            _ => todo!(),
         }
-        Input::Pass => return,
-        _ => todo!(),
     }
 }
 
@@ -1269,9 +1271,33 @@ mod tests {
         launch_offensives(Allies, &mut players, &mut state);
 
         assert_eq!(
-            vec![Output::LaunchOffensive, Output::NotEnoughResources(3, 2),],
+            vec![
+                Output::LaunchOffensive,
+                Output::NotEnoughResources(3, 2),
+                Output::LaunchOffensive,
+            ],
             players.allies_player.out()
         );
+        assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn initiative_player_launch_several_offensives() {
+        let mut state = StateBuilder::new(16)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(France, Germany, 1))
+            .with_input(Allies, Offensive(Russia, OttomanEmpire, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(AtWar(7), *state.nations.get(&Germany).unwrap());
+        assert_eq!(AtWar(4), *state.nations.get(&OttomanEmpire).unwrap());
         assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
