@@ -27,6 +27,7 @@ enum Output {
     CurrentState(GameState),
     ChooseInitiative,
     ImproveTechnologies,
+    LaunchOffensive,
     WrongInput(Input),
 }
 
@@ -36,6 +37,7 @@ impl Display for Output {
             Output::CurrentState(st) => write!(f, "Current state: {}", st),
             Output::ChooseInitiative => write!(f, "Select PR for initiative"),
             Output::ImproveTechnologies => write!(f, "Select PR to improve technologies, or Pass"),
+            Output::LaunchOffensive => write!(f, "Spend PR to launch offensive, or Pass"),
             Output::WrongInput(inp) => write!(f, "Invalid input: {:?}", inp),
         }
     }
@@ -263,6 +265,7 @@ fn run_turn(players: &mut Players, game_state: &mut GameState) {
 
 fn run_player_turn(initiative: Side, players: &mut Players, game_state: &mut GameState) {
     improve_technologies(initiative, players, game_state);
+    launch_offensives(initiative, players, game_state);
 }
 
 fn improve_technologies(initiative: Side, players: &mut Players, game_state: &mut GameState) {
@@ -351,6 +354,38 @@ fn improve_technology(
                     game_state.reduce_pr(initiative, n);
                 }
             }
+        }
+    }
+}
+
+fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut GameState) {
+    let player = match initiative {
+        Side::Allies => &mut players.allies_player,
+        Side::Empires => &mut players.empires_player,
+    };
+
+    player.output(&Output::LaunchOffensive);
+    match player.input() {
+        Input::Offensive(from, to, pr) => {
+            let die = game_state.roll();
+            resolve_offensive(game_state, initiative, from, to, die);
+            game_state.reduce_pr(initiative, pr);
+        }
+        Input::Pass => return,
+        _ => todo!(),
+    }
+}
+
+fn resolve_offensive(
+    game_state: &mut GameState,
+    initiative: Side,
+    from: Nation,
+    to: Nation,
+    die: u8,
+) {
+    if die >= game_state.countries.get(&from).unwrap().attack_factor {
+        if let NationState::AtWar(breakdown) = game_state.nations.get_mut(&to).unwrap() {
+            *breakdown -= 1;
         }
     }
 }
@@ -672,7 +707,7 @@ mod tests {
     use crate::{
         collect_resources, determine_initiative,
         fixtures::{PlayersBuilder, StateBuilder},
-        improve_technologies, operational_level, parse, GameState,
+        improve_technologies, launch_offensives, operational_level, parse, GameState,
         Input::*,
         Nation::*,
         NationState::*,
@@ -1190,5 +1225,23 @@ mod tests {
             ],
             players.empires_player.out()
         );
+    }
+
+    #[test]
+    fn initiative_player_can_spend_pr_to_launch_offensive_between_adjacent_countries() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(France, Germany, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(AtWar(7), *state.nations.get(&Germany).unwrap());
+        assert_eq!(3, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
