@@ -226,6 +226,32 @@ pub enum NationState {
     AtPeace,
 }
 
+/// Returns the operational level given a breakdown value.
+pub fn operational_level(breakdown: u8) -> u8 {
+    match breakdown {
+        0 => 0,
+        1 => 0,
+        2 => 1,
+        3 => 1,
+        4 => 2,
+        5 => 2,
+        6 => 2,
+        7 => 3,
+        8 => 3,
+        9 => 3,
+        _ => panic!("Invalid breakdown value"),
+    }
+}
+
+impl NationState {
+    pub fn operational_level(&self) -> u8 {
+        match self {
+            AtWar(breakdown) => operational_level(*breakdown),
+            AtPeace => 0,
+        }
+    }
+}
+
 impl Display for NationState {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
@@ -448,3 +474,15 @@ pub const INITIAL_NATION_STATE: [(Nation, NationState); 13] = [
     (Bulgaria, AtPeace),
     (GermanAfrica, AtWar(4)),
 ];
+
+#[cfg(test)]
+mod tests {
+    use crate::operational_level;
+
+    #[test]
+    fn operational_level_depends_on_breakdown_value() {
+        assert_eq!(0, operational_level(0));
+        assert_eq!(1, operational_level(3));
+        assert_eq!(3, operational_level(7));
+    }
+}

@@ -32,6 +32,7 @@ enum Output {
     NotEnoughResources(u8, u8),
     CountryAlreadyAttacked(Nation),
     AttackingNonAdjacentCountry(Nation, Nation),
+    OperationalLevelTooLow(u8, u8),
 }
 
 impl Display for Output {
@@ -50,6 +51,9 @@ impl Display for Output {
             }
             Output::AttackingNonAdjacentCountry(from, to) => {
                 write!(f, "{} is not adjacent to  {}", from, to)
+            }
+            Output::OperationalLevelTooLow(maximum, actual) => {
+                write!(f, "Operational level ({}) too low for {}", maximum, actual)
             }
         }
     }
@@ -388,8 +392,11 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut G
                 player.output(&Output::AttackingNonAdjacentCountry(from, to));
             }
             Input::Offensive(from, to, pr) => {
+                let operational = game_state.nations.get(&from).unwrap().operational_level();
                 let resources = game_state.state_of_war.get(&initiative).unwrap().resources;
-                if resources < pr {
+                if operational < pr {
+                    player.output(&Output::OperationalLevelTooLow(operational, pr));
+                } else if resources < pr {
                     player.output(&Output::NotEnoughResources(pr, resources));
                 } else {
                     let die = game_state.roll();
@@ -465,22 +472,6 @@ fn determine_initiative(players: &mut Players, game_state: &mut GameState) {
         game_state.reduce_pr(Side::Empires, empires_pr);
     }
     players.output(&Output::CurrentState(game_state.to_owned()));
-}
-
-fn operational_level(breakdown: u8) -> u8 {
-    match breakdown {
-        0 => 0,
-        1 => 0,
-        2 => 1,
-        3 => 1,
-        4 => 2,
-        5 => 2,
-        6 => 2,
-        7 => 3,
-        8 => 3,
-        9 => 3,
-        _ => panic!("Invalid breakdown value"),
-    }
 }
 
 fn collect_resources(game_state: &mut GameState) {
@@ -746,15 +737,12 @@ mod tests {
     use crate::{
         collect_resources, determine_initiative,
         fixtures::{PlayersBuilder, StateBuilder},
-        improve_technologies, launch_offensives, operational_level, parse, GameState,
+        operational_level, parse, GameState,
         Input::*,
         Nation::*,
         NationState::*,
-        Output,
         Side::*,
-        Technologies,
         TechnologyType::*,
-        ZERO_TECHNOLOGIES,
     };
 
     #[test]
@@ -940,13 +928,6 @@ mod tests {
     }
 
     #[test]
-    fn operational_level_depends_on_breakdown_value() {
-        assert_eq!(0, operational_level(0));
-        assert_eq!(1, operational_level(3));
-        assert_eq!(3, operational_level(7));
-    }
-
-    #[test]
     fn collect_resources_increase_pr_for_each_side() {
         let mut state = StateBuilder::new(14).build();
 
@@ -998,6 +979,21 @@ mod tests {
         assert_eq!(14, state.state_of_war.get(&Allies).unwrap().resources);
         assert_eq!(10, state.state_of_war.get(&Empires).unwrap().resources);
     }
+}
+
+#[cfg(test)]
+mod technologies {
+
+    use crate::{
+        fixtures::{PlayersBuilder, StateBuilder},
+        improve_technologies,
+        Input::*,
+        Output,
+        Side::*,
+        Technologies,
+        TechnologyType::*,
+        ZERO_TECHNOLOGIES,
+    };
 
     #[test]
     fn technology_does_not_change_given_player_passes_on_it() {
@@ -1265,6 +1261,20 @@ mod tests {
             players.empires_player.out()
         );
     }
+}
+
+#[cfg(test)]
+mod offensives {
+
+    use crate::{
+        fixtures::{PlayersBuilder, StateBuilder},
+        launch_offensives,
+        Input::*,
+        Nation::*,
+        NationState::*,
+        Output,
+        Side::*,
+    };
 
     #[test]
     fn initiative_player_can_spend_pr_to_launch_offensive_between_adjacent_countries() {
@@ -1380,5 +1390,30 @@ mod tests {
             players.allies_player.out()
         );
         assert_eq!(3, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn pr_for_offensive_cannot_exceed_operational_level() {
+        let mut state = StateBuilder::new(16)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(Serbia, AustriaHungary, 2))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(
+            vec![
+                Output::LaunchOffensive,
+                Output::OperationalLevelTooLow(1, 2),
+                Output::LaunchOffensive,
+            ],
+            players.allies_player.out()
+        );
+        assert_eq!(4, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
