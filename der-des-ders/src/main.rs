@@ -418,7 +418,13 @@ fn resolve_offensive(
     to: Nation,
     die: u8,
 ) {
-    if die >= game_state.countries.get(&from).unwrap().attack_factor {
+    let attack_bonus = game_state
+        .state_of_war
+        .get(&initiative)
+        .unwrap()
+        .technologies
+        .attack;
+    if die + attack_bonus >= game_state.countries.get(&from).unwrap().attack_factor {
         if let NationState::AtWar(breakdown) = game_state.nations.get_mut(&to).unwrap() {
             *breakdown -= 1;
         }
@@ -1274,6 +1280,7 @@ mod offensives {
         NationState::*,
         Output,
         Side::*,
+        Technologies, ZERO_TECHNOLOGIES,
     };
 
     #[test]
@@ -1415,5 +1422,29 @@ mod offensives {
             players.allies_player.out()
         );
         assert_eq!(4, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn attack_technology_provides_offensive_bonus() {
+        let mut state = StateBuilder::new(18)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .with_technologies(
+                Allies,
+                Technologies {
+                    attack: 2,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .on_turn(2)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(France, Germany, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(AtWar(7), *state.nations.get(&Germany).unwrap());
     }
 }
