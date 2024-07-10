@@ -73,6 +73,7 @@ pub enum Input {
     Pass,
     Select(TechnologyType, u8),
     Offensive(Nation, Nation, u8),
+    Reinforce(Nation, u8),
     Next,
 }
 
@@ -200,8 +201,26 @@ pub fn parse(string: &str) -> Result<Input, ParseError> {
             }
         },
     );
+    let reinforce = map(
+        all_consuming(tuple((
+            alt((
+                tag_no_case("reinforce").map(|_| ()),
+                tag_no_case("off").map(|_| ()),
+            )),
+            char(' '),
+            country,
+            char(' '),
+            num,
+        ))),
+        |(_, _, nation, _, num)| {
+            match num {
+                Input::Number(n) => Input::Reinforce(nation, n),
+                _ => panic!("Invalid input"), // never reached
+            }
+        },
+    );
 
-    let res = alt((next, pass, select, offensive, num))(string);
+    let res = alt((next, pass, select, offensive, reinforce, num))(string);
     match res {
         Ok(("", res)) => Ok(res),
         Ok((rem, _)) => Err(ParseError::TooManyCharacters(rem.to_string())),
@@ -244,6 +263,11 @@ mod tests {
             parse("offensive France Germany 2"),
             Ok(Offensive(France, Germany, 2))
         );
+    }
+
+    #[test]
+    fn parses_reinforce_command() {
+        assert_eq!(parse("reinforce France 2"), Ok(Reinforce(France, 2)));
     }
 
     #[test]
