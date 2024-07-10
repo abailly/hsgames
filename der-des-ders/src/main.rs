@@ -399,8 +399,8 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut G
                 } else if resources < pr {
                     player.output(&Output::NotEnoughResources(pr, resources));
                 } else {
-                    let die = game_state.roll();
-                    resolve_offensive(game_state, initiative, from, to, die);
+                    let dice: Vec<u8> = (0..pr).map(|_| game_state.roll()).collect();
+                    resolve_offensive(game_state, initiative, from, to, &dice);
                     game_state.reduce_pr(initiative, pr);
                     nations.retain(|&nat| nat != from);
                 }
@@ -416,7 +416,7 @@ fn resolve_offensive(
     initiative: Side,
     from: Nation,
     to: Nation,
-    die: u8,
+    dice: &Vec<u8>,
 ) {
     let attack_bonus = game_state
         .state_of_war
@@ -424,11 +424,18 @@ fn resolve_offensive(
         .unwrap()
         .technologies
         .attack;
-    if die + attack_bonus >= game_state.countries.get(&from).unwrap().attack_factor {
-        if let NationState::AtWar(breakdown) = game_state.nations.get_mut(&to).unwrap() {
-            *breakdown -= 1;
+
+    let mut attack_country = |die: u8| {
+        if die + attack_bonus >= game_state.countries.get(&from).unwrap().attack_factor {
+            if let NationState::AtWar(breakdown) = game_state.nations.get_mut(&to).unwrap() {
+                *breakdown -= 1;
+            }
         }
-    }
+    };
+
+    dice.iter().for_each(|die| {
+        attack_country(*die);
+    });
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
@@ -1446,5 +1453,21 @@ mod offensives {
         launch_offensives(Allies, &mut players, &mut state);
 
         assert_eq!(AtWar(7), *state.nations.get(&Germany).unwrap());
+    }
+
+    #[test]
+    fn offensive_launch_as_many_dice_as_pr_expended() {
+        let mut state = StateBuilder::new(15)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(France, Germany, 3))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(AtWar(5), *state.nations.get(&Germany).unwrap());
     }
 }
