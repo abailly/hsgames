@@ -239,13 +239,14 @@ fn resolve_offensive(
     to: Nation,
     pr: u8,
 ) -> Output {
+    let max_tech_level = game_state.countries.get(&from).unwrap().max_tech_level;
     let artillery_bonus = game_state.artillery_bonus(&initiative);
-
-    let attack_bonus = game_state.attack_bonus(&initiative);
+    let attack_bonus = game_state.attack_bonus(&initiative).min(max_tech_level);
 
     let defense_malus = game_state.defense_bonus(&initiative.other());
 
     let dice: Vec<u8> = (0..pr).map(|_| game_state.roll()).collect();
+
     let artillery_dice: Vec<u8> = (0..artillery_bonus).map(|_| game_state.roll()).collect();
 
     let attack_country = |die: u8| {
@@ -1196,4 +1197,28 @@ mod offensives {
 
         assert_eq!(AtWar(5), *state.nations.get(&Germany).unwrap());
     }
+
+    #[test]
+    fn offensive_cannot_use_attack_technology_greater_than_limit() {
+        let mut state = StateBuilder::new(11) // die roll < 3
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .with_technologies(
+                Allies,
+                Technologies {
+                    attack: 3,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(Serbia, AustriaHungary, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(AtWar(5), *state.nations.get(&AustriaHungary).unwrap());
+    }
+}
 }
