@@ -20,6 +20,7 @@ pub struct Technologies {
     pub air: u8,
 }
 
+#[allow(unused_must_use)]
 pub const ZERO_TECHNOLOGIES: Technologies = Technologies {
     attack: 0,
     defense: 0,
@@ -47,7 +48,9 @@ pub fn initial_technologies() -> Technologies {
 }
 
 pub struct Technology {
+    #[allow(dead_code)]
     pub level: u8,
+    #[allow(dead_code)]
     pub name: &'static str,
     pub date: u16,
     pub min_dice_unlock: u8,

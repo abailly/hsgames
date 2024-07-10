@@ -104,7 +104,7 @@ impl Player for Console {
 struct RobotIO {}
 
 impl Player for RobotIO {
-    fn output(&mut self, message: &Output) {
+    fn output(&mut self, _message: &Output) {
         // TODO
     }
 
@@ -197,6 +197,7 @@ fn parse(string: &str) -> Result<Input, ParseError> {
 
 enum PlayerType {
     Human,
+    #[allow(dead_code)]
     Robot,
 }
 
@@ -416,7 +417,7 @@ fn resolve_offensive(
     initiative: Side,
     from: Nation,
     to: Nation,
-    dice: &Vec<u8>,
+    dice: &[u8],
 ) {
     let attack_bonus = game_state
         .state_of_war
@@ -425,8 +426,17 @@ fn resolve_offensive(
         .technologies
         .attack;
 
+    let defense_malus = game_state
+        .state_of_war
+        .get(&initiative.other())
+        .unwrap()
+        .technologies
+        .defense;
+
     let mut attack_country = |die: u8| {
-        if die + attack_bonus >= game_state.countries.get(&from).unwrap().attack_factor {
+        if die + attack_bonus - defense_malus
+            >= game_state.countries.get(&from).unwrap().attack_factor
+        {
             if let NationState::AtWar(breakdown) = game_state.nations.get_mut(&to).unwrap() {
                 *breakdown -= 1;
             }
@@ -750,7 +760,7 @@ mod tests {
     use crate::{
         collect_resources, determine_initiative,
         fixtures::{PlayersBuilder, StateBuilder},
-        operational_level, parse, GameState,
+        parse, GameState,
         Input::*,
         Nation::*,
         NationState::*,
@@ -1453,6 +1463,37 @@ mod offensives {
         launch_offensives(Allies, &mut players, &mut state);
 
         assert_eq!(AtWar(7), *state.nations.get(&Germany).unwrap());
+    }
+
+    #[test]
+    fn defense_technology_provides_offensive_malus() {
+        let mut state = StateBuilder::new(18)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .with_technologies(
+                Allies,
+                Technologies {
+                    attack: 2,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .with_technologies(
+                Empires,
+                Technologies {
+                    defense: 2,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .on_turn(2)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(France, Germany, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(AtWar(8), *state.nations.get(&Germany).unwrap());
     }
 
     #[test]
