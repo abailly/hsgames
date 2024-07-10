@@ -400,8 +400,7 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut G
                 } else if resources < pr {
                     player.output(&Output::NotEnoughResources(pr, resources));
                 } else {
-                    let dice: Vec<u8> = (0..pr).map(|_| game_state.roll()).collect();
-                    resolve_offensive(game_state, initiative, from, to, &dice);
+                    resolve_offensive(game_state, initiative, from, to, pr);
                     game_state.reduce_pr(initiative, pr);
                     nations.retain(|&nat| nat != from);
                 }
@@ -417,35 +416,39 @@ fn resolve_offensive(
     initiative: Side,
     from: Nation,
     to: Nation,
-    dice: &[u8],
+    pr: u8,
 ) {
-    let attack_bonus = game_state
-        .state_of_war
-        .get(&initiative)
-        .unwrap()
-        .technologies
-        .attack;
+    let artillery_bonus = game_state.artillery_bonus(&initiative);
 
-    let defense_malus = game_state
-        .state_of_war
-        .get(&initiative.other())
-        .unwrap()
-        .technologies
-        .defense;
+    let attack_bonus = game_state.attack_bonus(&initiative);
 
-    let mut attack_country = |die: u8| {
-        if die + attack_bonus - defense_malus
-            >= game_state.countries.get(&from).unwrap().attack_factor
-        {
-            if let NationState::AtWar(breakdown) = game_state.nations.get_mut(&to).unwrap() {
-                *breakdown -= 1;
-            }
-        }
+    let defense_malus = game_state.defense_bonus(&initiative.other());
+
+    let dice: Vec<u8> = (0..pr).map(|_| game_state.roll()).collect();
+    let artillery_dice: Vec<u8> = (0..artillery_bonus).map(|_| game_state.roll()).collect();
+
+    let attack_country = |die: u8| {
+        return die + attack_bonus - defense_malus
+            >= game_state.countries.get(&from).unwrap().attack_factor;
     };
 
-    dice.iter().for_each(|die| {
-        attack_country(*die);
-    });
+    let bomb_country =
+        |die: u8| return die >= game_state.countries.get(&from).unwrap().attack_factor;
+
+    let attack_hits = dice
+        .iter()
+        .map(|die| attack_country(*die))
+        .filter(|hit| *hit)
+        .count() as u8;
+    let artillery_hits = artillery_dice
+        .iter()
+        .map(|die| bomb_country(*die))
+        .filter(|hit| *hit)
+        .count() as u8;
+
+    if let NationState::AtWar(breakdown) = game_state.nations.get_mut(&to).unwrap() {
+        *breakdown -= attack_hits + artillery_hits;
+    }
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
@@ -622,6 +625,30 @@ impl GameState {
             })
             .filter(|nation| self.countries.get(nation).unwrap().side == initiative)
             .collect()
+    }
+
+    fn artillery_bonus(&self, initiative: &Side) -> u8 {
+        self.state_of_war
+            .get(initiative)
+            .unwrap()
+            .technologies
+            .artillery
+    }
+
+    fn attack_bonus(&self, initiative: &Side) -> u8 {
+        self.state_of_war
+            .get(&initiative)
+            .unwrap()
+            .technologies
+            .attack
+    }
+
+    fn defense_bonus(&self, initiative: &Side) -> u8 {
+        self.state_of_war
+            .get(&initiative)
+            .unwrap()
+            .technologies
+            .defense
     }
 }
 
@@ -1504,6 +1531,29 @@ mod offensives {
             .build();
         let mut players = PlayersBuilder::new()
             .with_input(Allies, Offensive(France, Germany, 3))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(AtWar(5), *state.nations.get(&Germany).unwrap());
+    }
+
+    #[test]
+    fn artillery_technology_adds_more_dice_to_throw() {
+        let mut state = StateBuilder::new(15)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .with_technologies(
+                Allies,
+                Technologies {
+                    artillery: 2,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(France, Germany, 1))
             .with_input(Allies, Pass)
             .build();
 
