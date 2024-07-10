@@ -220,9 +220,10 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut G
                 } else if resources < pr {
                     player.output(&Output::NotEnoughResources(pr, resources));
                 } else {
-                    resolve_offensive(game_state, initiative, from, to, pr);
+                    let offensive_result = resolve_offensive(game_state, initiative, from, to, pr);
                     game_state.reduce_pr(initiative, pr);
                     nations.retain(|&nat| nat != from);
+                    player.output(&offensive_result);
                 }
             }
             Input::Pass => return,
@@ -237,7 +238,7 @@ fn resolve_offensive(
     from: Nation,
     to: Nation,
     pr: u8,
-) {
+) -> Output {
     let artillery_bonus = game_state.artillery_bonus(&initiative);
 
     let attack_bonus = game_state.attack_bonus(&initiative);
@@ -268,6 +269,13 @@ fn resolve_offensive(
 
     if let NationState::AtWar(breakdown) = game_state.nations.get_mut(&to).unwrap() {
         *breakdown -= attack_hits + artillery_hits;
+    }
+
+    Output::OffensiveResult {
+        from,
+        to,
+        attack_hits,
+        artillery_hits,
     }
 }
 

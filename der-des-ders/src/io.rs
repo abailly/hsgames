@@ -23,6 +23,12 @@ pub enum Output {
     CountryAlreadyAttacked(Nation),
     AttackingNonAdjacentCountry(Nation, Nation),
     OperationalLevelTooLow(u8, u8),
+    OffensiveResult {
+        from: Nation,
+        to: Nation,
+        attack_hits: u8,
+        artillery_hits: u8,
+    },
 }
 
 impl Display for Output {
@@ -45,6 +51,18 @@ impl Display for Output {
             Output::OperationalLevelTooLow(maximum, actual) => {
                 write!(f, "Operational level ({}) too low for {}", maximum, actual)
             }
+            Output::OffensiveResult {
+                from,
+                to,
+                attack_hits,
+                artillery_hits,
+            } => write!(
+                f,
+                "Offensive from {} to {}: {} hits",
+                from,
+                to,
+                attack_hits + artillery_hits
+            ),
         }
     }
 }
@@ -120,8 +138,14 @@ fn country(input: &str) -> IResult<&str, Nation> {
         tag_no_case("italy").map(|_| Nation::Italy),
         tag_no_case("austria").map(|_| Nation::AustriaHungary),
         tag_no_case("russia").map(|_| Nation::Russia),
+        tag_no_case("serbia").map(|_| Nation::Serbia),
         tag_no_case("ottoman").map(|_| Nation::OttomanEmpire),
         tag_no_case("bulgaria").map(|_| Nation::Bulgaria),
+        tag_no_case("egypt").map(|_| Nation::Egypt),
+        tag_no_case("romania").map(|_| Nation::Romania),
+        tag_no_case("greece").map(|_| Nation::Greece),
+        tag_no_case("aef").map(|_| Nation::FrenchAfrica),
+        tag_no_case("germanafrica").map(|_| Nation::GermanAfrica),
     ))(input)
 }
 
