@@ -103,6 +103,7 @@ fn run_turn(players: &mut Players, game_state: &mut GameState) {
 fn run_player_turn(initiative: Side, players: &mut Players, game_state: &mut GameState) {
     improve_technologies(initiative, players, game_state);
     launch_offensives(initiative, players, game_state);
+    reinforcements(initiative, players, game_state);
 }
 
 fn improve_technologies(initiative: Side, players: &mut Players, game_state: &mut GameState) {
@@ -353,6 +354,25 @@ fn tally_resources(game_state: &GameState, pr_for_side: &Side) -> u8 {
             },
             _ => acc,
         })
+}
+
+fn reinforcements(initiative: Side, players: &mut Players, game_state: &mut GameState) {
+    let player = match initiative {
+        Side::Allies => &mut players.allies_player,
+        Side::Empires => &mut players.empires_player,
+    };
+
+    while game_state.state_of_war.get(&initiative).unwrap().resources > 0 {
+        player.output(&Output::ReinforceNations);
+        match player.input() {
+            Input::Reinforce(nation, pr) => {
+                game_state.reinforce(nation, pr);
+                game_state.reduce_pr(initiative, pr);
+            }
+            Input::Pass => break,
+            _ => todo!(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -1070,6 +1090,12 @@ mod offensives {
         assert_eq!(
             vec![
                 Output::LaunchOffensive,
+                Output::OffensiveResult {
+                    from: Russia,
+                    to: Germany,
+                    attack_hits: 1,
+                    artillery_hits: 0
+                },
                 Output::LaunchOffensive,
                 Output::CountryAlreadyAttacked(Russia),
                 Output::LaunchOffensive,
@@ -1221,4 +1247,35 @@ mod offensives {
         assert_eq!(AtWar(5), *state.nations.get(&AustriaHungary).unwrap());
     }
 }
+
+#[cfg(test)]
+mod reinforcements {
+
+    use crate::{
+        fixtures::{PlayersBuilder, StateBuilder},
+        reinforcements,
+        Input::*,
+        Nation::*,
+        NationState::*,
+        Side::*,
+    };
+
+    #[test]
+    fn initiative_player_can_spend_pr_to_reinforce_nation() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .with_nation(France, AtWar(4))
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Reinforce(France, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        reinforcements(Allies, &mut players, &mut state);
+
+        assert_eq!(AtWar(5), *state.nations.get(&France).unwrap());
+        assert_eq!(3, state.state_of_war.get(&Allies).unwrap().resources);
+    }
 }

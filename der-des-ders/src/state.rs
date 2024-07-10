@@ -132,6 +132,12 @@ impl GameState {
             .technologies
             .defense
     }
+
+    pub(crate) fn reinforce(&mut self, nation: Nation, pr: u8) -> &Self {
+        let nation = self.nations.get_mut(&nation).unwrap();
+        nation.reinforce(pr);
+        self
+    }
 }
 
 impl Display for GameState {

@@ -17,6 +17,7 @@ pub enum Output {
     CurrentState(GameState),
     ChooseInitiative,
     ImproveTechnologies,
+    ReinforceNations,
     LaunchOffensive,
     WrongInput(Input),
     NotEnoughResources(u8, u8),
@@ -63,6 +64,7 @@ impl Display for Output {
                 to,
                 attack_hits + artillery_hits
             ),
+            Output::ReinforceNations => write!(f, "Select PR to reinforce nations, or Pass"),
         }
     }
 }

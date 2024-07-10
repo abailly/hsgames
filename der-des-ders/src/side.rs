@@ -250,6 +250,13 @@ impl NationState {
             AtPeace => 0,
         }
     }
+
+    pub(crate) fn reinforce(&mut self, pr: u8) {
+        match self {
+            AtWar(breakdown) => *breakdown += pr,
+            AtPeace => {}
+        }
+    }
 }
 
 impl Display for NationState {
