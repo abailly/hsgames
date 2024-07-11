@@ -227,6 +227,15 @@ impl Nation {
             .1
             .side
     }
+
+    pub(crate) fn maximum_breakdown(&self) -> u8 {
+        COUNTRIES
+            .iter()
+            .find(|(nation, _)| nation == self)
+            .unwrap()
+            .1
+            .max_breakdown
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -264,6 +273,13 @@ impl NationState {
         match self {
             AtWar(breakdown) => *breakdown += pr,
             AtPeace => {}
+        }
+    }
+
+    pub(crate) fn breakdown(&self) -> u8 {
+        match self {
+            AtWar(breakdown) => *breakdown,
+            AtPeace => 0,
         }
     }
 }
@@ -336,6 +352,7 @@ pub struct Country {
     pub max_tech_level: u8,
     pub resources: u8,
     pub attack_factor: u8,
+    pub max_breakdown: u8,
 }
 
 use Nation::*;
@@ -349,6 +366,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 7,
             resources: 3,
             attack_factor: 4,
+            max_breakdown: 7,
         },
     ),
     (
@@ -359,6 +377,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 3,
             resources: 2,
             attack_factor: 5,
+            max_breakdown: 5,
         },
     ),
     (
@@ -369,6 +388,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 3,
             resources: 0,
             attack_factor: 5,
+            max_breakdown: 7,
         },
     ),
     (
@@ -379,6 +399,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 2,
             resources: 2,
             attack_factor: 5,
+            max_breakdown: 4,
         },
     ),
     (
@@ -389,6 +410,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 2,
             resources: 1,
             attack_factor: 5,
+            max_breakdown: 3,
         },
     ),
     (
@@ -399,6 +421,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 2,
             resources: 1,
             attack_factor: 5,
+            max_breakdown: 3,
         },
     ),
     (
@@ -409,6 +432,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 2,
             resources: 0,
             attack_factor: 5,
+            max_breakdown: 3,
         },
     ),
     (
@@ -419,6 +443,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 0,
             resources: 2,
             attack_factor: 5,
+            max_breakdown: 4,
         },
     ),
     (
@@ -429,6 +454,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 8,
             resources: 4,
             attack_factor: 4,
+            max_breakdown: 8,
         },
     ),
     (
@@ -439,6 +465,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 3,
             resources: 2,
             attack_factor: 5,
+            max_breakdown: 5,
         },
     ),
     (
@@ -449,6 +476,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 2,
             resources: 2,
             attack_factor: 5,
+            max_breakdown: 5,
         },
     ),
     (
@@ -459,6 +487,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 2,
             resources: 1,
             attack_factor: 5,
+            max_breakdown: 3,
         },
     ),
     (
@@ -469,6 +498,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             max_tech_level: 0,
             resources: 1,
             attack_factor: 5,
+            max_breakdown: 4,
         },
     ),
 ];

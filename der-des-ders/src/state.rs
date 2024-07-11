@@ -135,9 +135,12 @@ impl GameState {
 
     pub(crate) fn reinforce(&mut self, nation: Nation, pr: u8) -> &Self {
         let nation_state = self.nations.get_mut(&nation).unwrap();
+        let maximum_breakdown = nation.maximum_breakdown();
+        let current_breakdown = nation_state.breakdown();
+
         let (spent, reinforcement) =
             (1..=(pr + 1)).fold((0, 0), |(spent, reinforcement), resource| {
-                if spent + resource <= pr {
+                if spent + resource <= pr && reinforcement + current_breakdown < maximum_breakdown {
                     (spent + resource, reinforcement + 1)
                 } else {
                     (spent, reinforcement)
