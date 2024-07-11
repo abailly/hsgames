@@ -240,14 +240,20 @@ fn resolve_offensive(
     to: Nation,
     pr: u8,
 ) -> Output {
-    let max_tech_level = game_state.countries.get(&from).unwrap().max_tech_level;
-    let artillery_bonus = game_state.artillery_bonus(&initiative);
-    let attack_bonus = game_state.attack_bonus(&initiative).min(max_tech_level);
+    let max_attacker_tech_level = game_state.countries.get(&from).unwrap().max_tech_level;
+    let max_defender_tech_level = game_state.countries.get(&to).unwrap().max_tech_level;
 
-    let defense_malus = game_state.defense_bonus(&initiative.other());
+    let artillery_bonus = game_state.artillery_bonus(&initiative);
+    let attack_bonus = game_state
+        .attack_bonus(&initiative)
+        .min(max_attacker_tech_level);
+
+    let defense_malus = game_state
+        .defense_bonus(&initiative.other())
+        .min(max_defender_tech_level);
 
     let dice: Vec<u8> = (0..pr).map(|_| game_state.roll()).collect();
-
+    println!("Dice: {:?}", dice);
     let artillery_dice: Vec<u8> = (0..artillery_bonus).map(|_| game_state.roll()).collect();
 
     let attack_country = |die: u8| {
@@ -1244,6 +1250,40 @@ mod offensives {
         launch_offensives(Allies, &mut players, &mut state);
 
         assert_eq!(AtWar(5), *state.nations.get(&AustriaHungary).unwrap());
+    }
+
+    #[test]
+    fn defensive_side_cannot_use_defense_technology_greater_than_limit() {
+        let mut state = StateBuilder::new(14) // die = 6
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .with_technologies(
+                Empires,
+                Technologies {
+                    defense: 3,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .with_technologies(
+                Allies,
+                Technologies {
+                    attack: 1,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(Russia, OttomanEmpire, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        // max tech level of OttomanEmpire is 2
+        // attack factor of Russia is 5
+        // result = 6 (die) + 1 (attack bonus) - 2 (defense bonus capped at max tech level) = 5
+        // Russia inflicts 1 hit
+        assert_eq!(AtWar(4), *state.nations.get(&OttomanEmpire).unwrap());
     }
 }
 
