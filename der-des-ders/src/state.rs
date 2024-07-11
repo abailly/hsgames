@@ -134,8 +134,17 @@ impl GameState {
     }
 
     pub(crate) fn reinforce(&mut self, nation: Nation, pr: u8) -> &Self {
-        let nation = self.nations.get_mut(&nation).unwrap();
-        nation.reinforce(pr);
+        let nation_state = self.nations.get_mut(&nation).unwrap();
+        let (spent, reinforcement) =
+            (1..=(pr + 1)).fold((0, 0), |(spent, reinforcement), resource| {
+                if spent + resource <= pr {
+                    (spent + resource, reinforcement + 1)
+                } else {
+                    (spent, reinforcement)
+                }
+            });
+        nation_state.reinforce(reinforcement);
+        self.reduce_pr(nation.side(), spent);
         self
     }
 }

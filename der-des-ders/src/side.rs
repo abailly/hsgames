@@ -218,6 +218,15 @@ impl Nation {
             },
         }
     }
+
+    pub(crate) fn side(&self) -> Side {
+        COUNTRIES
+            .iter()
+            .find(|(nation, _)| nation == self)
+            .unwrap()
+            .1
+            .side
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]

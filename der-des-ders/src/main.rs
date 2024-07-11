@@ -367,7 +367,6 @@ fn reinforcements(initiative: Side, players: &mut Players, game_state: &mut Game
         match player.input() {
             Input::Reinforce(nation, pr) => {
                 game_state.reinforce(nation, pr);
-                game_state.reduce_pr(initiative, pr);
             }
             Input::Pass => break,
             _ => todo!(),
@@ -1277,5 +1276,27 @@ mod reinforcements {
 
         assert_eq!(AtWar(5), *state.nations.get(&France).unwrap());
         assert_eq!(3, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn reinforcements_cost_grows_quadratically() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .with_nation(France, AtWar(4))
+            .with_nation(Russia, AtWar(3))
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Reinforce(France, 2))
+            .with_input(Allies, Reinforce(Russia, 3))
+            .with_input(Allies, Pass)
+            .build();
+
+        reinforcements(Allies, &mut players, &mut state);
+
+        assert_eq!(AtWar(5), *state.nations.get(&France).unwrap());
+        assert_eq!(AtWar(5), *state.nations.get(&Russia).unwrap());
+        assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
