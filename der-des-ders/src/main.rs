@@ -104,6 +104,7 @@ fn run_player_turn(initiative: Side, players: &mut Players, game_state: &mut Gam
     improve_technologies(initiative, players, game_state);
     launch_offensives(initiative, players, game_state);
     reinforcements(initiative, players, game_state);
+    sea_control(initiative, players, game_state);
 }
 
 fn improve_technologies(initiative: Side, players: &mut Players, game_state: &mut GameState) {
@@ -282,6 +283,25 @@ fn resolve_offensive(
         to,
         hits: attack_hits + artillery_hits,
     }
+}
+
+fn sea_control(initiative: Side, players: &mut Players, game_state: &mut GameState) {
+    let player = match initiative {
+        Side::Empires => uboot(players, game_state),
+        Side::Allies => todo!(),
+    };
+}
+
+fn uboot(players: &mut Players, game_state: &mut GameState) {
+    let die = game_state.roll();
+    let loss = match die {
+        1..=4 => 0,
+        5 => 2,
+        6 => 4,
+        _ => panic!("Invalid die roll: {}", die),
+    };
+
+    game_state.reduce_pr(Side::Allies, loss);
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
@@ -1379,5 +1399,32 @@ mod reinforcements {
 
         assert_eq!(AtWar(7), *state.nations.get(&France).unwrap());
         assert_eq!(3, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+}
+
+#[cfg(test)]
+mod sea {
+
+    use crate::{
+        fixtures::{PlayersBuilder, StateBuilder},
+        sea_control,
+        Input::*,
+        Nation::*,
+        NationState::*,
+        Side::*,
+    };
+
+    #[test]
+    fn empire_player_can_impact_resources_from_u_boot() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Empires, 4)
+            .with_resources(Allies, 4)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new().with_input(Allies, Pass).build();
+
+        sea_control(Empires, &mut players, &mut state);
+
+        assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
