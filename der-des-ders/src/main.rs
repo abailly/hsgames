@@ -316,7 +316,13 @@ fn blocus(players: &mut Players, game_state: &mut GameState) {
     let player = &mut players.allies_player;
     player.output(&Output::IncreaseUBoot);
     let bonus = match player.input() {
-        Input::Number(n) => n,
+        Input::Number(n) => n.min(
+            game_state
+                .state_of_war
+                .get(&Side::Allies)
+                .unwrap()
+                .resources,
+        ),
         _ => 0,
     };
 
@@ -1497,5 +1503,21 @@ mod sea {
 
         assert_eq!(4, state.state_of_war.get(&Empires).unwrap().resources);
         assert_eq!(3, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn allies_player_cannot_spend_more_pr_than_available_to_increase_blocus_die_roll() {
+        let mut state = StateBuilder::new(11)
+            .with_resources(Empires, 4)
+            .with_resources(Allies, 1)
+            .with_initiative(Allies)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new().with_input(Allies, Number(2)).build();
+
+        sea_control(Allies, &mut players, &mut state);
+
+        assert_eq!(4, state.state_of_war.get(&Empires).unwrap().resources);
+        assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
