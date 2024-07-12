@@ -25,6 +25,7 @@ pub enum Output {
     AttackingNonAdjacentCountry(Nation, Nation),
     OperationalLevelTooLow(u8, u8),
     OffensiveResult { from: Nation, to: Nation, hits: u8 },
+    IncreaseUBoot,
 }
 
 impl Display for Output {
@@ -50,7 +51,8 @@ impl Display for Output {
             Output::OffensiveResult { from, to, hits } => {
                 write!(f, "Offensive from {} to {}: {} hits", from, to, hits)
             }
-            Output::ReinforceNations => write!(f, "Select PR to reinforce nations, or Pass"),
+            Output::ReinforceNations => write!(f, "Assign PR to reinforce one nation, or Pass"),
+            Output::IncreaseUBoot => write!(f, "Select PR to increase U-Boot level"),
         }
     }
 }
