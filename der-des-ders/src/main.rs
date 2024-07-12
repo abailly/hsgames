@@ -288,7 +288,7 @@ fn resolve_offensive(
 fn sea_control(initiative: Side, players: &mut Players, game_state: &mut GameState) {
     let player = match initiative {
         Side::Empires => uboot(players, game_state),
-        Side::Allies => todo!(),
+        Side::Allies => blocus(players, game_state),
     };
 }
 
@@ -302,6 +302,17 @@ fn uboot(players: &mut Players, game_state: &mut GameState) {
     };
 
     game_state.reduce_pr(Side::Allies, loss);
+}
+
+fn blocus(players: &mut Players, game_state: &mut GameState) {
+    let die = game_state.roll();
+    let gain = match die {
+        1 => 3,
+        2 => 1,
+        _ => 0,
+    };
+
+    game_state.increase_pr(Side::Empires, gain);
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
@@ -1426,5 +1437,20 @@ mod sea {
         sea_control(Empires, &mut players, &mut state);
 
         assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn allies_player_can_increase_resources_from_blocus() {
+        let mut state = StateBuilder::new(11) // die roll = 2
+            .with_resources(Empires, 4)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(2)
+            .build();
+        let mut players = PlayersBuilder::new().with_input(Allies, Pass).build();
+
+        sea_control(Allies, &mut players, &mut state);
+
+        assert_eq!(5, state.state_of_war.get(&Empires).unwrap().resources);
     }
 }
