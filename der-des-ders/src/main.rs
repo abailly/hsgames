@@ -309,10 +309,18 @@ fn uboot(players: &mut Players, game_state: &mut GameState) {
     };
 
     game_state.reduce_pr(Side::Allies, loss);
+    game_state.reduce_pr(Side::Empires, bonus);
 }
 
-fn blocus(_players: &mut Players, game_state: &mut GameState) {
-    let die = game_state.roll();
+fn blocus(players: &mut Players, game_state: &mut GameState) {
+    let player = &mut players.allies_player;
+    player.output(&Output::IncreaseUBoot);
+    let bonus = match player.input() {
+        Input::Number(n) => n,
+        _ => 0,
+    };
+
+    let die = game_state.roll() + bonus;
     let gain = match die {
         1 => 3,
         2 => 1,
@@ -320,6 +328,7 @@ fn blocus(_players: &mut Players, game_state: &mut GameState) {
     };
 
     game_state.increase_pr(Side::Empires, gain);
+    game_state.reduce_pr(Side::Allies, bonus);
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
@@ -1471,5 +1480,22 @@ mod sea {
         sea_control(Empires, &mut players, &mut state);
 
         assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(1, state.state_of_war.get(&Empires).unwrap().resources);
+    }
+
+    #[test]
+    fn allies_player_can_spend_pr_to_increase_blocus_die_roll() {
+        let mut state = StateBuilder::new(11)
+            .with_resources(Empires, 4)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new().with_input(Allies, Number(1)).build();
+
+        sea_control(Allies, &mut players, &mut state);
+
+        assert_eq!(4, state.state_of_war.get(&Empires).unwrap().resources);
+        assert_eq!(3, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
