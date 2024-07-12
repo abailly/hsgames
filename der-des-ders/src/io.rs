@@ -24,12 +24,7 @@ pub enum Output {
     CountryAlreadyAttacked(Nation),
     AttackingNonAdjacentCountry(Nation, Nation),
     OperationalLevelTooLow(u8, u8),
-    OffensiveResult {
-        from: Nation,
-        to: Nation,
-        attack_hits: u8,
-        artillery_hits: u8,
-    },
+    OffensiveResult { from: Nation, to: Nation, hits: u8 },
 }
 
 impl Display for Output {
@@ -52,18 +47,9 @@ impl Display for Output {
             Output::OperationalLevelTooLow(maximum, actual) => {
                 write!(f, "Operational level ({}) too low for {}", maximum, actual)
             }
-            Output::OffensiveResult {
-                from,
-                to,
-                attack_hits,
-                artillery_hits,
-            } => write!(
-                f,
-                "Offensive from {} to {}: {} hits",
-                from,
-                to,
-                attack_hits + artillery_hits
-            ),
+            Output::OffensiveResult { from, to, hits } => {
+                write!(f, "Offensive from {} to {}: {} hits", from, to, hits)
+            }
             Output::ReinforceNations => write!(f, "Select PR to reinforce nations, or Pass"),
         }
     }

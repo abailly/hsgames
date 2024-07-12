@@ -243,17 +243,17 @@ fn resolve_offensive(
     let max_attacker_tech_level = game_state.countries.get(&from).unwrap().max_tech_level;
     let max_defender_tech_level = game_state.countries.get(&to).unwrap().max_tech_level;
 
-    let artillery_bonus = game_state.artillery_bonus(&initiative);
+    let artillery_bonus = game_state
+        .artillery_bonus(&initiative)
+        .min(max_attacker_tech_level);
     let attack_bonus = game_state
         .attack_bonus(&initiative)
         .min(max_attacker_tech_level);
-
     let defense_malus = game_state
         .defense_bonus(&initiative.other())
         .min(max_defender_tech_level);
 
     let dice: Vec<u8> = (0..pr).map(|_| game_state.roll()).collect();
-    println!("Dice: {:?}", dice);
     let artillery_dice: Vec<u8> = (0..artillery_bonus).map(|_| game_state.roll()).collect();
 
     let attack_country = |die: u8| {
@@ -275,15 +275,12 @@ fn resolve_offensive(
         .filter(|hit| *hit)
         .count() as u8;
 
-    if let NationState::AtWar(breakdown) = game_state.nations.get_mut(&to).unwrap() {
-        *breakdown -= attack_hits + artillery_hits;
-    }
+    game_state.breakdown(&to, attack_hits + artillery_hits);
 
     Output::OffensiveResult {
         from,
         to,
-        attack_hits,
-        artillery_hits,
+        hits: attack_hits + artillery_hits,
     }
 }
 
@@ -1098,8 +1095,7 @@ mod offensives {
                 Output::OffensiveResult {
                     from: Russia,
                     to: Germany,
-                    attack_hits: 1,
-                    artillery_hits: 0
+                    hits: 1,
                 },
                 Output::LaunchOffensive,
                 Output::CountryAlreadyAttacked(Russia),
@@ -1249,6 +1245,32 @@ mod offensives {
 
         launch_offensives(Allies, &mut players, &mut state);
 
+        assert_eq!(AtWar(5), *state.nations.get(&AustriaHungary).unwrap());
+    }
+
+    #[test]
+    fn offensive_cannot_use_artillery_technology_greater_than_limit() {
+        let mut state = StateBuilder::new(11) // die rolls = 2, 2, 4, 5
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .with_technologies(
+                Allies,
+                Technologies {
+                    artillery: 3,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(Serbia, AustriaHungary, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut state);
+
+        // max tech level of Serbia is 2
+        // it should throw 4 dice but only 3 are taken into account
+        // so no hit is inflicted
         assert_eq!(AtWar(5), *state.nations.get(&AustriaHungary).unwrap());
     }
 

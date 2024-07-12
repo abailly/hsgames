@@ -119,7 +119,7 @@ impl GameState {
 
     pub fn attack_bonus(&self, initiative: &Side) -> u8 {
         self.state_of_war
-            .get(&initiative)
+            .get(initiative)
             .unwrap()
             .technologies
             .attack
@@ -127,7 +127,7 @@ impl GameState {
 
     pub fn defense_bonus(&self, initiative: &Side) -> u8 {
         self.state_of_war
-            .get(&initiative)
+            .get(initiative)
             .unwrap()
             .technologies
             .defense
@@ -148,6 +148,13 @@ impl GameState {
             });
         nation_state.reinforce(reinforcement);
         self.reduce_pr(nation.side(), spent);
+        self
+    }
+
+    pub(crate) fn breakdown(&mut self, to: &Nation, hits: u8) -> &Self {
+        if let NationState::AtWar(breakdown) = self.nations.get_mut(to).unwrap() {
+            *breakdown -= hits;
+        }
         self
     }
 }
