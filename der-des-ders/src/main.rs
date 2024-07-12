@@ -296,7 +296,13 @@ fn uboot(players: &mut Players, game_state: &mut GameState) {
     let player = &mut players.empires_player;
     player.output(&Output::IncreaseUBoot);
     let bonus = match player.input() {
-        Input::Number(n) => n,
+        Input::Number(n) => n.min(
+            game_state
+                .state_of_war
+                .get(&Side::Empires)
+                .unwrap()
+                .resources,
+        ),
         _ => 0,
     };
 
@@ -1519,5 +1525,21 @@ mod sea {
 
         assert_eq!(4, state.state_of_war.get(&Empires).unwrap().resources);
         assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn empires_player_cannot_spend_more_pr_than_available_to_increase_u_boot_die_roll() {
+        let mut state = StateBuilder::new(11)
+            .with_resources(Empires, 2)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new().with_input(Empires, Number(3)).build();
+
+        sea_control(Empires, &mut players, &mut state);
+
+        assert_eq!(0, state.state_of_war.get(&Empires).unwrap().resources);
+        assert_eq!(4, state.state_of_war.get(&Allies).unwrap().resources);
     }
 }
