@@ -26,6 +26,7 @@ pub struct GameState {
     pub state_of_war: HashMap<Side, WarState>,
     seed: u64,
     rng: StdRng,
+    events_pool: Vec<Event>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -119,6 +120,7 @@ impl GameState {
             state_of_war: initial_state_of_war,
             seed,
             rng: StdRng::seed_from_u64(seed),
+            events_pool: ALL_EVENTS.to_vec(),
         }
     }
 
@@ -231,6 +233,16 @@ impl GameState {
         } else {
             HitsResult::Surrenders(*to)
         }
+    }
+
+    pub(crate) fn draw_events(&mut self) -> Vec<Event> {
+        let mut events = Vec::new();
+        for _ in 0..3 {
+            let idx = self.rng.gen_range(0..self.events_pool.len());
+            let event = self.events_pool.remove(idx);
+            events.push(event);
+        }
+        events
     }
 }
 

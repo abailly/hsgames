@@ -104,7 +104,10 @@ fn run_turn(players: &mut Players, game_state: &mut GameState) {
 }
 
 fn draw_events(players: &mut Players, game_state: &mut GameState) {
-    todo!()
+    let events = game_state.draw_events();
+    for event in events.iter() {
+        players.output(&Output::EventDrawn(event.event_id, event.title.to_string()));
+    }
 }
 
 fn run_player_turn(initiative: Side, players: &mut Players, game_state: &mut GameState) {
@@ -674,28 +677,22 @@ mod tests {
 #[cfg(test)]
 mod events_tests {
     use crate::{
-        collect_resources, determine_initiative, draw_events,
+        draw_events,
         fixtures::{PlayersBuilder, StateBuilder},
-        GameState,
-        Input::*,
-        Nation::*,
-        NationState::*,
         Output::*,
-        Side::*,
-        ALL_EVENTS,
     };
 
     #[test]
     fn draw_three_events_at_start_of_turn() {
-        let mut state = StateBuilder::new(14).build();
+        let mut state = StateBuilder::new(18).build();
         let mut players = PlayersBuilder::new().build();
 
         draw_events(&mut players, &mut state);
 
         assert_eq!(
             vec![
-                EventDrawn(1, "All is quiet".to_string()),
                 EventDrawn(2, "All is quiet".to_string()),
+                EventDrawn(1, "All is quiet".to_string()),
                 EventDrawn(3, "Schlieffen plan".to_string()),
             ],
             players.allies_player.out()
