@@ -278,13 +278,9 @@ fn resolve_offensive(
         .filter(|hit| *hit)
         .count() as u8;
 
-    game_state.breakdown(&to, attack_hits + artillery_hits);
+    let result = game_state.breakdown(&to, attack_hits + artillery_hits);
 
-    Output::OffensiveResult {
-        from,
-        to,
-        hits: attack_hits + artillery_hits,
-    }
+    Output::OffensiveResult { from, to, result }
 }
 
 fn sea_control(initiative: Side, players: &mut Players, game_state: &mut GameState) {
@@ -955,7 +951,7 @@ mod offensives {
 
     use crate::{
         fixtures::{PlayersBuilder, StateBuilder},
-        launch_offensives,
+        launch_offensives, HitsResult,
         Input::*,
         Nation::*,
         NationState::*,
@@ -1074,7 +1070,7 @@ mod offensives {
                 Output::OffensiveResult {
                     from: Russia,
                     to: Germany,
-                    hits: 1,
+                    result: HitsResult::Hits(Germany, 1),
                 },
                 Output::LaunchOffensive,
                 Output::CountryAlreadyAttacked(Russia),

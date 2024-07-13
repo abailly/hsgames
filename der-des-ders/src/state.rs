@@ -33,6 +33,19 @@ pub enum HitsResult {
     Surrenders(Nation),
     Winner(Side),
     Hits(Nation, u8),
+    NationNotAtWar(Nation),
+}
+
+impl Display for HitsResult {
+    #[allow(unused_must_use)]
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            HitsResult::Surrenders(nation) => writeln!(f, "{} surrenders", nation),
+            HitsResult::Winner(side) => writeln!(f, "{} wins", side),
+            HitsResult::Hits(nation, hits) => writeln!(f, "{} takes {} hits", nation, hits),
+            HitsResult::NationNotAtWar(nation) => writeln!(f, "{} is not at war", nation),
+        }
+    }
 }
 
 impl GameState {
@@ -169,7 +182,7 @@ impl GameState {
                 HitsResult::Hits(*to, hits)
             }
         } else {
-            panic!("Nation is not at war")
+            HitsResult::NationNotAtWar(*to)
         }
     }
 
@@ -244,12 +257,15 @@ mod game_state_tests {
 
     #[test]
     fn breakdown_returns_hits_lost() {
-        let mut state = StateBuilder::new(11) // die roll = 2
-            .with_nation(France, AtWar(4))
-            .build();
+        let mut state = StateBuilder::new(11).with_nation(France, AtWar(4)).build();
 
-        let result = state.breakdown(&France, 2);
+        assert_eq!(Hits(France, 2), state.breakdown(&France, 2));
+    }
 
-        assert_eq!(Hits(France, 2), result);
+    #[test]
+    fn breakdown_does_not_inflict_hits_given_nation_is_not_at_war() {
+        let mut state = StateBuilder::new(11).build();
+
+        assert_eq!(NationNotAtWar(Italy), state.breakdown(&Italy, 2));
     }
 }

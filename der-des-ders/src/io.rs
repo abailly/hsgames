@@ -9,7 +9,7 @@ use nom::character::complete::{char, digit1};
 use nom::combinator::{all_consuming, map, map_res};
 use nom::{IResult, Parser};
 
-use crate::side::*;
+use crate::{side::*, HitsResult};
 use crate::{tech::*, GameState};
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -24,7 +24,11 @@ pub enum Output {
     CountryAlreadyAttacked(Nation),
     AttackingNonAdjacentCountry(Nation, Nation),
     OperationalLevelTooLow(u8, u8),
-    OffensiveResult { from: Nation, to: Nation, hits: u8 },
+    OffensiveResult {
+        from: Nation,
+        to: Nation,
+        result: HitsResult,
+    },
     IncreaseUBoot,
     SelectNationForHit,
 }
@@ -49,8 +53,8 @@ impl Display for Output {
             Output::OperationalLevelTooLow(maximum, actual) => {
                 write!(f, "Operational level ({}) too low for {}", maximum, actual)
             }
-            Output::OffensiveResult { from, to, hits } => {
-                write!(f, "Offensive from {} to {}: {} hits", from, to, hits)
+            Output::OffensiveResult { from, to, result } => {
+                write!(f, "Offensive from {} to {} result: {}", from, to, result)
             }
             Output::ReinforceNations => write!(f, "Assign PR to reinforce one nation, or Pass"),
             Output::IncreaseUBoot => write!(f, "Select PR to increase U-Boot level"),
