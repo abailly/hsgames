@@ -308,8 +308,7 @@ fn uboot(players: &mut Players, game_state: &mut GameState) {
     let loss = match die {
         1..=4 => 0,
         5 => 2,
-        6 => 4,
-        _ => panic!("Invalid die roll: {}", die),
+        _ => 4,
     };
 
     let pr_lost = apply_hits(players, game_state, loss);
@@ -319,12 +318,15 @@ fn uboot(players: &mut Players, game_state: &mut GameState) {
 }
 
 fn apply_hits(players: &mut Players, game_state: &mut GameState, loss: u8) -> u8 {
+    players.output(&Output::UBootResult(loss));
+
     let allies_player = &mut players.allies_player;
     let pr = game_state
         .state_of_war
         .get(&Side::Allies)
         .unwrap()
         .resources;
+
     if loss > pr {
         let mut hits = loss - pr;
         while hits > 0 {
@@ -334,7 +336,6 @@ fn apply_hits(players: &mut Players, game_state: &mut GameState, loss: u8) -> u8
                 hits -= 1;
             }
         }
-
         pr
     } else {
         loss
@@ -343,7 +344,7 @@ fn apply_hits(players: &mut Players, game_state: &mut GameState, loss: u8) -> u8
 
 fn blocus(players: &mut Players, game_state: &mut GameState) {
     let player = &mut players.allies_player;
-    player.output(&Output::IncreaseUBoot);
+    player.output(&Output::IncreaseBlockade);
     let bonus = match player.input() {
         Input::Number(n) => n.min(
             game_state
@@ -364,6 +365,7 @@ fn blocus(players: &mut Players, game_state: &mut GameState) {
 
     game_state.increase_pr(Side::Empires, gain);
     game_state.reduce_pr(Side::Allies, bonus);
+    players.output(&Output::BlockadeResult(gain));
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
@@ -1411,6 +1413,20 @@ mod sea {
 
         assert_eq!(2, state.state_of_war.get(&Allies).unwrap().resources);
         assert_eq!(1, state.state_of_war.get(&Empires).unwrap().resources);
+    }
+
+    #[test]
+    fn modified_u_boot_die_roll_greater_than_6_is_6() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Empires, 4)
+            .with_resources(Allies, 4)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new().with_input(Empires, Number(3)).build();
+
+        sea_control(Empires, &mut players, &mut state);
+
+        assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
     }
 
     #[test]

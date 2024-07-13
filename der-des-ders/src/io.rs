@@ -30,6 +30,9 @@ pub enum Output {
         result: HitsResult,
     },
     IncreaseUBoot,
+    UBootResult(u8),
+    IncreaseBlockade,
+    BlockadeResult(u8),
     SelectNationForHit,
 }
 
@@ -58,6 +61,11 @@ impl Display for Output {
             }
             Output::ReinforceNations => write!(f, "Assign PR to reinforce one nation, or Pass"),
             Output::IncreaseUBoot => write!(f, "Select PR to increase U-Boot level"),
+            Output::UBootResult(level) => write!(f, "Allies lose {} pr to U-Boot", level),
+            Output::IncreaseBlockade => write!(f, "Select PR to increase blockade level"),
+            Output::BlockadeResult(level) => {
+                write!(f, "Empires win {} pr from failed blockade", level)
+            }
             Output::SelectNationForHit => write!(f, "Select nation to apply hit"),
         }
     }
