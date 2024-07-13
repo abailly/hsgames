@@ -34,6 +34,7 @@ pub enum Output {
     IncreaseBlockade,
     BlockadeResult(u8),
     SelectNationForHit,
+    EventDrawn(u8, String),
 }
 
 impl Display for Output {
@@ -67,6 +68,7 @@ impl Display for Output {
                 write!(f, "Empires win {} pr from failed blockade", level)
             }
             Output::SelectNationForHit => write!(f, "Select nation to apply hit"),
+            Output::EventDrawn(event_id, event) => write!(f, "Event {} drawn: {}", event_id, event),
         }
     }
 }

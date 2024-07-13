@@ -90,6 +90,7 @@ impl Player for Players {
 fn run_turn(players: &mut Players, game_state: &mut GameState) {
     players.output(&Output::CurrentState(game_state.to_owned()));
     determine_initiative(players, game_state);
+    draw_events(players, game_state);
     collect_resources(game_state);
 
     players.output(&Output::CurrentState(game_state.to_owned()));
@@ -100,6 +101,10 @@ fn run_turn(players: &mut Players, game_state: &mut GameState) {
     if let Input::Next = inp {
         game_state.current_turn += 1;
     }
+}
+
+fn draw_events(players: &mut Players, game_state: &mut GameState) {
+    todo!()
 }
 
 fn run_player_turn(initiative: Side, players: &mut Players, game_state: &mut GameState) {
@@ -663,6 +668,38 @@ mod tests {
 
         assert_eq!(14, state.state_of_war.get(&Allies).unwrap().resources);
         assert_eq!(10, state.state_of_war.get(&Empires).unwrap().resources);
+    }
+}
+
+#[cfg(test)]
+mod events_tests {
+    use crate::{
+        collect_resources, determine_initiative, draw_events,
+        fixtures::{PlayersBuilder, StateBuilder},
+        GameState,
+        Input::*,
+        Nation::*,
+        NationState::*,
+        Output::*,
+        Side::*,
+        ALL_EVENTS,
+    };
+
+    #[test]
+    fn draw_three_events_at_start_of_turn() {
+        let mut state = StateBuilder::new(14).build();
+        let mut players = PlayersBuilder::new().build();
+
+        draw_events(&mut players, &mut state);
+
+        assert_eq!(
+            vec![
+                EventDrawn(1, "All is quiet".to_string()),
+                EventDrawn(2, "All is quiet".to_string()),
+                EventDrawn(3, "Schlieffen plan".to_string()),
+            ],
+            players.allies_player.out()
+        );
     }
 }
 

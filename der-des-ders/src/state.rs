@@ -36,6 +36,41 @@ pub enum HitsResult {
     NationNotAtWar(Nation),
 }
 
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct Event {
+    pub event_id: u8,
+    pub year: u16,
+    pub not_after: Option<u16>,
+    pub title: &'static str,
+}
+
+pub const ALL_EVENTS: [Event; 4] = [
+    Event {
+        event_id: 1,
+        year: 1914,
+        not_after: None,
+        title: "All is quiet",
+    },
+    Event {
+        event_id: 2,
+        year: 1914,
+        not_after: None,
+        title: "All is quiet",
+    },
+    Event {
+        event_id: 3,
+        year: 1914,
+        not_after: Some(1914),
+        title: "Schlieffen plan",
+    },
+    Event {
+        event_id: 4,
+        year: 1914,
+        not_after: Some(1914),
+        title: "Race to the sea",
+    },
+];
+
 impl Display for HitsResult {
     #[allow(unused_must_use)]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
