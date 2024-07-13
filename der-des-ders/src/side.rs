@@ -353,6 +353,7 @@ pub struct Country {
     pub resources: u8,
     pub attack_factor: u8,
     pub max_breakdown: u8,
+    pub vp: u8,
 }
 
 use Nation::*;
@@ -367,6 +368,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 3,
             attack_factor: 4,
             max_breakdown: 7,
+            vp: 6,
         },
     ),
     (
@@ -378,6 +380,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 2,
             attack_factor: 5,
             max_breakdown: 5,
+            vp: 2,
         },
     ),
     (
@@ -389,6 +392,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 0,
             attack_factor: 5,
             max_breakdown: 7,
+            vp: 3,
         },
     ),
     (
@@ -400,6 +404,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 2,
             attack_factor: 5,
             max_breakdown: 4,
+            vp: 1,
         },
     ),
     (
@@ -411,6 +416,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 1,
             attack_factor: 5,
             max_breakdown: 3,
+            vp: 1,
         },
     ),
     (
@@ -422,6 +428,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 1,
             attack_factor: 5,
             max_breakdown: 3,
+            vp: 1,
         },
     ),
     (
@@ -433,6 +440,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 0,
             attack_factor: 5,
             max_breakdown: 3,
+            vp: 1,
         },
     ),
     (
@@ -444,6 +452,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 2,
             attack_factor: 5,
             max_breakdown: 4,
+            vp: 1,
         },
     ),
     (
@@ -455,6 +464,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 4,
             attack_factor: 4,
             max_breakdown: 8,
+            vp: 6,
         },
     ),
     (
@@ -466,6 +476,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 2,
             attack_factor: 5,
             max_breakdown: 5,
+            vp: 3,
         },
     ),
     (
@@ -477,6 +488,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 2,
             attack_factor: 5,
             max_breakdown: 5,
+            vp: 2,
         },
     ),
     (
@@ -488,6 +500,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 1,
             attack_factor: 5,
             max_breakdown: 3,
+            vp: 2,
         },
     ),
     (
@@ -499,6 +512,7 @@ pub const COUNTRIES: [(Nation, Country); 13] = [
             resources: 1,
             attack_factor: 5,
             max_breakdown: 4,
+            vp: 2,
         },
     ),
 ];

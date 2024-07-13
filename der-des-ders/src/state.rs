@@ -19,12 +19,20 @@ pub struct WarState {
 pub struct GameState {
     pub current_turn: u8,
     pub initiative: Side,
+    pub winner: Option<Side>,
     pub russian_revolution: u8,
     pub nations: HashMap<Nation, NationState>,
     pub countries: HashMap<Nation, Country>,
     pub state_of_war: HashMap<Side, WarState>,
     seed: u64,
     rng: StdRng,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub enum HitsResult {
+    Surrenders(Nation),
+    Winner(Side),
+    Hits(Nation, u8),
 }
 
 impl GameState {
@@ -56,6 +64,7 @@ impl GameState {
         GameState {
             current_turn: 1,
             initiative: Side::Empires,
+            winner: None,
             russian_revolution: 0,
             nations,
             countries,
@@ -151,11 +160,29 @@ impl GameState {
         self
     }
 
-    pub(crate) fn breakdown(&mut self, to: &Nation, hits: u8) -> &Self {
+    pub(crate) fn breakdown(&mut self, to: &Nation, hits: u8) -> HitsResult {
         if let NationState::AtWar(breakdown) = self.nations.get_mut(to).unwrap() {
-            *breakdown -= hits;
+            if hits >= *breakdown {
+                self.surrenders(to)
+            } else {
+                *breakdown -= hits;
+                HitsResult::Hits(*to, hits)
+            }
+        } else {
+            panic!("Nation is not at war")
         }
-        self
+    }
+
+    fn surrenders(&mut self, to: &Nation) -> HitsResult {
+        let side = self.countries.get(to).unwrap().side.other();
+        self.state_of_war.get_mut(&side).unwrap().vp += self.countries.get(to).unwrap().vp;
+        self.nations.insert(*to, NationState::AtPeace);
+        if self.roll() < self.state_of_war.get(&side).unwrap().vp {
+            self.winner = Some(side);
+            HitsResult::Winner(side)
+        } else {
+            HitsResult::Surrenders(*to)
+        }
     }
 }
 
@@ -164,6 +191,10 @@ impl Display for GameState {
     #[allow(unused_must_use)]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         writeln!(f, "Turn: {}", self.current_turn);
+        writeln!(f, "Initiative: {}", self.initiative);
+        if let Some(winner) = self.winner {
+            writeln!(f, "Winner: {}", winner);
+        }
         writeln!(f, "Russian Revolution: {}", self.russian_revolution);
         writeln!(f, "Breakdown:");
         for (nation, status) in self.nations.iter() {
@@ -177,5 +208,48 @@ impl Display for GameState {
             writeln!(f, "\t\tTechnologies: {}", war_state.technologies);
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod game_state_tests {
+
+    use super::HitsResult::*;
+    use crate::{fixtures::StateBuilder, Nation::*, NationState::*, Side::*};
+
+    #[test]
+    fn nation_surrenders_when_brought_to_0_then_increase_vp_of_other_side() {
+        let mut state = StateBuilder::new(14) // die roll = 6
+            .with_nation(France, AtWar(4))
+            .build();
+
+        let result = state.breakdown(&France, 4);
+
+        assert_eq!(Surrenders(France), result);
+        assert_eq!(6, state.state_of_war.get(&Empires).unwrap().vp);
+        assert_eq!(AtPeace, state.nations.get(&France).unwrap().clone());
+    }
+
+    #[test]
+    fn side_wins_if_die_roll_lower_than_vp_given_nation_surrenders() {
+        let mut state = StateBuilder::new(11) // die roll = 2
+            .with_nation(France, AtWar(4))
+            .build();
+
+        let result = state.breakdown(&France, 4);
+
+        assert_eq!(Some(Empires), state.winner);
+        assert_eq!(Winner(Empires), result);
+    }
+
+    #[test]
+    fn breakdown_returns_hits_lost() {
+        let mut state = StateBuilder::new(11) // die roll = 2
+            .with_nation(France, AtWar(4))
+            .build();
+
+        let result = state.breakdown(&France, 2);
+
+        assert_eq!(Hits(France, 2), result);
     }
 }
