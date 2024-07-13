@@ -41,7 +41,7 @@ struct Players {
 fn main() {
     let mut game_state = GameState::new(42);
     let mut players = initialise_players(DEFAULT_OPTIONS);
-    while game_state.current_turn < 15 {
+    while game_state.current_turn < 15 && game_state.winner.is_none() {
         run_turn(&mut players, &mut game_state);
     }
 }
@@ -232,63 +232,15 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut G
                 } else if resources < pr {
                     player.output(&Output::NotEnoughResources(pr, resources));
                 } else {
-                    let offensive_result = resolve_offensive(game_state, initiative, from, to, pr);
-                    game_state.reduce_pr(initiative, pr);
+                    let result = game_state.resolve_offensive(initiative, from, to, pr);
                     nations.retain(|&nat| nat != from);
-                    player.output(&offensive_result);
+                    player.output(&Output::OffensiveResult { from, to, result });
                 }
             }
             Input::Pass => return,
-            _ => todo!(),
+            _ => (),
         }
     }
-}
-
-fn resolve_offensive(
-    game_state: &mut GameState,
-    initiative: Side,
-    from: Nation,
-    to: Nation,
-    pr: u8,
-) -> Output {
-    let max_attacker_tech_level = game_state.countries.get(&from).unwrap().max_tech_level;
-    let max_defender_tech_level = game_state.countries.get(&to).unwrap().max_tech_level;
-
-    let artillery_bonus = game_state
-        .artillery_bonus(&initiative)
-        .min(max_attacker_tech_level);
-    let attack_bonus = game_state
-        .attack_bonus(&initiative)
-        .min(max_attacker_tech_level);
-    let defense_malus = game_state
-        .defense_bonus(&initiative.other())
-        .min(max_defender_tech_level);
-
-    let dice: Vec<u8> = (0..pr).map(|_| game_state.roll()).collect();
-    let artillery_dice: Vec<u8> = (0..artillery_bonus).map(|_| game_state.roll()).collect();
-
-    let attack_country = |die: u8| {
-        return die + attack_bonus - defense_malus
-            >= game_state.countries.get(&from).unwrap().attack_factor;
-    };
-
-    let bomb_country =
-        |die: u8| return die >= game_state.countries.get(&from).unwrap().attack_factor;
-
-    let attack_hits = dice
-        .iter()
-        .map(|die| attack_country(*die))
-        .filter(|hit| *hit)
-        .count() as u8;
-    let artillery_hits = artillery_dice
-        .iter()
-        .map(|die| bomb_country(*die))
-        .filter(|hit| *hit)
-        .count() as u8;
-
-    let result = game_state.breakdown(&to, attack_hits + artillery_hits);
-
-    Output::OffensiveResult { from, to, result }
 }
 
 fn sea_control(initiative: Side, players: &mut Players, game_state: &mut GameState) {

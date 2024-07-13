@@ -244,6 +244,49 @@ impl GameState {
         }
         events
     }
+
+    pub(crate) fn resolve_offensive(
+        &mut self,
+        initiative: Side,
+        from: Nation,
+        to: Nation,
+        pr: u8,
+    ) -> HitsResult {
+        let max_attacker_tech_level = self.countries.get(&from).unwrap().max_tech_level;
+        let max_defender_tech_level = self.countries.get(&to).unwrap().max_tech_level;
+
+        let artillery_bonus = self
+            .artillery_bonus(&initiative)
+            .min(max_attacker_tech_level);
+        let attack_bonus = self.attack_bonus(&initiative).min(max_attacker_tech_level);
+        let defense_malus = self
+            .defense_bonus(&initiative.other())
+            .min(max_defender_tech_level);
+
+        let dice: Vec<u8> = (0..pr).map(|_| self.roll()).collect();
+        let artillery_dice: Vec<u8> = (0..artillery_bonus).map(|_| self.roll()).collect();
+
+        let attack_country = |die: u8| {
+            return die + attack_bonus - defense_malus
+                >= self.countries.get(&from).unwrap().attack_factor;
+        };
+
+        let bomb_country = |die: u8| return die >= self.countries.get(&from).unwrap().attack_factor;
+
+        let attack_hits = dice
+            .iter()
+            .map(|die| attack_country(*die))
+            .filter(|hit| *hit)
+            .count() as u8;
+        let artillery_hits = artillery_dice
+            .iter()
+            .map(|die| bomb_country(*die))
+            .filter(|hit| *hit)
+            .count() as u8;
+
+        self.reduce_pr(initiative, pr);
+        self.breakdown(&to, attack_hits + artillery_hits)
+    }
 }
 
 impl Display for GameState {
