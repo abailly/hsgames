@@ -314,8 +314,33 @@ fn uboot(players: &mut Players, game_state: &mut GameState) {
         _ => panic!("Invalid die roll: {}", die),
     };
 
-    game_state.reduce_pr(Side::Allies, loss);
+    let pr_lost = apply_hits(players, game_state, loss);
+
+    game_state.reduce_pr(Side::Allies, pr_lost);
     game_state.reduce_pr(Side::Empires, bonus);
+}
+
+fn apply_hits(players: &mut Players, game_state: &mut GameState, loss: u8) -> u8 {
+    let allies_player = &mut players.allies_player;
+    let pr = game_state
+        .state_of_war
+        .get(&Side::Allies)
+        .unwrap()
+        .resources;
+    if loss > pr {
+        let mut hits = loss - pr;
+        while hits > 0 {
+            allies_player.output(&Output::SelectNationForHit);
+            if let Input::ApplyHit(nation) = allies_player.input() {
+                game_state.breakdown(&nation, 1);
+                hits -= 1;
+            }
+        }
+
+        pr
+    } else {
+        loss
+    }
 }
 
 fn blocus(players: &mut Players, game_state: &mut GameState) {
@@ -1448,12 +1473,14 @@ mod sea {
         fixtures::{PlayersBuilder, StateBuilder},
         sea_control,
         Input::*,
+        Nation::*,
+        NationState::*,
         Side::*,
     };
 
     #[test]
     fn empire_player_can_impact_resources_from_u_boot() {
-        let mut state = StateBuilder::new(14)
+        let mut state = StateBuilder::new(14) // die roll = 6
             .with_resources(Empires, 4)
             .with_resources(Allies, 4)
             .on_turn(1)
@@ -1541,5 +1568,27 @@ mod sea {
 
         assert_eq!(0, state.state_of_war.get(&Empires).unwrap().resources);
         assert_eq!(4, state.state_of_war.get(&Allies).unwrap().resources);
+    }
+
+    #[test]
+    fn allies_player_need_to_increase_breakdown_given_they_don_t_have_enough_resources() {
+        let mut state = StateBuilder::new(14)
+            .with_resources(Empires, 4)
+            .with_resources(Allies, 1)
+            .with_initiative(Allies)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Empires, Pass)
+            .with_input(Allies, ApplyHit(France))
+            .with_input(Allies, ApplyHit(Russia))
+            .with_input(Allies, ApplyHit(Russia))
+            .build();
+
+        sea_control(Empires, &mut players, &mut state);
+
+        assert_eq!(0, state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(AtWar(6), *state.nations.get(&France).unwrap());
+        assert_eq!(AtWar(5), *state.nations.get(&Russia).unwrap());
     }
 }

@@ -26,6 +26,7 @@ pub enum Output {
     OperationalLevelTooLow(u8, u8),
     OffensiveResult { from: Nation, to: Nation, hits: u8 },
     IncreaseUBoot,
+    SelectNationForHit,
 }
 
 impl Display for Output {
@@ -53,6 +54,7 @@ impl Display for Output {
             }
             Output::ReinforceNations => write!(f, "Assign PR to reinforce one nation, or Pass"),
             Output::IncreaseUBoot => write!(f, "Select PR to increase U-Boot level"),
+            Output::SelectNationForHit => write!(f, "Select nation to apply hit"),
         }
     }
 }
@@ -64,6 +66,7 @@ pub enum Input {
     Select(TechnologyType, u8),
     Offensive(Nation, Nation, u8),
     Reinforce(Nation, u8),
+    ApplyHit(Nation),
     Next,
 }
 
@@ -155,7 +158,7 @@ pub fn parse(string: &str) -> Result<Input, ParseError> {
         alt((all_consuming(tag_no_case("p")), tag_no_case("pass"))),
         |_| Input::Pass,
     );
-    let select = map(
+    let select_tech = map(
         all_consuming(separated_pair(
             alt((
                 tag_no_case("attack").map(|_| TechnologyType::Attack),
@@ -210,7 +213,24 @@ pub fn parse(string: &str) -> Result<Input, ParseError> {
         },
     );
 
-    let res = alt((next, pass, select, offensive, reinforce, num))(string);
+    let apply_hit = map(
+        all_consuming(tuple((
+            alt((tag_no_case("hit").map(|_| ()), tag_no_case("h").map(|_| ()))),
+            char(' '),
+            country,
+        ))),
+        |(_, _, nation)| Input::ApplyHit(nation),
+    );
+
+    let res = alt((
+        next,
+        pass,
+        select_tech,
+        offensive,
+        reinforce,
+        apply_hit,
+        num,
+    ))(string);
     match res {
         Ok(("", res)) => Ok(res),
         Ok((rem, _)) => Err(ParseError::TooManyCharacters(rem.to_string())),
@@ -258,6 +278,11 @@ mod tests {
     #[test]
     fn parses_reinforce_command() {
         assert_eq!(parse("reinforce France 2"), Ok(Reinforce(France, 2)));
+    }
+
+    #[test]
+    fn parses_apply_hit_command() {
+        assert_eq!(parse("hit France"), Ok(ApplyHit(France)));
     }
 
     #[test]
