@@ -93,13 +93,12 @@ fn run_turn(players: &mut Players, game_state: &mut GameState) {
     draw_events(players, game_state);
     collect_resources(game_state);
 
-    players.output(&Output::CurrentState(game_state.to_owned()));
     run_player_turn(game_state.initiative, players, game_state);
     run_player_turn(game_state.initiative.other(), players, game_state);
 
     let inp = players.allies_player.input();
     if let Input::Next = inp {
-        game_state.current_turn += 1;
+        game_state.new_turn();
     }
 }
 
@@ -632,6 +631,7 @@ mod events_tests {
         draw_events,
         fixtures::{PlayersBuilder, StateBuilder},
         Output::*,
+        ALL_EVENTS,
     };
 
     #[test]
@@ -649,6 +649,33 @@ mod events_tests {
             ],
             players.allies_player.out()
         );
+    }
+
+    #[test]
+    fn add_events_from_year_to_pool_at_start_of_year_and_remove_invalid_events() {
+        let mut state = StateBuilder::new(18).build();
+        let mut players = PlayersBuilder::new().build();
+
+        draw_events(&mut players, &mut state);
+        state.new_turn(); // year = 1915
+        draw_events(&mut players, &mut state);
+
+        // collect last 3 events drawn
+        let events = players
+            .allies_player
+            .out()
+            .iter()
+            .skip(3)
+            .filter_map(|e| match e {
+                EventDrawn(eid, _) => ALL_EVENTS.iter().find(|ev| ev.event_id == *eid).cloned(),
+                _ => None,
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(3, events.len());
+        assert!(events
+            .iter()
+            .all(|ev| ev.not_after == Some(1915) || ev.not_after.is_none()));
     }
 }
 

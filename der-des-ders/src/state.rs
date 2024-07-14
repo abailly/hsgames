@@ -45,7 +45,7 @@ pub struct Event {
     pub title: &'static str,
 }
 
-pub const ALL_EVENTS: [Event; 4] = [
+pub const ALL_EVENTS: [Event; 13] = [
     Event {
         event_id: 1,
         year: 1914,
@@ -69,6 +69,60 @@ pub const ALL_EVENTS: [Event; 4] = [
         year: 1914,
         not_after: Some(1914),
         title: "Race to the sea",
+    },
+    Event {
+        event_id: 5,
+        year: 1915,
+        not_after: None,
+        title: "Shells crisis",
+    },
+    Event {
+        event_id: 6,
+        year: 1915,
+        not_after: None,
+        title: "Gas!",
+    },
+    Event {
+        event_id: 7,
+        year: 1915,
+        not_after: None,
+        title: "Von Lettow in Africa",
+    },
+    Event {
+        event_id: 8,
+        year: 1915,
+        not_after: None,
+        title: "Gallipoli",
+    },
+    Event {
+        event_id: 9,
+        year: 1915,
+        not_after: None,
+        title: "Towards separated peace?",
+    },
+    Event {
+        event_id: 10,
+        year: 1915,
+        not_after: None,
+        title: "Italy enters the war!",
+    },
+    Event {
+        event_id: 11,
+        year: 1915,
+        not_after: None,
+        title: "Bulgaria enters the war!",
+    },
+    Event {
+        event_id: 12,
+        year: 1915,
+        not_after: None,
+        title: "Lusitiania sank",
+    },
+    Event {
+        event_id: 13,
+        year: 1915,
+        not_after: None,
+        title: "All is quiet",
     },
 ];
 
@@ -120,7 +174,11 @@ impl GameState {
             state_of_war: initial_state_of_war,
             seed,
             rng: StdRng::seed_from_u64(seed),
-            events_pool: ALL_EVENTS.to_vec(),
+            events_pool: ALL_EVENTS
+                .iter()
+                .filter(|e| e.year == 1914)
+                .cloned()
+                .collect(),
         }
     }
 
@@ -286,6 +344,26 @@ impl GameState {
 
         self.reduce_pr(initiative, pr);
         self.breakdown(&to, attack_hits + artillery_hits)
+    }
+
+    pub(crate) fn new_turn(&mut self) -> &Self {
+        let current_turn_year = self.current_year();
+        self.current_turn += 1;
+        let next_year = self.current_year();
+        if next_year != current_turn_year {
+            self.events_pool.retain(|event| {
+                event.not_after.is_none() || event.not_after.unwrap() > current_turn_year
+            });
+            println!("pool {:?}", &self.events_pool);
+            self.events_pool.extend(
+                ALL_EVENTS
+                    .iter()
+                    .filter(|event| event.year == next_year)
+                    .cloned(),
+            );
+        }
+        println!("pool {:?}", &self.events_pool);
+        self
     }
 }
 
