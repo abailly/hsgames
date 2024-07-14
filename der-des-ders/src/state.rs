@@ -27,6 +27,7 @@ pub struct GameState {
     seed: u64,
     rng: StdRng,
     events_pool: Vec<Event>,
+    active_events: Vec<ActiveEvent>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -43,6 +44,12 @@ pub struct Event {
     pub year: u16,
     pub not_after: Option<u16>,
     pub title: &'static str,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct ActiveEvent {
+    pub event: Event,
+    pub duration: u8,
 }
 
 pub const ALL_EVENTS: [Event; 13] = [
@@ -179,6 +186,7 @@ impl GameState {
                 .filter(|e| e.year == 1914)
                 .cloned()
                 .collect(),
+            active_events: Vec::new(),
         }
     }
 
@@ -316,7 +324,11 @@ impl GameState {
         let artillery_bonus = self
             .artillery_bonus(&initiative)
             .min(max_attacker_tech_level);
-        let attack_bonus = self.attack_bonus(&initiative).min(max_attacker_tech_level);
+        let attack_bonus = self.adjust_attack_bonus(
+            self.attack_bonus(&initiative).min(max_attacker_tech_level),
+            &from,
+            &to,
+        );
         let defense_malus = self
             .defense_bonus(&initiative.other())
             .min(max_defender_tech_level);
@@ -364,6 +376,23 @@ impl GameState {
         }
         println!("pool {:?}", &self.events_pool);
         self
+    }
+
+    pub(crate) fn activate_event(&mut self, event: ActiveEvent) {
+        self.active_events.push(event);
+    }
+
+    fn adjust_attack_bonus(&self, attack_bonus: u8, from: &Nation, to: &Nation) -> u8 {
+        let event_bonus = if self.active_events.iter().any(|event| {
+            event.event.event_id == 4
+                && ((from == &Nation::France && to == &Nation::Germany)
+                    || (from == &Nation::Germany && to == &Nation::France))
+        }) {
+            1
+        } else {
+            0
+        };
+        event_bonus + attack_bonus
     }
 }
 

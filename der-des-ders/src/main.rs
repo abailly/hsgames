@@ -106,12 +106,12 @@ fn draw_events(players: &mut Players, game_state: &mut GameState) {
     let events = game_state.draw_events();
     for event in events.iter() {
         players.output(&Output::EventDrawn(event.event_id, event.title.to_string()));
-        apply_event(players, game_state, event.event_id);
+        apply_event(players, game_state, event);
     }
 }
 
-fn apply_event(players: &mut Players, game_state: &mut GameState, event_id: u8) {
-    match event_id {
+fn apply_event(players: &mut Players, game_state: &mut GameState, event: &Event) {
+    match event.event_id {
         3 => {
             let result =
                 game_state.resolve_offensive(Side::Empires, Nation::Germany, Nation::France, 2);
@@ -121,6 +121,10 @@ fn apply_event(players: &mut Players, game_state: &mut GameState, event_id: u8) 
                 result,
             });
         }
+        4 => game_state.activate_event(ActiveEvent {
+            duration: 1,
+            event: event.clone(),
+        }),
         _ => (),
     }
 }
@@ -646,9 +650,12 @@ mod events_tests {
     use crate::{
         apply_event, draw_events,
         fixtures::{PlayersBuilder, StateBuilder},
+        launch_offensives,
+        Input::*,
         Nation::*,
         NationState::*,
         Output::*,
+        Side::*,
         ALL_EVENTS,
     };
 
@@ -707,9 +714,28 @@ mod events_tests {
         let mut state = StateBuilder::new(14).build();
         let mut players = PlayersBuilder::new().build();
 
-        apply_event(&mut players, &mut state, 3);
+        apply_event(&mut players, &mut state, &ALL_EVENTS[2]);
 
         assert_eq!(AtWar(5), *state.nations.get(&France).unwrap());
+    }
+
+    #[test]
+    fn applying_race_to_the_sea_gives_a_bonus_to_offensive_between_france_and_germany() {
+        let mut state = StateBuilder::new(17) // die roll = 4
+            .with_initiative(Allies)
+            .with_resources(Allies, 4)
+            .on_turn(1)
+            .build();
+
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(France, Germany, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        apply_event(&mut players, &mut state, &ALL_EVENTS[3]);
+        launch_offensives(Allies, &mut players, &mut state);
+
+        assert_eq!(AtWar(7), *state.nations.get(&Germany).unwrap());
     }
 }
 
