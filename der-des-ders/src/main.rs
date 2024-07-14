@@ -106,6 +106,22 @@ fn draw_events(players: &mut Players, game_state: &mut GameState) {
     let events = game_state.draw_events();
     for event in events.iter() {
         players.output(&Output::EventDrawn(event.event_id, event.title.to_string()));
+        apply_event(players, game_state, event.event_id);
+    }
+}
+
+fn apply_event(players: &mut Players, game_state: &mut GameState, event_id: u8) {
+    match event_id {
+        3 => {
+            let result =
+                game_state.resolve_offensive(Side::Empires, Nation::Germany, Nation::France, 2);
+            players.output(&Output::OffensiveResult {
+                from: Nation::France,
+                to: Nation::Germany,
+                result,
+            });
+        }
+        _ => (),
     }
 }
 
@@ -628,8 +644,10 @@ mod tests {
 #[cfg(test)]
 mod events_tests {
     use crate::{
-        draw_events,
+        apply_event, draw_events,
         fixtures::{PlayersBuilder, StateBuilder},
+        Nation::*,
+        NationState::*,
         Output::*,
         ALL_EVENTS,
     };
@@ -647,7 +665,13 @@ mod events_tests {
                 EventDrawn(1, "All is quiet".to_string()),
                 EventDrawn(3, "Schlieffen plan".to_string()),
             ],
-            players.allies_player.out()
+            players
+                .allies_player
+                .out()
+                .iter()
+                .take(3)
+                .cloned()
+                .collect::<Vec<_>>()
         );
     }
 
@@ -676,6 +700,16 @@ mod events_tests {
         assert!(events
             .iter()
             .all(|ev| ev.not_after == Some(1915) || ev.not_after.is_none()));
+    }
+
+    #[test]
+    fn applying_plan_schlieffen_immediately_runs_offensive_from_germany_to_france() {
+        let mut state = StateBuilder::new(14).build();
+        let mut players = PlayersBuilder::new().build();
+
+        apply_event(&mut players, &mut state, 3);
+
+        assert_eq!(AtWar(5), *state.nations.get(&France).unwrap());
     }
 }
 
