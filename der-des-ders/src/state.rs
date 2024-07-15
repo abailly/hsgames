@@ -46,8 +46,8 @@ pub struct Event {
     pub title: &'static str,
 }
 
-impl<T: GameLogic> GameLogic for RaceToTheSea<T> {
-    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, u8, u8) {
+impl GameLogic for RaceToTheSea {
+    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
         if self.active
             && (offensive.from == Nation::France && offensive.to == Nation::Germany
                 || (offensive.from == Nation::Germany && offensive.to == Nation::France))
@@ -56,7 +56,6 @@ impl<T: GameLogic> GameLogic for RaceToTheSea<T> {
                 self.previous.compute_bonus(state, offensive);
             (artillery_bonus, attack_bonus + 1, defense_malus)
         } else {
-            println!("deactivated");
             self.previous.compute_bonus(state, offensive)
         }
     }
@@ -76,8 +75,8 @@ impl<T: GameLogic> GameLogic for RaceToTheSea<T> {
     fn evaluate_attack_hits(
         &self,
         state: &GameState,
-        attack_bonus: u8,
-        defense_malus: u8,
+        attack_bonus: i8,
+        defense_malus: i8,
         offensive: &Offensive,
         dice_roll: Vec<u8>,
     ) -> u8 {
@@ -105,7 +104,7 @@ impl<T: GameLogic> GameLogic for RaceToTheSea<T> {
 }
 
 impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
-    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, u8, u8) {
+    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
         self.as_ref().compute_bonus(state, offensive)
     }
 
@@ -120,8 +119,8 @@ impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
     fn evaluate_attack_hits(
         &self,
         state: &GameState,
-        attack_bonus: u8,
-        defense_malus: u8,
+        attack_bonus: i8,
+        defense_malus: i8,
         offensive: &Offensive,
         dice_roll: Vec<u8>,
     ) -> u8 {
@@ -152,14 +151,82 @@ impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
     }
 }
 
-struct RaceToTheSea<T: GameLogic> {
+struct RaceToTheSea {
+    active: bool,
+    previous: Box<dyn GameLogic>,
+}
+
+impl RaceToTheSea {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        RaceToTheSea {
+            active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
+impl<T: GameLogic> GameLogic for ShellCrisis<T> {
+    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        if self.active && offensive.from == Nation::France {
+            let (artillery_bonus, attack_bonus, defense_malus) =
+                self.previous.compute_bonus(state, offensive);
+            (artillery_bonus, attack_bonus - 1, defense_malus)
+        } else {
+            self.previous.compute_bonus(state, offensive)
+        }
+    }
+
+    fn new_turn(&mut self, _state: &mut GameState) {
+        self.active = false;
+    }
+
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_offensive_dice(state, num)
+    }
+
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_artillery_dice(state, num)
+    }
+
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: i8,
+        defense_malus: i8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
+    }
+
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_artillery_hits(state, offensive, dice_roll)
+    }
+
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+        self.previous.reduce_pr(state, side, pr)
+    }
+
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+        self.previous.apply_hits(state, nation, hits)
+    }
+}
+
+struct ShellCrisis<T: GameLogic> {
     active: bool,
     previous: Box<T>,
 }
 
-impl<T: GameLogic> RaceToTheSea<T> {
+impl<T: GameLogic> ShellCrisis<T> {
     pub fn new(previous: T) -> Self {
-        RaceToTheSea {
+        ShellCrisis {
             active: true,
             previous: Box::new(previous),
         }
@@ -175,7 +242,7 @@ impl DummyLogic {
 }
 
 impl GameLogic for DummyLogic {
-    fn compute_bonus(&self, _state: &GameState, _offensive: &Offensive) -> (u8, u8, u8) {
+    fn compute_bonus(&self, _state: &GameState, _offensive: &Offensive) -> (u8, i8, i8) {
         panic!("dummy logic")
     }
     fn roll_artillery_dice(&self, _state: &mut GameState, _num: u8) -> Vec<u8> {
@@ -189,8 +256,8 @@ impl GameLogic for DummyLogic {
     fn evaluate_attack_hits(
         &self,
         _state: &GameState,
-        _attack_bonus: u8,
-        _defense_malus: u8,
+        _attack_bonus: i8,
+        _defense_malus: i8,
         _offensive: &Offensive,
         _dice_roll: Vec<u8>,
     ) -> u8 {
@@ -221,10 +288,18 @@ impl GameLogic for DummyLogic {
 
 impl Event {
     fn play(&self, engine: &mut GameEngine) -> ActiveEvent {
-        if self.event_id == 4 {
-            let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
-            swap(&mut previous, &mut engine.logic);
-            engine.logic = Box::new(RaceToTheSea::new(previous));
+        match self.event_id {
+            4 => {
+                let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
+                swap(&mut previous, &mut engine.logic);
+                engine.logic = Box::new(RaceToTheSea::new(previous));
+            }
+            5 => {
+                let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
+                swap(&mut previous, &mut engine.logic);
+                engine.logic = Box::new(ShellCrisis::new(previous));
+            }
+            _ => {}
         }
         ActiveEvent {
             event: self.clone(),
@@ -333,14 +408,14 @@ impl Display for HitsResult {
 }
 
 pub trait GameLogic {
-    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, u8, u8);
+    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8);
     fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8>;
     fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8>;
     fn evaluate_attack_hits(
         &self,
         state: &GameState,
-        attack_bonus: u8,
-        defense_malus: u8,
+        attack_bonus: i8,
+        defense_malus: i8,
         offensive: &Offensive,
         dice_roll: Vec<u8>,
     ) -> u8;
@@ -358,7 +433,7 @@ pub trait GameLogic {
 struct DefaultGameLogic {}
 
 impl GameLogic for DefaultGameLogic {
-    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, u8, u8) {
+    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
         let max_attacker_tech_level = state.countries.get(&offensive.from).unwrap().max_tech_level;
         let max_defender_tech_level = state.countries.get(&offensive.to).unwrap().max_tech_level;
 
@@ -367,18 +442,16 @@ impl GameLogic for DefaultGameLogic {
             .min(max_attacker_tech_level);
         let attack_bonus = state
             .attack_bonus(&offensive.initiative)
-            .min(max_attacker_tech_level);
+            .min(max_attacker_tech_level) as i8;
 
         let defense_malus = state
             .defense_bonus(&offensive.initiative.other())
-            .min(max_defender_tech_level);
+            .min(max_defender_tech_level) as i8;
         (artillery_bonus, attack_bonus, defense_malus)
     }
 
     fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        let dice = (0..num).map(|_| state.roll()).collect();
-        println!("dice: {:?}", dice);
-        dice
+        (0..num).map(|_| state.roll()).collect()
     }
 
     fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
@@ -387,15 +460,15 @@ impl GameLogic for DefaultGameLogic {
     fn evaluate_attack_hits(
         &self,
         state: &GameState,
-        attack_bonus: u8,
-        defense_malus: u8,
+        attack_bonus: i8,
+        defense_malus: i8,
         offensive: &Offensive,
         dice_roll: Vec<u8>,
     ) -> u8 {
         {
             let attack_country = |die: u8| {
-                return die + attack_bonus - defense_malus
-                    >= state.countries.get(&offensive.from).unwrap().attack_factor;
+                return die as i8 + attack_bonus - defense_malus
+                    >= state.countries.get(&offensive.from).unwrap().attack_factor as i8;
             };
             let attack_hits = dice_roll
                 .iter()
@@ -568,8 +641,8 @@ impl GameEngine {
 
     fn evaluate_attack_hits(
         &mut self,
-        attack_bonus: u8,
-        defense_malus: u8,
+        attack_bonus: i8,
+        defense_malus: i8,
         offensive: &Offensive,
         dice: Vec<u8>,
     ) -> u8 {
@@ -586,7 +659,7 @@ impl GameEngine {
         self.logic.roll_offensive_dice(&mut self.state, pr)
     }
 
-    fn compute_bonus(&self, offensive: &Offensive) -> (u8, u8, u8) {
+    fn compute_bonus(&self, offensive: &Offensive) -> (u8, i8, i8) {
         self.logic.compute_bonus(&self.state, offensive)
     }
 
@@ -777,7 +850,7 @@ impl Display for GameState {
 mod game_state_tests {
 
     use super::HitsResult::*;
-    use crate::{fixtures::EngineBuilder, Nation::*, NationState::*, Side::*, ALL_EVENTS};
+    use crate::{fixtures::EngineBuilder, Nation::*, NationState::*, Side::*};
 
     #[test]
     fn nation_surrenders_when_brought_to_0_then_increase_vp_of_other_side() {
@@ -815,6 +888,12 @@ mod game_state_tests {
 
         assert_eq!(NationNotAtWar(Italy), engine.apply_hits(&Italy, 2));
     }
+}
+
+#[cfg(test)]
+mod game_events_tests {
+
+    use crate::{fixtures::EngineBuilder, Nation::*, Offensive, Side::*, ALL_EVENTS};
 
     #[test]
     fn played_events_stay_between_turns() {
@@ -825,5 +904,21 @@ mod game_state_tests {
         engine.new_turn();
 
         assert_eq!(1, engine.played_events.len());
+    }
+
+    #[test]
+    fn shell_crisis_event_inflicts_minus_1_to_france_attacks() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        // activate "Shells crisis"
+        engine.play_events(&ALL_EVENTS[4]);
+        let (_, att, _) = engine.compute_bonus(&Offensive {
+            initiative: Allies,
+            from: France,
+            to: Germany,
+            pr: 2,
+        });
+
+        assert_eq!(-1, att);
     }
 }

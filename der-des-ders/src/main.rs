@@ -780,6 +780,7 @@ mod events_tests {
 
         assert_eq!(AtWar(7), *engine.state.nations.get(&Germany).unwrap());
     }
+
     #[test]
     fn race_to_the_sea_is_deactivated_on_new_turn() {
         let mut engine = EngineBuilder::new(20) // die roll = 3
