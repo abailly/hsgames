@@ -126,7 +126,7 @@ fn apply_event(players: &mut Players, game_engine: &mut GameEngine, event: &Even
                 result,
             });
         }
-        4 => game_engine.activate_event(&event),
+        4 => game_engine.play_events(event),
         _ => (),
     }
 }
@@ -764,7 +764,7 @@ mod events_tests {
 
     #[test]
     fn applying_race_to_the_sea_gives_a_bonus_to_offensive_between_france_and_germany() {
-        let mut engine = EngineBuilder::new(17) // die roll = 4
+        let mut engine = EngineBuilder::new(20) // die roll = 3
             .with_initiative(Allies)
             .with_resources(Allies, 4)
             .on_turn(1)
@@ -779,6 +779,25 @@ mod events_tests {
         launch_offensives(Allies, &mut players, &mut engine);
 
         assert_eq!(AtWar(7), *engine.state.nations.get(&Germany).unwrap());
+    }
+    #[test]
+    fn race_to_the_sea_is_deactivated_on_new_turn() {
+        let mut engine = EngineBuilder::new(20) // die roll = 3
+            .with_initiative(Allies)
+            .with_resources(Allies, 4)
+            .on_turn(1)
+            .build();
+
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(France, Germany, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        apply_event(&mut players, &mut engine, &ALL_EVENTS[3]);
+        engine.new_turn();
+        launch_offensives(Allies, &mut players, &mut engine);
+
+        assert_eq!(AtWar(8), *engine.state.nations.get(&Germany).unwrap());
     }
 }
 

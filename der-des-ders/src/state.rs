@@ -28,7 +28,6 @@ pub struct GameState {
     seed: u64,
     rng: StdRng,
     events_pool: Vec<Event>,
-    active_events: Vec<ActiveEvent>,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -49,16 +48,21 @@ pub struct Event {
 
 impl<T: GameLogic> GameLogic for RaceToTheSea<T> {
     fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, u8, u8) {
-        let bonus = if offensive.from == Nation::France && offensive.to == Nation::Germany
-            || (offensive.from == Nation::Germany && offensive.to == Nation::France)
+        if self.active
+            && (offensive.from == Nation::France && offensive.to == Nation::Germany
+                || (offensive.from == Nation::Germany && offensive.to == Nation::France))
         {
-            1
+            let (artillery_bonus, attack_bonus, defense_malus) =
+                self.previous.compute_bonus(state, offensive);
+            (artillery_bonus, attack_bonus + 1, defense_malus)
         } else {
-            0
-        };
-        let (artillery_bonus, attack_bonus, defense_malus) =
-            self.previous.compute_bonus(state, offensive);
-        (artillery_bonus, attack_bonus + bonus, defense_malus)
+            println!("deactivated");
+            self.previous.compute_bonus(state, offensive)
+        }
+    }
+
+    fn new_turn(&mut self, _state: &mut GameState) {
+        self.active = false;
     }
 
     fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
@@ -142,15 +146,21 @@ impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.as_ref().apply_hits(state, nation, hits)
     }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.as_mut().new_turn(state)
+    }
 }
 
 struct RaceToTheSea<T: GameLogic> {
+    active: bool,
     previous: Box<T>,
 }
 
 impl<T: GameLogic> RaceToTheSea<T> {
     pub fn new(previous: T) -> Self {
         RaceToTheSea {
+            active: true,
             previous: Box::new(previous),
         }
     }
@@ -203,10 +213,14 @@ impl GameLogic for DummyLogic {
     fn apply_hits(&self, _state: &mut GameState, _nation: &Nation, _hits: u8) -> HitsResult {
         panic!("dummy logic")
     }
+
+    fn new_turn(&mut self, _state: &mut GameState) {
+        panic!("dummy logic")
+    }
 }
 
 impl Event {
-    fn activate(&self, engine: &mut GameEngine) -> ActiveEvent {
+    fn play(&self, engine: &mut GameEngine) -> ActiveEvent {
         if self.event_id == 4 {
             let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
             swap(&mut previous, &mut engine.logic);
@@ -338,6 +352,7 @@ pub trait GameLogic {
     ) -> u8;
     fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8);
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult;
+    fn new_turn(&mut self, state: &mut GameState);
 }
 
 struct DefaultGameLogic {}
@@ -361,7 +376,9 @@ impl GameLogic for DefaultGameLogic {
     }
 
     fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        (0..num).map(|_| state.roll()).collect()
+        let dice = (0..num).map(|_| state.roll()).collect();
+        println!("dice: {:?}", dice);
+        dice
     }
 
     fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
@@ -428,6 +445,23 @@ impl GameLogic for DefaultGameLogic {
             HitsResult::NationNotAtWar(*nation)
         }
     }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        let current_turn_year = state.current_year();
+        state.current_turn += 1;
+        let next_year = state.current_year();
+        if next_year != current_turn_year {
+            state.events_pool.retain(|event| {
+                event.not_after.is_none() || event.not_after.unwrap() > current_turn_year
+            });
+            state.events_pool.extend(
+                ALL_EVENTS
+                    .iter()
+                    .filter(|event| event.year == next_year)
+                    .cloned(),
+            );
+        }
+    }
 }
 
 fn default_game_logic() -> impl GameLogic {
@@ -445,6 +479,7 @@ pub struct Offensive {
 pub struct GameEngine {
     pub(crate) state: Box<GameState>,
     logic: Box<dyn GameLogic>,
+    played_events: Vec<ActiveEvent>,
 }
 
 impl GameEngine {
@@ -452,6 +487,7 @@ impl GameEngine {
         GameEngine {
             state: Box::new(GameState::new(seed)),
             logic: Box::new(default_game_logic()),
+            played_events: Vec::new(),
         }
     }
 
@@ -459,6 +495,7 @@ impl GameEngine {
         GameEngine {
             state,
             logic: Box::new(default_game_logic()),
+            played_events: Vec::new(),
         }
     }
 
@@ -553,14 +590,14 @@ impl GameEngine {
         self.logic.compute_bonus(&self.state, offensive)
     }
 
-    pub(crate) fn new_turn(&mut self) -> &Self {
-        self.state.new_turn();
+    pub(crate) fn new_turn(&mut self) -> &mut Self {
+        self.logic.new_turn(&mut self.state);
         self
     }
 
-    pub(crate) fn activate_event(&mut self, event: &Event) {
-        let active_event = event.activate(self);
-        self.state.active_events.push(active_event);
+    pub(crate) fn play_events(&mut self, event: &Event) {
+        let active_event = event.play(self);
+        self.played_events.push(active_event);
     }
 }
 
@@ -605,7 +642,6 @@ impl GameState {
                 .filter(|e| e.year == 1914)
                 .cloned()
                 .collect(),
-            active_events: Vec::new(),
         }
     }
 
@@ -710,33 +746,6 @@ impl GameState {
         }
         events
     }
-
-    pub(crate) fn new_turn(&mut self) -> &Self {
-        let current_turn_year = self.current_year();
-        self.current_turn += 1;
-        let next_year = self.current_year();
-        if next_year != current_turn_year {
-            self.events_pool.retain(|event| {
-                event.not_after.is_none() || event.not_after.unwrap() > current_turn_year
-            });
-            self.events_pool.extend(
-                ALL_EVENTS
-                    .iter()
-                    .filter(|event| event.year == next_year)
-                    .cloned(),
-            );
-        }
-        self.deactivate_events();
-        self
-    }
-
-    fn deactivate_events(&mut self) {
-        let still_active = self
-            .active_events
-            .iter()
-            .filter(|active_event| !(active_event.deactivation)(self));
-        self.active_events = still_active.cloned().collect();
-    }
 }
 
 impl Display for GameState {
@@ -808,13 +817,13 @@ mod game_state_tests {
     }
 
     #[test]
-    fn on_new_turn_remove_inactive_events() {
+    fn played_events_stay_between_turns() {
         let mut engine = EngineBuilder::new(11).build();
 
         // activate "Race to the sea"
-        engine.activate_event(&ALL_EVENTS[3]);
+        engine.play_events(&ALL_EVENTS[3]);
         engine.new_turn();
 
-        assert_eq!(0, engine.state.active_events.len());
+        assert_eq!(1, engine.played_events.len());
     }
 }
