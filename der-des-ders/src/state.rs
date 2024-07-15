@@ -154,114 +154,128 @@ impl Display for HitsResult {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, Debug)]
-struct GameLogic {
-    pub(crate) previous: Option<Box<GameLogic>>,
-    pub(crate) compute_bonus: fn(&GameState, &Offensive) -> (u8, u8, u8),
-    pub(crate) roll_offensive_dice: fn(&mut GameState, u8) -> Vec<u8>,
-    pub(crate) roll_artillery_dice: fn(&mut GameState, u8) -> Vec<u8>,
-    pub(crate) evaluate_attack_hits: fn(&GameState, u8, u8, &Offensive, Vec<u8>) -> u8,
-    pub(crate) evaluate_artillery_hits: fn(&GameState, &Offensive, Vec<u8>) -> u8,
-    pub(crate) reduce_pr: fn(&mut GameState, Side, u8) -> &mut GameState,
-    pub(crate) apply_hits: fn(&mut GameState, &Nation, u8) -> HitsResult,
+pub trait GameLogic {
+    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, u8, u8);
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8>;
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8>;
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: u8,
+        defense_malus: u8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8;
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8;
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8);
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult;
 }
 
-fn default_reduce_pr(state: &mut GameState, side: Side, pr: u8) -> &mut GameState {
-    let st = state.state_of_war.get_mut(&side).unwrap();
-    if st.resources >= pr {
-        st.resources -= pr;
+struct DefaultGameLogic {}
+
+impl GameLogic for DefaultGameLogic {
+    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, u8, u8) {
+        {
+            let max_attacker_tech_level =
+                state.countries.get(&offensive.from).unwrap().max_tech_level;
+            let max_defender_tech_level =
+                state.countries.get(&offensive.to).unwrap().max_tech_level;
+
+            let artillery_bonus = state
+                .artillery_bonus(&offensive.initiative)
+                .min(max_attacker_tech_level);
+            let attack_bonus = state.adjust_attack_bonus(
+                state
+                    .attack_bonus(&offensive.initiative)
+                    .min(max_attacker_tech_level),
+                &offensive.from,
+                &offensive.to,
+            );
+            let defense_malus = state
+                .defense_bonus(&offensive.initiative.other())
+                .min(max_defender_tech_level);
+            (artillery_bonus, attack_bonus, defense_malus)
+        }
     }
-    state
-}
 
-fn default_compute_bonus(state: &GameState, offensive: &Offensive) -> (u8, u8, u8) {
-    let max_attacker_tech_level = state.countries.get(&offensive.from).unwrap().max_tech_level;
-    let max_defender_tech_level = state.countries.get(&offensive.to).unwrap().max_tech_level;
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        (0..num).map(|_| state.roll()).collect()
+    }
 
-    let artillery_bonus = state
-        .artillery_bonus(&offensive.initiative)
-        .min(max_attacker_tech_level);
-    let attack_bonus = state.adjust_attack_bonus(
-        state
-            .attack_bonus(&offensive.initiative)
-            .min(max_attacker_tech_level),
-        &offensive.from,
-        &offensive.to,
-    );
-    let defense_malus = state
-        .defense_bonus(&offensive.initiative.other())
-        .min(max_defender_tech_level);
-    (artillery_bonus, attack_bonus, defense_malus)
-}
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        (0..num).map(|_| state.roll()).collect()
+    }
 
-fn default_evaluate_artillery_hits(
-    state: &GameState,
-    offensive: &Offensive,
-    artillery_dice: Vec<u8>,
-) -> u8 {
-    let bomb_country =
-        |die: u8| return die >= state.countries.get(&offensive.from).unwrap().attack_factor;
-    let artillery_hits = artillery_dice
-        .iter()
-        .map(|die| bomb_country(*die))
-        .filter(|hit| *hit)
-        .count() as u8;
-    artillery_hits
-}
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: u8,
+        defense_malus: u8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        {
+            let attack_country = |die: u8| {
+                return die + attack_bonus - defense_malus
+                    >= state.countries.get(&offensive.from).unwrap().attack_factor;
+            };
+            let attack_hits = dice_roll
+                .iter()
+                .map(|die| attack_country(*die))
+                .filter(|hit| *hit)
+                .count() as u8;
+            attack_hits
+        }
+    }
 
-fn default_evaluate_attack_hits(
-    state: &GameState,
-    attack_bonus: u8,
-    defense_malus: u8,
-    offensive: &Offensive,
-    dice: Vec<u8>,
-) -> u8 {
-    let attack_country = |die: u8| {
-        return die + attack_bonus - defense_malus
-            >= state.countries.get(&offensive.from).unwrap().attack_factor;
-    };
-    let attack_hits = dice
-        .iter()
-        .map(|die| attack_country(*die))
-        .filter(|hit| *hit)
-        .count() as u8;
-    attack_hits
-}
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        {
+            let bomb_country =
+                |die: u8| return die >= state.countries.get(&offensive.from).unwrap().attack_factor;
+            let artillery_hits = dice_roll
+                .iter()
+                .map(|die| bomb_country(*die))
+                .filter(|hit| *hit)
+                .count() as u8;
+            artillery_hits
+        }
+    }
 
-fn default_roll_artillery_dice(state: &mut GameState, artillery_bonus: u8) -> Vec<u8> {
-    (0..artillery_bonus).map(|_| state.roll()).collect()
-}
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+        {
+            let st = state.state_of_war.get_mut(side).unwrap();
+            if st.resources >= pr {
+                st.resources -= pr;
+            }
+        };
+    }
 
-fn default_roll_offensive_dice(state: &mut GameState, pr: u8) -> Vec<u8> {
-    (0..pr).map(|_| state.roll()).collect()
-}
-
-fn default_apply_hits(state: &mut GameState, to: &Nation, hits: u8) -> HitsResult {
-    if let NationState::AtWar(breakdown) = state.nations.get_mut(to).unwrap() {
-        if hits >= *breakdown {
-            state.surrenders(to)
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+        if let NationState::AtWar(breakdown) = state.nations.get_mut(nation).unwrap() {
+            if hits >= *breakdown {
+                state.surrenders(nation)
+            } else {
+                *breakdown -= hits;
+                HitsResult::Hits(*nation, hits)
+            }
         } else {
-            *breakdown -= hits;
-            HitsResult::Hits(*to, hits)
+            HitsResult::NationNotAtWar(*nation)
         }
-    } else {
-        HitsResult::NationNotAtWar(*to)
     }
 }
 
-impl GameLogic {
-    fn new() -> Self {
-        GameLogic {
-            previous: None,
-            compute_bonus: default_compute_bonus,
-            roll_offensive_dice: default_roll_offensive_dice,
-            roll_artillery_dice: default_roll_artillery_dice,
-            evaluate_attack_hits: default_evaluate_attack_hits,
-            evaluate_artillery_hits: default_evaluate_artillery_hits,
-            reduce_pr: default_reduce_pr,
-            apply_hits: default_apply_hits,
-        }
-    }
+fn default_game_logic() -> impl GameLogic {
+    DefaultGameLogic {}
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -274,26 +288,26 @@ pub struct Offensive {
 
 pub struct GameEngine {
     pub(crate) state: Box<GameState>,
-    logic: Box<GameLogic>,
+    logic: Box<dyn GameLogic>,
 }
 
 impl GameEngine {
     pub fn new(seed: u64) -> Self {
         GameEngine {
             state: Box::new(GameState::new(seed)),
-            logic: Box::new(GameLogic::new()),
+            logic: Box::new(default_game_logic()),
         }
     }
 
     pub fn with_state(state: Box<GameState>) -> GameEngine {
         GameEngine {
             state,
-            logic: Box::new(GameLogic::new()),
+            logic: Box::new(default_game_logic()),
         }
     }
 
     pub fn reduce_pr(&mut self, side: Side, pr: u8) -> &mut Self {
-        (self.logic.reduce_pr)(&mut self.state, side, pr);
+        self.logic.reduce_pr(&mut self.state, &side, pr);
         self
     }
 
@@ -333,7 +347,7 @@ impl GameEngine {
     }
 
     pub(crate) fn apply_hits(&mut self, to: &Nation, hits: u8) -> HitsResult {
-        (self.logic.apply_hits)(&mut self.state, to, hits)
+        self.logic.apply_hits(&mut self.state, to, hits)
     }
 
     pub(crate) fn draw_events(&mut self) -> Vec<Event> {
@@ -355,7 +369,8 @@ impl GameEngine {
     }
 
     fn evaluate_artillery_hits(&mut self, offensive: &Offensive, artillery_dice: Vec<u8>) -> u8 {
-        (self.logic.evaluate_artillery_hits)(&mut self.state, offensive, artillery_dice)
+        self.logic
+            .evaluate_artillery_hits(&self.state, offensive, artillery_dice)
     }
 
     fn evaluate_attack_hits(
@@ -365,25 +380,21 @@ impl GameEngine {
         offensive: &Offensive,
         dice: Vec<u8>,
     ) -> u8 {
-        (self.logic.evaluate_attack_hits)(
-            &mut self.state,
-            attack_bonus,
-            defense_malus,
-            offensive,
-            dice,
-        )
+        self.logic
+            .evaluate_attack_hits(&self.state, attack_bonus, defense_malus, offensive, dice)
     }
 
     fn roll_artillery_dice(&mut self, artillery_bonus: u8) -> Vec<u8> {
-        (self.logic.roll_artillery_dice)(&mut self.state, artillery_bonus)
+        self.logic
+            .roll_artillery_dice(&mut self.state, artillery_bonus)
     }
 
     fn roll_offensive_dice(&mut self, pr: u8) -> Vec<u8> {
-        (self.logic.roll_offensive_dice)(&mut self.state, pr)
+        self.logic.roll_offensive_dice(&mut self.state, pr)
     }
 
     fn compute_bonus(&self, offensive: &Offensive) -> (u8, u8, u8) {
-        (self.logic.compute_bonus)(&self.state, offensive)
+        self.logic.compute_bonus(&self.state, offensive)
     }
 
     pub(crate) fn new_turn(&mut self) -> &Self {
