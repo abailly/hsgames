@@ -103,54 +103,6 @@ impl GameLogic for RaceToTheSea {
     }
 }
 
-impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
-    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
-        self.as_ref().compute_bonus(state, offensive)
-    }
-
-    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.as_ref().roll_offensive_dice(state, num)
-    }
-
-    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.as_ref().roll_artillery_dice(state, num)
-    }
-
-    fn evaluate_attack_hits(
-        &self,
-        state: &GameState,
-        attack_bonus: i8,
-        defense_malus: i8,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.as_ref()
-            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
-    }
-
-    fn evaluate_artillery_hits(
-        &self,
-        state: &GameState,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.as_ref()
-            .evaluate_artillery_hits(state, offensive, dice_roll)
-    }
-
-    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
-        self.as_ref().reduce_pr(state, side, pr)
-    }
-
-    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
-        self.as_ref().apply_hits(state, nation, hits)
-    }
-
-    fn new_turn(&mut self, state: &mut GameState) {
-        self.as_mut().new_turn(state)
-    }
-}
-
 struct RaceToTheSea {
     active: bool,
     previous: Box<dyn GameLogic>,
@@ -233,6 +185,72 @@ impl<T: GameLogic> ShellCrisis<T> {
     }
 }
 
+impl GameLogic for Gas {
+    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        self.previous.compute_bonus(state, offensive)
+    }
+
+    fn new_turn(&mut self, _state: &mut GameState) {
+        self.active = false;
+    }
+
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_offensive_dice(state, num)
+    }
+
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous
+            .roll_artillery_dice(state, num)
+            .into_iter()
+            .map(|die| die + 1)
+            .collect()
+    }
+
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: i8,
+        defense_malus: i8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
+    }
+
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_artillery_hits(state, offensive, dice_roll)
+    }
+
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+        self.previous.reduce_pr(state, side, pr)
+    }
+
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+        self.previous.apply_hits(state, nation, hits)
+    }
+}
+
+struct Gas {
+    active: bool,
+    previous: Box<dyn GameLogic>,
+}
+
+impl Gas {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        Gas {
+            active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 struct DummyLogic {}
 
 impl DummyLogic {
@@ -298,6 +316,11 @@ impl Event {
                 let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
                 swap(&mut previous, &mut engine.logic);
                 engine.logic = Box::new(ShellCrisis::new(previous));
+            }
+            6 => {
+                let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
+                swap(&mut previous, &mut engine.logic);
+                engine.logic = Box::new(Gas::new(previous));
             }
             _ => {}
         }
@@ -428,6 +451,54 @@ pub trait GameLogic {
     fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8);
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult;
     fn new_turn(&mut self, state: &mut GameState);
+}
+
+impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
+    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        self.as_ref().compute_bonus(state, offensive)
+    }
+
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.as_ref().roll_offensive_dice(state, num)
+    }
+
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.as_ref().roll_artillery_dice(state, num)
+    }
+
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: i8,
+        defense_malus: i8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.as_ref()
+            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
+    }
+
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.as_ref()
+            .evaluate_artillery_hits(state, offensive, dice_roll)
+    }
+
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+        self.as_ref().reduce_pr(state, side, pr)
+    }
+
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+        self.as_ref().apply_hits(state, nation, hits)
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.as_mut().new_turn(state)
+    }
 }
 
 struct DefaultGameLogic {}
@@ -920,5 +991,16 @@ mod game_events_tests {
         });
 
         assert_eq!(-1, att);
+    }
+
+    #[test]
+    fn gas_event_adds_1_to_germany_artillery_rolls() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        // activate "Shells crisis"
+        engine.play_events(&ALL_EVENTS[5]);
+        let dice = engine.roll_artillery_dice(2);
+
+        assert_eq!(vec![3, 3], dice);
     }
 }
