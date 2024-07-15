@@ -88,7 +88,7 @@ impl Player for Players {
 }
 
 fn run_turn(players: &mut Players, game_engine: &mut GameEngine) {
-    players.output(&Output::CurrentState(*game_engine.state.to_owned()));
+    players.output(&Output::CurrentState(game_engine.state.clone()));
     determine_initiative(players, game_engine);
     draw_events(players, game_engine);
     collect_resources(game_engine);

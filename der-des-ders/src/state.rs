@@ -477,7 +477,7 @@ pub struct Offensive {
 }
 
 pub struct GameEngine {
-    pub(crate) state: Box<GameState>,
+    pub(crate) state: GameState,
     logic: Box<dyn GameLogic>,
     played_events: Vec<ActiveEvent>,
 }
@@ -485,13 +485,13 @@ pub struct GameEngine {
 impl GameEngine {
     pub fn new(seed: u64) -> Self {
         GameEngine {
-            state: Box::new(GameState::new(seed)),
+            state: GameState::new(seed),
             logic: Box::new(default_game_logic()),
             played_events: Vec::new(),
         }
     }
 
-    pub fn with_state(state: Box<GameState>) -> GameEngine {
+    pub fn with_state(state: GameState) -> GameEngine {
         GameEngine {
             state,
             logic: Box::new(default_game_logic()),
