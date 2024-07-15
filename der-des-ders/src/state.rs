@@ -28,6 +28,7 @@ pub struct GameState {
     rng: StdRng,
     events_pool: Vec<Event>,
     active_events: Vec<ActiveEvent>,
+    logic: GameLogic,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -155,6 +156,33 @@ impl Display for HitsResult {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
+struct GameLogic {
+    previous: Option<Box<GameLogic>>,
+    compute_bonus: fn(&GameState, &Offensive) -> (u8, u8, u8),
+    roll_offensive_dice: fn(&mut GameState, u8) -> Vec<u8>,
+    roll_artillery_dice: fn(&mut GameState, u8) -> Vec<u8>,
+    evaluate_attack_hits: fn(&mut GameState, u8, u8, &Offensive, Vec<u8>) -> u8,
+    evaluate_artillery_hits: fn(&mut GameState, &Offensive, Vec<u8>) -> u8,
+    reduce_pr: fn(&mut GameState, Side, u8) -> &mut GameState,
+    apply_hits: fn(&mut GameState, &Nation, u8) -> HitsResult,
+}
+
+impl GameLogic {
+    fn new() -> Self {
+        GameLogic {
+            previous: None,
+            compute_bonus: GameState::compute_bonus,
+            roll_offensive_dice: GameState::roll_offensive_dice,
+            roll_artillery_dice: GameState::roll_artillery_dice,
+            evaluate_attack_hits: GameState::evaluate_attack_hits,
+            evaluate_artillery_hits: GameState::evaluate_artillery_hits,
+            reduce_pr: GameState::reduce_pr,
+            apply_hits: GameState::apply_hits,
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct Offensive {
     pub initiative: Side,
     pub from: Nation,
@@ -204,6 +232,7 @@ impl GameState {
                 .cloned()
                 .collect(),
             active_events: Vec::new(),
+            logic: GameLogic::new(),
         }
     }
 
@@ -380,7 +409,7 @@ impl GameState {
         (0..pr).map(|_| self.roll()).collect()
     }
 
-    fn compute_bonus(&mut self, offensive: &Offensive) -> (u8, u8, u8) {
+    fn compute_bonus(&self, offensive: &Offensive) -> (u8, u8, u8) {
         let max_attacker_tech_level = self.countries.get(&offensive.from).unwrap().max_tech_level;
         let max_defender_tech_level = self.countries.get(&offensive.to).unwrap().max_tech_level;
 
@@ -429,6 +458,7 @@ impl GameState {
             .filter(|active_event| !(active_event.deactivation)(self));
         self.active_events = still_active.cloned().collect();
     }
+
     fn adjust_attack_bonus(&self, attack_bonus: u8, from: &Nation, to: &Nation) -> u8 {
         let event_bonus = if self.active_events.iter().any(|event| {
             event.event.event_id == 4
