@@ -1,6 +1,7 @@
 use core::fmt;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
+use std::mem::swap;
 
 use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
@@ -46,8 +47,171 @@ pub struct Event {
     pub title: &'static str,
 }
 
+impl<T: GameLogic> GameLogic for RaceToTheSea<T> {
+    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, u8, u8) {
+        let bonus = if offensive.from == Nation::France && offensive.to == Nation::Germany
+            || (offensive.from == Nation::Germany && offensive.to == Nation::France)
+        {
+            1
+        } else {
+            0
+        };
+        let (artillery_bonus, attack_bonus, defense_malus) =
+            self.previous.compute_bonus(state, offensive);
+        (artillery_bonus, attack_bonus + bonus, defense_malus)
+    }
+
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_offensive_dice(state, num)
+    }
+
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_artillery_dice(state, num)
+    }
+
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: u8,
+        defense_malus: u8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
+    }
+
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_artillery_hits(state, offensive, dice_roll)
+    }
+
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+        self.previous.reduce_pr(state, side, pr)
+    }
+
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+        self.previous.apply_hits(state, nation, hits)
+    }
+}
+
+impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
+    fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, u8, u8) {
+        self.as_ref().compute_bonus(state, offensive)
+    }
+
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.as_ref().roll_offensive_dice(state, num)
+    }
+
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.as_ref().roll_artillery_dice(state, num)
+    }
+
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: u8,
+        defense_malus: u8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.as_ref()
+            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
+    }
+
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.as_ref()
+            .evaluate_artillery_hits(state, offensive, dice_roll)
+    }
+
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+        self.as_ref().reduce_pr(state, side, pr)
+    }
+
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+        self.as_ref().apply_hits(state, nation, hits)
+    }
+}
+
+struct RaceToTheSea<T: GameLogic> {
+    previous: Box<T>,
+}
+
+impl<T: GameLogic> RaceToTheSea<T> {
+    pub fn new(previous: T) -> Self {
+        RaceToTheSea {
+            previous: Box::new(previous),
+        }
+    }
+}
+
+struct DummyLogic {}
+
+impl DummyLogic {
+    fn new() -> Self {
+        DummyLogic {}
+    }
+}
+
+impl GameLogic for DummyLogic {
+    fn compute_bonus(&self, _state: &GameState, _offensive: &Offensive) -> (u8, u8, u8) {
+        panic!("dummy logic")
+    }
+    fn roll_artillery_dice(&self, _state: &mut GameState, _num: u8) -> Vec<u8> {
+        panic!("dummy logic")
+    }
+
+    fn roll_offensive_dice(&self, _state: &mut GameState, _num: u8) -> Vec<u8> {
+        panic!("dummy logic")
+    }
+
+    fn evaluate_attack_hits(
+        &self,
+        _state: &GameState,
+        _attack_bonus: u8,
+        _defense_malus: u8,
+        _offensive: &Offensive,
+        _dice_roll: Vec<u8>,
+    ) -> u8 {
+        panic!("dummy logic")
+    }
+
+    fn evaluate_artillery_hits(
+        &self,
+        _state: &GameState,
+        _offensive: &Offensive,
+        _dice_roll: Vec<u8>,
+    ) -> u8 {
+        panic!("dummy logic")
+    }
+
+    fn reduce_pr(&self, _state: &mut GameState, _side: &Side, _pr: u8) {
+        panic!("dummy logic")
+    }
+
+    fn apply_hits(&self, _state: &mut GameState, _nation: &Nation, _hits: u8) -> HitsResult {
+        panic!("dummy logic")
+    }
+}
+
 impl Event {
-    fn activate(&self) -> ActiveEvent {
+    fn activate(&self, engine: &mut GameEngine) -> ActiveEvent {
+        if self.event_id == 4 {
+            let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
+            swap(&mut previous, &mut engine.logic);
+            engine.logic = Box::new(RaceToTheSea::new(previous));
+        }
         ActiveEvent {
             event: self.clone(),
             deactivation: |_game| true, // by default, events last for one turn
@@ -180,27 +344,20 @@ struct DefaultGameLogic {}
 
 impl GameLogic for DefaultGameLogic {
     fn compute_bonus(&self, state: &GameState, offensive: &Offensive) -> (u8, u8, u8) {
-        {
-            let max_attacker_tech_level =
-                state.countries.get(&offensive.from).unwrap().max_tech_level;
-            let max_defender_tech_level =
-                state.countries.get(&offensive.to).unwrap().max_tech_level;
+        let max_attacker_tech_level = state.countries.get(&offensive.from).unwrap().max_tech_level;
+        let max_defender_tech_level = state.countries.get(&offensive.to).unwrap().max_tech_level;
 
-            let artillery_bonus = state
-                .artillery_bonus(&offensive.initiative)
-                .min(max_attacker_tech_level);
-            let attack_bonus = state.adjust_attack_bonus(
-                state
-                    .attack_bonus(&offensive.initiative)
-                    .min(max_attacker_tech_level),
-                &offensive.from,
-                &offensive.to,
-            );
-            let defense_malus = state
-                .defense_bonus(&offensive.initiative.other())
-                .min(max_defender_tech_level);
-            (artillery_bonus, attack_bonus, defense_malus)
-        }
+        let artillery_bonus = state
+            .artillery_bonus(&offensive.initiative)
+            .min(max_attacker_tech_level);
+        let attack_bonus = state
+            .attack_bonus(&offensive.initiative)
+            .min(max_attacker_tech_level);
+
+        let defense_malus = state
+            .defense_bonus(&offensive.initiative.other())
+            .min(max_defender_tech_level);
+        (artillery_bonus, attack_bonus, defense_malus)
     }
 
     fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
@@ -210,7 +367,6 @@ impl GameLogic for DefaultGameLogic {
     fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
         (0..num).map(|_| state.roll()).collect()
     }
-
     fn evaluate_attack_hits(
         &self,
         state: &GameState,
@@ -403,7 +559,8 @@ impl GameEngine {
     }
 
     pub(crate) fn activate_event(&mut self, event: &Event) {
-        self.state.activate_event(event);
+        let active_event = event.activate(self);
+        self.state.active_events.push(active_event);
     }
 }
 
@@ -553,6 +710,7 @@ impl GameState {
         }
         events
     }
+
     pub(crate) fn new_turn(&mut self) -> &Self {
         let current_turn_year = self.current_year();
         self.current_turn += 1;
@@ -572,29 +730,12 @@ impl GameState {
         self
     }
 
-    pub(crate) fn activate_event(&mut self, event: &Event) {
-        self.active_events.push(event.activate());
-    }
-
     fn deactivate_events(&mut self) {
         let still_active = self
             .active_events
             .iter()
             .filter(|active_event| !(active_event.deactivation)(self));
         self.active_events = still_active.cloned().collect();
-    }
-
-    fn adjust_attack_bonus(&self, attack_bonus: u8, from: &Nation, to: &Nation) -> u8 {
-        let event_bonus = if self.active_events.iter().any(|event| {
-            event.event.event_id == 4
-                && ((from == &Nation::France && to == &Nation::Germany)
-                    || (from == &Nation::Germany && to == &Nation::France))
-        }) {
-            1
-        } else {
-            0
-        };
-        event_bonus + attack_bonus
     }
 }
 
