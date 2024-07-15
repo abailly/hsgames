@@ -28,7 +28,6 @@ pub struct GameState {
     rng: StdRng,
     events_pool: Vec<Event>,
     active_events: Vec<ActiveEvent>,
-    logic: GameLogic,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -273,6 +272,130 @@ pub struct Offensive {
     pub pr: u8,
 }
 
+pub struct GameEngine {
+    pub(crate) state: Box<GameState>,
+    logic: Box<GameLogic>,
+}
+
+impl GameEngine {
+    pub fn new(seed: u64) -> Self {
+        GameEngine {
+            state: Box::new(GameState::new(seed)),
+            logic: Box::new(GameLogic::new()),
+        }
+    }
+
+    pub fn with_state(state: Box<GameState>) -> GameEngine {
+        GameEngine {
+            state,
+            logic: Box::new(GameLogic::new()),
+        }
+    }
+
+    pub fn reduce_pr(&mut self, side: Side, pr: u8) -> &mut Self {
+        (self.logic.reduce_pr)(&mut self.state, side, pr);
+        self
+    }
+
+    pub fn increase_pr(&mut self, side: Side, pr: u8) -> &mut Self {
+        self.state.increase_pr(side, pr);
+        self
+    }
+
+    pub fn roll(&mut self) -> u8 {
+        self.state.roll()
+    }
+
+    pub fn current_year(&self) -> u16 {
+        self.state.current_year()
+    }
+
+    pub fn all_nations_at_war(&self, initiative: Side) -> Vec<Nation> {
+        self.state.all_nations_at_war(initiative)
+    }
+
+    pub(crate) fn reinforce(&mut self, nation: Nation, pr: u8) -> &Self {
+        let nation_state = self.state.nations.get_mut(&nation).unwrap();
+        let maximum_breakdown = nation.maximum_breakdown();
+        let current_breakdown = nation_state.breakdown();
+
+        let (spent, reinforcement) =
+            (1..=(pr + 1)).fold((0, 0), |(spent, reinforcement), resource| {
+                if spent + resource <= pr && reinforcement + current_breakdown < maximum_breakdown {
+                    (spent + resource, reinforcement + 1)
+                } else {
+                    (spent, reinforcement)
+                }
+            });
+        nation_state.reinforce(reinforcement);
+        self.reduce_pr(nation.side(), spent);
+        self
+    }
+
+    pub(crate) fn apply_hits(&mut self, to: &Nation, hits: u8) -> HitsResult {
+        (self.logic.apply_hits)(&mut self.state, to, hits)
+    }
+
+    pub(crate) fn draw_events(&mut self) -> Vec<Event> {
+        self.state.draw_events()
+    }
+
+    pub(crate) fn resolve_offensive(&mut self, offensive: &Offensive) -> HitsResult {
+        let (artillery_bonus, attack_bonus, defense_malus) = self.compute_bonus(offensive);
+
+        let dice: Vec<u8> = self.roll_offensive_dice(offensive.pr);
+        let artillery_dice: Vec<u8> = self.roll_artillery_dice(artillery_bonus);
+
+        let attack_hits = self.evaluate_attack_hits(attack_bonus, defense_malus, offensive, dice);
+
+        let artillery_hits = self.evaluate_artillery_hits(offensive, artillery_dice);
+
+        self.reduce_pr(offensive.initiative, offensive.pr);
+        self.apply_hits(&offensive.to, attack_hits + artillery_hits)
+    }
+
+    fn evaluate_artillery_hits(&mut self, offensive: &Offensive, artillery_dice: Vec<u8>) -> u8 {
+        (self.logic.evaluate_artillery_hits)(&mut self.state, offensive, artillery_dice)
+    }
+
+    fn evaluate_attack_hits(
+        &mut self,
+        attack_bonus: u8,
+        defense_malus: u8,
+        offensive: &Offensive,
+        dice: Vec<u8>,
+    ) -> u8 {
+        (self.logic.evaluate_attack_hits)(
+            &mut self.state,
+            attack_bonus,
+            defense_malus,
+            offensive,
+            dice,
+        )
+    }
+
+    fn roll_artillery_dice(&mut self, artillery_bonus: u8) -> Vec<u8> {
+        (self.logic.roll_artillery_dice)(&mut self.state, artillery_bonus)
+    }
+
+    fn roll_offensive_dice(&mut self, pr: u8) -> Vec<u8> {
+        (self.logic.roll_offensive_dice)(&mut self.state, pr)
+    }
+
+    fn compute_bonus(&self, offensive: &Offensive) -> (u8, u8, u8) {
+        (self.logic.compute_bonus)(&self.state, offensive)
+    }
+
+    pub(crate) fn new_turn(&mut self) -> &Self {
+        self.state.new_turn();
+        self
+    }
+
+    pub(crate) fn activate_event(&mut self, event: &Event) {
+        self.state.activate_event(event);
+    }
+}
+
 impl GameState {
     pub fn new(seed: u64) -> Self {
         let nations = INITIAL_NATION_STATE.iter().cloned().collect();
@@ -315,12 +438,27 @@ impl GameState {
                 .cloned()
                 .collect(),
             active_events: Vec::new(),
-            logic: GameLogic::new(),
         }
     }
 
-    pub fn reduce_pr(&mut self, side: Side, pr: u8) -> &mut Self {
-        (self.logic.reduce_pr)(self, side, pr)
+    pub fn tally_resources(&self, pr_for_side: &Side) -> u8 {
+        self.nations
+            .iter()
+            .fold(0, |acc, (nation, status)| match status {
+                NationState::AtWar(breakdown) => match self.countries.get(nation) {
+                    Some(Country {
+                        side, resources, ..
+                    }) if side == pr_for_side => {
+                        acc + if *nation == Nation::Russia {
+                            operational_level(*breakdown) * 2
+                        } else {
+                            *resources
+                        }
+                    }
+                    _ => acc,
+                },
+                _ => acc,
+            })
     }
 
     pub fn increase_pr(&mut self, side: Side, pr: u8) -> &mut Self {
@@ -383,28 +521,6 @@ impl GameState {
             .defense
     }
 
-    pub(crate) fn reinforce(&mut self, nation: Nation, pr: u8) -> &Self {
-        let nation_state = self.nations.get_mut(&nation).unwrap();
-        let maximum_breakdown = nation.maximum_breakdown();
-        let current_breakdown = nation_state.breakdown();
-
-        let (spent, reinforcement) =
-            (1..=(pr + 1)).fold((0, 0), |(spent, reinforcement), resource| {
-                if spent + resource <= pr && reinforcement + current_breakdown < maximum_breakdown {
-                    (spent + resource, reinforcement + 1)
-                } else {
-                    (spent, reinforcement)
-                }
-            });
-        nation_state.reinforce(reinforcement);
-        self.reduce_pr(nation.side(), spent);
-        self
-    }
-
-    pub(crate) fn apply_hits(&mut self, to: &Nation, hits: u8) -> HitsResult {
-        (self.logic.apply_hits)(self, to, hits)
-    }
-
     fn surrenders(&mut self, to: &Nation) -> HitsResult {
         let side = self.countries.get(to).unwrap().side.other();
         self.state_of_war.get_mut(&side).unwrap().vp += self.countries.get(to).unwrap().vp;
@@ -426,47 +542,6 @@ impl GameState {
         }
         events
     }
-
-    pub(crate) fn resolve_offensive(&mut self, offensive: &Offensive) -> HitsResult {
-        let (artillery_bonus, attack_bonus, defense_malus) = self.compute_bonus(offensive);
-
-        let dice: Vec<u8> = self.roll_offensive_dice(offensive.pr);
-        let artillery_dice: Vec<u8> = self.roll_artillery_dice(artillery_bonus);
-
-        let attack_hits = self.evaluate_attack_hits(attack_bonus, defense_malus, offensive, dice);
-
-        let artillery_hits = self.evaluate_artillery_hits(offensive, artillery_dice);
-
-        self.reduce_pr(offensive.initiative, offensive.pr);
-        self.apply_hits(&offensive.to, attack_hits + artillery_hits)
-    }
-
-    fn evaluate_artillery_hits(&mut self, offensive: &Offensive, artillery_dice: Vec<u8>) -> u8 {
-        (self.logic.evaluate_artillery_hits)(self, offensive, artillery_dice)
-    }
-
-    fn evaluate_attack_hits(
-        &mut self,
-        attack_bonus: u8,
-        defense_malus: u8,
-        offensive: &Offensive,
-        dice: Vec<u8>,
-    ) -> u8 {
-        (self.logic.evaluate_attack_hits)(self, attack_bonus, defense_malus, offensive, dice)
-    }
-
-    fn roll_artillery_dice(&mut self, artillery_bonus: u8) -> Vec<u8> {
-        (self.logic.roll_artillery_dice)(self, artillery_bonus)
-    }
-
-    fn roll_offensive_dice(&mut self, pr: u8) -> Vec<u8> {
-        (self.logic.roll_offensive_dice)(self, pr)
-    }
-
-    fn compute_bonus(&self, offensive: &Offensive) -> (u8, u8, u8) {
-        (self.logic.compute_bonus)(self, offensive)
-    }
-
     pub(crate) fn new_turn(&mut self) -> &Self {
         let current_turn_year = self.current_year();
         self.current_turn += 1;
@@ -541,55 +616,53 @@ impl Display for GameState {
 mod game_state_tests {
 
     use super::HitsResult::*;
-    use crate::{fixtures::StateBuilder, Nation::*, NationState::*, Side::*, ALL_EVENTS};
+    use crate::{fixtures::EngineBuilder, Nation::*, NationState::*, Side::*, ALL_EVENTS};
 
     #[test]
     fn nation_surrenders_when_brought_to_0_then_increase_vp_of_other_side() {
-        let mut state = StateBuilder::new(14) // die roll = 6
+        let mut engine = EngineBuilder::new(14) // die roll = 6
             .with_nation(France, AtWar(4))
             .build();
-
-        let result = state.apply_hits(&France, 4);
+        let result = engine.apply_hits(&France, 4);
 
         assert_eq!(Surrenders(France), result);
-        assert_eq!(6, state.state_of_war.get(&Empires).unwrap().vp);
-        assert_eq!(AtPeace, state.nations.get(&France).unwrap().clone());
+        assert_eq!(6, engine.state.state_of_war.get(&Empires).unwrap().vp);
+        assert_eq!(AtPeace, engine.state.nations.get(&France).unwrap().clone());
     }
 
     #[test]
     fn side_wins_if_die_roll_lower_than_vp_given_nation_surrenders() {
-        let mut state = StateBuilder::new(11) // die roll = 2
+        let mut engine = EngineBuilder::new(11) // die roll = 2
             .with_nation(France, AtWar(4))
             .build();
+        let result = engine.apply_hits(&France, 4);
 
-        let result = state.apply_hits(&France, 4);
-
-        assert_eq!(Some(Empires), state.winner);
+        assert_eq!(Some(Empires), engine.state.winner);
         assert_eq!(Winner(Empires), result);
     }
 
     #[test]
     fn breakdown_returns_hits_lost() {
-        let mut state = StateBuilder::new(11).with_nation(France, AtWar(4)).build();
+        let mut engine = EngineBuilder::new(11).with_nation(France, AtWar(4)).build();
 
-        assert_eq!(Hits(France, 2), state.apply_hits(&France, 2));
+        assert_eq!(Hits(France, 2), engine.apply_hits(&France, 2));
     }
 
     #[test]
     fn breakdown_does_not_inflict_hits_given_nation_is_not_at_war() {
-        let mut state = StateBuilder::new(11).build();
+        let mut engine = EngineBuilder::new(11).build();
 
-        assert_eq!(NationNotAtWar(Italy), state.apply_hits(&Italy, 2));
+        assert_eq!(NationNotAtWar(Italy), engine.apply_hits(&Italy, 2));
     }
 
     #[test]
     fn on_new_turn_remove_inactive_events() {
-        let mut state = StateBuilder::new(11).build();
+        let mut engine = EngineBuilder::new(11).build();
 
         // activate "Race to the sea"
-        state.activate_event(&ALL_EVENTS[3]);
-        state.new_turn();
+        engine.activate_event(&ALL_EVENTS[3]);
+        engine.new_turn();
 
-        assert_eq!(0, state.active_events.len());
+        assert_eq!(0, engine.state.active_events.len());
     }
 }
