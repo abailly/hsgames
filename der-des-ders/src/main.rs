@@ -126,10 +126,7 @@ fn apply_event(players: &mut Players, game_state: &mut GameState, event: &Event)
                 result,
             });
         }
-        4 => game_state.activate_event(ActiveEvent {
-            duration: 1,
-            event: event.clone(),
-        }),
+        4 => game_state.activate_event(&event),
         _ => (),
     }
 }

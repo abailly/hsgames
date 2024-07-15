@@ -46,10 +46,19 @@ pub struct Event {
     pub title: &'static str,
 }
 
+impl Event {
+    fn activate(&self) -> ActiveEvent {
+        ActiveEvent {
+            event: self.clone(),
+            deactivation: |_game| true, // by default, events last for one turn
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Clone, Debug)]
 pub struct ActiveEvent {
     pub event: Event,
-    pub duration: u8,
+    pub deactivation: fn(&GameState) -> bool,
 }
 
 pub const ALL_EVENTS: [Event; 13] = [
@@ -405,13 +414,21 @@ impl GameState {
                     .cloned(),
             );
         }
+        self.deactivate_events();
         self
     }
 
-    pub(crate) fn activate_event(&mut self, event: ActiveEvent) {
-        self.active_events.push(event);
+    pub(crate) fn activate_event(&mut self, event: &Event) {
+        self.active_events.push(event.activate());
     }
 
+    fn deactivate_events(&mut self) {
+        let still_active = self
+            .active_events
+            .iter()
+            .filter(|active_event| !(active_event.deactivation)(self));
+        self.active_events = still_active.cloned().collect();
+    }
     fn adjust_attack_bonus(&self, attack_bonus: u8, from: &Nation, to: &Nation) -> u8 {
         let event_bonus = if self.active_events.iter().any(|event| {
             event.event.event_id == 4
@@ -455,7 +472,7 @@ impl Display for GameState {
 mod game_state_tests {
 
     use super::HitsResult::*;
-    use crate::{fixtures::StateBuilder, Nation::*, NationState::*, Side::*};
+    use crate::{fixtures::StateBuilder, Nation::*, NationState::*, Side::*, ALL_EVENTS};
 
     #[test]
     fn nation_surrenders_when_brought_to_0_then_increase_vp_of_other_side() {
@@ -494,5 +511,16 @@ mod game_state_tests {
         let mut state = StateBuilder::new(11).build();
 
         assert_eq!(NationNotAtWar(Italy), state.apply_hits(&Italy, 2));
+    }
+
+    #[test]
+    fn on_new_turn_remove_inactive_events() {
+        let mut state = StateBuilder::new(11).build();
+
+        // activate "Race to the sea"
+        state.activate_event(&ALL_EVENTS[3]);
+        state.new_turn();
+
+        assert_eq!(0, state.active_events.len());
     }
 }
