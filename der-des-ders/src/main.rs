@@ -322,7 +322,7 @@ fn apply_hits(players: &mut Players, game_state: &mut GameState, loss: u8) -> u8
         while hits > 0 {
             allies_player.output(&Output::SelectNationForHit);
             if let Input::ApplyHit(nation) = allies_player.input() {
-                game_state.breakdown(&nation, 1);
+                game_state.apply_hits(&nation, 1);
                 hits -= 1;
             }
         }

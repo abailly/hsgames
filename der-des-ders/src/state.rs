@@ -284,7 +284,7 @@ impl GameState {
         self
     }
 
-    pub(crate) fn breakdown(&mut self, to: &Nation, hits: u8) -> HitsResult {
+    pub(crate) fn apply_hits(&mut self, to: &Nation, hits: u8) -> HitsResult {
         if let NationState::AtWar(breakdown) = self.nations.get_mut(to).unwrap() {
             if hits >= *breakdown {
                 self.surrenders(to)
@@ -320,32 +320,47 @@ impl GameState {
     }
 
     pub(crate) fn resolve_offensive(&mut self, offensive: &Offensive) -> HitsResult {
-        let (artillery_bonus, attack_bonus, defense_malus) = self.compute_bonus(&offensive);
+        let (artillery_bonus, attack_bonus, defense_malus) = self.compute_bonus(offensive);
 
         let dice: Vec<u8> = self.roll_offensive_dice(offensive.pr);
         let artillery_dice: Vec<u8> = self.roll_artillery_dice(artillery_bonus);
 
-        let attack_country = |die: u8| {
-            return die + attack_bonus - defense_malus
-                >= self.countries.get(&offensive.from).unwrap().attack_factor;
-        };
+        let attack_hits = self.evaluate_attack_hits(attack_bonus, defense_malus, offensive, dice);
 
+        let artillery_hits = self.evaluate_artillery_hits(offensive, artillery_dice);
+
+        self.reduce_pr(offensive.initiative, offensive.pr);
+        self.apply_hits(&offensive.to, attack_hits + artillery_hits)
+    }
+
+    fn evaluate_artillery_hits(&mut self, offensive: &Offensive, artillery_dice: Vec<u8>) -> u8 {
         let bomb_country =
             |die: u8| return die >= self.countries.get(&offensive.from).unwrap().attack_factor;
-
-        let attack_hits = dice
-            .iter()
-            .map(|die| attack_country(*die))
-            .filter(|hit| *hit)
-            .count() as u8;
         let artillery_hits = artillery_dice
             .iter()
             .map(|die| bomb_country(*die))
             .filter(|hit| *hit)
             .count() as u8;
+        artillery_hits
+    }
 
-        self.reduce_pr(offensive.initiative, offensive.pr);
-        self.breakdown(&offensive.to, attack_hits + artillery_hits)
+    fn evaluate_attack_hits(
+        &mut self,
+        attack_bonus: u8,
+        defense_malus: u8,
+        offensive: &Offensive,
+        dice: Vec<u8>,
+    ) -> u8 {
+        let attack_country = |die: u8| {
+            return die + attack_bonus - defense_malus
+                >= self.countries.get(&offensive.from).unwrap().attack_factor;
+        };
+        let attack_hits = dice
+            .iter()
+            .map(|die| attack_country(*die))
+            .filter(|hit| *hit)
+            .count() as u8;
+        attack_hits
     }
 
     fn roll_artillery_dice(&mut self, artillery_bonus: u8) -> Vec<u8> {
@@ -448,7 +463,7 @@ mod game_state_tests {
             .with_nation(France, AtWar(4))
             .build();
 
-        let result = state.breakdown(&France, 4);
+        let result = state.apply_hits(&France, 4);
 
         assert_eq!(Surrenders(France), result);
         assert_eq!(6, state.state_of_war.get(&Empires).unwrap().vp);
@@ -461,7 +476,7 @@ mod game_state_tests {
             .with_nation(France, AtWar(4))
             .build();
 
-        let result = state.breakdown(&France, 4);
+        let result = state.apply_hits(&France, 4);
 
         assert_eq!(Some(Empires), state.winner);
         assert_eq!(Winner(Empires), result);
@@ -471,13 +486,13 @@ mod game_state_tests {
     fn breakdown_returns_hits_lost() {
         let mut state = StateBuilder::new(11).with_nation(France, AtWar(4)).build();
 
-        assert_eq!(Hits(France, 2), state.breakdown(&France, 2));
+        assert_eq!(Hits(France, 2), state.apply_hits(&France, 2));
     }
 
     #[test]
     fn breakdown_does_not_inflict_hits_given_nation_is_not_at_war() {
         let mut state = StateBuilder::new(11).build();
 
-        assert_eq!(NationNotAtWar(Italy), state.breakdown(&Italy, 2));
+        assert_eq!(NationNotAtWar(Italy), state.apply_hits(&Italy, 2));
     }
 }
