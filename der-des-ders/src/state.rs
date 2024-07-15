@@ -145,6 +145,14 @@ impl Display for HitsResult {
     }
 }
 
+#[derive(Eq, PartialEq, Clone, Debug)]
+pub struct Offensive {
+    pub initiative: Side,
+    pub from: Nation,
+    pub to: Nation,
+    pub pr: u8,
+}
+
 impl GameState {
     pub fn new(seed: u64) -> Self {
         let nations = INITIAL_NATION_STATE.iter().cloned().collect();
@@ -311,37 +319,19 @@ impl GameState {
         events
     }
 
-    pub(crate) fn resolve_offensive(
-        &mut self,
-        initiative: Side,
-        from: Nation,
-        to: Nation,
-        pr: u8,
-    ) -> HitsResult {
-        let max_attacker_tech_level = self.countries.get(&from).unwrap().max_tech_level;
-        let max_defender_tech_level = self.countries.get(&to).unwrap().max_tech_level;
+    pub(crate) fn resolve_offensive(&mut self, offensive: &Offensive) -> HitsResult {
+        let (artillery_bonus, attack_bonus, defense_malus) = self.compute_bonus(&offensive);
 
-        let artillery_bonus = self
-            .artillery_bonus(&initiative)
-            .min(max_attacker_tech_level);
-        let attack_bonus = self.adjust_attack_bonus(
-            self.attack_bonus(&initiative).min(max_attacker_tech_level),
-            &from,
-            &to,
-        );
-        let defense_malus = self
-            .defense_bonus(&initiative.other())
-            .min(max_defender_tech_level);
-
-        let dice: Vec<u8> = (0..pr).map(|_| self.roll()).collect();
-        let artillery_dice: Vec<u8> = (0..artillery_bonus).map(|_| self.roll()).collect();
+        let dice: Vec<u8> = self.roll_offensive_dice(offensive.pr);
+        let artillery_dice: Vec<u8> = self.roll_artillery_dice(artillery_bonus);
 
         let attack_country = |die: u8| {
             return die + attack_bonus - defense_malus
-                >= self.countries.get(&from).unwrap().attack_factor;
+                >= self.countries.get(&offensive.from).unwrap().attack_factor;
         };
 
-        let bomb_country = |die: u8| return die >= self.countries.get(&from).unwrap().attack_factor;
+        let bomb_country =
+            |die: u8| return die >= self.countries.get(&offensive.from).unwrap().attack_factor;
 
         let attack_hits = dice
             .iter()
@@ -354,8 +344,35 @@ impl GameState {
             .filter(|hit| *hit)
             .count() as u8;
 
-        self.reduce_pr(initiative, pr);
-        self.breakdown(&to, attack_hits + artillery_hits)
+        self.reduce_pr(offensive.initiative, offensive.pr);
+        self.breakdown(&offensive.to, attack_hits + artillery_hits)
+    }
+
+    fn roll_artillery_dice(&mut self, artillery_bonus: u8) -> Vec<u8> {
+        (0..artillery_bonus).map(|_| self.roll()).collect()
+    }
+
+    fn roll_offensive_dice(&mut self, pr: u8) -> Vec<u8> {
+        (0..pr).map(|_| self.roll()).collect()
+    }
+
+    fn compute_bonus(&mut self, offensive: &Offensive) -> (u8, u8, u8) {
+        let max_attacker_tech_level = self.countries.get(&offensive.from).unwrap().max_tech_level;
+        let max_defender_tech_level = self.countries.get(&offensive.to).unwrap().max_tech_level;
+
+        let artillery_bonus = self
+            .artillery_bonus(&offensive.initiative)
+            .min(max_attacker_tech_level);
+        let attack_bonus = self.adjust_attack_bonus(
+            self.attack_bonus(&offensive.initiative)
+                .min(max_attacker_tech_level),
+            &offensive.from,
+            &offensive.to,
+        );
+        let defense_malus = self
+            .defense_bonus(&offensive.initiative.other())
+            .min(max_defender_tech_level);
+        (artillery_bonus, attack_bonus, defense_malus)
     }
 
     pub(crate) fn new_turn(&mut self) -> &Self {
@@ -366,7 +383,6 @@ impl GameState {
             self.events_pool.retain(|event| {
                 event.not_after.is_none() || event.not_after.unwrap() > current_turn_year
             });
-            println!("pool {:?}", &self.events_pool);
             self.events_pool.extend(
                 ALL_EVENTS
                     .iter()
@@ -374,7 +390,6 @@ impl GameState {
                     .cloned(),
             );
         }
-        println!("pool {:?}", &self.events_pool);
         self
     }
 

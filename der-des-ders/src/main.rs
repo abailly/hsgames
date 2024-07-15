@@ -113,8 +113,13 @@ fn draw_events(players: &mut Players, game_state: &mut GameState) {
 fn apply_event(players: &mut Players, game_state: &mut GameState, event: &Event) {
     match event.event_id {
         3 => {
-            let result =
-                game_state.resolve_offensive(Side::Empires, Nation::Germany, Nation::France, 2);
+            let offensive = Offensive {
+                initiative: Side::Empires,
+                from: Nation::Germany,
+                to: Nation::France,
+                pr: 2,
+            };
+            let result = game_state.resolve_offensive(&offensive);
             players.output(&Output::OffensiveResult {
                 from: Nation::France,
                 to: Nation::Germany,
@@ -251,7 +256,13 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_state: &mut G
                 } else if resources < pr {
                     player.output(&Output::NotEnoughResources(pr, resources));
                 } else {
-                    let result = game_state.resolve_offensive(initiative, from, to, pr);
+                    let offensive = Offensive {
+                        initiative,
+                        from,
+                        to,
+                        pr,
+                    };
+                    let result = game_state.resolve_offensive(&offensive);
                     nations.retain(|&nat| nat != from);
                     player.output(&Output::OffensiveResult { from, to, result });
                 }
