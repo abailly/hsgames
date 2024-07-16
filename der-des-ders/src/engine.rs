@@ -160,6 +160,11 @@ impl GameEngine {
                 swap(&mut previous, &mut self.logic);
                 self.logic = Box::new(Gallipoli::new(previous));
             }
+            9 => {
+                let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
+                swap(&mut previous, &mut self.logic);
+                self.logic = Box::new(SeparatePeace::new(previous));
+            }
             _ => {}
         }
         ActiveEvent {

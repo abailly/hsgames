@@ -386,6 +386,91 @@ impl Gallipoli {
     }
 }
 
+impl GameLogic for SeparatePeace {
+    fn collect_resources(&mut self, state: &mut GameState) {
+        self.previous.collect_resources(state);
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        self.offensive = Some(offensive.clone());
+        self.previous.compute_bonus(state, offensive)
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.previous.new_turn(state);
+        self.active = false;
+    }
+
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        if self.active {
+            let added_die = if let Some(offensive) = &self.offensive {
+                if (offensive.from == Nation::Germany || offensive.from == Nation::AustriaHungary)
+                    && offensive.to == Nation::Russia
+                {
+                    1
+                } else {
+                    0
+                }
+            } else {
+                0
+            };
+            self.previous.roll_offensive_dice(state, num + added_die)
+        } else {
+            self.previous.roll_offensive_dice(state, num)
+        }
+    }
+
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_artillery_dice(state, num)
+    }
+
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: i8,
+        defense_malus: i8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
+    }
+
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_artillery_hits(state, offensive, dice_roll)
+    }
+
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+        self.previous.reduce_pr(state, side, pr)
+    }
+
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+        self.previous.apply_hits(state, nation, hits)
+    }
+}
+
+pub struct SeparatePeace {
+    pub offensive: Option<Offensive>,
+    pub active: bool,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl SeparatePeace {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        SeparatePeace {
+            offensive: None,
+            active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -430,7 +515,6 @@ mod game_events_tests {
     fn gas_event_does_not_add_to_austria_artillery_rolls() {
         let mut engine = EngineBuilder::new(11).build();
 
-        // activate "Shells crisis"
         engine.play_events(&ALL_EVENTS[5]);
         engine.compute_bonus(&Offensive {
             initiative: Empires,
@@ -500,10 +584,57 @@ mod game_events_tests {
     fn gallipoli_reduces_pr_by_1_die_for_allies() {
         let mut engine = EngineBuilder::new(11).build();
 
-        // activate "Von Lettow in Africa"
         engine.play_events(&ALL_EVENTS[7]);
         engine.collect_resources();
 
         assert_eq!(12, engine.state.resources_for(&Allies));
+    }
+
+    #[test]
+    fn separate_peace_adds_1_die_to_offensive_from_germany_to_russia() {
+        let mut engine = EngineBuilder::new(12).build();
+
+        engine.play_events(&ALL_EVENTS[8]);
+        engine.compute_bonus(&Offensive {
+            initiative: Empires,
+            from: Germany,
+            to: Russia,
+            pr: 2,
+        });
+        let dice = engine.roll_offensive_dice(2);
+
+        assert_eq!(vec![3, 3, 5], dice);
+    }
+
+    #[test]
+    fn separate_peace_adds_1_die_to_offensive_from_austria_to_russia() {
+        let mut engine = EngineBuilder::new(12).build();
+
+        engine.play_events(&ALL_EVENTS[8]);
+        engine.compute_bonus(&Offensive {
+            initiative: Empires,
+            from: AustriaHungary,
+            to: Russia,
+            pr: 2,
+        });
+        let dice = engine.roll_offensive_dice(2);
+
+        assert_eq!(vec![3, 3, 5], dice);
+    }
+
+    #[test]
+    fn separate_peace_doesn_not_add_die_to_offensive_from_turkey_to_russia() {
+        let mut engine = EngineBuilder::new(12).build();
+
+        engine.play_events(&ALL_EVENTS[8]);
+        engine.compute_bonus(&Offensive {
+            initiative: Empires,
+            from: OttomanEmpire,
+            to: Russia,
+            pr: 2,
+        });
+        let dice = engine.roll_offensive_dice(2);
+
+        assert_eq!(vec![3, 3], dice);
     }
 }
