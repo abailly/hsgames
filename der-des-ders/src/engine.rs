@@ -29,8 +29,7 @@ impl GameEngine {
     }
 
     pub fn collect_resources(&mut self) {
-        self.increase_pr(Side::Allies, self.state.tally_resources(&Side::Allies));
-        self.increase_pr(Side::Empires, self.state.tally_resources(&Side::Empires));
+        self.logic.collect_resources(&mut self.state);
     }
 
     pub fn reduce_pr(&mut self, side: Side, pr: u8) -> &mut Self {
@@ -168,6 +167,11 @@ impl GameEngine {
 struct DefaultGameLogic {}
 
 impl GameLogic for DefaultGameLogic {
+    fn collect_resources(&mut self, state: &mut GameState) {
+        state.increase_pr(Side::Allies, state.tally_resources(&Side::Allies));
+        state.increase_pr(Side::Empires, state.tally_resources(&Side::Empires));
+    }
+
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
         let max_attacker_tech_level = state.countries.get(&offensive.from).unwrap().max_tech_level;
         let max_defender_tech_level = state.countries.get(&offensive.to).unwrap().max_tech_level;

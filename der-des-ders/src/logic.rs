@@ -2,6 +2,7 @@ use crate::side::*;
 use crate::state::*;
 
 pub trait GameLogic {
+    fn collect_resources(&mut self, state: &mut GameState);
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8);
     fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8>;
     fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8>;
@@ -25,6 +26,10 @@ pub trait GameLogic {
 }
 
 impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
+    fn collect_resources(&mut self, state: &mut GameState) {
+        self.as_mut().collect_resources(state)
+    }
+
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
         self.as_mut().compute_bonus(state, offensive)
     }
@@ -81,6 +86,10 @@ impl DummyLogic {
 }
 
 impl GameLogic for DummyLogic {
+    fn collect_resources(&mut self, _state: &mut GameState) {
+        panic!("dummy logic")
+    }
+
     fn compute_bonus(&mut self, _state: &GameState, _offensive: &Offensive) -> (u8, i8, i8) {
         panic!("dummy logic")
     }

@@ -3,6 +3,10 @@ use crate::side::*;
 use crate::state::*;
 
 impl GameLogic for RaceToTheSea {
+    fn collect_resources(&mut self, state: &mut GameState) {
+        self.previous.collect_resources(state)
+    }
+
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
         if self.active
             && (offensive.from == Nation::France && offensive.to == Nation::Germany
@@ -75,6 +79,10 @@ impl RaceToTheSea {
 }
 
 impl<T: GameLogic> GameLogic for ShellCrisis<T> {
+    fn collect_resources(&mut self, state: &mut GameState) {
+        self.previous.collect_resources(state)
+    }
+
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
         if self.active && offensive.from == Nation::France {
             let (artillery_bonus, attack_bonus, defense_malus) =
@@ -144,6 +152,10 @@ impl<T: GameLogic> ShellCrisis<T> {
 }
 
 impl GameLogic for Gas {
+    fn collect_resources(&mut self, state: &mut GameState) {
+        self.previous.collect_resources(state)
+    }
+
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
         self.offensive = Some(offensive.clone());
         self.previous.compute_bonus(state, offensive)
@@ -219,6 +231,10 @@ impl Gas {
 }
 
 impl GameLogic for VonLettowInAfrica {
+    fn collect_resources(&mut self, state: &mut GameState) {
+        self.previous.collect_resources(state)
+    }
+
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
         if state.operational_level(&Nation::GermanAfrica) == 0 {
             self.active = false;
