@@ -98,7 +98,7 @@ fn run_turn(players: &mut Players, game_engine: &mut GameEngine) {
     players.output(&Output::CurrentState(game_engine.state.clone()));
     determine_initiative(players, game_engine);
     draw_events(players, game_engine);
-    collect_resources(game_engine);
+    game_engine.collect_resources();
 
     run_player_turn(game_engine.state.initiative, players, game_engine);
     run_player_turn(game_engine.state.initiative.other(), players, game_engine);
@@ -424,17 +424,6 @@ fn determine_initiative(players: &mut Players, game_engine: &mut GameEngine) {
     }
 }
 
-fn collect_resources(game_engine: &mut GameEngine) {
-    game_engine.increase_pr(
-        Side::Allies,
-        game_engine.state.tally_resources(&Side::Allies),
-    );
-    game_engine.increase_pr(
-        Side::Empires,
-        game_engine.state.tally_resources(&Side::Empires),
-    );
-}
-
 fn reinforcements(initiative: Side, players: &mut Players, game_engine: &mut GameEngine) {
     let player = match initiative {
         Side::Allies => &mut players.allies_player,
@@ -463,7 +452,7 @@ fn reinforcements(initiative: Side, players: &mut Players, game_engine: &mut Gam
 #[cfg(test)]
 mod tests {
     use crate::{
-        collect_resources, determine_initiative,
+        determine_initiative,
         fixtures::{EngineBuilder, PlayersBuilder},
         GameEngine,
         Input::*,
@@ -615,7 +604,7 @@ mod tests {
     fn collect_resources_increase_pr_for_each_side() {
         let mut engine = EngineBuilder::new(14).build();
 
-        collect_resources(&mut engine);
+        engine.collect_resources();
 
         assert_eq!(
             14,
@@ -631,8 +620,8 @@ mod tests {
     fn collect_resources_cannot_increase_pr_over_20() {
         let mut engine = EngineBuilder::new(14).build();
 
-        collect_resources(&mut engine);
-        collect_resources(&mut engine);
+        engine.collect_resources();
+        engine.collect_resources();
 
         assert_eq!(
             20,
@@ -648,7 +637,7 @@ mod tests {
     fn collect_resources_changes_allies_pr_when_italy_goes_at_war() {
         let mut engine = EngineBuilder::new(14).with_nation(Italy, AtWar(5)).build();
 
-        collect_resources(&mut engine);
+        engine.collect_resources();
 
         assert_eq!(
             16,
@@ -664,7 +653,7 @@ mod tests {
     fn collect_resources_changes_allies_pr_when_russia_breakdown_changes() {
         let mut engine = EngineBuilder::new(14).with_nation(Russia, AtWar(3)).build();
 
-        collect_resources(&mut engine);
+        engine.collect_resources();
 
         assert_eq!(
             10,
@@ -682,7 +671,7 @@ mod tests {
             .with_nation(Bulgaria, AtWar(3))
             .build();
 
-        collect_resources(&mut engine);
+        engine.collect_resources();
 
         assert_eq!(
             14,

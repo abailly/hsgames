@@ -28,6 +28,11 @@ impl GameEngine {
         }
     }
 
+    pub fn collect_resources(&mut self) {
+        self.increase_pr(Side::Allies, self.state.tally_resources(&Side::Allies));
+        self.increase_pr(Side::Empires, self.state.tally_resources(&Side::Empires));
+    }
+
     pub fn reduce_pr(&mut self, side: Side, pr: u8) -> &mut Self {
         self.logic.reduce_pr(&mut self.state, &side, pr);
         self
