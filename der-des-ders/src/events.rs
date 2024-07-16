@@ -637,4 +637,27 @@ mod game_events_tests {
 
         assert_eq!(vec![3, 3], dice);
     }
+
+    #[test]
+    fn italy_can_enter_war_with_event() {
+        let mut engine = EngineBuilder::new(12).build();
+
+        engine.play_events(&ALL_EVENTS[9]);
+
+        assert_eq!(
+            NationState::AtWar(5),
+            *engine.state.nations.get(&Italy).unwrap()
+        );
+    }
+    #[test]
+    fn bulgaria_can_enter_war_with_event() {
+        let mut engine = EngineBuilder::new(12).build();
+
+        engine.play_events(&ALL_EVENTS[10]);
+
+        assert_eq!(
+            NationState::AtWar(3),
+            *engine.state.nations.get(&Bulgaria).unwrap()
+        );
+    }
 }

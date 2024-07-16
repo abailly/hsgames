@@ -165,6 +165,16 @@ impl GameEngine {
                 swap(&mut previous, &mut self.logic);
                 self.logic = Box::new(SeparatePeace::new(previous));
             }
+            10 => {
+                self.state
+                    .nations
+                    .insert(Nation::Italy, NationState::AtWar(5));
+            }
+            11 => {
+                self.state
+                    .nations
+                    .insert(Nation::Bulgaria, NationState::AtWar(3));
+            }
             _ => {}
         }
         ActiveEvent {
