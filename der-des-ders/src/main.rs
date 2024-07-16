@@ -4,6 +4,7 @@ use std::cmp::Ordering;
 use std::io::{stdin, stdout};
 
 mod tech;
+use event::Event;
 use tech::*;
 
 mod io;
@@ -15,7 +16,13 @@ use side::*;
 mod state;
 use state::*;
 
+mod engine;
+use engine::*;
+
+mod event;
+mod events;
 mod fixtures;
+mod logic;
 
 enum PlayerType {
     Human,
@@ -692,6 +699,7 @@ mod tests {
 mod events_tests {
     use crate::{
         apply_event, draw_events,
+        event::ALL_EVENTS,
         fixtures::{EngineBuilder, PlayersBuilder},
         launch_offensives,
         Input::*,
@@ -699,7 +707,6 @@ mod events_tests {
         NationState::*,
         Output::*,
         Side::*,
-        ALL_EVENTS,
     };
 
     #[test]
