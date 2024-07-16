@@ -155,6 +155,11 @@ impl GameEngine {
                 swap(&mut previous, &mut self.logic);
                 self.logic = Box::new(VonLettowInAfrica::new(previous));
             }
+            8 => {
+                let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
+                swap(&mut previous, &mut self.logic);
+                self.logic = Box::new(Gallipoli::new(previous));
+            }
             _ => {}
         }
         ActiveEvent {

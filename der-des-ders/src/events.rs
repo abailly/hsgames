@@ -315,6 +315,77 @@ impl VonLettowInAfrica {
     }
 }
 
+impl GameLogic for Gallipoli {
+    fn collect_resources(&mut self, state: &mut GameState) {
+        self.previous.collect_resources(state);
+        if self.active {
+            let die = state.roll();
+            self.reduce_pr(state, &Side::Allies, die);
+        }
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        self.previous.compute_bonus(state, offensive)
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.previous.new_turn(state);
+        self.active = false;
+    }
+
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_offensive_dice(state, num)
+    }
+
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_artillery_dice(state, num)
+    }
+
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: i8,
+        defense_malus: i8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
+    }
+
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_artillery_hits(state, offensive, dice_roll)
+    }
+
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+        self.previous.reduce_pr(state, side, pr)
+    }
+
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+        self.previous.apply_hits(state, nation, hits)
+    }
+}
+
+pub struct Gallipoli {
+    pub active: bool,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl Gallipoli {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        Gallipoli {
+            active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -423,5 +494,16 @@ mod game_events_tests {
         let dice = engine.roll_offensive_dice(2);
 
         assert_eq!(vec![2, 2], dice);
+    }
+
+    #[test]
+    fn gallipoli_reduces_pr_by_1_die_for_allies() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        // activate "Von Lettow in Africa"
+        engine.play_events(&ALL_EVENTS[7]);
+        engine.collect_resources();
+
+        assert_eq!(12, engine.state.resources_for(&Allies));
     }
 }
