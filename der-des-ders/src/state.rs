@@ -264,7 +264,14 @@ impl Gas {
 
 impl GameLogic for VonLettowInAfrica {
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
-        self.offensive = Some(offensive.clone());
+        if state.operational_level(&Nation::GermanAfrica) == 0 {
+            self.active = false;
+        }
+        if self.active {
+            self.offensive = Some(offensive.clone());
+        } else {
+            self.offensive = None;
+        }
         self.previous.compute_bonus(state, offensive)
     }
 
@@ -322,6 +329,7 @@ impl GameLogic for VonLettowInAfrica {
 
 struct VonLettowInAfrica {
     offensive: Option<Offensive>,
+    active: bool,
     previous: Box<dyn GameLogic>,
 }
 
@@ -329,6 +337,7 @@ impl VonLettowInAfrica {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         VonLettowInAfrica {
             offensive: None,
+            active: true,
             previous: Box::new(previous),
         }
     }
@@ -978,6 +987,10 @@ impl GameState {
         }
         events
     }
+
+    pub(crate) fn operational_level(&self, nation: &Nation) -> u8 {
+        self.nations.get(nation).unwrap().operational_level()
+    }
 }
 
 impl Display for GameState {
@@ -1052,7 +1065,7 @@ mod game_state_tests {
 #[cfg(test)]
 mod game_events_tests {
 
-    use crate::{fixtures::EngineBuilder, Nation::*, Offensive, Side::*, ALL_EVENTS};
+    use crate::{fixtures::EngineBuilder, Nation::*, NationState, Offensive, Side::*, ALL_EVENTS};
 
     #[test]
     fn played_events_stay_between_turns() {
@@ -1130,6 +1143,25 @@ mod game_events_tests {
         let dice = engine.roll_offensive_dice(2);
 
         assert_eq!(vec![2, 2, 4], dice);
+    }
+
+    #[test]
+    fn von_lettow_does_node_add_die_once_operational_level_falls_to_0() {
+        let mut engine = EngineBuilder::new(11)
+            .with_nation(GermanAfrica, NationState::AtWar(1))
+            .build();
+
+        // activate "Von Lettow in Africa"
+        engine.play_events(&ALL_EVENTS[6]);
+        engine.compute_bonus(&Offensive {
+            initiative: Empires,
+            from: GermanAfrica,
+            to: FrenchAfrica,
+            pr: 2,
+        });
+        let dice = engine.roll_offensive_dice(2);
+
+        assert_eq!(vec![2, 2], dice);
     }
 
     #[test]
