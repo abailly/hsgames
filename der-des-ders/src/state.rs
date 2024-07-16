@@ -137,6 +137,10 @@ impl GameState {
         self
     }
 
+    pub fn resources_for(&self, side: &Side) -> u8 {
+        self.state_of_war.get(side).unwrap().resources
+    }
+
     pub fn roll(&mut self) -> u8 {
         self.rng.gen_range(1..=6)
     }

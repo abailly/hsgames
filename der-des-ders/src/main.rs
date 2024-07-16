@@ -606,14 +606,8 @@ mod tests {
 
         engine.collect_resources();
 
-        assert_eq!(
-            14,
-            engine.state.state_of_war.get(&Allies).unwrap().resources
-        );
-        assert_eq!(
-            9,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
+        assert_eq!(14, engine.state.resources_for(&Allies));
+        assert_eq!(9, engine.state.resources_for(&Empires));
     }
 
     #[test]
@@ -623,14 +617,8 @@ mod tests {
         engine.collect_resources();
         engine.collect_resources();
 
-        assert_eq!(
-            20,
-            engine.state.state_of_war.get(&Allies).unwrap().resources
-        );
-        assert_eq!(
-            18,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
+        assert_eq!(20, engine.state.resources_for(&Allies));
+        assert_eq!(18, engine.state.resources_for(&Empires));
     }
 
     #[test]
@@ -639,14 +627,8 @@ mod tests {
 
         engine.collect_resources();
 
-        assert_eq!(
-            16,
-            engine.state.state_of_war.get(&Allies).unwrap().resources
-        );
-        assert_eq!(
-            9,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
+        assert_eq!(16, engine.state.resources_for(&Allies));
+        assert_eq!(9, engine.state.resources_for(&Empires));
     }
 
     #[test]
@@ -655,14 +637,8 @@ mod tests {
 
         engine.collect_resources();
 
-        assert_eq!(
-            10,
-            engine.state.state_of_war.get(&Allies).unwrap().resources
-        );
-        assert_eq!(
-            9,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
+        assert_eq!(10, engine.state.resources_for(&Allies));
+        assert_eq!(9, engine.state.resources_for(&Empires));
     }
 
     #[test]
@@ -673,14 +649,8 @@ mod tests {
 
         engine.collect_resources();
 
-        assert_eq!(
-            14,
-            engine.state.state_of_war.get(&Allies).unwrap().resources
-        );
-        assert_eq!(
-            10,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
+        assert_eq!(14, engine.state.resources_for(&Allies));
+        assert_eq!(10, engine.state.resources_for(&Empires));
     }
 }
 
@@ -856,10 +826,7 @@ mod technologies {
                 .unwrap()
                 .technologies
         );
-        assert_eq!(
-            2,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
+        assert_eq!(2, engine.state.resources_for(&Empires));
     }
 
     #[test]
@@ -888,10 +855,7 @@ mod technologies {
                 .unwrap()
                 .technologies
         );
-        assert_eq!(
-            4,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
+        assert_eq!(4, engine.state.resources_for(&Empires));
     }
 
     #[test]
@@ -922,7 +886,7 @@ mod technologies {
             },
             *engine.state.state_of_war.get(&Allies).unwrap().technologies
         );
-        assert_eq!(0, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(0, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -942,7 +906,7 @@ mod technologies {
             ZERO_TECHNOLOGIES,
             *engine.state.state_of_war.get(&Allies).unwrap().technologies
         );
-        assert_eq!(4, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(4, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -973,7 +937,7 @@ mod technologies {
             },
             *engine.state.state_of_war.get(&Allies).unwrap().technologies
         );
-        assert_eq!(0, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(0, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -999,7 +963,7 @@ mod technologies {
             },
             *engine.state.state_of_war.get(&Allies).unwrap().technologies
         );
-        assert_eq!(0, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(0, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1077,7 +1041,7 @@ mod technologies {
             },
             *engine.state.state_of_war.get(&Allies).unwrap().technologies
         );
-        assert_eq!(0, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(0, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1130,7 +1094,7 @@ mod offensives {
         launch_offensives(Allies, &mut players, &mut engine);
 
         assert_eq!(AtWar(7), *engine.state.nations.get(&Germany).unwrap());
-        assert_eq!(3, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(3, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1155,7 +1119,7 @@ mod offensives {
             ],
             players.allies_player.out()
         );
-        assert_eq!(2, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(2, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1175,7 +1139,7 @@ mod offensives {
 
         assert_eq!(AtWar(7), *engine.state.nations.get(&Germany).unwrap());
         assert_eq!(AtWar(4), *engine.state.nations.get(&OttomanEmpire).unwrap());
-        assert_eq!(2, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(2, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1200,7 +1164,7 @@ mod offensives {
             ],
             players.allies_player.out()
         );
-        assert_eq!(4, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(4, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1233,7 +1197,7 @@ mod offensives {
             ],
             players.allies_player.out()
         );
-        assert_eq!(3, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(3, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1258,7 +1222,7 @@ mod offensives {
             ],
             players.allies_player.out()
         );
-        assert_eq!(4, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(4, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1473,7 +1437,7 @@ mod reinforcements {
         reinforcements(Allies, &mut players, &mut engine);
 
         assert_eq!(AtWar(5), *engine.state.nations.get(&France).unwrap());
-        assert_eq!(3, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(3, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1495,7 +1459,7 @@ mod reinforcements {
 
         assert_eq!(AtWar(5), *engine.state.nations.get(&France).unwrap());
         assert_eq!(AtWar(5), *engine.state.nations.get(&Russia).unwrap());
-        assert_eq!(0, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(0, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1514,7 +1478,7 @@ mod reinforcements {
         reinforcements(Allies, &mut players, &mut engine);
 
         assert_eq!(AtWar(7), *engine.state.nations.get(&France).unwrap());
-        assert_eq!(3, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(3, engine.state.resources_for(&Allies));
     }
 }
 
@@ -1541,7 +1505,7 @@ mod sea {
 
         sea_control(Empires, &mut players, &mut engine);
 
-        assert_eq!(0, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(0, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1556,10 +1520,7 @@ mod sea {
 
         sea_control(Allies, &mut players, &mut engine);
 
-        assert_eq!(
-            5,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
+        assert_eq!(5, engine.state.resources_for(&Empires));
     }
 
     #[test]
@@ -1573,11 +1534,8 @@ mod sea {
 
         sea_control(Empires, &mut players, &mut engine);
 
-        assert_eq!(2, engine.state.state_of_war.get(&Allies).unwrap().resources);
-        assert_eq!(
-            1,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
+        assert_eq!(2, engine.state.resources_for(&Allies));
+        assert_eq!(1, engine.state.resources_for(&Empires));
     }
 
     #[test]
@@ -1591,7 +1549,7 @@ mod sea {
 
         sea_control(Empires, &mut players, &mut engine);
 
-        assert_eq!(0, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(0, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1606,11 +1564,8 @@ mod sea {
 
         sea_control(Allies, &mut players, &mut engine);
 
-        assert_eq!(
-            4,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
-        assert_eq!(3, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(4, engine.state.resources_for(&Empires));
+        assert_eq!(3, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1625,11 +1580,8 @@ mod sea {
 
         sea_control(Allies, &mut players, &mut engine);
 
-        assert_eq!(
-            4,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
-        assert_eq!(0, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(4, engine.state.resources_for(&Empires));
+        assert_eq!(0, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1644,11 +1596,8 @@ mod sea {
 
         sea_control(Empires, &mut players, &mut engine);
 
-        assert_eq!(
-            0,
-            engine.state.state_of_war.get(&Empires).unwrap().resources
-        );
-        assert_eq!(4, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(0, engine.state.resources_for(&Empires));
+        assert_eq!(4, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -1668,7 +1617,7 @@ mod sea {
 
         sea_control(Empires, &mut players, &mut engine);
 
-        assert_eq!(0, engine.state.state_of_war.get(&Allies).unwrap().resources);
+        assert_eq!(0, engine.state.resources_for(&Allies));
         assert_eq!(AtWar(6), *engine.state.nations.get(&France).unwrap());
         assert_eq!(AtWar(5), *engine.state.nations.get(&Russia).unwrap());
     }
