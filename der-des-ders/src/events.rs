@@ -306,17 +306,6 @@ mod game_events_tests {
         event::ALL_EVENTS, fixtures::EngineBuilder, Nation::*, NationState, Offensive, Side::*,
     };
 
-    // #[test]
-    // fn played_events_stay_between_turns() {
-    //     let mut engine = EngineBuilder::new(11).build();
-
-    //     // activate "Race to the sea"
-    //     engine.play_events(&ALL_EVENTS[3]);
-    //     engine.new_turn();
-
-    //     assert_eq!(1, engine.played_events.len());
-    // }
-
     #[test]
     fn shell_crisis_event_inflicts_minus_1_to_france_attacks() {
         let mut engine = EngineBuilder::new(11).build();

@@ -262,3 +262,19 @@ impl GameLogic for DefaultGameLogic {
 fn default_game_logic() -> impl GameLogic {
     DefaultGameLogic {}
 }
+
+#[cfg(test)]
+mod engine_test {
+    use crate::{event::ALL_EVENTS, fixtures::EngineBuilder};
+
+    #[test]
+    fn played_events_stay_between_turns() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        // activate "Race to the sea"
+        engine.play_events(&ALL_EVENTS[3]);
+        engine.new_turn();
+
+        assert_eq!(1, engine.played_events.len());
+    }
+}

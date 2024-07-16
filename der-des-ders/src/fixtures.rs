@@ -1,4 +1,4 @@
-use crate::{GameEngine, GameState, Nation, NationState, Output, Player, Side::*};
+use crate::{engine::GameEngine, GameState, Nation, NationState, Output, Player, Side::*};
 use crate::{Input, Players, Side};
 
 pub struct PlayerDouble {
@@ -26,6 +26,7 @@ pub struct PlayersBuilder {
 }
 
 impl PlayersBuilder {
+    /// Creates a new [`PlayersBuilder`].
     pub fn new() -> Self {
         Self {
             allies_input: Vec::new(),
