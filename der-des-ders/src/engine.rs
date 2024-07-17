@@ -167,6 +167,7 @@ impl GameEngine {
                 }
                 _ => {}
             },
+            15 => self.make_event_active(TrentinOffensive::new),
             _ => {}
         }
         ActiveEvent {

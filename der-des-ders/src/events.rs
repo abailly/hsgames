@@ -673,6 +673,88 @@ impl SeparatePeace {
     }
 }
 
+impl GameLogic for TrentinOffensive {
+    fn collect_resources(&mut self, state: &mut GameState) {
+        self.previous.collect_resources(state)
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        if self.active && offensive.from == Nation::AustriaHungary && offensive.to == Nation::Italy
+        {
+            let (artillery_bonus, attack_bonus, defense_malus) =
+                self.previous.compute_bonus(state, offensive);
+            (artillery_bonus, attack_bonus + 1, defense_malus)
+        } else {
+            self.previous.compute_bonus(state, offensive)
+        }
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.active = false;
+        self.previous.new_turn(state);
+    }
+
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_offensive_dice(state, num)
+    }
+
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_artillery_dice(state, num)
+    }
+
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: i8,
+        defense_malus: i8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
+    }
+
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_artillery_hits(state, offensive, dice_roll)
+    }
+
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+        self.previous.reduce_pr(state, side, pr)
+    }
+
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+        self.previous.apply_hits(state, nation, hits)
+    }
+
+    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.uboot_losses(state, bonus)
+    }
+
+    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.blockade_effect(state, bonus)
+    }
+}
+
+pub struct TrentinOffensive {
+    pub active: bool,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl TrentinOffensive {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        TrentinOffensive {
+            active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -898,6 +980,21 @@ mod game_events_tests {
         engine.play_events(&ALL_EVENTS[13]);
 
         assert_eq!(0, engine.blockade_effect(0));
+    }
+
+    #[test]
+    fn trentin_offensive_adds_1_to_austria_attack_on_italy() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        engine.play_events(&ALL_EVENTS[14]);
+        let (_, att, _) = engine.compute_bonus(&Offensive {
+            initiative: Allies,
+            from: AustriaHungary,
+            to: Italy,
+            pr: 2,
+        });
+
+        assert_eq!(1, att);
     }
 }
 
