@@ -22,6 +22,7 @@ pub trait GameLogic {
     ) -> u8;
     fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8);
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult;
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8;
     fn new_turn(&mut self, state: &mut GameState);
 }
 
@@ -74,6 +75,10 @@ impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
 
     fn new_turn(&mut self, state: &mut GameState) {
         self.as_mut().new_turn(state)
+    }
+
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+        self.as_mut().uboot_losses(state, bonus)
     }
 }
 
@@ -130,6 +135,10 @@ impl GameLogic for DummyLogic {
     }
 
     fn new_turn(&mut self, _state: &mut GameState) {
+        panic!("dummy logic")
+    }
+
+    fn uboot_losses(&mut self, _state: &mut GameState, _bonus: u8) -> u8 {
         panic!("dummy logic")
     }
 }

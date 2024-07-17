@@ -309,12 +309,7 @@ fn uboot(players: &mut Players, game_engine: &mut GameEngine) {
         _ => 0,
     };
 
-    let die = game_engine.roll() + bonus;
-    let loss = match die {
-        1..=4 => 0,
-        5 => 2,
-        _ => 4,
-    };
+    let loss = game_engine.uboot_losses(bonus);
 
     let pr_lost = apply_hits(players, game_engine, loss);
 
@@ -326,12 +321,7 @@ fn apply_hits(players: &mut Players, game_engine: &mut GameEngine, loss: u8) -> 
     players.output(&Output::UBootResult(loss));
 
     let allies_player = &mut players.allies_player;
-    let pr = game_engine
-        .state
-        .state_of_war
-        .get(&Side::Allies)
-        .unwrap()
-        .resources;
+    let pr = game_engine.state.resources_for(&Side::Allies);
 
     if loss > pr {
         let mut hits = loss - pr;

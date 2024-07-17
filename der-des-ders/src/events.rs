@@ -62,6 +62,10 @@ impl GameLogic for RaceToTheSea {
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.previous.apply_hits(state, nation, hits)
     }
+
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.uboot_losses(state, bonus)
+    }
 }
 
 pub struct RaceToTheSea {
@@ -134,6 +138,9 @@ impl<T: GameLogic> GameLogic for ShellCrisis<T> {
 
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.previous.apply_hits(state, nation, hits)
+    }
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.uboot_losses(state, bonus)
     }
 }
 
@@ -211,6 +218,9 @@ impl GameLogic for Gas {
 
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.previous.apply_hits(state, nation, hits)
+    }
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.uboot_losses(state, bonus)
     }
 }
 
@@ -297,6 +307,9 @@ impl GameLogic for VonLettowInAfrica {
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.previous.apply_hits(state, nation, hits)
     }
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.uboot_losses(state, bonus)
+    }
 }
 
 pub struct VonLettowInAfrica {
@@ -370,6 +383,9 @@ impl GameLogic for Gallipoli {
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.previous.apply_hits(state, nation, hits)
     }
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.uboot_losses(state, bonus)
+    }
 }
 
 pub struct Gallipoli {
@@ -381,6 +397,79 @@ impl Gallipoli {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         Gallipoli {
             active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
+impl GameLogic for GermanFleetDefeated {
+    fn collect_resources(&mut self, state: &mut GameState) {
+        self.previous.collect_resources(state);
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        self.previous.compute_bonus(state, offensive)
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.previous.new_turn(state);
+    }
+
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_offensive_dice(state, num)
+    }
+
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_artillery_dice(state, num)
+    }
+
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: i8,
+        defense_malus: i8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
+    }
+
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_artillery_hits(state, offensive, dice_roll)
+    }
+
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+        self.previous.reduce_pr(state, side, pr)
+    }
+
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+        self.previous.apply_hits(state, nation, hits)
+    }
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+        let die = (state.roll() - 1 + bonus).max(1);
+        println!("Uboot losses: {}", die);
+        match die {
+            1..=4 => 0,
+            5 => 2,
+            _ => 4,
+        }
+    }
+}
+
+pub struct GermanFleetDefeated {
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl GermanFleetDefeated {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        GermanFleetDefeated {
             previous: Box::new(previous),
         }
     }
@@ -452,6 +541,10 @@ impl GameLogic for SeparatePeace {
 
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.previous.apply_hits(state, nation, hits)
+    }
+
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.uboot_losses(state, bonus)
     }
 }
 
@@ -664,10 +757,220 @@ mod game_events_tests {
 
     #[test]
     fn battle_of_jutland_adds_3_pr_to_empires_on_roll_of_1() {
-        let mut engine = EngineBuilder::new(12).build(); // die roll = 1
+        let mut engine = EngineBuilder::new(6).build(); // die roll = 1
 
         engine.play_events(&ALL_EVENTS[13]);
 
         assert_eq!(3, engine.state.resources_for(&Empires),);
     }
+
+    #[test]
+    fn battle_of_jutland_on_roll_of_5_inflicts_penalty_of_1_to_uboot_rolls() {
+        let mut engine = EngineBuilder::new(116).with_resources(Allies, 6).build(); // die roll = 5 , 6
+
+        engine.play_events(&ALL_EVENTS[13]);
+
+        assert_eq!(2, engine.uboot_losses(0));
+    }
 }
+
+// 0 : 5 4 5
+// 1 : 5 2 3
+// 2 : 1 6 1
+// 3 : 1 3 2
+// 4 : 5 4 1
+// 5 : 2 3 2
+// 6 : 1 3 5
+// 7 : 3 1 1
+// 8 : 3 6 5
+// 9 : 4 1 5
+// 10 : 3 3 2
+// 11 : 2 2 4
+// 12 : 3 5 4
+// 13 : 4 4 4
+// 14 : 6 4 6
+// 15 : 4 6 2
+// 16 : 6 6 3
+// 17 : 4 2 2
+// 18 : 1 3 2
+// 19 : 5 1 3
+// 20 : 3 1 5
+// 21 : 6 1 3
+// 22 : 6 1 1
+// 23 : 2 3 6
+// 24 : 3 2 4
+// 25 : 4 3 2
+// 26 : 2 2 4
+// 27 : 6 2 2
+// 28 : 3 3 1
+// 29 : 2 5 3
+// 30 : 3 6 3
+// 31 : 2 2 4
+// 32 : 3 2 6
+// 33 : 5 2 4
+// 34 : 5 3 3
+// 35 : 4 5 2
+// 36 : 3 4 6
+// 37 : 1 4 4
+// 38 : 3 2 3
+// 39 : 4 6 6
+// 40 : 1 5 1
+// 41 : 2 6 2
+// 42 : 4 2 4
+// 43 : 6 5 3
+// 44 : 3 5 3
+// 45 : 5 3 1
+// 46 : 3 2 1
+// 47 : 6 3 2
+// 48 : 3 1 3
+// 49 : 1 6 6
+// 50 : 4 5 6
+// 51 : 2 3 2
+// 52 : 2 2 6
+// 53 : 5 3 4
+// 54 : 3 1 5
+// 55 : 2 1 3
+// 56 : 6 2 2
+// 57 : 5 2 6
+// 58 : 4 2 3
+// 59 : 2 2 6
+// 60 : 6 3 3
+// 61 : 3 3 1
+// 62 : 6 4 6
+// 63 : 4 6 1
+// 64 : 5 4 2
+// 65 : 6 1 1
+// 66 : 5 4 3
+// 67 : 5 3 1
+// 68 : 3 5 6
+// 69 : 2 1 5
+// 70 : 1 4 2
+// 71 : 3 2 1
+// 72 : 4 2 6
+// 73 : 5 5 4
+// 74 : 4 4 5
+// 75 : 3 6 3
+// 76 : 2 6 3
+// 77 : 3 4 4
+// 78 : 1 2 4
+// 79 : 6 5 6
+// 80 : 3 4 5
+// 81 : 6 1 6
+// 82 : 1 1 5
+// 83 : 2 5 2
+// 84 : 4 1 2
+// 85 : 3 1 2
+// 86 : 1 5 3
+// 87 : 6 4 5
+// 88 : 4 6 6
+// 89 : 1 4 5
+// 90 : 5 3 5
+// 91 : 2 1 3
+// 92 : 1 4 4
+// 93 : 4 1 4
+// 94 : 2 4 2
+// 95 : 5 5 4
+// 96 : 6 4 5
+// 97 : 3 4 5
+// 98 : 4 4 1
+// 99 : 5 5 3
+// 100 : 5 4 6
+// 101 : 5 2 1
+// 102 : 2 5 1
+// 103 : 2 6 5
+// 104 : 1 5 6
+// 105 : 5 2 1
+// 106 : 6 6 4
+// 107 : 2 3 1
+// 108 : 1 4 2
+// 109 : 3 3 3
+// 110 : 2 4 1
+// 111 : 3 2 1
+// 112 : 6 1 2
+// 113 : 1 6 4
+// 114 : 2 3 4
+// 115 : 3 4 4
+// 116 : 5 6 2
+// 117 : 5 4 3
+// 118 : 3 6 2
+// 119 : 3 5 3
+// 120 : 1 4 2
+// 121 : 1 1 2
+// 122 : 6 6 4
+// 123 : 2 5 6
+// 124 : 4 4 3
+// 125 : 4 6 5
+// 126 : 4 5 4
+// 127 : 2 2 5
+// 128 : 6 2 4
+// 129 : 3 6 3
+// 130 : 4 4 5
+// 131 : 6 1 6
+// 132 : 4 4 6
+// 133 : 4 2 4
+// 134 : 3 5 4
+// 135 : 3 5 3
+// 136 : 2 6 3
+// 137 : 3 2 2
+// 138 : 4 6 3
+// 139 : 5 4 6
+// 140 : 5 4 2
+// 141 : 2 2 6
+// 142 : 1 5 6
+// 143 : 4 6 2
+// 144 : 6 6 4
+// 145 : 4 6 6
+// 146 : 5 3 6
+// 147 : 1 3 6
+// 148 : 1 1 2
+// 149 : 4 3 1
+// 150 : 6 5 1
+// 151 : 5 6 5
+// 152 : 2 3 4
+// 153 : 3 2 4
+// 154 : 5 2 1
+// 155 : 2 6 2
+// 156 : 6 2 6
+// 157 : 4 6 6
+// 158 : 5 4 2
+// 159 : 4 5 4
+// 160 : 4 1 6
+// 161 : 4 2 1
+// 162 : 3 2 2
+// 163 : 4 1 1
+// 164 : 2 2 5
+// 165 : 6 3 3
+// 166 : 3 1 1
+// 167 : 3 1 1
+// 168 : 6 6 3
+// 169 : 5 3 1
+// 170 : 2 3 3
+// 171 : 6 4 1
+// 172 : 3 3 2
+// 173 : 3 1 6
+// 174 : 6 6 4
+// 175 : 4 3 3
+// 176 : 2 5 2
+// 177 : 6 3 3
+// 178 : 4 3 2
+// 179 : 4 3 4
+// 180 : 3 4 5
+// 181 : 3 4 2
+// 182 : 6 1 5
+// 183 : 4 1 6
+// 184 : 5 5 4
+// 185 : 3 6 1
+// 186 : 1 2 2
+// 187 : 6 6 5
+// 188 : 3 4 5
+// 189 : 3 3 3
+// 190 : 3 1 4
+// 191 : 5 6 1
+// 192 : 5 4 2
+// 193 : 5 1 3
+// 194 : 5 5 1
+// 195 : 2 5 3
+// 196 : 4 3 6
+// 197 : 5 5 3
+// 198 : 1 5 3
+// 199 : 5 4 4

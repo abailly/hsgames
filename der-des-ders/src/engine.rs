@@ -123,6 +123,10 @@ impl GameEngine {
         self.logic.compute_bonus(&self.state, offensive)
     }
 
+    pub fn uboot_losses(&mut self, bonus: u8) -> u8 {
+        self.logic.uboot_losses(&mut self.state, bonus)
+    }
+
     pub(crate) fn new_turn(&mut self) -> &mut Self {
         self.logic.new_turn(&mut self.state);
         self
@@ -151,9 +155,14 @@ impl GameEngine {
                     .nations
                     .insert(Nation::Bulgaria, NationState::AtWar(3));
             }
-            14 => {
-                self.increase_pr(Side::Empires, 3);
-            }
+            14 => match self.roll() {
+                1 => {
+                    self.increase_pr(Side::Empires, 3);
+                }
+                _ => {
+                    self.make_event_active(GermanFleetDefeated::new);
+                }
+            },
             _ => {}
         }
         ActiveEvent {
@@ -272,6 +281,15 @@ impl GameLogic for DefaultGameLogic {
         let next_year = state.current_year();
         if next_year != current_turn_year {
             state.new_year(current_turn_year, next_year);
+        }
+    }
+
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+        let die = state.roll() + bonus;
+        match die {
+            1..=4 => 0,
+            5 => 2,
+            _ => 4,
         }
     }
 }
