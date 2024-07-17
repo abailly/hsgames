@@ -175,6 +175,9 @@ impl GameEngine {
                     .nations
                     .insert(Nation::Bulgaria, NationState::AtWar(3));
             }
+            14 => {
+                self.increase_pr(Side::Empires, 3);
+            }
             _ => {}
         }
         ActiveEvent {

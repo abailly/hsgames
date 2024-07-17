@@ -6,7 +6,7 @@ pub struct Event {
     pub title: &'static str,
 }
 
-pub const ALL_EVENTS: [Event; 13] = [
+pub const ALL_EVENTS: [Event; 42] = [
     Event {
         event_id: 1,
         year: 1914,
@@ -84,5 +84,179 @@ pub const ALL_EVENTS: [Event; 13] = [
         year: 1915,
         not_after: None,
         title: "All is quiet",
+    },
+    Event {
+        event_id: 14,
+        year: 1916,
+        not_after: None,
+        title: "Battle of Jutland",
+    },
+    Event {
+        event_id: 15,
+        year: 1916,
+        not_after: None,
+        title: "Trentin offensive",
+    },
+    Event {
+        event_id: 16,
+        year: 1916,
+        not_after: None,
+        title: "Woodrow Wilson intervention",
+    },
+    Event {
+        event_id: 17,
+        year: 1916,
+        not_after: None,
+        title: "Battle of Verdun",
+    },
+    Event {
+        event_id: 18,
+        year: 1916,
+        not_after: None,
+        title: "Battle of Somme",
+    },
+    Event {
+        event_id: 19,
+        year: 1916,
+        not_after: None,
+        title: "Brusilov offensive",
+    },
+    Event {
+        event_id: 20,
+        year: 1916,
+        not_after: None,
+        title: "Romania enters the war!",
+    },
+    Event {
+        event_id: 21,
+        year: 1916,
+        not_after: None,
+        title: "All is quiet",
+    },
+    Event {
+        event_id: 22,
+        year: 1917,
+        not_after: None,
+        title: "Repeated mutinies",
+    },
+    Event {
+        event_id: 23,
+        year: 1917,
+        not_after: None,
+        title: "Battle of Gaza",
+    },
+    Event {
+        event_id: 24,
+        year: 1917,
+        not_after: None,
+        title: "Lawrence of Arabia",
+    },
+    Event {
+        event_id: 25,
+        year: 1917,
+        not_after: None,
+        title: "Battle of Caporetto",
+    },
+    Event {
+        event_id: 26,
+        year: 1917,
+        not_after: None,
+        title: "U-Boot campaign",
+    },
+    Event {
+        event_id: 27,
+        year: 1917,
+        not_after: Some(1917),
+        title: "Flying Circus",
+    },
+    Event {
+        event_id: 28,
+        year: 1917,
+        not_after: None,
+        title: "Greece enters the war!",
+    },
+    Event {
+        event_id: 29,
+        year: 1917,
+        not_after: None,
+        title: "Zimmerman telegram",
+    },
+    Event {
+        event_id: 30,
+        year: 1917,
+        not_after: None,
+        title: "All is quiet",
+    },
+    Event {
+        event_id: 31,
+        year: 1918,
+        not_after: None,
+        title: "Brest-Litovsk treaty",
+    },
+    Event {
+        event_id: 32,
+        year: 1918,
+        not_after: None,
+        title: "Friedensturm on the Marne",
+    },
+    Event {
+        event_id: 33,
+        year: 1918,
+        not_after: None,
+        title: "Unified command",
+    },
+    Event {
+        event_id: 34,
+        year: 1918,
+        not_after: None,
+        title: "Tanks!",
+    },
+    Event {
+        event_id: 35,
+        year: 1918,
+        not_after: None,
+        title: "Battle of Megiddo",
+    },
+    Event {
+        event_id: 36,
+        year: 1918,
+        not_after: None,
+        title: "Saloniki expedition",
+    },
+    Event {
+        event_id: 37,
+        year: 1918,
+        not_after: None,
+        title: "Spanish flu",
+    },
+    Event {
+        event_id: 38,
+        year: 1918,
+        not_after: None,
+        title: "Peace negotiations",
+    },
+    Event {
+        event_id: 39,
+        year: 1918,
+        not_after: None,
+        title: "All is quiet",
+    },
+    Event {
+        event_id: 40,
+        year: 1918,
+        not_after: None,
+        title: "All is quiet",
+    },
+    Event {
+        event_id: 41,
+        year: 1918,
+        not_after: None,
+        title: "Lafayette we are here!",
+    },
+    Event {
+        event_id: 42,
+        year: 1918,
+        not_after: None,
+        title: "Armistice",
     },
 ];

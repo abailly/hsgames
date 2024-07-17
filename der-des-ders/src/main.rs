@@ -133,8 +133,7 @@ fn apply_event(players: &mut Players, game_engine: &mut GameEngine, event: &Even
                 result,
             });
         }
-        4 => game_engine.play_events(event),
-        _ => (),
+        _ => game_engine.play_events(event),
     }
 }
 
@@ -765,6 +764,16 @@ mod events_tests {
         launch_offensives(Allies, &mut players, &mut engine);
 
         assert_eq!(AtWar(8), *engine.state.nations.get(&Germany).unwrap());
+    }
+
+    #[test]
+    fn italy_entering_war_updates_its_state() {
+        let mut engine = EngineBuilder::new(14).build();
+        let mut players = PlayersBuilder::new().build();
+
+        apply_event(&mut players, &mut engine, &ALL_EVENTS[9]);
+
+        assert_eq!(AtWar(5), *engine.state.nations.get(&Italy).unwrap());
     }
 }
 

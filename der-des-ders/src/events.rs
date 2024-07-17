@@ -649,6 +649,7 @@ mod game_events_tests {
             *engine.state.nations.get(&Italy).unwrap()
         );
     }
+
     #[test]
     fn bulgaria_can_enter_war_with_event() {
         let mut engine = EngineBuilder::new(12).build();
@@ -659,5 +660,14 @@ mod game_events_tests {
             NationState::AtWar(3),
             *engine.state.nations.get(&Bulgaria).unwrap()
         );
+    }
+
+    #[test]
+    fn battle_of_jutland_adds_3_pr_to_empires_on_roll_of_1() {
+        let mut engine = EngineBuilder::new(12).build(); // die roll = 1
+
+        engine.play_events(&ALL_EVENTS[13]);
+
+        assert_eq!(3, engine.state.resources_for(&Empires),);
     }
 }
