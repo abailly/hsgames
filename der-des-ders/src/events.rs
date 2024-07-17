@@ -772,6 +772,15 @@ mod game_events_tests {
 
         assert_eq!(2, engine.uboot_losses(0));
     }
+
+    #[test]
+    fn battle_of_jutland_on_roll_of_3_has_no_effect() {
+        let mut engine = EngineBuilder::new(30).with_resources(Allies, 6).build(); // die roll = 3 , 6
+
+        engine.play_events(&ALL_EVENTS[13]);
+
+        assert_eq!(4, engine.uboot_losses(0));
+    }
 }
 
 // 0 : 5 4 5

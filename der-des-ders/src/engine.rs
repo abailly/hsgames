@@ -159,9 +159,10 @@ impl GameEngine {
                 1 => {
                     self.increase_pr(Side::Empires, 3);
                 }
-                _ => {
+                5 => {
                     self.make_event_active(GermanFleetDefeated::new);
                 }
+                _ => {}
             },
             _ => {}
         }
