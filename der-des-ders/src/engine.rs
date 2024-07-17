@@ -162,6 +162,9 @@ impl GameEngine {
                 5 => {
                     self.make_event_active(GermanFleetDefeated::new);
                 }
+                6 => {
+                    self.make_event_active(GermanFleetDestroyed::new);
+                }
                 _ => {}
             },
             _ => {}
@@ -179,6 +182,10 @@ impl GameEngine {
         let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
         swap(&mut previous, &mut self.logic);
         self.logic = Box::new((new)(previous));
+    }
+
+    pub(crate) fn blockade_effect(&mut self, bonus: u8) -> u8 {
+        self.logic.blockade_effect(&mut self.state, bonus)
     }
 }
 
@@ -285,12 +292,21 @@ impl GameLogic for DefaultGameLogic {
         }
     }
 
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
         let die = state.roll() + bonus;
         match die {
             1..=4 => 0,
             5 => 2,
             _ => 4,
+        }
+    }
+
+    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
+        let die = state.roll() + bonus;
+        match die {
+            1 => 3,
+            2 => 1,
+            _ => 0,
         }
     }
 }

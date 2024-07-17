@@ -298,14 +298,7 @@ fn uboot(players: &mut Players, game_engine: &mut GameEngine) {
     let player = &mut players.empires_player;
     player.output(&Output::IncreaseUBoot);
     let bonus = match player.input() {
-        Input::Number(n) => n.min(
-            game_engine
-                .state
-                .state_of_war
-                .get(&Side::Empires)
-                .unwrap()
-                .resources,
-        ),
+        Input::Number(n) => n.min(game_engine.state.resources_for(&Side::Empires)),
         _ => 0,
     };
 
@@ -342,23 +335,11 @@ fn blocus(players: &mut Players, game_engine: &mut GameEngine) {
     let player = &mut players.allies_player;
     player.output(&Output::IncreaseBlockade);
     let bonus = match player.input() {
-        Input::Number(n) => n.min(
-            game_engine
-                .state
-                .state_of_war
-                .get(&Side::Allies)
-                .unwrap()
-                .resources,
-        ),
+        Input::Number(n) => n.min(game_engine.state.resources_for(&Side::Allies)),
         _ => 0,
     };
 
-    let die = game_engine.roll() + bonus;
-    let gain = match die {
-        1 => 3,
-        2 => 1,
-        _ => 0,
-    };
+    let gain = game_engine.blockade_effect(bonus);
 
     game_engine.increase_pr(Side::Empires, gain);
     game_engine.reduce_pr(Side::Allies, bonus);

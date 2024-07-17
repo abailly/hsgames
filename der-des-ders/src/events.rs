@@ -63,8 +63,12 @@ impl GameLogic for RaceToTheSea {
         self.previous.apply_hits(state, nation, hits)
     }
 
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
         self.previous.uboot_losses(state, bonus)
+    }
+
+    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -139,8 +143,13 @@ impl<T: GameLogic> GameLogic for ShellCrisis<T> {
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.previous.apply_hits(state, nation, hits)
     }
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+
+    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
         self.previous.uboot_losses(state, bonus)
+    }
+
+    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -219,8 +228,13 @@ impl GameLogic for Gas {
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.previous.apply_hits(state, nation, hits)
     }
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+
+    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
         self.previous.uboot_losses(state, bonus)
+    }
+
+    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -307,8 +321,13 @@ impl GameLogic for VonLettowInAfrica {
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.previous.apply_hits(state, nation, hits)
     }
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+
+    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
         self.previous.uboot_losses(state, bonus)
+    }
+
+    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -383,8 +402,13 @@ impl GameLogic for Gallipoli {
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.previous.apply_hits(state, nation, hits)
     }
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+
+    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
         self.previous.uboot_losses(state, bonus)
+    }
+
+    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -452,7 +476,8 @@ impl GameLogic for GermanFleetDefeated {
     fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         self.previous.apply_hits(state, nation, hits)
     }
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+
+    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
         let die = (state.roll() - 1 + bonus).max(1);
         println!("Uboot losses: {}", die);
         match die {
@@ -460,6 +485,10 @@ impl GameLogic for GermanFleetDefeated {
             5 => 2,
             _ => 4,
         }
+    }
+
+    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -470,6 +499,82 @@ pub struct GermanFleetDefeated {
 impl GermanFleetDefeated {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         GermanFleetDefeated {
+            previous: Box::new(previous),
+        }
+    }
+}
+
+impl GameLogic for GermanFleetDestroyed {
+    fn collect_resources(&mut self, state: &mut GameState) {
+        self.previous.collect_resources(state);
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        self.previous.compute_bonus(state, offensive)
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.previous.new_turn(state);
+    }
+
+    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_offensive_dice(state, num)
+    }
+
+    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+        self.previous.roll_artillery_dice(state, num)
+    }
+
+    fn evaluate_attack_hits(
+        &self,
+        state: &GameState,
+        attack_bonus: i8,
+        defense_malus: i8,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
+    }
+
+    fn evaluate_artillery_hits(
+        &self,
+        state: &GameState,
+        offensive: &Offensive,
+        dice_roll: Vec<u8>,
+    ) -> u8 {
+        self.previous
+            .evaluate_artillery_hits(state, offensive, dice_roll)
+    }
+
+    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+        self.previous.reduce_pr(state, side, pr)
+    }
+
+    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+        self.previous.apply_hits(state, nation, hits)
+    }
+
+    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
+        match (state.roll() - 1 + bonus).max(1) {
+            1..=4 => 0,
+            5 => 2,
+            _ => 4,
+        }
+    }
+
+    fn blockade_effect(&self, _state: &mut GameState, _bonus: u8) -> u8 {
+        0
+    }
+}
+
+pub struct GermanFleetDestroyed {
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl GermanFleetDestroyed {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        GermanFleetDestroyed {
             previous: Box::new(previous),
         }
     }
@@ -543,8 +648,12 @@ impl GameLogic for SeparatePeace {
         self.previous.apply_hits(state, nation, hits)
     }
 
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
         self.previous.uboot_losses(state, bonus)
+    }
+
+    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
+        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -780,6 +889,15 @@ mod game_events_tests {
         engine.play_events(&ALL_EVENTS[13]);
 
         assert_eq!(4, engine.uboot_losses(0));
+    }
+
+    #[test]
+    fn battle_of_jutland_on_roll_of_6_cancels_blockade_roll() {
+        let mut engine = EngineBuilder::new(22).with_resources(Allies, 6).build(); // die roll = 6, 1
+
+        engine.play_events(&ALL_EVENTS[13]);
+
+        assert_eq!(0, engine.blockade_effect(0));
     }
 }
 
