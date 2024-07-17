@@ -135,36 +135,12 @@ impl GameEngine {
 
     fn play(&mut self, event: &Event) -> ActiveEvent {
         match event.event_id {
-            4 => {
-                let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
-                swap(&mut previous, &mut self.logic);
-                self.logic = Box::new(RaceToTheSea::new(previous));
-            }
-            5 => {
-                let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
-                swap(&mut previous, &mut self.logic);
-                self.logic = Box::new(ShellCrisis::new(previous));
-            }
-            6 => {
-                let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
-                swap(&mut previous, &mut self.logic);
-                self.logic = Box::new(Gas::new(previous));
-            }
-            7 => {
-                let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
-                swap(&mut previous, &mut self.logic);
-                self.logic = Box::new(VonLettowInAfrica::new(previous));
-            }
-            8 => {
-                let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
-                swap(&mut previous, &mut self.logic);
-                self.logic = Box::new(Gallipoli::new(previous));
-            }
-            9 => {
-                let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
-                swap(&mut previous, &mut self.logic);
-                self.logic = Box::new(SeparatePeace::new(previous));
-            }
+            4 => self.make_event_active(RaceToTheSea::new),
+            5 => self.make_event_active(ShellCrisis::new),
+            6 => self.make_event_active(Gas::new),
+            7 => self.make_event_active(VonLettowInAfrica::new),
+            8 => self.make_event_active(Gallipoli::new),
+            9 => self.make_event_active(SeparatePeace::new),
             10 => {
                 self.state
                     .nations
@@ -184,6 +160,15 @@ impl GameEngine {
             event: event.clone(),
             deactivation: |_game| true, // by default, events last for one turn
         }
+    }
+
+    fn make_event_active<T>(&mut self, new: fn(Box<dyn GameLogic>) -> T)
+    where
+        T: GameLogic + 'static,
+    {
+        let mut previous: Box<dyn GameLogic> = Box::new(DummyLogic::new());
+        swap(&mut previous, &mut self.logic);
+        self.logic = Box::new((new)(previous));
     }
 }
 
