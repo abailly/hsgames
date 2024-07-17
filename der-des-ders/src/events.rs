@@ -3,8 +3,8 @@ use crate::side::*;
 use crate::state::*;
 
 impl GameLogic for RaceToTheSea {
-    fn collect_resources(&mut self, state: &mut GameState) {
-        self.previous.collect_resources(state)
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
     }
 
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
@@ -24,52 +24,6 @@ impl GameLogic for RaceToTheSea {
         self.active = false;
         self.previous.new_turn(state);
     }
-
-    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_offensive_dice(state, num)
-    }
-
-    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_artillery_dice(state, num)
-    }
-
-    fn evaluate_attack_hits(
-        &self,
-        state: &GameState,
-        attack_bonus: i8,
-        defense_malus: i8,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
-    }
-
-    fn evaluate_artillery_hits(
-        &self,
-        state: &GameState,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_artillery_hits(state, offensive, dice_roll)
-    }
-
-    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
-        self.previous.reduce_pr(state, side, pr)
-    }
-
-    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
-        self.previous.apply_hits(state, nation, hits)
-    }
-
-    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.uboot_losses(state, bonus)
-    }
-
-    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.blockade_effect(state, bonus)
-    }
 }
 
 pub struct RaceToTheSea {
@@ -87,8 +41,8 @@ impl RaceToTheSea {
 }
 
 impl<T: GameLogic> GameLogic for ShellCrisis<T> {
-    fn collect_resources(&mut self, state: &mut GameState) {
-        self.previous.collect_resources(state)
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
     }
 
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
@@ -104,52 +58,6 @@ impl<T: GameLogic> GameLogic for ShellCrisis<T> {
     fn new_turn(&mut self, state: &mut GameState) {
         self.active = false;
         self.previous.new_turn(state);
-    }
-
-    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_offensive_dice(state, num)
-    }
-
-    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_artillery_dice(state, num)
-    }
-
-    fn evaluate_attack_hits(
-        &self,
-        state: &GameState,
-        attack_bonus: i8,
-        defense_malus: i8,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
-    }
-
-    fn evaluate_artillery_hits(
-        &self,
-        state: &GameState,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_artillery_hits(state, offensive, dice_roll)
-    }
-
-    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
-        self.previous.reduce_pr(state, side, pr)
-    }
-
-    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
-        self.previous.apply_hits(state, nation, hits)
-    }
-
-    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.uboot_losses(state, bonus)
-    }
-
-    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -168,8 +76,8 @@ impl<T: GameLogic> ShellCrisis<T> {
 }
 
 impl GameLogic for Gas {
-    fn collect_resources(&mut self, state: &mut GameState) {
-        self.previous.collect_resources(state)
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
     }
 
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
@@ -182,13 +90,9 @@ impl GameLogic for Gas {
         self.previous.new_turn(state);
     }
 
-    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_offensive_dice(state, num)
-    }
-
-    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+    fn roll_artillery_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
         let roll_artillery_dice = self.previous.roll_artillery_dice(state, num);
-        if let Some(offensive) = &self.offensive {
+        if let Some(offensive) = &mut self.offensive {
             if offensive.from == Nation::Germany {
                 roll_artillery_dice.into_iter().map(|die| die + 1).collect()
             } else {
@@ -197,44 +101,6 @@ impl GameLogic for Gas {
         } else {
             roll_artillery_dice
         }
-    }
-
-    fn evaluate_attack_hits(
-        &self,
-        state: &GameState,
-        attack_bonus: i8,
-        defense_malus: i8,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
-    }
-
-    fn evaluate_artillery_hits(
-        &self,
-        state: &GameState,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_artillery_hits(state, offensive, dice_roll)
-    }
-
-    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
-        self.previous.reduce_pr(state, side, pr)
-    }
-
-    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
-        self.previous.apply_hits(state, nation, hits)
-    }
-
-    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.uboot_losses(state, bonus)
-    }
-
-    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -255,8 +121,8 @@ impl Gas {
 }
 
 impl GameLogic for VonLettowInAfrica {
-    fn collect_resources(&mut self, state: &mut GameState) {
-        self.previous.collect_resources(state)
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
     }
 
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
@@ -271,11 +137,7 @@ impl GameLogic for VonLettowInAfrica {
         self.previous.compute_bonus(state, offensive)
     }
 
-    fn new_turn(&mut self, state: &mut GameState) {
-        self.previous.new_turn(state);
-    }
-
-    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+    fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
         let added_die = if let Some(offensive) = &self.offensive {
             if offensive.from == Nation::GermanAfrica {
                 1
@@ -286,48 +148,6 @@ impl GameLogic for VonLettowInAfrica {
             0
         };
         self.previous.roll_offensive_dice(state, num + added_die)
-    }
-
-    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_artillery_dice(state, num)
-    }
-
-    fn evaluate_attack_hits(
-        &self,
-        state: &GameState,
-        attack_bonus: i8,
-        defense_malus: i8,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
-    }
-
-    fn evaluate_artillery_hits(
-        &self,
-        state: &GameState,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_artillery_hits(state, offensive, dice_roll)
-    }
-
-    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
-        self.previous.reduce_pr(state, side, pr)
-    }
-
-    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
-        self.previous.apply_hits(state, nation, hits)
-    }
-
-    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.uboot_losses(state, bonus)
-    }
-
-    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -348,6 +168,10 @@ impl VonLettowInAfrica {
 }
 
 impl GameLogic for Gallipoli {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
     fn collect_resources(&mut self, state: &mut GameState) {
         self.previous.collect_resources(state);
         if self.active {
@@ -356,59 +180,9 @@ impl GameLogic for Gallipoli {
         }
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
-        self.previous.compute_bonus(state, offensive)
-    }
-
     fn new_turn(&mut self, state: &mut GameState) {
         self.previous.new_turn(state);
         self.active = false;
-    }
-
-    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_offensive_dice(state, num)
-    }
-
-    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_artillery_dice(state, num)
-    }
-
-    fn evaluate_attack_hits(
-        &self,
-        state: &GameState,
-        attack_bonus: i8,
-        defense_malus: i8,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
-    }
-
-    fn evaluate_artillery_hits(
-        &self,
-        state: &GameState,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_artillery_hits(state, offensive, dice_roll)
-    }
-
-    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
-        self.previous.reduce_pr(state, side, pr)
-    }
-
-    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
-        self.previous.apply_hits(state, nation, hits)
-    }
-
-    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.uboot_losses(state, bonus)
-    }
-
-    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -427,57 +201,11 @@ impl Gallipoli {
 }
 
 impl GameLogic for GermanFleetDefeated {
-    fn collect_resources(&mut self, state: &mut GameState) {
-        self.previous.collect_resources(state);
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
-        self.previous.compute_bonus(state, offensive)
-    }
-
-    fn new_turn(&mut self, state: &mut GameState) {
-        self.previous.new_turn(state);
-    }
-
-    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_offensive_dice(state, num)
-    }
-
-    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_artillery_dice(state, num)
-    }
-
-    fn evaluate_attack_hits(
-        &self,
-        state: &GameState,
-        attack_bonus: i8,
-        defense_malus: i8,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
-    }
-
-    fn evaluate_artillery_hits(
-        &self,
-        state: &GameState,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_artillery_hits(state, offensive, dice_roll)
-    }
-
-    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
-        self.previous.reduce_pr(state, side, pr)
-    }
-
-    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
-        self.previous.apply_hits(state, nation, hits)
-    }
-
-    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
         let die = (state.roll() - 1 + bonus).max(1);
         println!("Uboot losses: {}", die);
         match die {
@@ -485,10 +213,6 @@ impl GameLogic for GermanFleetDefeated {
             5 => 2,
             _ => 4,
         }
-    }
-
-    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -505,65 +229,11 @@ impl GermanFleetDefeated {
 }
 
 impl GameLogic for GermanFleetDestroyed {
-    fn collect_resources(&mut self, state: &mut GameState) {
-        self.previous.collect_resources(state);
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
-        self.previous.compute_bonus(state, offensive)
-    }
-
-    fn new_turn(&mut self, state: &mut GameState) {
-        self.previous.new_turn(state);
-    }
-
-    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_offensive_dice(state, num)
-    }
-
-    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_artillery_dice(state, num)
-    }
-
-    fn evaluate_attack_hits(
-        &self,
-        state: &GameState,
-        attack_bonus: i8,
-        defense_malus: i8,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
-    }
-
-    fn evaluate_artillery_hits(
-        &self,
-        state: &GameState,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_artillery_hits(state, offensive, dice_roll)
-    }
-
-    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
-        self.previous.reduce_pr(state, side, pr)
-    }
-
-    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
-        self.previous.apply_hits(state, nation, hits)
-    }
-
-    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
-        match (state.roll() - 1 + bonus).max(1) {
-            1..=4 => 0,
-            5 => 2,
-            _ => 4,
-        }
-    }
-
-    fn blockade_effect(&self, _state: &mut GameState, _bonus: u8) -> u8 {
+    fn blockade_effect(&mut self, _state: &mut GameState, _bonus: u8) -> u8 {
         0
     }
 }
@@ -581,8 +251,8 @@ impl GermanFleetDestroyed {
 }
 
 impl GameLogic for SeparatePeace {
-    fn collect_resources(&mut self, state: &mut GameState) {
-        self.previous.collect_resources(state);
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
     }
 
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
@@ -595,7 +265,7 @@ impl GameLogic for SeparatePeace {
         self.active = false;
     }
 
-    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+    fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
         if self.active {
             let added_die = if let Some(offensive) = &self.offensive {
                 if (offensive.from == Nation::Germany || offensive.from == Nation::AustriaHungary)
@@ -612,48 +282,6 @@ impl GameLogic for SeparatePeace {
         } else {
             self.previous.roll_offensive_dice(state, num)
         }
-    }
-
-    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_artillery_dice(state, num)
-    }
-
-    fn evaluate_attack_hits(
-        &self,
-        state: &GameState,
-        attack_bonus: i8,
-        defense_malus: i8,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
-    }
-
-    fn evaluate_artillery_hits(
-        &self,
-        state: &GameState,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_artillery_hits(state, offensive, dice_roll)
-    }
-
-    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
-        self.previous.reduce_pr(state, side, pr)
-    }
-
-    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
-        self.previous.apply_hits(state, nation, hits)
-    }
-
-    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.uboot_losses(state, bonus)
-    }
-
-    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.blockade_effect(state, bonus)
     }
 }
 
@@ -674,8 +302,8 @@ impl SeparatePeace {
 }
 
 impl GameLogic for TrentinOffensive {
-    fn collect_resources(&mut self, state: &mut GameState) {
-        self.previous.collect_resources(state)
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
     }
 
     fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
@@ -692,52 +320,6 @@ impl GameLogic for TrentinOffensive {
     fn new_turn(&mut self, state: &mut GameState) {
         self.active = false;
         self.previous.new_turn(state);
-    }
-
-    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_offensive_dice(state, num)
-    }
-
-    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
-        self.previous.roll_artillery_dice(state, num)
-    }
-
-    fn evaluate_attack_hits(
-        &self,
-        state: &GameState,
-        attack_bonus: i8,
-        defense_malus: i8,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
-    }
-
-    fn evaluate_artillery_hits(
-        &self,
-        state: &GameState,
-        offensive: &Offensive,
-        dice_roll: Vec<u8>,
-    ) -> u8 {
-        self.previous
-            .evaluate_artillery_hits(state, offensive, dice_roll)
-    }
-
-    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
-        self.previous.reduce_pr(state, side, pr)
-    }
-
-    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
-        self.previous.apply_hits(state, nation, hits)
-    }
-
-    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.uboot_losses(state, bonus)
-    }
-
-    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
-        self.previous.blockade_effect(state, bonus)
     }
 }
 

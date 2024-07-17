@@ -44,6 +44,7 @@ pub enum HitsResult {
     Winner(Side),
     Hits(Nation, u8),
     NationNotAtWar(Nation),
+    NoResult,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -60,6 +61,7 @@ impl Display for HitsResult {
             HitsResult::Winner(side) => writeln!(f, "{} wins", side),
             HitsResult::Hits(nation, hits) => writeln!(f, "{} takes {} hits", nation, hits),
             HitsResult::NationNotAtWar(nation) => writeln!(f, "{} is not at war", nation),
+            HitsResult::NoResult => writeln!(f, "No result"),
         }
     }
 }

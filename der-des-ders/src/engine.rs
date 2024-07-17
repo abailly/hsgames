@@ -215,15 +215,15 @@ impl GameLogic for DefaultGameLogic {
         (artillery_bonus, attack_bonus, defense_malus)
     }
 
-    fn roll_offensive_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+    fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
         (0..num).map(|_| state.roll()).collect()
     }
 
-    fn roll_artillery_dice(&self, state: &mut GameState, num: u8) -> Vec<u8> {
+    fn roll_artillery_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
         (0..num).map(|_| state.roll()).collect()
     }
     fn evaluate_attack_hits(
-        &self,
+        &mut self,
         state: &GameState,
         attack_bonus: i8,
         defense_malus: i8,
@@ -245,7 +245,7 @@ impl GameLogic for DefaultGameLogic {
     }
 
     fn evaluate_artillery_hits(
-        &self,
+        &mut self,
         state: &GameState,
         offensive: &Offensive,
         dice_roll: Vec<u8>,
@@ -262,7 +262,7 @@ impl GameLogic for DefaultGameLogic {
         }
     }
 
-    fn reduce_pr(&self, state: &mut GameState, side: &Side, pr: u8) {
+    fn reduce_pr(&mut self, state: &mut GameState, side: &Side, pr: u8) {
         {
             let st = state.state_of_war.get_mut(side).unwrap();
             if st.resources >= pr {
@@ -271,7 +271,7 @@ impl GameLogic for DefaultGameLogic {
         };
     }
 
-    fn apply_hits(&self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
+    fn apply_hits(&mut self, state: &mut GameState, nation: &Nation, hits: u8) -> HitsResult {
         if let NationState::AtWar(breakdown) = state.nations.get_mut(nation).unwrap() {
             if hits >= *breakdown {
                 state.surrenders(nation)
@@ -293,7 +293,7 @@ impl GameLogic for DefaultGameLogic {
         }
     }
 
-    fn uboot_losses(&self, state: &mut GameState, bonus: u8) -> u8 {
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
         let die = state.roll() + bonus;
         match die {
             1..=4 => 0,
@@ -302,7 +302,7 @@ impl GameLogic for DefaultGameLogic {
         }
     }
 
-    fn blockade_effect(&self, state: &mut GameState, bonus: u8) -> u8 {
+    fn blockade_effect(&mut self, state: &mut GameState, bonus: u8) -> u8 {
         let die = state.roll() + bonus;
         match die {
             1 => 3,
