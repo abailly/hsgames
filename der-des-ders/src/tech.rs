@@ -20,6 +20,8 @@ pub struct Technologies {
     pub air: u8,
 }
 
+pub type TechEffects = (u8, i8, i8, u8);
+
 #[allow(unused_must_use)]
 pub const ZERO_TECHNOLOGIES: Technologies = Technologies {
     attack: 0,

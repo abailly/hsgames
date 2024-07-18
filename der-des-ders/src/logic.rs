@@ -1,5 +1,6 @@
 use crate::side::*;
 use crate::state::*;
+use crate::TechEffects;
 
 pub trait GameLogic {
     fn previous(&mut self) -> Option<&mut dyn GameLogic> {
@@ -10,11 +11,11 @@ pub trait GameLogic {
             previous.collect_resources(state);
         }
     }
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         if let Some(previous) = self.previous() {
             previous.compute_bonus(state, offensive)
         } else {
-            (0, 0, 0)
+            (0, 0, 0, 0)
         }
     }
     fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
@@ -100,7 +101,7 @@ impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
         self.as_mut().collect_resources(state)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         self.as_mut().compute_bonus(state, offensive)
     }
 
@@ -176,7 +177,7 @@ impl GameLogic for DummyLogic {
         panic!("dummy logic")
     }
 
-    fn compute_bonus(&mut self, _state: &GameState, _offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, _state: &GameState, _offensive: &Offensive) -> TechEffects {
         panic!("dummy logic")
     }
     fn roll_artillery_dice(&mut self, _state: &mut GameState, _num: u8) -> Vec<u8> {

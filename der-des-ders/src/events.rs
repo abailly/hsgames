@@ -1,20 +1,21 @@
 use crate::logic::*;
 use crate::side::*;
 use crate::state::*;
+use crate::TechEffects;
 
 impl GameLogic for RaceToTheSea {
     fn previous(&mut self) -> Option<&mut dyn GameLogic> {
         Some(&mut *self.previous)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         if self.active
             && (offensive.from == Nation::France && offensive.to == Nation::Germany
                 || (offensive.from == Nation::Germany && offensive.to == Nation::France))
         {
-            let (artillery_bonus, attack_bonus, defense_malus) =
+            let (artillery_bonus, attack_bonus, defense_malus, air) =
                 self.previous.compute_bonus(state, offensive);
-            (artillery_bonus, attack_bonus + 1, defense_malus)
+            (artillery_bonus, attack_bonus + 1, defense_malus, air)
         } else {
             self.previous.compute_bonus(state, offensive)
         }
@@ -45,11 +46,11 @@ impl<T: GameLogic> GameLogic for ShellCrisis<T> {
         Some(&mut *self.previous)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         if self.active && offensive.from == Nation::France {
-            let (artillery_bonus, attack_bonus, defense_malus) =
+            let (artillery_bonus, attack_bonus, defense_malus, air) =
                 self.previous.compute_bonus(state, offensive);
-            (artillery_bonus, attack_bonus - 1, defense_malus)
+            (artillery_bonus, attack_bonus - 1, defense_malus, air)
         } else {
             self.previous.compute_bonus(state, offensive)
         }
@@ -80,7 +81,7 @@ impl GameLogic for Gas {
         Some(&mut *self.previous)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         self.offensive = Some(offensive.clone());
         self.previous.compute_bonus(state, offensive)
     }
@@ -122,7 +123,7 @@ impl GameLogic for VonLettowInAfrica {
         Some(&mut *self.previous)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         if state.operational_level(&Nation::GermanAfrica) == 0 {
             self.active = false;
         }
@@ -247,7 +248,7 @@ impl GameLogic for SeparatePeace {
         Some(&mut *self.previous)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         self.offensive = Some(offensive.clone());
         self.previous.compute_bonus(state, offensive)
     }
@@ -292,12 +293,12 @@ impl GameLogic for AustrianOffensive {
         Some(&mut *self.previous)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         if self.active && offensive.from == Nation::AustriaHungary && offensive.to == Nation::Italy
         {
-            let (artillery_bonus, attack_bonus, defense_malus) =
+            let (artillery_bonus, attack_bonus, defense_malus, air) =
                 self.previous.compute_bonus(state, offensive);
-            (artillery_bonus, attack_bonus + 1, defense_malus)
+            (artillery_bonus, attack_bonus + 1, defense_malus, air)
         } else {
             self.previous.compute_bonus(state, offensive)
         }
@@ -363,7 +364,7 @@ impl GameLogic for BrusilovOffensive {
         Some(&mut *self.previous)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         self.offensive = Some(offensive.clone());
         self.previous.compute_bonus(state, offensive)
     }
@@ -438,7 +439,7 @@ impl GameLogic for Mutinies {
         Some(&mut *self.previous)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         self.offensive = Some(offensive.clone());
         self.previous.compute_bonus(state, offensive)
     }
@@ -484,7 +485,7 @@ impl GameLogic for GazaOffensive {
         Some(&mut *self.previous)
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         self.offensive = Some(offensive.clone());
         self.previous.compute_bonus(state, offensive)
     }
@@ -598,7 +599,7 @@ mod game_events_tests {
 
         // activate "Shells crisis"
         engine.play_events(&ALL_EVENTS[4]);
-        let (_, att, _) = engine.compute_bonus(&Offensive {
+        let (_, att, _, _) = engine.compute_bonus(&Offensive {
             initiative: Allies,
             from: France,
             to: Germany,
@@ -818,7 +819,7 @@ mod game_events_tests {
         let mut engine = EngineBuilder::new(11).build();
 
         engine.play_events(&ALL_EVENTS[14]);
-        let (_, att, _) = engine.compute_bonus(&Offensive {
+        let (_, att, _, _) = engine.compute_bonus(&Offensive {
             initiative: Allies,
             from: AustriaHungary,
             to: Italy,
@@ -961,7 +962,7 @@ mod game_events_tests {
         let mut engine = EngineBuilder::new(11).build();
 
         engine.play_events(&ALL_EVENTS[24]);
-        let (_, att, _) = engine.compute_bonus(&Offensive {
+        let (_, att, _, _) = engine.compute_bonus(&Offensive {
             initiative: Allies,
             from: AustriaHungary,
             to: Italy,

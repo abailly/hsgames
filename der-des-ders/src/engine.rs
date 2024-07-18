@@ -3,6 +3,7 @@ use crate::events::*;
 use crate::logic::*;
 use crate::side::*;
 use crate::state::*;
+use crate::TechEffects;
 use std::mem::swap;
 
 pub struct GameEngine {
@@ -81,7 +82,7 @@ impl GameEngine {
     }
 
     pub(crate) fn resolve_offensive(&mut self, offensive: &Offensive) -> HitsResult {
-        let (artillery_bonus, attack_bonus, defense_malus) = self.compute_bonus(offensive);
+        let (artillery_bonus, attack_bonus, defense_malus, _) = self.compute_bonus(offensive);
 
         let dice: Vec<u8> = self.roll_offensive_dice(offensive.pr);
         let artillery_dice: Vec<u8> = self.roll_artillery_dice(artillery_bonus);
@@ -124,7 +125,7 @@ impl GameEngine {
         self.logic.roll_offensive_dice(&mut self.state, pr)
     }
 
-    pub fn compute_bonus(&mut self, offensive: &Offensive) -> (u8, i8, i8) {
+    pub fn compute_bonus(&mut self, offensive: &Offensive) -> TechEffects {
         self.logic.compute_bonus(&self.state, offensive)
     }
 
@@ -219,7 +220,7 @@ impl GameLogic for DefaultGameLogic {
         state.increase_pr(Side::Empires, state.tally_resources(&Side::Empires));
     }
 
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
         let max_attacker_tech_level = state.countries.get(&offensive.from).unwrap().max_tech_level;
         let max_defender_tech_level = state.countries.get(&offensive.to).unwrap().max_tech_level;
 
@@ -233,7 +234,7 @@ impl GameLogic for DefaultGameLogic {
         let defense_malus = state
             .defense_bonus(&offensive.initiative.other())
             .min(max_defender_tech_level) as i8;
-        (artillery_bonus, attack_bonus, defense_malus)
+        (artillery_bonus, attack_bonus, defense_malus, 0)
     }
 
     fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
