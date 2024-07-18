@@ -337,6 +337,28 @@ impl TrentinOffensive {
     }
 }
 
+impl GameLogic for WoodrowWilson {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn uboot_losses(&mut self, _state: &mut GameState, _bonus: u8) -> u8 {
+        0
+    }
+}
+
+pub struct WoodrowWilson {
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl WoodrowWilson {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        WoodrowWilson {
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -561,7 +583,8 @@ mod game_events_tests {
 
         engine.play_events(&ALL_EVENTS[13]);
 
-        assert_eq!(0, engine.blockade_effect(0));
+        assert_eq!(0, engine.blockade_effect(1));
+        assert_eq!(6, engine.state.resources_for(&Allies));
     }
 
     #[test]
@@ -577,6 +600,16 @@ mod game_events_tests {
         });
 
         assert_eq!(1, att);
+    }
+
+    #[test]
+    fn woodrow_wilson_cancels_uboot_roll() {
+        let mut engine = EngineBuilder::new(22).with_resources(Empires, 2).build(); // die roll = 6
+
+        engine.play_events(&ALL_EVENTS[15]);
+
+        assert_eq!(0, engine.uboot_losses(1));
+        assert_eq!(2, engine.state.resources_for(&Empires));
     }
 }
 

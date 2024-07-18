@@ -168,6 +168,7 @@ impl GameEngine {
                 _ => {}
             },
             15 => self.make_event_active(TrentinOffensive::new),
+            16 => self.make_event_active(WoodrowWilson::new),
             _ => {}
         }
         ActiveEvent {
@@ -295,20 +296,27 @@ impl GameLogic for DefaultGameLogic {
 
     fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
         let die = state.roll() + bonus;
-        match die {
+        let loss = match die {
             1..=4 => 0,
             5 => 2,
             _ => 4,
-        }
+        };
+        self.reduce_pr(state, &Side::Empires, bonus);
+        loss
     }
 
     fn blockade_effect(&mut self, state: &mut GameState, bonus: u8) -> u8 {
         let die = state.roll() + bonus;
-        match die {
+        let gain = match die {
             1 => 3,
             2 => 1,
             _ => 0,
-        }
+        };
+
+        state.increase_pr(Side::Empires, gain);
+        self.reduce_pr(state, &Side::Allies, bonus);
+
+        gain
     }
 }
 

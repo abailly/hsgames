@@ -307,7 +307,6 @@ fn uboot(players: &mut Players, game_engine: &mut GameEngine) {
     let pr_lost = apply_hits(players, game_engine, loss);
 
     game_engine.reduce_pr(Side::Allies, pr_lost);
-    game_engine.reduce_pr(Side::Empires, bonus);
 }
 
 fn apply_hits(players: &mut Players, game_engine: &mut GameEngine, loss: u8) -> u8 {
@@ -341,8 +340,6 @@ fn blocus(players: &mut Players, game_engine: &mut GameEngine) {
 
     let gain = game_engine.blockade_effect(bonus);
 
-    game_engine.increase_pr(Side::Empires, gain);
-    game_engine.reduce_pr(Side::Allies, bonus);
     players.output(&Output::BlockadeResult(gain));
 }
 
