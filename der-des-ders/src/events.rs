@@ -370,10 +370,7 @@ impl GameLogic for BrusilovOffensive {
 
     fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
         let add_to_die = if let Some(offensive) = &self.offensive {
-            if self.active
-                && offensive.from == Nation::Russia
-                && offensive.to == Nation::AustriaHungary
-            {
+            if self.applies(offensive) {
                 1
             } else {
                 0
@@ -404,11 +401,7 @@ impl GameLogic for BrusilovOffensive {
             dice_roll,
         );
         if let Some(offensive) = &self.offensive {
-            if self.active
-                && offensive.from == Nation::Russia
-                && offensive.to == Nation::AustriaHungary
-                && hits < dice_roll.len() as u8
-            {
+            if self.applies(offensive) && hits < dice_roll.len() as u8 {
                 self.reduce_pr(state, &Side::Allies, dice_roll.len() as u8 - hits);
             }
         }
@@ -433,6 +426,10 @@ impl BrusilovOffensive {
             active: true,
             previous: Box::new(previous),
         }
+    }
+
+    fn applies(&self, offensive: &Offensive) -> bool {
+        self.active && offensive.from == Nation::Russia && offensive.to == Nation::AustriaHungary
     }
 }
 
@@ -495,10 +492,7 @@ impl GameLogic for GazaOffensive {
     fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
         let dice = self.previous.roll_offensive_dice(state, num);
         if let Some(offensive) = &self.offensive {
-            if self.active
-                && offensive.from == Nation::Egypt
-                && offensive.to == Nation::OttomanEmpire
-            {
+            if self.applies(offensive) {
                 self.dice = Some(dice.clone());
             }
         };
@@ -521,10 +515,7 @@ impl GameLogic for GazaOffensive {
             dice_roll,
         );
         if let Some(offensive) = &self.offensive {
-            if self.active
-                && offensive.from == Nation::Egypt
-                && offensive.to == Nation::OttomanEmpire
-            {
+            if self.applies(offensive) {
                 let new_dice = (0..hits).map(|_| state.roll()).collect();
                 return self.previous.evaluate_attack_hits(
                     state,
@@ -558,6 +549,10 @@ impl GazaOffensive {
             active: true,
             previous: Box::new(previous),
         }
+    }
+
+    fn applies(&self, offensive: &Offensive) -> bool {
+        self.active && offensive.from == Nation::Egypt && offensive.to == Nation::OttomanEmpire
     }
 }
 
