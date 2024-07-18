@@ -186,6 +186,7 @@ impl GameEngine {
                 self.reduce_pr(Side::Empires, 2);
             }
             25 => self.make_event_active(AustrianOffensive::new),
+            26 => self.make_event_active(UBoot::new),
             _ => {}
         }
         let active_event = ActiveEvent {

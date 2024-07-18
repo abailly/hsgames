@@ -556,6 +556,35 @@ impl GazaOffensive {
     }
 }
 
+impl GameLogic for UBoot {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+        let die = state.roll() + 1 + bonus;
+        let loss = match die {
+            1..=4 => 0,
+            5 => 2,
+            _ => 4,
+        };
+        self.reduce_pr(state, &Side::Empires, bonus);
+        loss
+    }
+}
+
+pub struct UBoot {
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl UBoot {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        UBoot {
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -940,6 +969,15 @@ mod game_events_tests {
         });
 
         assert_eq!(1, att);
+    }
+
+    #[test]
+    fn uboot_event_adds_1_to_naval_roll() {
+        let mut engine = EngineBuilder::new(116).with_resources(Empires, 2).build(); // die roll = 5
+
+        engine.play_events(&ALL_EVENTS[25]);
+
+        assert_eq!(4, engine.uboot_losses(0));
     }
 }
 
