@@ -371,6 +371,58 @@ impl WoodrowWilson {
     }
 }
 
+impl GameLogic for BrusilovOffensive {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        self.offensive = Some(offensive.clone());
+        self.previous.compute_bonus(state, offensive)
+    }
+
+    fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
+        let add_to_die = if let Some(offensive) = &self.offensive {
+            if self.active
+                && offensive.from == Nation::Russia
+                && offensive.to == Nation::AustriaHungary
+            {
+                1
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+        self.previous
+            .roll_offensive_dice(state, num)
+            .into_iter()
+            .map(|die| (die + add_to_die).min(6))
+            .collect()
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.active = false;
+        self.previous.new_turn(state);
+    }
+}
+
+pub struct BrusilovOffensive {
+    pub offensive: Option<Offensive>,
+    pub active: bool,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl BrusilovOffensive {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        BrusilovOffensive {
+            offensive: None,
+            active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -625,7 +677,7 @@ mod game_events_tests {
     }
 
     #[test]
-    fn uboot_event_cancels_woodrow_willson() {
+    fn uboot_event_cancels_woodrow_wilson() {
         let mut engine = EngineBuilder::new(22).with_resources(Empires, 2).build(); // die roll = 6
 
         engine.play_events(&ALL_EVENTS[15]);
@@ -633,6 +685,31 @@ mod game_events_tests {
 
         assert_eq!(4, engine.uboot_losses(1));
         assert_eq!(1, engine.state.resources_for(&Empires));
+    }
+
+    #[test]
+    fn battle_of_verdun_requires_germany_to_attack_france_with_2_pr() {
+        // not sure how to implement that...
+    }
+    #[test]
+    fn battle_of_somme_requires_france_to_attack_germany_with_2_pr() {
+        // not sure how to implement that...
+    }
+
+    #[test]
+    fn brusilov_offensive_adds_1_per_die_to_russian_attack_on_austria() {
+        let mut engine = EngineBuilder::new(30).build(); // die roll = 3, 6
+
+        engine.play_events(&ALL_EVENTS[18]);
+        engine.compute_bonus(&Offensive {
+            initiative: Allies,
+            from: Russia,
+            to: AustriaHungary,
+            pr: 2,
+        });
+        let dice = engine.roll_offensive_dice(2);
+
+        assert_eq!(vec![4, 6], dice);
     }
 }
 

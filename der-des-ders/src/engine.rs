@@ -169,6 +169,7 @@ impl GameEngine {
             },
             15 => self.make_event_active(TrentinOffensive::new),
             16 => self.make_event_active(WoodrowWilson::new),
+            19 => self.make_event_active(BrusilovOffensive::new),
             _ => {}
         }
         let active_event = ActiveEvent {
