@@ -287,7 +287,7 @@ impl SeparatePeace {
     }
 }
 
-impl GameLogic for TrentinOffensive {
+impl GameLogic for AustrianOffensive {
     fn previous(&mut self) -> Option<&mut dyn GameLogic> {
         Some(&mut *self.previous)
     }
@@ -309,14 +309,14 @@ impl GameLogic for TrentinOffensive {
     }
 }
 
-pub struct TrentinOffensive {
+pub struct AustrianOffensive {
     pub active: bool,
     pub previous: Box<dyn GameLogic>,
 }
 
-impl TrentinOffensive {
+impl AustrianOffensive {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
-        TrentinOffensive {
+        AustrianOffensive {
             active: true,
             previous: Box::new(previous),
         }
@@ -553,42 +553,6 @@ impl GazaOffensive {
 
     fn applies(&self, offensive: &Offensive) -> bool {
         self.active && offensive.from == Nation::Egypt && offensive.to == Nation::OttomanEmpire
-    }
-}
-
-impl GameLogic for BattleOfCaporetto {
-    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
-        Some(&mut *self.previous)
-    }
-
-    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
-        if self.active && offensive.from == Nation::AustriaHungary && offensive.to == Nation::Italy
-        {
-            let (artillery_bonus, attack_bonus, defense_malus) =
-                self.previous.compute_bonus(state, offensive);
-            (artillery_bonus, attack_bonus + 1, defense_malus)
-        } else {
-            self.previous.compute_bonus(state, offensive)
-        }
-    }
-
-    fn new_turn(&mut self, state: &mut GameState) {
-        self.active = false;
-        self.previous.new_turn(state);
-    }
-}
-
-pub struct BattleOfCaporetto {
-    pub active: bool,
-    pub previous: Box<dyn GameLogic>,
-}
-
-impl BattleOfCaporetto {
-    pub fn new(previous: Box<dyn GameLogic>) -> Self {
-        BattleOfCaporetto {
-            active: true,
-            previous: Box::new(previous),
-        }
     }
 }
 

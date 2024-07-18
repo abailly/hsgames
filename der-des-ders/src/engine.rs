@@ -172,7 +172,7 @@ impl GameEngine {
                 }
                 _ => {}
             },
-            15 => self.make_event_active(TrentinOffensive::new),
+            15 => self.make_event_active(AustrianOffensive::new),
             16 => self.make_event_active(WoodrowWilson::new),
             19 => self.make_event_active(BrusilovOffensive::new),
             20 => {
@@ -185,7 +185,7 @@ impl GameEngine {
             24 => {
                 self.reduce_pr(Side::Empires, 2);
             }
-            25 => self.make_event_active(BattleOfCaporetto::new),
+            25 => self.make_event_active(AustrianOffensive::new),
             _ => {}
         }
         let active_event = ActiveEvent {
