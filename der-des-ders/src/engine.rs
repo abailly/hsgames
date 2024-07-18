@@ -175,6 +175,11 @@ impl GameEngine {
             15 => self.make_event_active(TrentinOffensive::new),
             16 => self.make_event_active(WoodrowWilson::new),
             19 => self.make_event_active(BrusilovOffensive::new),
+            20 => {
+                self.state
+                    .nations
+                    .insert(Nation::Romania, NationState::AtWar(3));
+            }
             _ => {}
         }
         let active_event = ActiveEvent {
