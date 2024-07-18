@@ -171,10 +171,12 @@ impl GameEngine {
             16 => self.make_event_active(WoodrowWilson::new),
             _ => {}
         }
-        ActiveEvent {
+        let active_event = ActiveEvent {
             event: event.clone(),
             deactivation: |_game| true, // by default, events last for one turn
-        }
+        };
+        self.logic.event_activated(&active_event);
+        active_event
     }
 
     fn make_event_active<T>(&mut self, new: fn(Box<dyn GameLogic>) -> T)
@@ -318,6 +320,7 @@ impl GameLogic for DefaultGameLogic {
 
         gain
     }
+    fn event_activated(&mut self, _event: &ActiveEvent) {}
 }
 
 fn default_game_logic() -> impl GameLogic {

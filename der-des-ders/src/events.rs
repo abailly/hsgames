@@ -207,7 +207,6 @@ impl GameLogic for GermanFleetDefeated {
 
     fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
         let die = (state.roll() - 1 + bonus).max(1);
-        println!("Uboot losses: {}", die);
         match die {
             1..=4 => 0,
             5 => 2,
@@ -342,18 +341,31 @@ impl GameLogic for WoodrowWilson {
         Some(&mut *self.previous)
     }
 
-    fn uboot_losses(&mut self, _state: &mut GameState, _bonus: u8) -> u8 {
-        0
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+        if self.uboot_played {
+            self.previous.uboot_losses(state, bonus)
+        } else {
+            0
+        }
+    }
+
+    fn event_activated(&mut self, event: &ActiveEvent) {
+        if event.event.event_id == 26 {
+            self.uboot_played = true;
+        }
+        self.previous.event_activated(event);
     }
 }
 
 pub struct WoodrowWilson {
+    pub uboot_played: bool,
     pub previous: Box<dyn GameLogic>,
 }
 
 impl WoodrowWilson {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         WoodrowWilson {
+            uboot_played: false,
             previous: Box::new(previous),
         }
     }
@@ -610,6 +622,17 @@ mod game_events_tests {
 
         assert_eq!(0, engine.uboot_losses(1));
         assert_eq!(2, engine.state.resources_for(&Empires));
+    }
+
+    #[test]
+    fn uboot_event_cancels_woodrow_willson() {
+        let mut engine = EngineBuilder::new(22).with_resources(Empires, 2).build(); // die roll = 6
+
+        engine.play_events(&ALL_EVENTS[15]);
+        engine.play_events(&ALL_EVENTS[25]);
+
+        assert_eq!(4, engine.uboot_losses(1));
+        assert_eq!(1, engine.state.resources_for(&Empires));
     }
 }
 
