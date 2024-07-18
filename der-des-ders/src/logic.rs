@@ -33,11 +33,11 @@ pub trait GameLogic {
     }
     fn evaluate_attack_hits(
         &mut self,
-        state: &GameState,
+        state: &mut GameState,
         attack_bonus: i8,
         defense_malus: i8,
         offensive: &Offensive,
-        dice_roll: Vec<u8>,
+        dice_roll: &Vec<u8>,
     ) -> u8 {
         if let Some(previous) = self.previous() {
             previous.evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
@@ -49,7 +49,7 @@ pub trait GameLogic {
         &mut self,
         state: &GameState,
         offensive: &Offensive,
-        dice_roll: Vec<u8>,
+        dice_roll: &Vec<u8>,
     ) -> u8 {
         if let Some(previous) = self.previous() {
             previous.evaluate_artillery_hits(state, offensive, dice_roll)
@@ -114,11 +114,11 @@ impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
 
     fn evaluate_attack_hits(
         &mut self,
-        state: &GameState,
+        state: &mut GameState,
         attack_bonus: i8,
         defense_malus: i8,
         offensive: &Offensive,
-        dice_roll: Vec<u8>,
+        dice_roll: &Vec<u8>,
     ) -> u8 {
         self.as_mut()
             .evaluate_attack_hits(state, attack_bonus, defense_malus, offensive, dice_roll)
@@ -128,7 +128,7 @@ impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
         &mut self,
         state: &GameState,
         offensive: &Offensive,
-        dice_roll: Vec<u8>,
+        dice_roll: &Vec<u8>,
     ) -> u8 {
         self.as_mut()
             .evaluate_artillery_hits(state, offensive, dice_roll)
@@ -189,11 +189,11 @@ impl GameLogic for DummyLogic {
 
     fn evaluate_attack_hits(
         &mut self,
-        _state: &GameState,
+        _state: &mut GameState,
         _attack_bonus: i8,
         _defense_malus: i8,
         _offensive: &Offensive,
-        _dice_roll: Vec<u8>,
+        _dice_roll: &Vec<u8>,
     ) -> u8 {
         panic!("dummy logic")
     }
@@ -202,7 +202,7 @@ impl GameLogic for DummyLogic {
         &mut self,
         _state: &GameState,
         _offensive: &Offensive,
-        _dice_roll: Vec<u8>,
+        _dice_roll: &Vec<u8>,
     ) -> u8 {
         panic!("dummy logic")
     }

@@ -86,28 +86,33 @@ impl GameEngine {
         let dice: Vec<u8> = self.roll_offensive_dice(offensive.pr);
         let artillery_dice: Vec<u8> = self.roll_artillery_dice(artillery_bonus);
 
-        let attack_hits = self.evaluate_attack_hits(attack_bonus, defense_malus, offensive, dice);
+        let attack_hits = self.evaluate_attack_hits(attack_bonus, defense_malus, offensive, &dice);
 
-        let artillery_hits = self.evaluate_artillery_hits(offensive, artillery_dice);
+        let artillery_hits = self.evaluate_artillery_hits(offensive, &artillery_dice);
 
         self.reduce_pr(offensive.initiative, offensive.pr);
         self.apply_hits(&offensive.to, attack_hits + artillery_hits)
     }
 
-    fn evaluate_artillery_hits(&mut self, offensive: &Offensive, artillery_dice: Vec<u8>) -> u8 {
+    fn evaluate_artillery_hits(&mut self, offensive: &Offensive, artillery_dice: &Vec<u8>) -> u8 {
         self.logic
             .evaluate_artillery_hits(&self.state, offensive, artillery_dice)
     }
 
-    fn evaluate_attack_hits(
+    pub fn evaluate_attack_hits(
         &mut self,
         attack_bonus: i8,
         defense_malus: i8,
         offensive: &Offensive,
-        dice: Vec<u8>,
+        dice: &Vec<u8>,
     ) -> u8 {
-        self.logic
-            .evaluate_attack_hits(&self.state, attack_bonus, defense_malus, offensive, dice)
+        self.logic.evaluate_attack_hits(
+            &mut self.state,
+            attack_bonus,
+            defense_malus,
+            offensive,
+            dice,
+        )
     }
 
     pub fn roll_artillery_dice(&mut self, artillery_bonus: u8) -> Vec<u8> {
@@ -228,11 +233,11 @@ impl GameLogic for DefaultGameLogic {
     }
     fn evaluate_attack_hits(
         &mut self,
-        state: &GameState,
+        state: &mut GameState,
         attack_bonus: i8,
         defense_malus: i8,
         offensive: &Offensive,
-        dice_roll: Vec<u8>,
+        dice_roll: &Vec<u8>,
     ) -> u8 {
         {
             let attack_country = |die: u8| {
@@ -252,7 +257,7 @@ impl GameLogic for DefaultGameLogic {
         &mut self,
         state: &GameState,
         offensive: &Offensive,
-        dice_roll: Vec<u8>,
+        dice_roll: &Vec<u8>,
     ) -> u8 {
         {
             let bomb_country =

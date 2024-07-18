@@ -401,6 +401,32 @@ impl GameLogic for BrusilovOffensive {
             .collect()
     }
 
+    fn evaluate_attack_hits(
+        &mut self,
+        state: &mut GameState,
+        attack_bonus: i8,
+        defense_malus: i8,
+        offensive: &Offensive,
+        dice_roll: &Vec<u8>,
+    ) -> u8 {
+        let hits = self.previous.evaluate_attack_hits(
+            state,
+            attack_bonus,
+            defense_malus,
+            offensive,
+            dice_roll,
+        );
+        if let Some(offensive) = &self.offensive {
+            if self.active
+                && offensive.from == Nation::Russia
+                && offensive.to == Nation::AustriaHungary
+                && hits < dice_roll.len() as u8
+            {
+                self.reduce_pr(state, &Side::Allies, dice_roll.len() as u8 - hits);
+            }
+        }
+        hits
+    }
     fn new_turn(&mut self, state: &mut GameState) {
         self.active = false;
         self.previous.new_turn(state);
@@ -710,6 +736,24 @@ mod game_events_tests {
         let dice = engine.roll_offensive_dice(2);
 
         assert_eq!(vec![4, 6], dice);
+    }
+
+    #[test]
+    fn brusilov_offensive_reduces_allies_pr_per_failed_die() {
+        let mut engine = EngineBuilder::new(30).with_resources(Allies, 4).build(); // die roll = 3, 6
+        let offensive = &Offensive {
+            initiative: Allies,
+            from: Russia,
+            to: AustriaHungary,
+            pr: 2,
+        };
+
+        engine.play_events(&ALL_EVENTS[18]);
+        engine.compute_bonus(offensive);
+        let dice = engine.roll_offensive_dice(2);
+        engine.evaluate_attack_hits(0, 0, offensive, &dice);
+
+        assert_eq!(3, engine.state.resources_for(&Allies));
     }
 }
 
