@@ -495,6 +495,85 @@ impl Mutinies {
     }
 }
 
+impl GameLogic for GazaOffensive {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        self.offensive = Some(offensive.clone());
+        self.previous.compute_bonus(state, offensive)
+    }
+
+    fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
+        let dice = self.previous.roll_offensive_dice(state, num);
+        if let Some(offensive) = &self.offensive {
+            if self.active
+                && offensive.from == Nation::Egypt
+                && offensive.to == Nation::OttomanEmpire
+            {
+                self.dice = Some(dice.clone());
+            }
+        };
+        dice
+    }
+
+    fn evaluate_attack_hits(
+        &mut self,
+        state: &mut GameState,
+        attack_bonus: i8,
+        defense_malus: i8,
+        offensive: &Offensive,
+        dice_roll: &Vec<u8>,
+    ) -> u8 {
+        let hits = self.previous.evaluate_attack_hits(
+            state,
+            attack_bonus,
+            defense_malus,
+            offensive,
+            dice_roll,
+        );
+        if let Some(offensive) = &self.offensive {
+            if self.active
+                && offensive.from == Nation::Egypt
+                && offensive.to == Nation::OttomanEmpire
+            {
+                let new_dice = (0..hits).map(|_| state.roll()).collect();
+                return self.previous.evaluate_attack_hits(
+                    state,
+                    attack_bonus,
+                    defense_malus,
+                    offensive,
+                    &new_dice,
+                );
+            }
+        }
+        hits
+    }
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.active = false;
+        self.previous.new_turn(state);
+    }
+}
+
+pub struct GazaOffensive {
+    pub dice: Option<Vec<u8>>,
+    pub offensive: Option<Offensive>,
+    pub active: bool,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl GazaOffensive {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        GazaOffensive {
+            dice: None,
+            offensive: None,
+            active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -828,6 +907,33 @@ mod game_events_tests {
         let dice = engine.roll_offensive_dice(2);
 
         assert_eq!(vec![3], dice);
+    }
+
+    #[test]
+    fn battle_of_gaza_rethrows_succesful_dice_from_egypt_offensive() {
+        let mut engine = EngineBuilder::new(45).build(); // die roll = 5, 2 ,3
+
+        engine.play_events(&ALL_EVENTS[22]);
+        engine.compute_bonus(&Offensive {
+            initiative: Allies,
+            from: Egypt,
+            to: OttomanEmpire,
+            pr: 2,
+        });
+        let dice = engine.roll_offensive_dice(2);
+        let hits = engine.evaluate_attack_hits(
+            0,
+            0,
+            &Offensive {
+                initiative: Allies,
+                from: Egypt,
+                to: OttomanEmpire,
+                pr: 2,
+            },
+            &dice,
+        );
+
+        assert_eq!(0, hits);
     }
 }
 
