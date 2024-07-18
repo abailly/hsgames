@@ -180,6 +180,7 @@ impl GameEngine {
                     .nations
                     .insert(Nation::Romania, NationState::AtWar(3));
             }
+            22 => self.make_event_active(Mutinies::new),
             _ => {}
         }
         let active_event = ActiveEvent {

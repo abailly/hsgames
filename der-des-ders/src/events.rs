@@ -449,6 +449,52 @@ impl BrusilovOffensive {
     }
 }
 
+impl GameLogic for Mutinies {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        self.offensive = Some(offensive.clone());
+        self.previous.compute_bonus(state, offensive)
+    }
+
+    fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
+        let remove_from_dice = if let Some(offensive) = &self.offensive {
+            if self.active && offensive.from == Nation::France {
+                1
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+        self.previous
+            .roll_offensive_dice(state, (num - remove_from_dice).max(0))
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.active = false;
+        self.previous.new_turn(state);
+    }
+}
+
+pub struct Mutinies {
+    pub offensive: Option<Offensive>,
+    pub active: bool,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl Mutinies {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        Mutinies {
+            offensive: None,
+            active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -766,6 +812,22 @@ mod game_events_tests {
             NationState::AtWar(3),
             *engine.state.nations.get(&Romania).unwrap()
         );
+    }
+
+    #[test]
+    fn mutinies_remove_one_die_from_french_attacks() {
+        let mut engine = EngineBuilder::new(30).build(); // die roll = 3, 6
+
+        engine.play_events(&ALL_EVENTS[21]);
+        engine.compute_bonus(&Offensive {
+            initiative: Allies,
+            from: France,
+            to: Germany,
+            pr: 2,
+        });
+        let dice = engine.roll_offensive_dice(2);
+
+        assert_eq!(vec![3], dice);
     }
 }
 
