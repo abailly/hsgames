@@ -182,6 +182,9 @@ impl GameEngine {
             }
             22 => self.make_event_active(Mutinies::new),
             23 => self.make_event_active(GazaOffensive::new),
+            24 => {
+                self.reduce_pr(Side::Empires, 2);
+            }
             _ => {}
         }
         let active_event = ActiveEvent {

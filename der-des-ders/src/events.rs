@@ -917,6 +917,15 @@ mod game_events_tests {
 
         assert_eq!(0, hits);
     }
+
+    #[test]
+    fn lawrence_of_arabia_reduces_empires_pr_by_2() {
+        let mut engine = EngineBuilder::new(30).with_resources(Empires, 3).build();
+
+        engine.play_events(&ALL_EVENTS[23]);
+
+        assert_eq!(1, engine.state.resources_for(&Empires));
+    }
 }
 
 // 0 : 5 4 5
