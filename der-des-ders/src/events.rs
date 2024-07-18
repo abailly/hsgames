@@ -556,6 +556,42 @@ impl GazaOffensive {
     }
 }
 
+impl GameLogic for BattleOfCaporetto {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> (u8, i8, i8) {
+        if self.active && offensive.from == Nation::AustriaHungary && offensive.to == Nation::Italy
+        {
+            let (artillery_bonus, attack_bonus, defense_malus) =
+                self.previous.compute_bonus(state, offensive);
+            (artillery_bonus, attack_bonus + 1, defense_malus)
+        } else {
+            self.previous.compute_bonus(state, offensive)
+        }
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.active = false;
+        self.previous.new_turn(state);
+    }
+}
+
+pub struct BattleOfCaporetto {
+    pub active: bool,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl BattleOfCaporetto {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        BattleOfCaporetto {
+            active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -925,6 +961,21 @@ mod game_events_tests {
         engine.play_events(&ALL_EVENTS[23]);
 
         assert_eq!(1, engine.state.resources_for(&Empires));
+    }
+
+    #[test]
+    fn battle_of_caporetto_adds_1_to_austria_attack_on_italy() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        engine.play_events(&ALL_EVENTS[24]);
+        let (_, att, _) = engine.compute_bonus(&Offensive {
+            initiative: Allies,
+            from: AustriaHungary,
+            to: Italy,
+            pr: 2,
+        });
+
+        assert_eq!(1, att);
     }
 }
 

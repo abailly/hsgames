@@ -185,6 +185,7 @@ impl GameEngine {
             24 => {
                 self.reduce_pr(Side::Empires, 2);
             }
+            25 => self.make_event_active(BattleOfCaporetto::new),
             _ => {}
         }
         let active_event = ActiveEvent {
