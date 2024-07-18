@@ -94,13 +94,10 @@ impl GameLogic for Gas {
         let roll_artillery_dice = self.previous.roll_artillery_dice(state, num);
         if let Some(offensive) = &mut self.offensive {
             if offensive.from == Nation::Germany {
-                roll_artillery_dice.into_iter().map(|die| die + 1).collect()
-            } else {
-                roll_artillery_dice
+                return roll_artillery_dice.into_iter().map(|die| die + 1).collect();
             }
-        } else {
-            roll_artillery_dice
         }
+        roll_artillery_dice
     }
 }
 
@@ -138,16 +135,12 @@ impl GameLogic for VonLettowInAfrica {
     }
 
     fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
-        let added_die = if let Some(offensive) = &self.offensive {
+        if let Some(offensive) = &self.offensive {
             if offensive.from == Nation::GermanAfrica {
-                1
-            } else {
-                0
+                return self.previous.roll_offensive_dice(state, num + 1);
             }
-        } else {
-            0
         };
-        self.previous.roll_offensive_dice(state, num + added_die)
+        self.previous.roll_offensive_dice(state, num)
     }
 }
 
@@ -265,22 +258,16 @@ impl GameLogic for SeparatePeace {
     }
 
     fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
-        if self.active {
-            let added_die = if let Some(offensive) = &self.offensive {
-                if (offensive.from == Nation::Germany || offensive.from == Nation::AustriaHungary)
-                    && offensive.to == Nation::Russia
-                {
-                    1
-                } else {
-                    0
-                }
-            } else {
-                0
-            };
-            self.previous.roll_offensive_dice(state, num + added_die)
-        } else {
-            self.previous.roll_offensive_dice(state, num)
-        }
+        if let Some(offensive) = &self.offensive {
+            if self.active
+                && (offensive.from == Nation::Germany || offensive.from == Nation::AustriaHungary)
+                && offensive.to == Nation::Russia
+            {
+                return self.previous.roll_offensive_dice(state, num + 1);
+            }
+        };
+
+        self.previous.roll_offensive_dice(state, num)
     }
 }
 
