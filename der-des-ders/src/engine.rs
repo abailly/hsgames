@@ -189,6 +189,11 @@ impl GameEngine {
             25 => self.make_event_active(AustrianOffensive::new),
             26 => self.make_event_active(UBoot::new),
             27 => self.make_event_active(FlyingCircus::new),
+            28 => {
+                self.state
+                    .nations
+                    .insert(Nation::Greece, NationState::AtWar(3));
+            }
             _ => {}
         }
         let active_event = ActiveEvent {
@@ -245,6 +250,7 @@ impl GameLogic for DefaultGameLogic {
     fn roll_artillery_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
         (0..num).map(|_| state.roll()).collect()
     }
+
     fn evaluate_attack_hits(
         &mut self,
         state: &mut GameState,

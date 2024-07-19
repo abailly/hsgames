@@ -1055,6 +1055,18 @@ mod game_events_tests {
 
         assert_eq!(0, air);
     }
+
+    #[test]
+    fn greece_can_enter_war_with_event() {
+        let mut engine = EngineBuilder::new(12).build();
+
+        engine.play_events(&ALL_EVENTS[27]);
+
+        assert_eq!(
+            NationState::AtWar(3),
+            *engine.state.nations.get(&Greece).unwrap()
+        );
+    }
 }
 
 // 0 : 5 4 5
