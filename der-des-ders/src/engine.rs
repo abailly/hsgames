@@ -224,7 +224,11 @@ struct DefaultGameLogic {}
 
 impl GameLogic for DefaultGameLogic {
     fn collect_resources(&mut self, state: &mut GameState) {
-        state.increase_pr(Side::Allies, state.tally_resources(&Side::Allies));
+        state.lafayette = state.lafayette.map(|l| l + 1);
+        state.increase_pr(
+            Side::Allies,
+            state.tally_resources(&Side::Allies) + state.lafayette.unwrap_or(0),
+        );
         state.increase_pr(Side::Empires, state.tally_resources(&Side::Empires));
     }
 
@@ -357,7 +361,7 @@ fn default_game_logic() -> impl GameLogic {
 
 #[cfg(test)]
 mod engine_test {
-    use crate::{event::ALL_EVENTS, fixtures::EngineBuilder};
+    use crate::{event::ALL_EVENTS, fixtures::EngineBuilder, Side::*};
 
     #[test]
     fn played_events_stay_between_turns() {
@@ -368,5 +372,15 @@ mod engine_test {
         engine.new_turn();
 
         assert_eq!(1, engine.played_events.len());
+    }
+
+    #[test]
+    fn lafayette_increases_by_1_every_turn() {
+        let mut engine = EngineBuilder::new(14).build();
+
+        engine.state.lafayette = Some(0);
+        engine.collect_resources();
+
+        assert_eq!(15, engine.state.resources_for(&Allies));
     }
 }
