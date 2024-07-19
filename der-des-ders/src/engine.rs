@@ -188,6 +188,7 @@ impl GameEngine {
             }
             25 => self.make_event_active(AustrianOffensive::new),
             26 => self.make_event_active(UBoot::new),
+            27 => self.make_event_active(FlyingCircus::new),
             _ => {}
         }
         let active_event = ActiveEvent {

@@ -586,6 +586,41 @@ impl UBoot {
     }
 }
 
+impl GameLogic for FlyingCircus {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
+        if self.number_of_turns_remaining > 0 && (offensive.initiative == Side::Empires) {
+            let (artillery_bonus, attack_bonus, defense_malus, air_power) =
+                self.previous.compute_bonus(state, offensive);
+            (artillery_bonus, attack_bonus, defense_malus, air_power + 2)
+        } else {
+            self.previous.compute_bonus(state, offensive)
+        }
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.number_of_turns_remaining -= 1;
+        self.previous.new_turn(state);
+    }
+}
+
+pub struct FlyingCircus {
+    pub number_of_turns_remaining: u8,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl FlyingCircus {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        FlyingCircus {
+            number_of_turns_remaining: 2,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -979,6 +1014,46 @@ mod game_events_tests {
         engine.play_events(&ALL_EVENTS[25]);
 
         assert_eq!(4, engine.uboot_losses(0));
+    }
+
+    #[test]
+    fn flying_circus_increases_german_air_by_2() {
+        let mut engine = EngineBuilder::new(30).build();
+
+        engine.play_events(&ALL_EVENTS[26]);
+
+        let (_, _, _, air) = engine.compute_bonus(&Offensive {
+            initiative: Empires,
+            from: Germany,
+            to: Russia,
+            pr: 2,
+        });
+
+        assert_eq!(2, air);
+    }
+
+    #[test]
+    fn flying_circus_lasts_two_turns() {
+        let mut engine = EngineBuilder::new(30).build();
+
+        engine.play_events(&ALL_EVENTS[26]);
+        engine.new_turn();
+        let (_, _, _, air) = engine.compute_bonus(&Offensive {
+            initiative: Empires,
+            from: Germany,
+            to: Russia,
+            pr: 2,
+        });
+        assert_eq!(2, air);
+        engine.new_turn();
+        let (_, _, _, air) = engine.compute_bonus(&Offensive {
+            initiative: Empires,
+            from: Germany,
+            to: Russia,
+            pr: 2,
+        });
+
+        assert_eq!(0, air);
     }
 }
 
