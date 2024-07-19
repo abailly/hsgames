@@ -161,6 +161,7 @@ impl GameEngine {
                     .nations
                     .insert(Nation::Bulgaria, NationState::AtWar(3));
             }
+            12 => self.make_event_active(LusitaniaSunk::new),
             14 => match self.roll() {
                 1 => {
                     self.increase_pr(Side::Empires, 3);
@@ -194,6 +195,7 @@ impl GameEngine {
                     .nations
                     .insert(Nation::Greece, NationState::AtWar(3));
             }
+            29 => self.make_event_active(ZimmermanTelegram::new),
             _ => {}
         }
         let active_event = ActiveEvent {

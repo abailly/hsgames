@@ -621,6 +621,74 @@ impl FlyingCircus {
     }
 }
 
+impl GameLogic for LusitaniaSunk {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn event_activated(&mut self, event: &ActiveEvent) {
+        if event.event.event_id == 29 {
+            self.lafayette_nous_voila = true;
+        }
+        self.previous.event_activated(event);
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        if state.lafayette.is_none() && self.lafayette_nous_voila {
+            state.lafayette = Some(0);
+        };
+        self.previous.new_turn(state);
+    }
+}
+
+pub struct LusitaniaSunk {
+    pub lafayette_nous_voila: bool,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl LusitaniaSunk {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        LusitaniaSunk {
+            lafayette_nous_voila: false,
+            previous: Box::new(previous),
+        }
+    }
+}
+
+impl GameLogic for ZimmermanTelegram {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn event_activated(&mut self, event: &ActiveEvent) {
+        if event.event.event_id == 12 {
+            self.lafayette_nous_voila = true;
+        }
+        self.previous.event_activated(event);
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        if state.lafayette.is_none() && self.lafayette_nous_voila {
+            state.lafayette = Some(0);
+        };
+        self.previous.new_turn(state);
+    }
+}
+
+pub struct ZimmermanTelegram {
+    pub lafayette_nous_voila: bool,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl ZimmermanTelegram {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        ZimmermanTelegram {
+            lafayette_nous_voila: false,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -1066,6 +1134,41 @@ mod game_events_tests {
             NationState::AtWar(3),
             *engine.state.nations.get(&Greece).unwrap()
         );
+    }
+
+    #[test]
+    fn zimmerman_telegram_makes_us_enter_war_given_lusitania_has_been_played() {
+        let mut engine = EngineBuilder::new(12).build();
+
+        engine.play_events(&ALL_EVENTS[11]);
+        engine.play_events(&ALL_EVENTS[28]);
+        engine.new_turn();
+
+        assert_eq!(Some(0), engine.state.lafayette);
+    }
+
+    #[test]
+    fn lusitania_makes_us_enter_war_given_zimmerman_has_been_played() {
+        let mut engine = EngineBuilder::new(12).build();
+
+        engine.play_events(&ALL_EVENTS[28]);
+        engine.play_events(&ALL_EVENTS[11]);
+        engine.new_turn();
+
+        assert_eq!(Some(0), engine.state.lafayette);
+    }
+
+    #[test]
+    fn once_us_enter_war_zimmerman_has_no_effect() {
+        let mut engine = EngineBuilder::new(12).build();
+
+        engine.play_events(&ALL_EVENTS[28]);
+        engine.play_events(&ALL_EVENTS[11]);
+        engine.new_turn();
+        engine.state.lafayette = Some(1);
+        engine.new_turn();
+
+        assert_eq!(Some(1), engine.state.lafayette);
     }
 }
 
