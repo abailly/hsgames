@@ -6,7 +6,7 @@ pub struct Event {
     pub title: &'static str,
 }
 
-pub const ALL_EVENTS: [Event; 42] = [
+pub const ALL_EVENTS: [Event; 40] = [
     Event {
         event_id: 1,
         year: 1914,
@@ -247,16 +247,11 @@ pub const ALL_EVENTS: [Event; 42] = [
         not_after: None,
         title: "All is quiet",
     },
-    Event {
-        event_id: 41,
-        year: 1918,
-        not_after: None,
-        title: "Lafayette we are here!",
-    },
-    Event {
-        event_id: 42,
-        year: 1918,
-        not_after: None,
-        title: "Armistice",
-    },
 ];
+
+pub const ARMISTICE: Event = Event {
+    event_id: 42,
+    year: 1918,
+    not_after: None,
+    title: "Armistice",
+};

@@ -220,6 +220,14 @@ impl GameState {
         events
     }
 
+    pub(crate) fn can_draw_event(&mut self, event: &Event) -> bool {
+        self.events_pool.contains(event)
+    }
+
+    pub(crate) fn add_event(&mut self, event: Event) {
+        self.events_pool.push(event)
+    }
+
     pub(crate) fn operational_level(&self, nation: &Nation) -> u8 {
         self.nations.get(nation).unwrap().operational_level()
     }

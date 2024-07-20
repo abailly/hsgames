@@ -1,4 +1,5 @@
 use crate::event::Event;
+use crate::event::ARMISTICE;
 use crate::events::*;
 use crate::logic::*;
 use crate::side::*;
@@ -214,6 +215,9 @@ impl GameEngine {
                 for nation in all_nations.iter() {
                     self.apply_hits(nation, 1);
                 }
+            }
+            38 => {
+                self.state.add_event(ARMISTICE);
             }
             _ => {}
         }

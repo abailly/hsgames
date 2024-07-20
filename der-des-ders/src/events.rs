@@ -835,7 +835,11 @@ impl SalonikiExpedition {
 mod game_events_tests {
 
     use crate::{
-        event::ALL_EVENTS, fixtures::EngineBuilder, Nation::*, NationState, Offensive, Side::*,
+        event::{ALL_EVENTS, ARMISTICE},
+        fixtures::EngineBuilder,
+        Nation::*,
+        NationState, Offensive,
+        Side::*,
     };
 
     #[test]
@@ -1431,6 +1435,15 @@ mod game_events_tests {
 
         assert_eq!(6, engine.state.breakdown_level(&France));
         assert_eq!(7, engine.state.breakdown_level(&Germany));
+    }
+
+    #[test]
+    fn peace_negotiations_puts_armistice_event_in_pool() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        engine.play_events(&ALL_EVENTS[37]);
+
+        assert!(engine.state.can_draw_event(&ARMISTICE));
     }
 }
 
