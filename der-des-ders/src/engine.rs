@@ -30,6 +30,10 @@ impl GameEngine {
         }
     }
 
+    pub fn game_ends(self: &mut GameEngine) -> bool {
+        self.state.current_turn >= 15 || self.state.winner.is_some()
+    }
+
     pub fn collect_resources(&mut self) {
         self.logic.collect_resources(&mut self.state);
     }
@@ -219,6 +223,10 @@ impl GameEngine {
             38 => {
                 self.state.add_event(ARMISTICE);
             }
+            42 => {
+                // armistice: the game ends
+                self.state.current_turn = 15;
+            }
             _ => {}
         }
         let active_event = ActiveEvent {
@@ -375,7 +383,6 @@ impl GameLogic for DefaultGameLogic {
 
         gain
     }
-    fn event_activated(&mut self, _event: &ActiveEvent) {}
 }
 
 fn default_game_logic() -> impl GameLogic {

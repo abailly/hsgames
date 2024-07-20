@@ -48,7 +48,7 @@ struct Players {
 fn main() {
     let mut game_engine = GameEngine::new(42);
     let mut players = initialise_players(DEFAULT_OPTIONS);
-    while game_engine.state.current_turn < 15 && game_engine.state.winner.is_none() {
+    while !game_engine.game_ends() {
         run_turn(&mut players, &mut game_engine);
     }
 }
