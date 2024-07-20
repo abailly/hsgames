@@ -224,6 +224,10 @@ impl GameState {
         self.nations.get(nation).unwrap().operational_level()
     }
 
+    pub(crate) fn breakdown_level(&self, nation: &Nation) -> u8 {
+        self.nations.get(nation).unwrap().breakdown_level()
+    }
+
     pub fn new_year(&mut self, current_turn_year: u16, next_year: u16) {
         self.events_pool.retain(|event| {
             event.not_after.is_none() || event.not_after.unwrap() > current_turn_year

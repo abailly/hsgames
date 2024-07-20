@@ -209,6 +209,12 @@ impl GameEngine {
                     self.make_event_active(SalonikiExpedition::new)
                 }
             }
+            37 => {
+                let all_nations = self.state.nations.keys().cloned().collect::<Vec<Nation>>();
+                for nation in all_nations.iter() {
+                    self.apply_hits(nation, 1);
+                }
+            }
             _ => {}
         }
         let active_event = ActiveEvent {

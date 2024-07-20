@@ -1422,6 +1422,16 @@ mod game_events_tests {
 
         assert_eq!(vec![2, 2], dice);
     }
+
+    #[test]
+    fn spanish_flu_inflicts_one_loss_to_all_nations() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        engine.play_events(&ALL_EVENTS[36]);
+
+        assert_eq!(6, engine.state.breakdown_level(&France));
+        assert_eq!(7, engine.state.breakdown_level(&Germany));
+    }
 }
 
 // 0 : 5 4 5

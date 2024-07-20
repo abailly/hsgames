@@ -282,6 +282,13 @@ impl NationState {
             AtPeace => 0,
         }
     }
+
+    pub(crate) fn breakdown_level(&self) -> u8 {
+        match self {
+            AtWar(breakdown) => *breakdown,
+            AtPeace => 0,
+        }
+    }
 }
 
 impl Display for NationState {
