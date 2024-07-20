@@ -724,6 +724,34 @@ impl Friedensturm {
     }
 }
 
+impl GameLogic for UnifiedCommand {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
+        if offensive.from == Nation::France {
+            let (artillery_bonus, attack_bonus, defense_malus, air) =
+                self.previous.compute_bonus(state, offensive);
+            (artillery_bonus, attack_bonus + 1, defense_malus, air)
+        } else {
+            self.previous.compute_bonus(state, offensive)
+        }
+    }
+}
+
+pub struct UnifiedCommand {
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl UnifiedCommand {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        UnifiedCommand {
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -1227,6 +1255,38 @@ mod game_events_tests {
             initiative: Empires,
             from: Germany,
             to: France,
+            pr: 2,
+        });
+
+        assert_eq!(1, att);
+    }
+    #[test]
+    fn unified_command_adds_1_to_all_allies_attack_from_france() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        engine.play_events(&ALL_EVENTS[32]);
+        let (_, att, _, _) = engine.compute_bonus(&Offensive {
+            initiative: Allies,
+            from: France,
+            to: Germany,
+            pr: 2,
+        });
+
+        assert_eq!(1, att);
+    }
+
+    #[test]
+    fn unified_command_does_not_wear_out() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        engine.play_events(&ALL_EVENTS[32]);
+        engine.new_turn();
+        engine.new_turn();
+
+        let (_, att, _, _) = engine.compute_bonus(&Offensive {
+            initiative: Allies,
+            from: France,
+            to: Germany,
             pr: 2,
         });
 

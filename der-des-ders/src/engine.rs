@@ -202,6 +202,7 @@ impl GameEngine {
                     .insert(Nation::Russia, NationState::AtPeace);
             }
             32 => self.make_event_active(Friedensturm::new),
+            33 => self.make_event_active(UnifiedCommand::new),
             _ => {}
         }
         let active_event = ActiveEvent {
