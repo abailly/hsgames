@@ -204,6 +204,11 @@ impl GameEngine {
             32 => self.make_event_active(Friedensturm::new),
             33 => self.make_event_active(UnifiedCommand::new),
             35 => self.make_event_active(BattleOfMegiddo::new),
+            36 => {
+                if let Some(NationState::AtWar(_)) = self.state.nations.get(&Nation::Greece) {
+                    self.make_event_active(SalonikiExpedition::new)
+                }
+            }
             _ => {}
         }
         let active_event = ActiveEvent {

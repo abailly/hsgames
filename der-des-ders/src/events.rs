@@ -797,6 +797,40 @@ impl BattleOfMegiddo {
     }
 }
 
+impl GameLogic for SalonikiExpedition {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
+        self.offensive = Some(offensive.clone());
+        self.previous.compute_bonus(state, offensive)
+    }
+
+    fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
+        if let Some(offensive) = &self.offensive {
+            if offensive.from == Nation::Greece {
+                return self.previous.roll_offensive_dice(state, num + 1);
+            }
+        };
+        self.previous.roll_offensive_dice(state, num)
+    }
+}
+
+pub struct SalonikiExpedition {
+    pub offensive: Option<Offensive>,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl SalonikiExpedition {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        SalonikiExpedition {
+            offensive: None,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -1352,6 +1386,41 @@ mod game_events_tests {
         let dice = engine.roll_offensive_dice(2);
 
         assert_eq!(vec![2, 2, 4], dice);
+    }
+
+    #[test]
+    fn saloniki_expedition_adds_1_die_to_attack_from_greece() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        engine.play_events(&ALL_EVENTS[27]);
+        engine.play_events(&ALL_EVENTS[35]);
+        engine.compute_bonus(&Offensive {
+            initiative: Allies,
+            from: Greece,
+            to: Bulgaria,
+            pr: 2,
+        });
+        let dice = engine.roll_offensive_dice(2);
+
+        assert_eq!(vec![2, 2, 4], dice);
+    }
+
+    #[test]
+    fn saloniki_expedition_has_no_effect_if_greece_is_at_peace() {
+        let mut engine = EngineBuilder::new(11)
+            .with_nation(Greece, NationState::AtPeace)
+            .build();
+
+        engine.play_events(&ALL_EVENTS[35]);
+        engine.compute_bonus(&Offensive {
+            initiative: Allies,
+            from: Greece,
+            to: Bulgaria,
+            pr: 2,
+        });
+        let dice = engine.roll_offensive_dice(2);
+
+        assert_eq!(vec![2, 2], dice);
     }
 }
 
