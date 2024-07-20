@@ -689,6 +689,41 @@ impl ZimmermanTelegram {
     }
 }
 
+impl GameLogic for Friedensturm {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
+        if self.active && (offensive.from == Nation::Germany && offensive.to == Nation::France) {
+            let (artillery_bonus, attack_bonus, defense_malus, air) =
+                self.previous.compute_bonus(state, offensive);
+            (artillery_bonus, attack_bonus + 1, defense_malus, air)
+        } else {
+            self.previous.compute_bonus(state, offensive)
+        }
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.active = false;
+        self.previous.new_turn(state);
+    }
+}
+
+pub struct Friedensturm {
+    pub active: bool,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl Friedensturm {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        Friedensturm {
+            active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -1181,6 +1216,21 @@ mod game_events_tests {
             NationState::AtPeace,
             *engine.state.nations.get(&Russia).unwrap()
         );
+    }
+
+    #[test]
+    fn friedensturm_adds_1_to_german_attack_on_france() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        engine.play_events(&ALL_EVENTS[31]);
+        let (_, att, _, _) = engine.compute_bonus(&Offensive {
+            initiative: Empires,
+            from: Germany,
+            to: France,
+            pr: 2,
+        });
+
+        assert_eq!(1, att);
     }
 }
 
