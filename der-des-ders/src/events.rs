@@ -1170,6 +1170,18 @@ mod game_events_tests {
 
         assert_eq!(Some(1), engine.state.lafayette);
     }
+
+    #[test]
+    fn brest_litovsk_treaty_removes_russia_from_war() {
+        let mut engine = EngineBuilder::new(12).build();
+
+        engine.play_events(&ALL_EVENTS[30]);
+
+        assert_eq!(
+            NationState::AtPeace,
+            *engine.state.nations.get(&Russia).unwrap()
+        );
+    }
 }
 
 // 0 : 5 4 5

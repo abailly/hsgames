@@ -196,6 +196,11 @@ impl GameEngine {
                     .insert(Nation::Greece, NationState::AtWar(3));
             }
             29 => self.make_event_active(ZimmermanTelegram::new),
+            31 => {
+                self.state
+                    .nations
+                    .insert(Nation::Russia, NationState::AtPeace);
+            }
             _ => {}
         }
         let active_event = ActiveEvent {
