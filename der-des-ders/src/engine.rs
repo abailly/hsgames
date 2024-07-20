@@ -203,6 +203,7 @@ impl GameEngine {
             }
             32 => self.make_event_active(Friedensturm::new),
             33 => self.make_event_active(UnifiedCommand::new),
+            35 => self.make_event_active(BattleOfMegiddo::new),
             _ => {}
         }
         let active_event = ActiveEvent {

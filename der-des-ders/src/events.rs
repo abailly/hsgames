@@ -752,6 +752,51 @@ impl UnifiedCommand {
     }
 }
 
+impl GameLogic for BattleOfMegiddo {
+    fn previous(&mut self) -> Option<&mut dyn GameLogic> {
+        Some(&mut *self.previous)
+    }
+
+    fn compute_bonus(&mut self, state: &GameState, offensive: &Offensive) -> TechEffects {
+        if self.active {
+            self.offensive = Some(offensive.clone());
+        } else {
+            self.offensive = None;
+        }
+        self.previous.compute_bonus(state, offensive)
+    }
+
+    fn roll_offensive_dice(&mut self, state: &mut GameState, num: u8) -> Vec<u8> {
+        if let Some(offensive) = &self.offensive {
+            if offensive.to == Nation::OttomanEmpire {
+                return self.previous.roll_offensive_dice(state, num + 1);
+            }
+        };
+        self.previous.roll_offensive_dice(state, num)
+    }
+
+    fn new_turn(&mut self, state: &mut GameState) {
+        self.active = false;
+        self.previous.new_turn(state);
+    }
+}
+
+pub struct BattleOfMegiddo {
+    pub offensive: Option<Offensive>,
+    pub active: bool,
+    pub previous: Box<dyn GameLogic>,
+}
+
+impl BattleOfMegiddo {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
+        BattleOfMegiddo {
+            offensive: None,
+            active: true,
+            previous: Box::new(previous),
+        }
+    }
+}
+
 #[cfg(test)]
 mod game_events_tests {
 
@@ -1291,6 +1336,22 @@ mod game_events_tests {
         });
 
         assert_eq!(1, att);
+    }
+
+    #[test]
+    fn battle_of_megiddo_adds_1_die_to_attack_on_ottoman() {
+        let mut engine = EngineBuilder::new(11).build();
+
+        engine.play_events(&ALL_EVENTS[34]);
+        engine.compute_bonus(&Offensive {
+            initiative: Allies,
+            from: Egypt,
+            to: OttomanEmpire,
+            pr: 2,
+        });
+        let dice = engine.roll_offensive_dice(2);
+
+        assert_eq!(vec![2, 2, 4], dice);
     }
 }
 
