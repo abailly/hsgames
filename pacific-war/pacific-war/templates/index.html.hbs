@@ -9,10 +9,12 @@
     <!-- <script src="./bootstrap.js"></script> -->
 
     <h1>Pacific War</h1>
-    <form id="battle">
-      <label for="player1">Start date</label>
+    <form id="battle" action="/battle">
+      <label for="name">Battle name</label>
+      <input id="battle_name" name="battle_name" value="Coral Sea">
+      <label for="start_date">Start date</label>
       <input type="date" id="start_date" name="start_date" value="1942-05-01">
-      <label for="player2">Duration</label>
+      <label for="duration">Duration</label>
       <input type="number" id="duration" name="duration" value="21">
       <button type="submit">Start Battle</button>
     </form>
