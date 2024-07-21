@@ -6,6 +6,8 @@ use rocket::http::uri::fmt::{Formatter, FromUriParam, Path, UriDisplay};
 use rocket::http::Status;
 use rocket::request::FromParam;
 use rocket::response::Redirect;
+use rocket::Build;
+use rocket::Rocket;
 use rocket::State;
 use rocket_dyn_templates::context;
 use rocket_dyn_templates::Template;
@@ -82,6 +84,10 @@ fn create_battle(battles: &State<Battles>, form: Form<NewBattle>) -> Redirect {
             id: uuid,
             battle_data: new_battle.clone(),
             current_date: new_battle.start_date.date.clone(),
+            phase: Phase::OperationContactPhase(ContactPhase {
+                remaining: vec![MovementType::GroundMovement, MovementType::AirMovemement],
+                current: None,
+            }),
         },
     );
     Redirect::to(uri!(battle(id = UuidForm(uuid))))
@@ -134,6 +140,7 @@ fn battle(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
                     current_date,
                     duration: format!("{}", battle.battle_data.duration),
                     operation_player: battle.battle_data.operation_player,
+                    current_phase: format!("{}", battle.phase),
                 },
             ))
         }
@@ -145,6 +152,68 @@ struct Battle {
     id: Uuid,
     battle_data: NewBattle,
     current_date: NaiveDate,
+    phase: Phase,
+}
+
+#[derive(Debug, PartialEq)]
+enum Phase {
+    OperationContactPhase(ContactPhase),
+    ReactionContactPhase(ContactPhase),
+    BattleCycle(BattleCyclePhase),
+}
+
+impl Display for Phase {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Phase::OperationContactPhase(_) => write!(f, "Operation Contact Phase"),
+            Phase::ReactionContactPhase(_) => write!(f, "Reaction Contact Phase"),
+            Phase::BattleCycle(_) => write!(f, "Battle Cycle"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct ContactPhase {
+    remaining: Vec<MovementType>,
+    current: Option<MovementType>,
+}
+
+#[derive(Debug, PartialEq)]
+enum MovementType {
+    GroundMovement,
+    AirMovemement,
+    NavalMovement(u8), // number of hexes moved
+}
+
+#[derive(Debug, PartialEq)]
+enum BattleCyclePhase {
+    Lighting,
+    AdvantageDetermination,
+    AdvantageMovement(BattleMovementPhase),
+    AdvantageAirMission,
+    NavalCombat(NavalBattleCycle),
+    Bombardment,
+    Demolition,
+    GroundCombat,
+    AirBaseRepair,
+    Rally,
+    DisadvantageMovement(BattleMovementPhase),
+    DisadvantageAirMission,
+    ActivationDeactivation,
+    DetectionRemoval,
+    DayAdjustment,
+}
+
+#[derive(Debug, PartialEq)]
+enum NavalBattleCycle {
+    NavalCombatDetermination,
+    NavalCombat(u8),
+}
+
+#[derive(Debug, PartialEq)]
+struct BattleMovementPhase {
+    remaining: Vec<MovementType>,
+    current: Option<MovementType>,
 }
 
 struct Battles {
@@ -153,10 +222,12 @@ struct Battles {
 
 #[launch]
 fn rocket() -> _ {
+    rocket_with_state(Arc::new(Mutex::new(HashMap::new())))
+}
+
+fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build> {
     rocket::build()
-        .manage(Battles {
-            battles: Arc::new(Mutex::new(HashMap::new())),
-        })
+        .manage(Battles { battles })
         .attach(Template::fairing())
         .mount("/", routes![index, create_battle, battle])
 }
@@ -171,7 +242,7 @@ mod test {
     use rocket::local::blocking::Client;
 
     #[test]
-    fn hello_world() {
+    fn post_battle_redirects_to_new_battle_with_uuid() {
         let client = Client::tracked(rocket()).expect("valid rocket instance");
         let battle = NewBattle {
             battle_name: "Coral Sea".to_string(),
@@ -187,5 +258,40 @@ mod test {
             .body(battle.to_form())
             .dispatch();
         assert_eq!(response.status(), Status::SeeOther);
+    }
+
+    #[test]
+    fn get_existing_battle_returns_template() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        battles_map.insert(
+            id,
+            Battle {
+                id,
+                battle_data: NewBattle {
+                    battle_name: "Coral Sea".to_string(),
+                    start_date: NaiveDateForm {
+                        date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+                    },
+                    duration: 21,
+                    operation_player: Side::Japan,
+                },
+                current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+                phase: Phase::OperationContactPhase(ContactPhase {
+                    remaining: vec![MovementType::GroundMovement, MovementType::AirMovemement],
+                    current: None,
+                }),
+            },
+        );
+        let battles = Arc::new(Mutex::new(battles_map));
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response = client.get(format!("/battle/{}", id)).dispatch();
+        assert_eq!(response.status(), Status::Ok);
+        let response_string = response.into_string().unwrap();
+        assert!(response_string.contains("Coral Sea"));
+        assert!(response_string.contains("1942-05-01"));
+        assert!(response_string.contains("Current date: 1942-05-01"));
+        assert!(response_string.contains("21"));
+        assert!(response_string.contains("Operation Contact Phase"));
     }
 }
