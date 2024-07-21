@@ -1,11 +1,21 @@
 use chrono::NaiveDate;
 use rocket::form;
 use rocket::form::{Form, FromFormField, ValueField};
+use rocket::http::impl_from_uri_param_identity;
+use rocket::http::uri::fmt::{Formatter, FromUriParam, Path, UriDisplay};
+use rocket::http::Status;
+use rocket::request::FromParam;
+use rocket::response::Redirect;
+use rocket::State;
 use rocket_dyn_templates::context;
 use rocket_dyn_templates::Template;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt;
-use std::fmt::{Display, Formatter};
+use std::fmt::Display;
+use std::sync::Arc;
+use std::sync::Mutex;
+use uuid::Uuid;
 
 #[macro_use]
 extern crate rocket;
@@ -15,7 +25,7 @@ fn index() -> Template {
     Template::render("index", context! {})
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone, Copy)]
 struct NaiveDateForm {
     date: NaiveDate,
 }
@@ -29,14 +39,14 @@ impl<'v> FromFormField<'v> for NaiveDateForm {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, FromFormField)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, FromFormField, Clone, Copy)]
 enum Side {
     Japan,
     Allies,
 }
 
 impl Display for Side {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Side::Japan => write!(f, "japan"),
             Side::Allies => write!(f, "allies"),
@@ -44,15 +54,15 @@ impl Display for Side {
     }
 }
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, FromForm)]
-struct NewBattle<'a> {
-    battle_name: &'a str,
+#[derive(Debug, PartialEq, Serialize, Deserialize, FromForm, Clone)]
+struct NewBattle {
+    battle_name: String,
     start_date: NaiveDateForm,
     duration: u8,
     operation_player: Side,
 }
 
-impl<'a> NewBattle<'a> {
+impl NewBattle {
     fn to_form(&self) -> String {
         format!(
             "battle_name={}&start_date={}&duration={}&operation_player={}",
@@ -62,26 +72,93 @@ impl<'a> NewBattle<'a> {
 }
 
 #[post("/battle", data = "<form>")]
-fn battle(form: Form<NewBattle<'_>>) -> Template {
-    let battle = form.into_inner();
-    let date = battle.start_date.date.format("%Y-%m-%d").to_string();
-    Template::render(
-        "battle",
-        context! {
-            battle_name : battle.battle_name,
-            start_date: date.clone(),
-            current_date : date,
-            duration: format!("{}", battle.duration),
-            operation_player: battle.operation_player,
+fn create_battle(battles: &State<Battles>, form: Form<NewBattle>) -> Redirect {
+    let new_battle = form.into_inner();
+    let date = new_battle.start_date.date.format("%Y-%m-%d").to_string();
+    let uuid = Uuid::new_v4();
+    battles.battles.lock().unwrap().insert(
+        uuid,
+        Battle {
+            id: uuid,
+            battle_data: new_battle.clone(),
+            current_date: new_battle.start_date.date.clone(),
         },
-    )
+    );
+    Redirect::to(uri!(battle(id = UuidForm(uuid))))
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize)]
+struct UuidForm(Uuid);
+
+impl UriDisplay<Path> for UuidForm {
+    fn fmt(&self, f: &mut Formatter<Path>) -> fmt::Result {
+        f.write_raw(self.0.to_string())?;
+        Ok(())
+    }
+}
+
+impl_from_uri_param_identity!([Path] UuidForm);
+
+#[rocket::async_trait]
+impl<'v> FromParam<'v> for UuidForm {
+    type Error = &'v str;
+
+    fn from_param(param: &'v str) -> Result<Self, Self::Error> {
+        Uuid::parse_str(param)
+            .map(|uuid| UuidForm(uuid))
+            .map_err(|_| "not a valid uuid")
+    }
+}
+
+/// Renders a battle with given id
+#[get("/battle/<id>")]
+fn battle(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
+    let battles_map = battles.battles.lock().unwrap();
+    let battle = battles_map.get(&id.0);
+    match battle {
+        None => Err(Status::NotFound),
+        Some(battle) => {
+            let start_date = battle
+                .battle_data
+                .start_date
+                .date
+                .format("%Y-%m-%d")
+                .to_string();
+            let current_date = battle.current_date.format("%Y-%m-%d").to_string();
+            Ok(Template::render(
+                "battle",
+                context! {
+                    battle_id: id.0,
+                    battle_name : battle.battle_data.battle_name.clone(),
+                    start_date,
+                    current_date,
+                    duration: format!("{}", battle.battle_data.duration),
+                    operation_player: battle.battle_data.operation_player,
+                },
+            ))
+        }
+    }
+}
+
+#[derive(Debug, PartialEq)]
+struct Battle {
+    id: Uuid,
+    battle_data: NewBattle,
+    current_date: NaiveDate,
+}
+
+struct Battles {
+    battles: Arc<Mutex<HashMap<Uuid, Battle>>>,
 }
 
 #[launch]
 fn rocket() -> _ {
     rocket::build()
+        .manage(Battles {
+            battles: Arc::new(Mutex::new(HashMap::new())),
+        })
         .attach(Template::fairing())
-        .mount("/", routes![index, battle])
+        .mount("/", routes![index, create_battle, battle])
 }
 
 #[cfg(test)]
@@ -97,7 +174,7 @@ mod test {
     fn hello_world() {
         let client = Client::tracked(rocket()).expect("valid rocket instance");
         let battle = NewBattle {
-            battle_name: "Coral Sea",
+            battle_name: "Coral Sea".to_string(),
             start_date: NaiveDateForm {
                 date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
             },
@@ -109,12 +186,6 @@ mod test {
             .header(ContentType::Form)
             .body(battle.to_form())
             .dispatch();
-        assert_eq!(response.status(), Status::Ok);
-        let response_string = response.into_string().unwrap();
-        println!("{}", response_string);
-        assert!(response_string.contains("Coral Sea"));
-        assert!(response_string.contains("1942-05-01"));
-        assert!(response_string.contains("Current date: 1942-05-01"));
-        assert!(response_string.contains("21"));
+        assert_eq!(response.status(), Status::SeeOther);
     }
 }
