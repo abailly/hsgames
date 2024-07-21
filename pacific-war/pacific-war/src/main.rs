@@ -2,7 +2,7 @@ use chrono::NaiveDate;
 use rocket::form;
 use rocket::form::{Form, FromFormField, ValueField};
 use rocket::http::impl_from_uri_param_identity;
-use rocket::http::uri::fmt::{Formatter, FromUriParam, Path, UriDisplay};
+use rocket::http::uri::fmt::{Formatter, Path, UriDisplay};
 use rocket::http::Status;
 use rocket::request::FromParam;
 use rocket::response::Redirect;
@@ -76,7 +76,6 @@ impl NewBattle {
 #[post("/battle", data = "<form>")]
 fn create_battle(battles: &State<Battles>, form: Form<NewBattle>) -> Redirect {
     let new_battle = form.into_inner();
-    let date = new_battle.start_date.date.format("%Y-%m-%d").to_string();
     let uuid = Uuid::new_v4();
     battles.battles.lock().unwrap().insert(
         uuid,
@@ -140,7 +139,7 @@ fn battle(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
                     current_date,
                     duration: format!("{}", battle.battle_data.duration),
                     operation_player: battle.battle_data.operation_player,
-                    current_phase: format!("{}", battle.phase),
+                    current_phase: format!("{}", battle.phase)
                 },
             ))
         }
@@ -155,7 +154,7 @@ struct Battle {
     phase: Phase,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 enum Phase {
     OperationContactPhase(ContactPhase),
     ReactionContactPhase(ContactPhase),
@@ -172,20 +171,20 @@ impl Display for Phase {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 struct ContactPhase {
     remaining: Vec<MovementType>,
     current: Option<MovementType>,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 enum MovementType {
     GroundMovement,
     AirMovemement,
     NavalMovement(u8), // number of hexes moved
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 enum BattleCyclePhase {
     Lighting,
     AdvantageDetermination,
@@ -204,13 +203,13 @@ enum BattleCyclePhase {
     DayAdjustment,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 enum NavalBattleCycle {
     NavalCombatDetermination,
     NavalCombat(u8),
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 struct BattleMovementPhase {
     remaining: Vec<MovementType>,
     current: Option<MovementType>,
