@@ -185,7 +185,10 @@ checksum = "a21f936df1771bf62b77f047b726c4625ff2e8aa607c01ec06e5a05bd8463401"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
+ "js-sys",
  "num-traits",
+ "serde",
+ "wasm-bindgen",
  "windows-targets 0.52.6",
 ]
 
@@ -1022,8 +1025,10 @@ checksum = "b15813163c1d831bf4a13c3610c05c0d03b39feb07f7e09fa234dac9b15aaf39"
 name = "pacific-war"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "rocket",
  "rocket_dyn_templates",
+ "serde",
  "wasm-bindgen",
  "wasm-bindgen-test",
  "web-sys",
@@ -1366,6 +1371,7 @@ dependencies = [
  "rocket_codegen",
  "rocket_http",
  "serde",
+ "serde_json",
  "state",
  "tempfile",
  "time",
