@@ -1,7 +1,8 @@
 {{#*inline "page"}}
 <div>
   <h2>{{phase_name}}</h2>
-  <h3>{{phase.current}}</h3>
+  <span>Current Movement: {{phase.current}}</span>
+  <span>Naval movements: {{phase.naval_movement_count}}</span>
   <form method="POST" action="/battle/{{battle_id}}" >
   {{#each phase.remaining}}
   <input type="submit" value="{{this}}" formaction="/battle/{{../battle_id}}/{{this}}" />

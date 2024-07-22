@@ -155,6 +155,11 @@ fn update_contact_phase(phase: &mut ContactPhase, movement: &MovementType) -> bo
         MovementType::NavalMovement => {
             if let Some(MovementType::NavalMovement) = phase.current {
                 phase.naval_movement_count += 1;
+                if phase.naval_movement_count == phase.max_naval_movement_count {
+                    phase
+                        .remaining
+                        .retain(|m| m != &MovementType::NavalMovement);
+                };
                 (phase.naval_movement_count - 1) % 3 == 0
             } else {
                 phase.current = Some(movement.clone());
@@ -205,7 +210,7 @@ fn battle_next(battles: &State<Battles>, id: UuidForm) -> Result<Template, Statu
     let battle = battles_map.get_mut(&id.0).ok_or(Status::NotFound)?;
     match &mut battle.phase {
         Phase::OperationContactPhase(_) => {
-            battle.phase = Phase::ReactionContactPhase(ContactPhase::new());
+            battle.next();
             Ok(contact_phase(battle)?)
         }
         // Phase::ReactionContactPhase(_) => {
@@ -239,6 +244,21 @@ impl Battle {
             _ => {}
         }
     }
+
+    fn next(&mut self) {
+        match &mut self.phase {
+            Phase::OperationContactPhase(phase) => {
+                self.phase = Phase::ReactionContactPhase(ContactPhase {
+                    max_naval_movement_count: phase.naval_movement_count,
+                    ..ContactPhase::new()
+                });
+            }
+            Phase::ReactionContactPhase(_) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::Lighting);
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -262,6 +282,12 @@ impl Display for Phase {
 struct ContactPhase {
     remaining: Vec<MovementType>,
     current: Option<MovementType>,
+    /// Maximum number of naval movements allowed.
+    ///
+    /// Defaults to u8::MAX for Operation player, and then is set to
+    /// whatever number of hexes operation player moved for reaction
+    /// player
+    max_naval_movement_count: u8,
     naval_movement_count: u8,
 }
 
@@ -270,9 +296,10 @@ impl ContactPhase {
         ContactPhase {
             remaining: vec![
                 MovementType::GroundMovement,
-                MovementType::AirMovement,
+                MovementType::AirMovemement,
                 MovementType::NavalMovement,
             ],
+            max_naval_movement_count: u8::MAX,
             current: None,
             naval_movement_count: 0,
         }
@@ -282,7 +309,7 @@ impl ContactPhase {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 enum MovementType {
     GroundMovement,
-    AirMovement,
+    AirMovemement,
     NavalMovement,
 }
 
@@ -292,7 +319,7 @@ impl<'v> FromParam<'v> for MovementType {
     fn from_param(param: &'v str) -> Result<Self, Self::Error> {
         match param {
             "GroundMovement" => Ok(MovementType::GroundMovement),
-            "AirMovement" => Ok(MovementType::AirMovement),
+            "AirMovemement" => Ok(MovementType::AirMovemement),
             "NavalMovement" => Ok(MovementType::NavalMovement),
             _ => Err("not a valid movement type"),
         }
@@ -408,7 +435,7 @@ mod test {
         assert!(response_string.contains("21"));
         assert!(response_string.contains("Operation Contact Phase"));
         assert!(response_string.contains("GroundMovement"));
-        assert!(response_string.contains("AirMovement"));
+        assert!(response_string.contains("AirMovemement"));
         assert!(response_string.contains("NavalMovement"));
         assert!(response_string.contains("Next"));
     }
@@ -446,7 +473,7 @@ mod test {
         assert!(response_string.contains("21"));
         assert!(response_string.contains("Operation Contact Phase"));
         assert!(!response_string.contains(format!("{}/GroundMovement", id).as_str()));
-        assert!(response_string.contains("AirMovement"));
+        assert!(response_string.contains("AirMovemement"));
         assert!(response_string.contains("NavalMovement"));
         assert!(response_string.contains("Next"));
     }
@@ -456,6 +483,7 @@ mod test {
         let mut contact_phase = ContactPhase {
             remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
             current: None,
+            max_naval_movement_count: u8::MAX,
             naval_movement_count: 0,
         };
 
@@ -471,6 +499,7 @@ mod test {
         let mut contact_phase = ContactPhase {
             remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
             current: None,
+            max_naval_movement_count: u8::MAX,
             naval_movement_count: 0,
         };
 
@@ -480,10 +509,27 @@ mod test {
     }
 
     #[test]
+    fn choosing_naval_movement_given_maximum_movement_count_is_reached_removes_it_from_remaining() {
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: Some(MovementType::NavalMovement),
+            max_naval_movement_count: 3,
+            naval_movement_count: 2,
+        };
+
+        update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+
+        assert!(!contact_phase
+            .remaining
+            .contains(&MovementType::NavalMovement));
+    }
+
+    #[test]
     fn choosing_ground_movement_given_naval_movement_is_in_play_removes_it_from_remaining() {
         let mut contact_phase = ContactPhase {
             remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
             current: Some(MovementType::NavalMovement),
+            max_naval_movement_count: u8::MAX,
             naval_movement_count: 0,
         };
 
@@ -497,6 +543,7 @@ mod test {
         let mut contact_phase = ContactPhase {
             remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
             current: Some(MovementType::NavalMovement),
+            max_naval_movement_count: u8::MAX,
             naval_movement_count: 0,
         };
 
@@ -510,6 +557,7 @@ mod test {
         let mut contact_phase = ContactPhase {
             remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
             current: Some(MovementType::NavalMovement),
+            max_naval_movement_count: u8::MAX,
             naval_movement_count: 0,
         };
 
@@ -523,6 +571,7 @@ mod test {
         let mut contact_phase = ContactPhase {
             remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
             current: Some(MovementType::NavalMovement),
+            max_naval_movement_count: u8::MAX,
             naval_movement_count: 1,
         };
 
@@ -536,6 +585,7 @@ mod test {
         let mut contact_phase = ContactPhase {
             remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
             current: Some(MovementType::NavalMovement),
+            max_naval_movement_count: u8::MAX,
             naval_movement_count: 3,
         };
 
@@ -550,6 +600,7 @@ mod test {
         let mut contact_phase = ContactPhase {
             remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
             current: Some(MovementType::NavalMovement),
+            max_naval_movement_count: u8::MAX,
             naval_movement_count: 3,
         };
 
@@ -572,6 +623,42 @@ mod test {
         assert_eq!(
             NaiveDate::from_ymd_opt(1942, 05, 02).unwrap(),
             battle.current_date
+        );
+    }
+
+    #[test]
+    fn set_reaction_player_max_naval_movement_to_movement_count_from_operation_player() {
+        let id = Uuid::new_v4();
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: Some(MovementType::NavalMovement),
+            max_naval_movement_count: u8::MAX,
+            naval_movement_count: 3,
+        };
+
+        let mut battle = Battle {
+            id,
+            battle_data: NewBattle {
+                battle_name: "Coral Sea".to_string(),
+                start_date: NaiveDateForm {
+                    date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+                },
+                duration: 21,
+                operation_player: Side::Japan,
+            },
+            current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+            phase: Phase::OperationContactPhase(contact_phase),
+        };
+
+        battle.next();
+
+        assert_eq!(
+            3,
+            if let Phase::ReactionContactPhase(phase) = battle.phase {
+                phase.max_naval_movement_count
+            } else {
+                panic!("Expected ReactionContactPhase")
+            }
         );
     }
 
@@ -602,7 +689,7 @@ mod test {
         let response_string = response.into_string().unwrap();
         assert!(response_string.contains("Reaction Contact Phase"));
         assert!(response_string.contains("GroundMovement"));
-        assert!(response_string.contains("AirMovement"));
+        assert!(response_string.contains("AirMovemement"));
         assert!(response_string.contains("NavalMovement"));
         assert!(response_string.contains("Next"));
     }
