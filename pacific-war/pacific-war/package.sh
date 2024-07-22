@@ -13,4 +13,4 @@ rustup target add $TARGET
 cargo zigbuild --target $TARGET --release
 
 ## bundle
-tar -cvzf "${PKG}.tar.gz" "${ASSETS[@]}" -C "${BUILD_DIR}" "${PKG}"
+tar --exclude '*~' -cvzf "${PKG}.tar.gz" "${ASSETS[@]}" -C "${BUILD_DIR}" "${PKG}"
