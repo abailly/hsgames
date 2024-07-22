@@ -1,0 +1,10 @@
+{{#*inline "page"}}
+<div>
+  <h2>{{phase_name}}</h2>
+  {{#each phase.remaining}}
+  <button>{{this}}</button>
+  {{/each}}
+  <button>Next</button>
+  </div>
+{{/inline}}
+{{> (lookup this "parent")}}

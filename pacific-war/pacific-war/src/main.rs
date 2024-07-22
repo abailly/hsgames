@@ -10,6 +10,7 @@ use rocket::Build;
 use rocket::Rocket;
 use rocket::State;
 use rocket_dyn_templates::context;
+use rocket_dyn_templates::handlebars;
 use rocket_dyn_templates::Template;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -83,10 +84,7 @@ fn create_battle(battles: &State<Battles>, form: Form<NewBattle>) -> Redirect {
             id: uuid,
             battle_data: new_battle.clone(),
             current_date: new_battle.start_date.date.clone(),
-            phase: Phase::OperationContactPhase(ContactPhase {
-                remaining: vec![MovementType::GroundMovement, MovementType::AirMovemement],
-                current: None,
-            }),
+            phase: Phase::OperationContactPhase(ContactPhase::new()),
         },
     );
     Redirect::to(uri!(battle(id = UuidForm(uuid))))
@@ -122,31 +120,46 @@ fn battle(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
     let battle = battles_map.get(&id.0);
     match battle {
         None => Err(Status::NotFound),
-        Some(battle) => {
-            let start_date = battle
-                .battle_data
-                .start_date
-                .date
-                .format("%Y-%m-%d")
-                .to_string();
-            let current_date = battle.current_date.format("%Y-%m-%d").to_string();
-            Ok(Template::render(
-                "battle",
-                context! {
-                    battle_id: id.0,
-                    battle_name : battle.battle_data.battle_name.clone(),
-                    start_date,
-                    current_date,
-                    duration: format!("{}", battle.battle_data.duration),
-                    operation_player: battle.battle_data.operation_player,
-                    current_phase: format!("{}", battle.phase)
-                },
-            ))
-        }
+        Some(battle) => match battle.phase {
+            Phase::OperationContactPhase(_) => contact_phase(battle),
+            Phase::ReactionContactPhase(_) => contact_phase(battle),
+            Phase::BattleCycle(_) => todo!(),
+        },
     }
 }
 
-#[derive(Debug, PartialEq)]
+fn contact_phase(battle: &Battle) -> Result<Template, Status> {
+    match &battle.phase {
+        Phase::OperationContactPhase(phase) => Ok(Template::render(
+            "contact",
+            context! {
+                battle_name : &battle.battle_data.battle_name,
+                start_date : &battle.battle_data.start_date.date,
+                duration : &battle.battle_data.duration,
+                current_date : &battle.current_date,
+                phase_name : format!("{}", &battle.phase),
+                parent: "battle",
+                phase: &phase,
+            },
+        )),
+
+        Phase::ReactionContactPhase(phase) => Ok(Template::render(
+            "contact",
+            context! {
+                battle_name : &battle.battle_data.battle_name,
+                start_date : &battle.battle_data.start_date.date,
+                duration : &battle.battle_data.duration,
+                current_date : &battle.current_date,
+                phase_name : format!("{}", &battle.phase),
+                parent: "battle",
+                phase: &phase,
+            },
+        )),
+
+        _ => todo!(),
+    }
+}
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 struct Battle {
     id: Uuid,
     battle_data: NewBattle,
@@ -175,6 +188,19 @@ impl Display for Phase {
 struct ContactPhase {
     remaining: Vec<MovementType>,
     current: Option<MovementType>,
+}
+
+impl ContactPhase {
+    fn new() -> Self {
+        ContactPhase {
+            remaining: vec![
+                MovementType::GroundMovement,
+                MovementType::AirMovemement,
+                MovementType::NavalMovement(0),
+            ],
+            current: None,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -277,7 +303,11 @@ mod test {
                 },
                 current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
                 phase: Phase::OperationContactPhase(ContactPhase {
-                    remaining: vec![MovementType::GroundMovement, MovementType::AirMovemement],
+                    remaining: vec![
+                        MovementType::GroundMovement,
+                        MovementType::AirMovemement,
+                        MovementType::NavalMovement(0),
+                    ],
                     current: None,
                 }),
             },
