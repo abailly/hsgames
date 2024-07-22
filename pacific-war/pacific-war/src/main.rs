@@ -130,35 +130,28 @@ fn battle(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
 
 fn contact_phase(battle: &Battle) -> Result<Template, Status> {
     match &battle.phase {
-        Phase::OperationContactPhase(phase) => Ok(Template::render(
-            "contact",
-            context! {
-                battle_name : &battle.battle_data.battle_name,
-                start_date : &battle.battle_data.start_date.date,
-                duration : &battle.battle_data.duration,
-                current_date : &battle.current_date,
-                phase_name : format!("{}", &battle.phase),
-                parent: "battle",
-                phase: &phase,
-            },
-        )),
-
-        Phase::ReactionContactPhase(phase) => Ok(Template::render(
-            "contact",
-            context! {
-                battle_name : &battle.battle_data.battle_name,
-                start_date : &battle.battle_data.start_date.date,
-                duration : &battle.battle_data.duration,
-                current_date : &battle.current_date,
-                phase_name : format!("{}", &battle.phase),
-                parent: "battle",
-                phase: &phase,
-            },
-        )),
-
+        Phase::OperationContactPhase(phase) => Ok(render_contact_phase(battle, phase)),
+        Phase::ReactionContactPhase(phase) => Ok(render_contact_phase(battle, phase)),
         _ => todo!(),
     }
 }
+
+fn render_contact_phase(battle: &Battle, phase: &ContactPhase) -> Template {
+    Template::render(
+        "contact",
+        context! {
+            battle_id: &battle.id,
+            battle_name : &battle.battle_data.battle_name,
+            start_date : &battle.battle_data.start_date.date,
+            duration : &battle.battle_data.duration,
+            current_date : &battle.current_date,
+            phase_name : format!("{}", &battle.phase),
+            parent: "battle",
+            phase: &phase,
+        },
+    )
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 struct Battle {
     id: Uuid,
@@ -196,7 +189,7 @@ impl ContactPhase {
             remaining: vec![
                 MovementType::GroundMovement,
                 MovementType::AirMovemement,
-                MovementType::NavalMovement(0),
+                MovementType::NavalMovement,
             ],
             current: None,
         }
@@ -207,7 +200,7 @@ impl ContactPhase {
 enum MovementType {
     GroundMovement,
     AirMovemement,
-    NavalMovement(u8), // number of hexes moved
+    NavalMovement,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -302,14 +295,7 @@ mod test {
                     operation_player: Side::Japan,
                 },
                 current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
-                phase: Phase::OperationContactPhase(ContactPhase {
-                    remaining: vec![
-                        MovementType::GroundMovement,
-                        MovementType::AirMovemement,
-                        MovementType::NavalMovement(0),
-                    ],
-                    current: None,
-                }),
+                phase: Phase::OperationContactPhase(ContactPhase::new()),
             },
         );
         let battles = Arc::new(Mutex::new(battles_map));
@@ -322,5 +308,9 @@ mod test {
         assert!(response_string.contains("Current date: 1942-05-01"));
         assert!(response_string.contains("21"));
         assert!(response_string.contains("Operation Contact Phase"));
+        assert!(response_string.contains("GroundMovement"));
+        assert!(response_string.contains("AirMovemement"));
+        assert!(response_string.contains("NavalMovement"));
+        assert!(response_string.contains("Next"));
     }
 }

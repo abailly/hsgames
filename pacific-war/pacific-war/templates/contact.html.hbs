@@ -1,10 +1,12 @@
 {{#*inline "page"}}
 <div>
   <h2>{{phase_name}}</h2>
+  <form method="POST" action="/battle/{{battle_id}}" >
   {{#each phase.remaining}}
-  <button>{{this}}</button>
+  <input type="submit" value="{{this}}" formaction="/battle/{{../battle_id}}/{{this}}" />
   {{/each}}
-  <button>Next</button>
+  <input type="submit" value="Next" />
+  </form>
   </div>
 {{/inline}}
 {{> (lookup this "parent")}}
