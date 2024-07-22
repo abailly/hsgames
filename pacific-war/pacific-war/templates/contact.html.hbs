@@ -6,7 +6,9 @@
   {{#each phase.remaining}}
   <input type="submit" value="{{this}}" formaction="/battle/{{../battle_id}}/{{this}}" />
   {{/each}}
-  <input type="submit" value="Next" />
+  </form>
+  <form action="/battle/{{battle_id}}/next">
+    <input type="submit" value="Next" />
   </form>
   </div>
 {{/inline}}

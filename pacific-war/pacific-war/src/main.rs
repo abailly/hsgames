@@ -138,17 +138,39 @@ fn contact_movement(
     let mut battles_map = battles.battles.lock().unwrap();
     let battle = battles_map.get_mut(&id.0).ok_or(Status::NotFound)?;
     match &mut battle.phase {
-        Phase::OperationContactPhase(phase) => {
-            phase.remaining.retain(|m| m != &movement);
-            phase.current = Some(movement);
+        Phase::OperationContactPhase(_) => {
+            battle.contact_movement(&movement);
             Ok(contact_phase(battle)?)
         }
-        Phase::ReactionContactPhase(phase) => {
-            phase.remaining.retain(|m| m != &movement);
-            phase.current = Some(movement);
+        Phase::ReactionContactPhase(_) => {
+            battle.contact_movement(&movement);
             Ok(contact_phase(battle)?)
         }
         _ => Err(Status::BadRequest),
+    }
+}
+
+fn update_contact_phase(phase: &mut ContactPhase, movement: &MovementType) -> bool {
+    match movement {
+        MovementType::NavalMovement => {
+            if let Some(MovementType::NavalMovement) = phase.current {
+                phase.naval_movement_count += 1;
+                (phase.naval_movement_count - 1) % 3 == 0
+            } else {
+                phase.current = Some(movement.clone());
+                false
+            }
+        }
+        other => {
+            if let Some(MovementType::NavalMovement) = phase.current {
+                phase
+                    .remaining
+                    .retain(|m| m != &MovementType::NavalMovement);
+            }
+            phase.current = Some(movement.clone());
+            phase.remaining.retain(|m| m != other);
+            false
+        }
     }
 }
 
@@ -176,12 +198,47 @@ fn render_contact_phase(battle: &Battle, phase: &ContactPhase) -> Template {
     )
 }
 
+/// Update current phase
+#[get("/battle/<id>/next")]
+fn battle_next(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
+    let mut battles_map = battles.battles.lock().unwrap();
+    let battle = battles_map.get_mut(&id.0).ok_or(Status::NotFound)?;
+    match &mut battle.phase {
+        Phase::OperationContactPhase(_) => {
+            battle.phase = Phase::ReactionContactPhase(ContactPhase::new());
+            Ok(contact_phase(battle)?)
+        }
+        // Phase::ReactionContactPhase(_) => {
+        //     battle.phase = Phase::BattleCycle(BattleCyclePhase::Lighting);
+        //     Ok(battle_cycle_phase(battle)?)
+        // }
+        _ => Err(Status::BadRequest),
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 struct Battle {
     id: Uuid,
     battle_data: NewBattle,
     current_date: NaiveDate,
     phase: Phase,
+}
+
+impl Battle {
+    fn contact_movement(&mut self, movement: &MovementType) {
+        match &mut self.phase {
+            Phase::OperationContactPhase(phase) => {
+                let add_day = update_contact_phase(phase, movement);
+                if add_day {
+                    self.current_date = self.current_date.succ();
+                }
+            }
+            Phase::ReactionContactPhase(phase) => {
+                update_contact_phase(phase, movement);
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -205,6 +262,7 @@ impl Display for Phase {
 struct ContactPhase {
     remaining: Vec<MovementType>,
     current: Option<MovementType>,
+    naval_movement_count: u8,
 }
 
 impl ContactPhase {
@@ -212,10 +270,11 @@ impl ContactPhase {
         ContactPhase {
             remaining: vec![
                 MovementType::GroundMovement,
-                MovementType::AirMovemement,
+                MovementType::AirMovement,
                 MovementType::NavalMovement,
             ],
             current: None,
+            naval_movement_count: 0,
         }
     }
 }
@@ -223,7 +282,7 @@ impl ContactPhase {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 enum MovementType {
     GroundMovement,
-    AirMovemement,
+    AirMovement,
     NavalMovement,
 }
 
@@ -233,7 +292,7 @@ impl<'v> FromParam<'v> for MovementType {
     fn from_param(param: &'v str) -> Result<Self, Self::Error> {
         match param {
             "GroundMovement" => Ok(MovementType::GroundMovement),
-            "AirMovemement" => Ok(MovementType::AirMovemement),
+            "AirMovement" => Ok(MovementType::AirMovement),
             "NavalMovement" => Ok(MovementType::NavalMovement),
             _ => Err("not a valid movement type"),
         }
@@ -284,7 +343,10 @@ fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build
     rocket::build()
         .manage(Battles { battles })
         .attach(Template::fairing())
-        .mount("/", routes![index, create_battle, battle, contact_movement])
+        .mount(
+            "/",
+            routes![index, create_battle, battle, battle_next, contact_movement],
+        )
 }
 
 #[cfg(test)]
@@ -346,13 +408,13 @@ mod test {
         assert!(response_string.contains("21"));
         assert!(response_string.contains("Operation Contact Phase"));
         assert!(response_string.contains("GroundMovement"));
-        assert!(response_string.contains("AirMovemement"));
+        assert!(response_string.contains("AirMovement"));
         assert!(response_string.contains("NavalMovement"));
         assert!(response_string.contains("Next"));
     }
 
     #[test]
-    fn choosing_ground_movement_at_contact_phase() {
+    fn choosing_ground_movement_at_contact_phase_removes_it_from_available_movements() {
         let id = Uuid::new_v4();
         let mut battles_map = HashMap::new();
         battles_map.insert(
@@ -383,8 +445,164 @@ mod test {
         assert!(response_string.contains("Current date: 1942-05-01"));
         assert!(response_string.contains("21"));
         assert!(response_string.contains("Operation Contact Phase"));
-        assert!(!response_string.contains("GroundMovement"));
-        assert!(response_string.contains("AirMovemement"));
+        assert!(!response_string.contains(format!("{}/GroundMovement", id).as_str()));
+        assert!(response_string.contains("AirMovement"));
+        assert!(response_string.contains("NavalMovement"));
+        assert!(response_string.contains("Next"));
+    }
+
+    #[test]
+    fn choosing_naval_movement_at_contact_phase_keeps_it_from_available_movements() {
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: None,
+            naval_movement_count: 0,
+        };
+
+        update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+
+        assert!(contact_phase
+            .remaining
+            .contains(&MovementType::NavalMovement));
+    }
+
+    #[test]
+    fn choosing_naval_movement_given_other_movement_type_does_not_increase_movement_count() {
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: None,
+            naval_movement_count: 0,
+        };
+
+        update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+
+        assert_eq!(0, contact_phase.naval_movement_count);
+    }
+
+    #[test]
+    fn choosing_ground_movement_given_naval_movement_is_in_play_removes_it_from_remaining() {
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: Some(MovementType::NavalMovement),
+            naval_movement_count: 0,
+        };
+
+        update_contact_phase(&mut contact_phase, &MovementType::GroundMovement);
+
+        assert_eq!(contact_phase.remaining, vec![]);
+    }
+
+    #[test]
+    fn more_naval_movement_at_contact_phase_increases_movement_count() {
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: Some(MovementType::NavalMovement),
+            naval_movement_count: 0,
+        };
+
+        update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+
+        assert_eq!(1, contact_phase.naval_movement_count);
+    }
+
+    #[test]
+    fn naval_movement_increase_date_by_1_day_when_total_is_1() {
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: Some(MovementType::NavalMovement),
+            naval_movement_count: 0,
+        };
+
+        let add_day = update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+
+        assert!(add_day);
+    }
+
+    #[test]
+    fn naval_movement_does_not_increase_date_when_total_is_2() {
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: Some(MovementType::NavalMovement),
+            naval_movement_count: 1,
+        };
+
+        let add_day = update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+
+        assert!(!add_day);
+    }
+
+    #[test]
+    fn naval_movement_increase_date_by_1_when_total_is_4() {
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: Some(MovementType::NavalMovement),
+            naval_movement_count: 3,
+        };
+
+        let add_day = update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+
+        assert!(add_day);
+    }
+
+    #[test]
+    fn battle_date_changes_when_naval_movement_increases_day() {
+        let id = Uuid::new_v4();
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: Some(MovementType::NavalMovement),
+            naval_movement_count: 3,
+        };
+
+        let mut battle = Battle {
+            id,
+            battle_data: NewBattle {
+                battle_name: "Coral Sea".to_string(),
+                start_date: NaiveDateForm {
+                    date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+                },
+                duration: 21,
+                operation_player: Side::Japan,
+            },
+            current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+            phase: Phase::OperationContactPhase(contact_phase),
+        };
+
+        battle.contact_movement(&MovementType::NavalMovement);
+
+        assert_eq!(
+            NaiveDate::from_ymd_opt(1942, 05, 02).unwrap(),
+            battle.current_date
+        );
+    }
+
+    #[test]
+    fn choosing_next_at_operation_contact_phase_moves_to_reaction_contact_phase() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        battles_map.insert(
+            id,
+            Battle {
+                id,
+                battle_data: NewBattle {
+                    battle_name: "Coral Sea".to_string(),
+                    start_date: NaiveDateForm {
+                        date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+                    },
+                    duration: 21,
+                    operation_player: Side::Japan,
+                },
+                current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+                phase: Phase::OperationContactPhase(ContactPhase::new()),
+            },
+        );
+        let battles = Arc::new(Mutex::new(battles_map));
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response = client.get(format!("/battle/{}/next", id)).dispatch();
+        assert_eq!(response.status(), Status::Ok);
+        let response_string = response.into_string().unwrap();
+        assert!(response_string.contains("Reaction Contact Phase"));
+        assert!(response_string.contains("GroundMovement"));
+        assert!(response_string.contains("AirMovement"));
         assert!(response_string.contains("NavalMovement"));
         assert!(response_string.contains("Next"));
     }
