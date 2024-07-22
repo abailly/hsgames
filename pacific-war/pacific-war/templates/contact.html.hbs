@@ -1,6 +1,7 @@
 {{#*inline "page"}}
 <div>
   <h2>{{phase_name}}</h2>
+  <h3>{{phase.current}}</h3>
   <form method="POST" action="/battle/{{battle_id}}" >
   {{#each phase.remaining}}
   <input type="submit" value="{{this}}" formaction="/battle/{{../battle_id}}/{{this}}" />

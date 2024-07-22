@@ -128,6 +128,30 @@ fn battle(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
     }
 }
 
+/// Update current phase
+#[post("/battle/<id>/<movement>")]
+fn contact_movement(
+    battles: &State<Battles>,
+    movement: MovementType,
+    id: UuidForm,
+) -> Result<Template, Status> {
+    let mut battles_map = battles.battles.lock().unwrap();
+    let battle = battles_map.get_mut(&id.0).ok_or(Status::NotFound)?;
+    match &mut battle.phase {
+        Phase::OperationContactPhase(phase) => {
+            phase.remaining.retain(|m| m != &movement);
+            phase.current = Some(movement);
+            Ok(contact_phase(battle)?)
+        }
+        Phase::ReactionContactPhase(phase) => {
+            phase.remaining.retain(|m| m != &movement);
+            phase.current = Some(movement);
+            Ok(contact_phase(battle)?)
+        }
+        _ => Err(Status::BadRequest),
+    }
+}
+
 fn contact_phase(battle: &Battle) -> Result<Template, Status> {
     match &battle.phase {
         Phase::OperationContactPhase(phase) => Ok(render_contact_phase(battle, phase)),
@@ -203,6 +227,19 @@ enum MovementType {
     NavalMovement,
 }
 
+impl<'v> FromParam<'v> for MovementType {
+    type Error = &'v str;
+
+    fn from_param(param: &'v str) -> Result<Self, Self::Error> {
+        match param {
+            "GroundMovement" => Ok(MovementType::GroundMovement),
+            "AirMovemement" => Ok(MovementType::AirMovemement),
+            "NavalMovement" => Ok(MovementType::NavalMovement),
+            _ => Err("not a valid movement type"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 enum BattleCyclePhase {
     Lighting,
@@ -247,7 +284,7 @@ fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build
     rocket::build()
         .manage(Battles { battles })
         .attach(Template::fairing())
-        .mount("/", routes![index, create_battle, battle])
+        .mount("/", routes![index, create_battle, battle, contact_movement])
 }
 
 #[cfg(test)]
@@ -309,6 +346,44 @@ mod test {
         assert!(response_string.contains("21"));
         assert!(response_string.contains("Operation Contact Phase"));
         assert!(response_string.contains("GroundMovement"));
+        assert!(response_string.contains("AirMovemement"));
+        assert!(response_string.contains("NavalMovement"));
+        assert!(response_string.contains("Next"));
+    }
+
+    #[test]
+    fn choosing_ground_movement_at_contact_phase() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        battles_map.insert(
+            id,
+            Battle {
+                id,
+                battle_data: NewBattle {
+                    battle_name: "Coral Sea".to_string(),
+                    start_date: NaiveDateForm {
+                        date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+                    },
+                    duration: 21,
+                    operation_player: Side::Japan,
+                },
+                current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+                phase: Phase::OperationContactPhase(ContactPhase::new()),
+            },
+        );
+        let battles = Arc::new(Mutex::new(battles_map));
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response = client
+            .post(format!("/battle/{}/GroundMovement", id))
+            .dispatch();
+        assert_eq!(response.status(), Status::Ok);
+        let response_string = response.into_string().unwrap();
+        assert!(response_string.contains("Coral Sea"));
+        assert!(response_string.contains("1942-05-01"));
+        assert!(response_string.contains("Current date: 1942-05-01"));
+        assert!(response_string.contains("21"));
+        assert!(response_string.contains("Operation Contact Phase"));
+        assert!(!response_string.contains("GroundMovement"));
         assert!(response_string.contains("AirMovemement"));
         assert!(response_string.contains("NavalMovement"));
         assert!(response_string.contains("Next"));
