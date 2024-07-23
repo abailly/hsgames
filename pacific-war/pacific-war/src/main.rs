@@ -260,12 +260,20 @@ impl Battle {
 
     fn next(&mut self) {
         match &mut self.phase {
-            Phase::OperationContactPhase(phase) => {
-                self.phase = Phase::ReactionContactPhase(ContactPhase {
-                    max_naval_movement_count: phase.naval_movement_count,
-                    ..ContactPhase::new()
-                });
-            }
+            Phase::OperationContactPhase(phase) => match self.battle_data.intelligence_condition {
+                Intelligence::Ambush | Intelligence::AmbushCV => {
+                    self.phase = Phase::ReactionContactPhase(ContactPhase {
+                        max_naval_movement_count: phase.naval_movement_count * 2,
+                        ..ContactPhase::new()
+                    });
+                }
+                _ => {
+                    self.phase = Phase::ReactionContactPhase(ContactPhase {
+                        max_naval_movement_count: phase.naval_movement_count,
+                        ..ContactPhase::new()
+                    });
+                }
+            },
             Phase::ReactionContactPhase(_) => {
                 self.phase = Phase::BattleCycle(BattleCyclePhase::Lighting);
             }
@@ -719,7 +727,8 @@ mod test {
     }
 
     #[test]
-    fn given_reaction_phase_when_next_move_to_battle_cycle() {
+    fn set_reaction_player_max_naval_movement_to_twice_count_from_operation_player_given_intelligence_is_ambush(
+    ) {
         let id = Uuid::new_v4();
         let mut contact_phase = ContactPhase {
             remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
@@ -737,8 +746,24 @@ mod test {
                 },
                 duration: 21,
                 operation_player: Side::Japan,
+                intelligence_condition: Intelligence::Ambush,
             },
             current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+            phase: Phase::OperationContactPhase(contact_phase),
+        };
+
+        battle.next();
+
+        assert_eq!(
+            6,
+            if let Phase::ReactionContactPhase(phase) = battle.phase {
+                phase.max_naval_movement_count
+            } else {
+                panic!("Expected ReactionContactPhase")
+            }
+        );
+    }
+
     #[test]
     fn given_reaction_phase_when_next_move_to_battle_cycle() {
         let id = Uuid::new_v4();
