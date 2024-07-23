@@ -71,7 +71,7 @@ textarea:focus {
     border-color: #4697e4;
 }
 
-button[type="submit"] {
+button  {
     margin: .5em;
     width: 90%;
     padding: 0.8rem;
@@ -111,10 +111,25 @@ button.next {
     }
 }
 
-
-@media (min-width: 1200px) {
+@media (600px < width < 1200px) {
     form > div > label,
 	  legend {
   	    text-align: right;
+    }
+
+    button {
+        width: 40%;
+    }
+}
+
+
+@media (width >= 1200px) {
+    form > div > label,
+	  legend {
+  	    text-align: right;
+    }
+
+    button {
+        width: 20%;
     }
 }

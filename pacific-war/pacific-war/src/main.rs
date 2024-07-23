@@ -364,7 +364,7 @@ struct ContactPhase {
     ///
     /// Defaults to u8::MAX for Operation player, and then is set to
     /// whatever number of hexes operation player moved for reaction
-    /// player
+    /// player, or twice in case of ambush intelligence condition
     max_naval_movement_count: u8,
     naval_movement_count: u8,
 }
