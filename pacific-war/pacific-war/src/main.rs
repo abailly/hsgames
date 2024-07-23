@@ -131,11 +131,7 @@ fn battle(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
     let battle = battles_map.get(&id.0);
     match battle {
         None => Err(Status::NotFound),
-        Some(battle) => match battle.phase {
-            Phase::OperationContactPhase(_) => contact_phase(battle),
-            Phase::ReactionContactPhase(_) => contact_phase(battle),
-            Phase::BattleCycle(_) => todo!(),
-        },
+        Some(battle) => contact_phase(battle),
     }
 }
 
@@ -194,7 +190,7 @@ fn contact_phase(battle: &Battle) -> Result<Template, Status> {
     match &battle.phase {
         Phase::OperationContactPhase(phase) => Ok(render_contact_phase(battle, phase)),
         Phase::ReactionContactPhase(phase) => Ok(render_contact_phase(battle, phase)),
-        _ => todo!(),
+        Phase::BattleCycle(phase) => Ok(render_battle_cycle(battle, phase)),
     }
 }
 
@@ -216,22 +212,31 @@ fn render_contact_phase(battle: &Battle, phase: &ContactPhase) -> Template {
     )
 }
 
+fn render_battle_cycle(battle: &Battle, phase: &BattleCyclePhase) -> Template {
+    Template::render(
+        "battle_cycle",
+        context! {
+            battle_id: &battle.id,
+            operation_player: &battle.battle_data.operation_player,
+            intelligence_condition: &battle.battle_data.intelligence_condition,
+            battle_name : &battle.battle_data.battle_name,
+            start_date : &battle.battle_data.start_date.date,
+            duration : &battle.battle_data.duration,
+            current_date : &battle.current_date,
+            phase_name : format!("{:?}", &phase),
+            parent: "battle",
+            phase: &phase,
+        },
+    )
+}
+
 /// Update current phase
 #[get("/battle/<id>/next")]
 fn battle_next(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
     let mut battles_map = battles.battles.lock().unwrap();
     let battle = battles_map.get_mut(&id.0).ok_or(Status::NotFound)?;
-    match &mut battle.phase {
-        Phase::OperationContactPhase(_) => {
-            battle.next();
-            Ok(contact_phase(battle)?)
-        }
-        // Phase::ReactionContactPhase(_) => {
-        //     battle.phase = Phase::BattleCycle(BattleCyclePhase::Lighting);
-        //     Ok(battle_cycle_phase(battle)?)
-        // }
-        _ => Err(Status::BadRequest),
-    }
+    battle.next();
+    contact_phase(battle)
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
