@@ -3,6 +3,8 @@
   <head>
     <meta charset="utf-8">
     <title>Pacific War</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="./public/pacific.css">
   </head>
   <body>
     <!-- <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript> -->
@@ -10,17 +12,25 @@
 
     <h1>Pacific War</h1>
     <form id="battle" action="/battle" method="POST">
-      <label for="name">Battle name</label>
-      <input id="battle_name" name="battle_name" value="Coral Sea">
-      <label for="operation_player">Operation Player</label>
-      <select id="operation_player" name="operation_player">
-        <option value="japan">Japan</option>
-        <option value="allies">Allies</option>
-      </select>
-      <label for="start_date">Start date</label>
-      <input type="date" id="start_date" name="start_date" value="1942-05-01">
-      <label for="duration">Duration</label>
-      <input type="number" id="duration" name="duration" value="21">
+      <div>
+        <label for="battle_name">Battle name</label>
+        <input id="battle_name" name="battle_name" value="Coral Sea">
+      </div>
+      <div>
+        <label for="operation_player">Operation Player</label>
+        <select id="operation_player" name="operation_player">
+          <option value="japan">Japan</option>
+          <option value="allies">Allies</option>
+        </select>
+      </div>
+      <div>
+        <label for="start_date">Start date</label>
+        <input type="date" id="start_date" name="start_date" value="1942-05-01">
+      </div>
+      <div>
+        <label for="duration">Duration</label>
+        <input type="number" id="duration" name="duration" value="21">
+      </div>
       <button type="submit">Start Battle</button>
     </form>
   </body>

@@ -3,19 +3,30 @@
   <head>
     <meta charset="utf-8">
     <title>Pacific War</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="/public/pacific.css">
   </head>
   <body>
     <!-- <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript> -->
     <!-- <script src="./bootstrap.js"></script> -->
 
     <h1>Pacific War</h1>
-    <h2>{{battle_name}} Battle</h2>
-    <div>
-      <span>Operation player: {{operation_player}}</span>
-      <span>Start date: {{start_date}}</span>
-      <span>Duration: {{duration}}</span>
-      <span>Current date: {{current_date}}</span>
-    </div>
+    <form>
+    <header><h2>{{battle_name}} Battle</h2></header>
+      <div><label for="operation_player">Operation player</label>
+        <input type="text" readonly name="operation_player" value="{{operation_player}}" />
+      </div>
+      <div>
+        <label for="start_date">Start date</label>
+        <input type="text" readonly name="start_date" value="{{start_date}}" />
+      </div>
+      <div><label for="duration">Duration</label>
+        <input type="number" readonly name="duration" value="{{duration}}" />
+      </div>
+      <div><label for="current_date">Current date</label>
+        <input type="text" readonly name="current_date" value="{{current_date}}" />
+      </div>
+    </form>
     {{> page }}
   </body>
 </html>

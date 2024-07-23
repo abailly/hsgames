@@ -5,11 +5,11 @@
   <span>Naval movements: {{phase.naval_movement_count}}</span>
   <form method="POST" action="/battle/{{battle_id}}" >
   {{#each phase.remaining}}
-  <input type="submit" value="{{this}}" formaction="/battle/{{../battle_id}}/{{this}}" />
+  <button type="submit" value="{{this}}"  formaction="/battle/{{../battle_id}}/{{this}}">{{this}}</button>
   {{/each}}
   </form>
   <form action="/battle/{{battle_id}}/next">
-    <input type="submit" value="Next" />
+    <button type="submit">Next</button>
   </form>
   </div>
 {{/inline}}

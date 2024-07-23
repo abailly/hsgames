@@ -1,6 +1,7 @@
 use chrono::NaiveDate;
 use rocket::form;
 use rocket::form::{Form, FromFormField, ValueField};
+use rocket::fs::FileServer;
 use rocket::http::impl_from_uri_param_identity;
 use rocket::http::uri::fmt::{Formatter, Path, UriDisplay};
 use rocket::http::Status;
@@ -16,6 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 use uuid::Uuid;
@@ -192,6 +194,7 @@ fn render_contact_phase(battle: &Battle, phase: &ContactPhase) -> Template {
         "contact",
         context! {
             battle_id: &battle.id,
+            operation_player: &battle.battle_data.operation_player,
             battle_name : &battle.battle_data.battle_name,
             start_date : &battle.battle_data.start_date.date,
             duration : &battle.battle_data.duration,
@@ -374,6 +377,7 @@ fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build
             "/",
             routes![index, create_battle, battle, battle_next, contact_movement],
         )
+        .mount("/public", FileServer::from("static"))
 }
 
 #[cfg(test)]
@@ -384,6 +388,13 @@ mod test {
     use rocket::http::ContentType;
     use rocket::http::Status;
     use rocket::local::blocking::Client;
+
+    #[test]
+    fn can_serve_css_file() {
+        let client = Client::tracked(rocket()).expect("valid rocket instance");
+        let response = client.get("/public/pacific.css").dispatch();
+        assert_eq!(response.status(), Status::Ok);
+    }
 
     #[test]
     fn post_battle_redirects_to_new_battle_with_uuid() {
@@ -431,6 +442,7 @@ mod test {
         let response_string = response.into_string().unwrap();
         assert!(response_string.contains("Coral Sea"));
         assert!(response_string.contains("1942-05-01"));
+        assert!(response_string.contains("japan"));
         assert!(response_string.contains("Current date: 1942-05-01"));
         assert!(response_string.contains("21"));
         assert!(response_string.contains("Operation Contact Phase"));
