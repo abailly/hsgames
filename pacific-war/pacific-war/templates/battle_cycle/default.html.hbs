@@ -1,0 +1,10 @@
+{{#*inline "page"}}
+<div>
+  <h2>Battle Cycle</h2>
+  <h3>{{phase_name}}</h3>
+  <form action="/battle/{{battle_id}}/next">
+    <button class="next" type="submit">Next</button>
+  </form>
+</div>
+{{/inline}}
+{{> (lookup this "parent")}}
