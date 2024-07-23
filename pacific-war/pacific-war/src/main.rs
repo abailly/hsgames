@@ -59,19 +59,28 @@ impl Display for Side {
     }
 }
 
+#[derive(Debug, PartialEq, Serialize, Deserialize, FromFormField, Clone)]
+enum Intelligence {
+    Surprise,
+    Intercept,
+    Ambush,
+    AmbushCV,
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize, FromForm, Clone)]
 struct NewBattle {
     battle_name: String,
     start_date: NaiveDateForm,
     duration: u8,
     operation_player: Side,
+    intelligence_condition: Intelligence,
 }
 
 impl NewBattle {
     fn to_form(&self) -> String {
         format!(
-            "battle_name={}&start_date={}&duration={}&operation_player={}",
-            self.battle_name, self.start_date.date, self.duration, self.operation_player
+            "battle_name={}&start_date={}&duration={}&operation_player={}&intelligence_condition={:?}",
+            self.battle_name, self.start_date.date, self.duration, self.operation_player, self.intelligence_condition
         )
     }
 }
@@ -195,6 +204,7 @@ fn render_contact_phase(battle: &Battle, phase: &ContactPhase) -> Template {
         context! {
             battle_id: &battle.id,
             operation_player: &battle.battle_data.operation_player,
+            intelligence_condition: &battle.battle_data.intelligence_condition,
             battle_name : &battle.battle_data.battle_name,
             start_date : &battle.battle_data.start_date.date,
             duration : &battle.battle_data.duration,
@@ -446,6 +456,18 @@ mod test {
     use rocket::http::Status;
     use rocket::local::blocking::Client;
 
+    fn coral_sea() -> NewBattle {
+        NewBattle {
+            battle_name: "Coral Sea".to_string(),
+            start_date: NaiveDateForm {
+                date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+            },
+            duration: 21,
+            operation_player: Side::Japan,
+            intelligence_condition: Intelligence::Intercept,
+        }
+    }
+
     #[test]
     fn can_serve_css_file() {
         let client = Client::tracked(rocket()).expect("valid rocket instance");
@@ -456,14 +478,7 @@ mod test {
     #[test]
     fn post_battle_redirects_to_new_battle_with_uuid() {
         let client = Client::tracked(rocket()).expect("valid rocket instance");
-        let battle = NewBattle {
-            battle_name: "Coral Sea".to_string(),
-            start_date: NaiveDateForm {
-                date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
-            },
-            duration: 21,
-            operation_player: Side::Japan,
-        };
+        let battle = coral_sea();
         let response = client
             .post("/battle")
             .header(ContentType::Form)
@@ -480,14 +495,7 @@ mod test {
             id,
             Battle {
                 id,
-                battle_data: NewBattle {
-                    battle_name: "Coral Sea".to_string(),
-                    start_date: NaiveDateForm {
-                        date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
-                    },
-                    duration: 21,
-                    operation_player: Side::Japan,
-                },
+                battle_data: coral_sea(),
                 current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
                 phase: Phase::OperationContactPhase(ContactPhase::new()),
             },
@@ -499,6 +507,7 @@ mod test {
         let response_string = response.into_string().unwrap();
         assert!(response_string.contains("Coral Sea"));
         assert!(response_string.contains("1942-05-01"));
+        assert!(response_string.contains("Intercept"));
         assert!(response_string.contains("Japan"));
         assert!(response_string.contains("value=\"1942-05-01\""));
         assert!(response_string.contains("21"));
@@ -517,14 +526,7 @@ mod test {
             id,
             Battle {
                 id,
-                battle_data: NewBattle {
-                    battle_name: "Coral Sea".to_string(),
-                    start_date: NaiveDateForm {
-                        date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
-                    },
-                    duration: 21,
-                    operation_player: Side::Japan,
-                },
+                battle_data: coral_sea(),
                 current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
                 phase: Phase::OperationContactPhase(ContactPhase::new()),
             },
@@ -674,14 +676,7 @@ mod test {
 
         let mut battle = Battle {
             id,
-            battle_data: NewBattle {
-                battle_name: "Coral Sea".to_string(),
-                start_date: NaiveDateForm {
-                    date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
-                },
-                duration: 21,
-                operation_player: Side::Japan,
-            },
+            battle_data: coral_sea(),
             current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
             phase: Phase::OperationContactPhase(contact_phase),
         };
@@ -706,14 +701,7 @@ mod test {
 
         let mut battle = Battle {
             id,
-            battle_data: NewBattle {
-                battle_name: "Coral Sea".to_string(),
-                start_date: NaiveDateForm {
-                    date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
-                },
-                duration: 21,
-                operation_player: Side::Japan,
-            },
+            battle_data: coral_sea(),
             current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
             phase: Phase::OperationContactPhase(contact_phase),
         };
@@ -751,6 +739,20 @@ mod test {
                 operation_player: Side::Japan,
             },
             current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+    #[test]
+    fn given_reaction_phase_when_next_move_to_battle_cycle() {
+        let id = Uuid::new_v4();
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: Some(MovementType::NavalMovement),
+            max_naval_movement_count: u8::MAX,
+            naval_movement_count: 3,
+        };
+
+        let mut battle = Battle {
+            id,
+            battle_data: coral_sea(),
+            current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
             phase: Phase::ReactionContactPhase(contact_phase),
         };
 
@@ -771,14 +773,7 @@ mod test {
 
         let mut battle = Battle {
             id,
-            battle_data: NewBattle {
-                battle_name: "Coral Sea".to_string(),
-                start_date: NaiveDateForm {
-                    date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
-                },
-                duration: 21,
-                operation_player: Side::Japan,
-            },
+            battle_data: coral_sea(),
             current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
             phase: Phase::BattleCycle(BattleCyclePhase::DayAdjustment),
         };
@@ -800,14 +795,7 @@ mod test {
             id,
             Battle {
                 id,
-                battle_data: NewBattle {
-                    battle_name: "Coral Sea".to_string(),
-                    start_date: NaiveDateForm {
-                        date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
-                    },
-                    duration: 21,
-                    operation_player: Side::Japan,
-                },
+                battle_data: coral_sea(),
                 current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
                 phase: Phase::OperationContactPhase(ContactPhase::new()),
             },
