@@ -299,7 +299,7 @@ impl ContactPhase {
         ContactPhase {
             remaining: vec![
                 MovementType::GroundMovement,
-                MovementType::AirMovemement,
+                MovementType::AirMovement,
                 MovementType::NavalMovement,
             ],
             max_naval_movement_count: u8::MAX,
@@ -312,7 +312,7 @@ impl ContactPhase {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 enum MovementType {
     GroundMovement,
-    AirMovemement,
+    AirMovement,
     NavalMovement,
 }
 
@@ -322,7 +322,7 @@ impl<'v> FromParam<'v> for MovementType {
     fn from_param(param: &'v str) -> Result<Self, Self::Error> {
         match param {
             "GroundMovement" => Ok(MovementType::GroundMovement),
-            "AirMovemement" => Ok(MovementType::AirMovemement),
+            "AirMovement" => Ok(MovementType::AirMovement),
             "NavalMovement" => Ok(MovementType::NavalMovement),
             _ => Err("not a valid movement type"),
         }
@@ -447,7 +447,7 @@ mod test {
         assert!(response_string.contains("21"));
         assert!(response_string.contains("Operation Contact Phase"));
         assert!(response_string.contains("GroundMovement"));
-        assert!(response_string.contains("AirMovemement"));
+        assert!(response_string.contains("AirMovement"));
         assert!(response_string.contains("NavalMovement"));
         assert!(response_string.contains("Next"));
     }
@@ -485,7 +485,7 @@ mod test {
         assert!(response_string.contains("21"));
         assert!(response_string.contains("Operation Contact Phase"));
         assert!(!response_string.contains(format!("{}/GroundMovement", id).as_str()));
-        assert!(response_string.contains("AirMovemement"));
+        assert!(response_string.contains("AirMovement"));
         assert!(response_string.contains("NavalMovement"));
         assert!(response_string.contains("Next"));
     }
@@ -701,7 +701,7 @@ mod test {
         let response_string = response.into_string().unwrap();
         assert!(response_string.contains("Reaction Contact Phase"));
         assert!(response_string.contains("GroundMovement"));
-        assert!(response_string.contains("AirMovemement"));
+        assert!(response_string.contains("AirMovement"));
         assert!(response_string.contains("NavalMovement"));
         assert!(response_string.contains("Next"));
     }
