@@ -259,6 +259,63 @@ impl Battle {
             Phase::ReactionContactPhase(_) => {
                 self.phase = Phase::BattleCycle(BattleCyclePhase::Lighting);
             }
+            Phase::BattleCycle(BattleCyclePhase::Lighting) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::AdvantageDetermination);
+            }
+            Phase::BattleCycle(BattleCyclePhase::AdvantageDetermination) => {
+                self.phase =
+                    Phase::BattleCycle(BattleCyclePhase::AdvantageMovement(BattleMovementPhase {
+                        remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+                        current: None,
+                    }));
+            }
+            Phase::BattleCycle(BattleCyclePhase::AdvantageMovement(_)) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::AdvantageAirMission);
+            }
+            Phase::BattleCycle(BattleCyclePhase::AdvantageAirMission) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::NavalCombat(
+                    NavalBattleCycle::NavalCombatDetermination,
+                ));
+            }
+            Phase::BattleCycle(BattleCyclePhase::NavalCombat(_)) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::Bombardment);
+            }
+            Phase::BattleCycle(BattleCyclePhase::Bombardment) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::Demolition);
+            }
+            Phase::BattleCycle(BattleCyclePhase::Demolition) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::GroundCombat);
+            }
+            Phase::BattleCycle(BattleCyclePhase::GroundCombat) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::AirBaseRepair);
+            }
+            Phase::BattleCycle(BattleCyclePhase::AirBaseRepair) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::Rally);
+            }
+            Phase::BattleCycle(BattleCyclePhase::Rally) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::DisadvantageMovement(
+                    BattleMovementPhase {
+                        remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+                        current: None,
+                    },
+                ));
+            }
+            Phase::BattleCycle(BattleCyclePhase::DisadvantageMovement(_)) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::DisadvantageAirMission);
+            }
+            Phase::BattleCycle(BattleCyclePhase::DisadvantageAirMission) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::ActivationDeactivation);
+            }
+            Phase::BattleCycle(BattleCyclePhase::ActivationDeactivation) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::DetectionRemoval);
+            }
+            Phase::BattleCycle(BattleCyclePhase::DetectionRemoval) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::DayAdjustment);
+            }
+            Phase::BattleCycle(BattleCyclePhase::DayAdjustment) => {
+                self.phase = Phase::BattleCycle(BattleCyclePhase::Lighting);
+                self.current_date = self.current_date.succ().succ();
+            }
             _ => {}
         }
     }
@@ -442,8 +499,8 @@ mod test {
         let response_string = response.into_string().unwrap();
         assert!(response_string.contains("Coral Sea"));
         assert!(response_string.contains("1942-05-01"));
-        assert!(response_string.contains("japan"));
-        assert!(response_string.contains("Current date: 1942-05-01"));
+        assert!(response_string.contains("Japan"));
+        assert!(response_string.contains("value=\"1942-05-01\""));
         assert!(response_string.contains("21"));
         assert!(response_string.contains("Operation Contact Phase"));
         assert!(response_string.contains("GroundMovement"));
@@ -481,7 +538,6 @@ mod test {
         let response_string = response.into_string().unwrap();
         assert!(response_string.contains("Coral Sea"));
         assert!(response_string.contains("1942-05-01"));
-        assert!(response_string.contains("Current date: 1942-05-01"));
         assert!(response_string.contains("21"));
         assert!(response_string.contains("Operation Contact Phase"));
         assert!(!response_string.contains(format!("{}/GroundMovement", id).as_str()));
@@ -671,6 +727,68 @@ mod test {
             } else {
                 panic!("Expected ReactionContactPhase")
             }
+        );
+    }
+
+    #[test]
+    fn given_reaction_phase_when_next_move_to_battle_cycle() {
+        let id = Uuid::new_v4();
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: Some(MovementType::NavalMovement),
+            max_naval_movement_count: u8::MAX,
+            naval_movement_count: 3,
+        };
+
+        let mut battle = Battle {
+            id,
+            battle_data: NewBattle {
+                battle_name: "Coral Sea".to_string(),
+                start_date: NaiveDateForm {
+                    date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+                },
+                duration: 21,
+                operation_player: Side::Japan,
+            },
+            current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+            phase: Phase::ReactionContactPhase(contact_phase),
+        };
+
+        battle.next();
+
+        assert_eq!(Phase::BattleCycle(BattleCyclePhase::Lighting), battle.phase);
+    }
+
+    #[test]
+    fn given_battle_cycle_day_adjustment_when_next_moves_to_battle_cycle_start_and_add_2_days() {
+        let id = Uuid::new_v4();
+        let mut contact_phase = ContactPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: Some(MovementType::NavalMovement),
+            max_naval_movement_count: u8::MAX,
+            naval_movement_count: 3,
+        };
+
+        let mut battle = Battle {
+            id,
+            battle_data: NewBattle {
+                battle_name: "Coral Sea".to_string(),
+                start_date: NaiveDateForm {
+                    date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+                },
+                duration: 21,
+                operation_player: Side::Japan,
+            },
+            current_date: NaiveDate::from_ymd_opt(1942, 05, 01).unwrap(),
+            phase: Phase::BattleCycle(BattleCyclePhase::DayAdjustment),
+        };
+
+        battle.next();
+
+        assert_eq!(Phase::BattleCycle(BattleCyclePhase::Lighting), battle.phase);
+        assert_eq!(
+            NaiveDate::from_ymd_opt(1942, 05, 03).unwrap(),
+            battle.current_date
         );
     }
 
