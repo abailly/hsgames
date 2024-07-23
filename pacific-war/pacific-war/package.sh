@@ -3,7 +3,7 @@
 
 PKG="pacific-war"                                    # cargo package name
 TARGET="x86_64-unknown-linux-gnu"            # remote target
-ASSETS=("Rocket.toml" "templates")  # list of assets to bundle
+ASSETS=("Rocket.toml" "static" "templates")  # list of assets to bundle
 BUILD_DIR="target/${TARGET}/release"         # cargo build directory
 
 ## ensure target toolchain is present
