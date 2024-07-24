@@ -147,8 +147,8 @@ fn render_battle_cycle_lighting(battle: &Battle, cycle: &BattleCycle) -> Templat
             cycle: &cycle,
             // FIXME: lighting selection logic is complicated
             choose: cycle.count == 1,
-            reaction_choose: battle.battle_data.intelligence_condition == Intelligence::Ambush || battle.battle_data.intelligence_condition == Intelligence::AmbushCV ,
-            operation_choose: battle.battle_data.intelligence_condition == Intelligence::Intercept || battle.battle_data.intelligence_condition == Intelligence::Surprise ,
+            reaction_choose: battle.reaction_player_choose_lighting(cycle),
+            operation_advance: battle.operation_player_advance_lighting(cycle),
             parent: "battle",
         },
     )
@@ -435,6 +435,29 @@ mod test {
             .into_string()
             .unwrap();
         assert!(response_string.contains("Operation player choose lighting"));
+    }
+
+    #[test]
+    fn operation_player_can_advance_lighting_by_2_slots_after_first_cycle_given_intelligence_is_surprise(
+    ) {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        battle.battle_data.intelligence_condition = Intelligence::Surprise;
+        let mut battle_cycle = BattleCycle::new(id.as_u128());
+        battle_cycle.count = 3;
+        battle.phase = Phase::BattleCyclePhase(battle_cycle);
+
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response_string = client
+            .get(format!("/battle/{}", id))
+            .dispatch()
+            .into_string()
+            .unwrap();
+        assert!(response_string.contains("Advance lighting 2 steps"));
     }
 
     #[test]

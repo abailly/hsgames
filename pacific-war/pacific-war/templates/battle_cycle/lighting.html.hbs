@@ -23,8 +23,7 @@
     <div>
       {{#if reaction_choose}}
       <label for="lighting">Reaction player choose lighting</label>
-      {{/if}}
-      {{#if operation_choose}}
+      {{else}}
       <label for="lighting">Operation player choose lighting</label>
       {{/if}}
       <select name="lighting">
@@ -36,6 +35,9 @@
     </div>
     <button class="next" type="submit" name="set_lighting" value="choose">Set</button>
     {{else}}
+      {{#if operation_advance}}
+      <button class="next" type="submit" name="set_lighting" value="operation_advance">Advance lighting 2 steps</button>
+      {{/if}}
     <button class="next" type="submit" name="set_lighting" value="advance">Advance lighting</button>
     {{/if}}
    </form>

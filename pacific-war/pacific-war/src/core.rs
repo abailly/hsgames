@@ -81,6 +81,18 @@ impl Battle {
         }
     }
 
+    pub fn reaction_player_choose_lighting(&self, cycle: &BattleCycle) -> bool {
+        cycle.count == 1
+            && (self.battle_data.intelligence_condition == Intelligence::Ambush
+                || self.battle_data.intelligence_condition == Intelligence::AmbushCV)
+    }
+
+    pub fn operation_player_advance_lighting(&self, cycle: &BattleCycle) -> bool {
+        cycle.count > 1
+            && (self.battle_data.intelligence_condition == Intelligence::Surprise
+                || self.battle_data.intelligence_condition == Intelligence::Intercept)
+    }
+
     pub fn next(&mut self) {
         match &mut self.phase {
             Phase::OperationContactPhase(phase) => match self.battle_data.intelligence_condition {
