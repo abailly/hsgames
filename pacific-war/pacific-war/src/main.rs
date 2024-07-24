@@ -147,8 +147,8 @@ fn render_battle_cycle_lighting(battle: &Battle, cycle: &BattleCycle) -> Templat
             cycle: &cycle,
             // FIXME: lighting selection logic is complicated
             choose: cycle.count == 1,
-            reaction_choose: battle.reaction_player_choose_lighting(cycle),
-            operation_advance: battle.operation_player_advance_lighting(cycle),
+            reaction_choose: cycle.can_reaction_player_choose_lighting(),
+            operation_advance: cycle.can_operation_player_advance_lighting(),
             parent: "battle",
         },
     )
@@ -218,7 +218,7 @@ fn set_lighting(
             match inner.r#set_lighting {
                 "choose" => {
                     if let Some(lighting) = inner.lighting {
-                        phase.set_lighting(lighting);
+                        phase.choose_lighting(lighting);
                     } else {
                         return Err(Status::BadRequest);
                     }
@@ -373,7 +373,7 @@ mod test {
         let id = Uuid::new_v4();
         let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
-        battle.phase = Phase::BattleCyclePhase(BattleCycle::new(id.as_u128()));
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
         battles_map.insert(id, battle);
         let battles = Arc::new(Mutex::new(battles_map));
 
@@ -391,7 +391,7 @@ mod test {
         let id = Uuid::new_v4();
         let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
-        battle.phase = Phase::BattleCyclePhase(BattleCycle::new(id.as_u128()));
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
         battles_map.insert(id, battle);
         let battles = Arc::new(Mutex::new(battles_map));
 
@@ -405,11 +405,11 @@ mod test {
     }
 
     #[test]
-    fn advance_lighting_condition_2_steps() {
+    fn can_advance_lighting_condition_2_steps_only_once() {
         let id = Uuid::new_v4();
         let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
-        let mut battle_cycle = BattleCycle::new(id.as_u128());
+        let mut battle_cycle = BattleCycle::intercept(id.as_u128());
         battle_cycle.count = 3;
         battle_cycle.lighting_condition = Some(Lighting::DayPM);
         battle.phase = Phase::BattleCyclePhase(battle_cycle);
@@ -435,7 +435,8 @@ mod test {
         let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.battle_data.intelligence_condition = Intelligence::Ambush;
-        battle.phase = Phase::BattleCyclePhase(BattleCycle::new(id.as_u128()));
+        battle.phase =
+            Phase::BattleCyclePhase(BattleCycle::new(Intelligence::Ambush, id.as_u128()));
 
         battles_map.insert(id, battle);
         let battles = Arc::new(Mutex::new(battles_map));
@@ -456,7 +457,7 @@ mod test {
         let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.battle_data.intelligence_condition = Intelligence::Intercept;
-        battle.phase = Phase::BattleCyclePhase(BattleCycle::new(id.as_u128()));
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
 
         battles_map.insert(id, battle);
         let battles = Arc::new(Mutex::new(battles_map));
@@ -477,7 +478,7 @@ mod test {
         let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.battle_data.intelligence_condition = Intelligence::Surprise;
-        let mut battle_cycle = BattleCycle::new(id.as_u128());
+        let mut battle_cycle = BattleCycle::new(Intelligence::Surprise, id.as_u128());
         battle_cycle.count = 3;
         battle.phase = Phase::BattleCyclePhase(battle_cycle);
 
@@ -500,7 +501,7 @@ mod test {
         let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.battle_data.intelligence_condition = Intelligence::Ambush;
-        let mut cycle = BattleCycle::new(id.as_u128());
+        let mut cycle = BattleCycle::intercept(id.as_u128());
         cycle.count = 2;
         battle.phase = Phase::BattleCyclePhase(cycle);
 

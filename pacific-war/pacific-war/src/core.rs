@@ -81,18 +81,6 @@ impl Battle {
         }
     }
 
-    pub fn reaction_player_choose_lighting(&self, cycle: &BattleCycle) -> bool {
-        cycle.count == 1
-            && (self.battle_data.intelligence_condition == Intelligence::Ambush
-                || self.battle_data.intelligence_condition == Intelligence::AmbushCV)
-    }
-
-    pub fn operation_player_advance_lighting(&self, cycle: &BattleCycle) -> bool {
-        cycle.count > 1
-            && (self.battle_data.intelligence_condition == Intelligence::Surprise
-                || self.battle_data.intelligence_condition == Intelligence::Intercept)
-    }
-
     pub fn next(&mut self) {
         match &mut self.phase {
             Phase::OperationContactPhase(phase) => match self.battle_data.intelligence_condition {
@@ -110,7 +98,10 @@ impl Battle {
                 }
             },
             Phase::ReactionContactPhase(_) => {
-                self.phase = Phase::BattleCyclePhase(BattleCycle::new(self.id.as_u128()));
+                self.phase = Phase::BattleCyclePhase(BattleCycle::new(
+                    self.battle_data.intelligence_condition.clone(),
+                    self.id.as_u128(),
+                ));
             }
             Phase::BattleCyclePhase(battle_cycle) => {
                 if battle_cycle.next() {
@@ -176,23 +167,25 @@ pub enum MovementType {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BattleCycle {
     pub lighting_condition: Option<Lighting>,
+    pub intelligence_condition: Intelligence,
     pub count: u8,
     pub phase: BattleCycleSegment,
     seed: u64,
 }
 
 impl BattleCycle {
-    pub fn new(seed: u128) -> Self {
+    pub fn new(intelligence_condition: Intelligence, seed: u128) -> Self {
         BattleCycle {
             lighting_condition: None,
+            intelligence_condition,
             count: 1,
             phase: BattleCycleSegment::SetLighting,
             seed: seed as u64,
         }
     }
 
-    pub fn set_lighting(&mut self, lighting: Lighting) {
-        self.lighting_condition = Some(lighting);
+    pub fn intercept(seed: u128) -> Self {
+        BattleCycle::new(Intelligence::Intercept, seed)
     }
 
     fn next(&mut self) -> bool {
@@ -255,6 +248,10 @@ impl BattleCycle {
         false
     }
 
+    pub fn choose_lighting(&mut self, lighting: Lighting) {
+        self.lighting_condition = Some(lighting);
+    }
+
     pub fn random_lighting(&mut self) {
         let mut rng = Rng::with_seed(self.seed);
         let lighting = match rng.u8(0..10) {
@@ -262,11 +259,11 @@ impl BattleCycle {
             2 => Lighting::Dusk,
             _ => Lighting::DayPM,
         };
-        self.set_lighting(lighting);
+        self.choose_lighting(lighting);
         self.seed = rng.get_seed();
     }
 
-    pub fn next_lighting(&mut self) {
+    pub fn next_lighting(&mut self) -> &mut Self {
         match self.lighting_condition {
             Some(Lighting::DayAM) => self.random_lighting(),
             Some(Lighting::DayPM) => self.lighting_condition = Some(Lighting::Dusk),
@@ -274,6 +271,23 @@ impl BattleCycle {
             Some(Lighting::Night) => self.lighting_condition = Some(Lighting::DayAM),
             None => self.random_lighting(),
         }
+        self
+    }
+
+    pub fn operational_advance(&mut self) -> &mut Self {
+        self.next_lighting().next_lighting()
+    }
+
+    pub fn can_reaction_player_choose_lighting(&self) -> bool {
+        self.count == 1
+            && (self.intelligence_condition == Intelligence::Ambush
+                || self.intelligence_condition == Intelligence::AmbushCV)
+    }
+
+    pub fn can_operation_player_advance_lighting(&self) -> bool {
+        self.count > 1
+            && (self.intelligence_condition == Intelligence::Surprise
+                || self.intelligence_condition == Intelligence::Intercept)
     }
 }
 
@@ -600,7 +614,7 @@ pub mod core_test {
         battle.next();
 
         assert_eq!(
-            Phase::BattleCyclePhase(BattleCycle::new(id.as_u128())),
+            Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128())),
             battle.phase
         );
     }
@@ -614,7 +628,7 @@ pub mod core_test {
             current_date: NaiveDate::from_ymd_opt(1942, 5, 1).unwrap(),
             phase: Phase::BattleCyclePhase(BattleCycle {
                 phase: DayAdjustment,
-                ..BattleCycle::new(id.as_u128())
+                ..BattleCycle::intercept(id.as_u128())
             }),
         };
 
@@ -634,16 +648,36 @@ pub mod core_test {
 
     #[test]
     fn lighting_can_be_set_by_operational_player_on_first_cycle() {
-        let mut battle_cycle = BattleCycle::new(12);
+        let mut battle_cycle = BattleCycle::intercept(12);
 
-        battle_cycle.set_lighting(Lighting::Dusk);
+        battle_cycle.choose_lighting(Lighting::Dusk);
 
         assert_eq!(Some(Lighting::Dusk), battle_cycle.lighting_condition);
     }
 
     #[test]
+    fn lighting_can_advance_2_steps_by_operational_player() {
+        let mut battle_cycle = BattleCycle::intercept(12);
+        battle_cycle.choose_lighting(Lighting::Dusk);
+
+        battle_cycle.operational_advance();
+
+        assert_eq!(Some(Lighting::DayAM), battle_cycle.lighting_condition);
+    }
+
+    #[test]
+    fn lighting_can_advance_2_steps_by_operational_player_only_once() {
+        let mut battle_cycle = BattleCycle::intercept(12);
+        battle_cycle.choose_lighting(Lighting::Dusk);
+
+        battle_cycle.operational_advance();
+
+        assert_eq!(Some(Lighting::DayAM), battle_cycle.lighting_condition);
+    }
+
+    #[test]
     fn lighting_can_be_chosen_randomly() {
-        let mut battle_cycle = BattleCycle::new(12);
+        let mut battle_cycle = BattleCycle::intercept(12);
 
         battle_cycle.random_lighting();
 
@@ -652,7 +686,7 @@ pub mod core_test {
 
     #[test]
     fn lighting_advances_one_step() {
-        let mut battle_cycle = BattleCycle::new(12);
+        let mut battle_cycle = BattleCycle::intercept(12);
         battle_cycle.lighting_condition = Some(Lighting::DayPM);
 
         battle_cycle.next_lighting();
@@ -667,7 +701,7 @@ pub mod core_test {
 
     #[test]
     fn lighting_after_day_am_is_random() {
-        let mut battle_cycle = BattleCycle::new(14);
+        let mut battle_cycle = BattleCycle::intercept(14);
         battle_cycle.lighting_condition = Some(Lighting::DayAM);
 
         battle_cycle.next_lighting();
@@ -677,7 +711,7 @@ pub mod core_test {
 
     #[test]
     fn lighting_next_is_random_given_its_not_set() {
-        let mut battle_cycle = BattleCycle::new(14);
+        let mut battle_cycle = BattleCycle::intercept(14);
 
         battle_cycle.next_lighting();
 
