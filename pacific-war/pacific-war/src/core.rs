@@ -97,64 +97,12 @@ impl Battle {
                 }
             },
             Phase::ReactionContactPhase(_) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::Lighting);
+                self.phase = Phase::BattleCyclePhase(BattleCycle::new());
             }
-            Phase::BattleCycle(BattleCyclePhase::Lighting) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::AdvantageDetermination);
-            }
-            Phase::BattleCycle(BattleCyclePhase::AdvantageDetermination) => {
-                self.phase =
-                    Phase::BattleCycle(BattleCyclePhase::AdvantageMovement(BattleMovementPhase {
-                        remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-                        current: None,
-                    }));
-            }
-            Phase::BattleCycle(BattleCyclePhase::AdvantageMovement(_)) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::AdvantageAirMission);
-            }
-            Phase::BattleCycle(BattleCyclePhase::AdvantageAirMission) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::NavalCombat(
-                    NavalBattleCycle::NavalCombatDetermination,
-                ));
-            }
-            Phase::BattleCycle(BattleCyclePhase::NavalCombat(_)) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::Bombardment);
-            }
-            Phase::BattleCycle(BattleCyclePhase::Bombardment) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::Demolition);
-            }
-            Phase::BattleCycle(BattleCyclePhase::Demolition) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::GroundCombat);
-            }
-            Phase::BattleCycle(BattleCyclePhase::GroundCombat) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::AirBaseRepair);
-            }
-            Phase::BattleCycle(BattleCyclePhase::AirBaseRepair) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::Rally);
-            }
-            Phase::BattleCycle(BattleCyclePhase::Rally) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::DisadvantageMovement(
-                    BattleMovementPhase {
-                        remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-                        current: None,
-                    },
-                ));
-            }
-            Phase::BattleCycle(BattleCyclePhase::DisadvantageMovement(_)) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::DisadvantageAirMission);
-            }
-            Phase::BattleCycle(BattleCyclePhase::DisadvantageAirMission) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::ActivationDeactivation);
-            }
-            Phase::BattleCycle(BattleCyclePhase::ActivationDeactivation) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::DetectionRemoval);
-            }
-            Phase::BattleCycle(BattleCyclePhase::DetectionRemoval) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::DayAdjustment);
-            }
-            Phase::BattleCycle(BattleCyclePhase::DayAdjustment) => {
-                self.phase = Phase::BattleCycle(BattleCyclePhase::Lighting);
-                self.current_date = self.current_date.succ().succ();
+            Phase::BattleCyclePhase(battle_cycle) => {
+                if battle_cycle.next() {
+                    self.current_date = self.current_date.succ().succ();
+                }
             }
         }
     }
@@ -164,7 +112,7 @@ impl Battle {
 pub enum Phase {
     OperationContactPhase(ContactPhase),
     ReactionContactPhase(ContactPhase),
-    BattleCycle(BattleCyclePhase),
+    BattleCyclePhase(BattleCycle),
 }
 
 impl Display for Phase {
@@ -172,7 +120,7 @@ impl Display for Phase {
         match self {
             Phase::OperationContactPhase(_) => write!(f, "Operation Contact Phase"),
             Phase::ReactionContactPhase(_) => write!(f, "Reaction Contact Phase"),
-            Phase::BattleCycle(_) => write!(f, "Battle Cycle"),
+            Phase::BattleCyclePhase(_) => write!(f, "Battle Cycle"),
         }
     }
 }
@@ -213,8 +161,97 @@ pub enum MovementType {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub enum BattleCyclePhase {
-    Lighting,
+pub struct BattleCycle {
+    pub lighting_condition: Option<Lighting>,
+    pub count: u8,
+    pub phase: BattleCycleSegment,
+}
+
+impl BattleCycle {
+    pub fn new() -> Self {
+        BattleCycle {
+            lighting_condition: None,
+            count: 1,
+            phase: BattleCycleSegment::SetLighting,
+        }
+    }
+
+    pub fn set_lighting(&mut self, lighting: Lighting) {
+        self.lighting_condition = Some(lighting);
+    }
+
+    fn next(&mut self) -> bool {
+        match self.phase {
+            BattleCycleSegment::SetLighting => {
+                self.phase = BattleCycleSegment::AdvantageDetermination;
+            }
+            BattleCycleSegment::AdvantageDetermination => {
+                self.phase = BattleCycleSegment::AdvantageMovement(BattleMovementPhase {
+                    remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+                    current: None,
+                });
+            }
+            BattleCycleSegment::AdvantageMovement(_) => {
+                self.phase = BattleCycleSegment::AdvantageAirMission;
+            }
+            BattleCycleSegment::AdvantageAirMission => {
+                self.phase =
+                    BattleCycleSegment::NavalCombat(NavalBattleCycle::NavalCombatDetermination);
+            }
+            BattleCycleSegment::NavalCombat(_) => {
+                self.phase = BattleCycleSegment::Bombardment;
+            }
+            BattleCycleSegment::Bombardment => {
+                self.phase = BattleCycleSegment::Demolition;
+            }
+            BattleCycleSegment::Demolition => {
+                self.phase = BattleCycleSegment::GroundCombat;
+            }
+            BattleCycleSegment::GroundCombat => {
+                self.phase = BattleCycleSegment::AirBaseRepair;
+            }
+            BattleCycleSegment::AirBaseRepair => {
+                self.phase = BattleCycleSegment::Rally;
+            }
+            BattleCycleSegment::Rally => {
+                self.phase = BattleCycleSegment::DisadvantageMovement(BattleMovementPhase {
+                    remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+                    current: None,
+                });
+            }
+            BattleCycleSegment::DisadvantageMovement(_) => {
+                self.phase = BattleCycleSegment::DisadvantageAirMission;
+            }
+            BattleCycleSegment::DisadvantageAirMission => {
+                self.phase = BattleCycleSegment::ActivationDeactivation;
+            }
+            BattleCycleSegment::ActivationDeactivation => {
+                self.phase = BattleCycleSegment::DetectionRemoval;
+            }
+            BattleCycleSegment::DetectionRemoval => {
+                self.phase = BattleCycleSegment::DayAdjustment;
+            }
+            BattleCycleSegment::DayAdjustment => {
+                self.phase = BattleCycleSegment::SetLighting;
+                self.count += 1;
+                return true;
+            }
+        }
+        false
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub enum Lighting {
+    DayAM,
+    DayPM,
+    Dusk,
+    Night,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub enum BattleCycleSegment {
+    SetLighting,
     AdvantageDetermination,
     AdvantageMovement(BattleMovementPhase),
     AdvantageAirMission,
@@ -275,7 +312,7 @@ pub fn update_contact_phase(phase: &mut ContactPhase, movement: &MovementType) -
 #[cfg(test)]
 pub mod core_test {
     use super::*;
-    use super::{NewBattle, Side};
+    use super::{BattleCycleSegment::*, NewBattle, Side};
     use chrono::NaiveDate;
 
     pub fn coral_sea() -> NewBattle {
@@ -526,7 +563,7 @@ pub mod core_test {
 
         battle.next();
 
-        assert_eq!(Phase::BattleCycle(BattleCyclePhase::Lighting), battle.phase);
+        assert_eq!(Phase::BattleCyclePhase(BattleCycle::new()), battle.phase);
     }
 
     #[test]
@@ -536,15 +573,33 @@ pub mod core_test {
             id,
             battle_data: coral_sea(),
             current_date: NaiveDate::from_ymd_opt(1942, 5, 1).unwrap(),
-            phase: Phase::BattleCycle(BattleCyclePhase::DayAdjustment),
+            phase: Phase::BattleCyclePhase(BattleCycle {
+                phase: DayAdjustment,
+                ..BattleCycle::new()
+            }),
         };
 
         battle.next();
 
-        assert_eq!(Phase::BattleCycle(BattleCyclePhase::Lighting), battle.phase);
-        assert_eq!(
-            NaiveDate::from_ymd_opt(1942, 05, 03).unwrap(),
-            battle.current_date
-        );
+        if let Phase::BattleCyclePhase(cycle) = battle.phase {
+            assert_eq!(SetLighting, cycle.phase);
+            assert_eq!(2, cycle.count);
+            assert_eq!(
+                NaiveDate::from_ymd_opt(1942, 05, 03).unwrap(),
+                battle.current_date
+            );
+        } else {
+            panic!("Expected BattleCycle")
+        }
+    }
+
+    #[test]
+    fn lighting_can_be_set_by_operational_player_on_first_cycle() {
+        let id = Uuid::new_v4();
+        let mut battle_cycle = BattleCycle::new();
+
+        battle_cycle.set_lighting(Lighting::Dusk);
+
+        assert_eq!(Some(Lighting::Dusk), battle_cycle.lighting_condition);
     }
 }

@@ -88,7 +88,7 @@ fn contact_phase(battle: &Battle) -> Result<Template, Status> {
     match &battle.phase {
         Phase::OperationContactPhase(phase) => Ok(render_contact_phase(battle, phase)),
         Phase::ReactionContactPhase(phase) => Ok(render_contact_phase(battle, phase)),
-        Phase::BattleCycle(phase) => Ok(render_battle_cycle(battle, phase)),
+        Phase::BattleCyclePhase(phase) => Ok(render_battle_cycle(battle, phase)),
     }
 }
 
@@ -110,10 +110,10 @@ fn render_contact_phase(battle: &Battle, phase: &ContactPhase) -> Template {
     )
 }
 
-fn render_battle_cycle(battle: &Battle, phase: &BattleCyclePhase) -> Template {
-    match phase {
-        BattleCyclePhase::Lighting => render_battle_cycle_lighting(battle),
-        _ => render_battle_cycle_default(battle, phase),
+fn render_battle_cycle(battle: &Battle, cycle: &BattleCycle) -> Template {
+    match cycle.phase {
+        BattleCycleSegment::SetLighting => render_battle_cycle_lighting(battle, cycle),
+        _ => render_battle_cycle_default(battle, cycle),
         // BattleCyclePhase::AdvantageDetermination => render_battle_cycle_advantage_determination(battle),
         // BattleCyclePhase::AdvantageMovement(phase) => render_battle_cycle_advantage_movement(battle, phase),
         // BattleCyclePhase::AdvantageAirMission => render_battle_cycle_advantage_air_mission(battle),
@@ -131,7 +131,7 @@ fn render_battle_cycle(battle: &Battle, phase: &BattleCyclePhase) -> Template {
     }
 }
 
-fn render_battle_cycle_lighting(battle: &Battle) -> Template {
+fn render_battle_cycle_lighting(battle: &Battle, cycle: &BattleCycle) -> Template {
     Template::render(
         "battle_cycle/lighting",
         context! {
@@ -148,7 +148,7 @@ fn render_battle_cycle_lighting(battle: &Battle) -> Template {
     )
 }
 
-fn render_battle_cycle_default(battle: &Battle, phase: &BattleCyclePhase) -> Template {
+fn render_battle_cycle_default(battle: &Battle, cycle: &BattleCycle) -> Template {
     Template::render(
         "battle_cycle/default",
         context! {
@@ -159,9 +159,9 @@ fn render_battle_cycle_default(battle: &Battle, phase: &BattleCyclePhase) -> Tem
             start_date : &battle.battle_data.start_date.date,
             duration : &battle.battle_data.duration,
             current_date : &battle.current_date,
-            phase_name : format!("{:?}", &phase),
+            phase_name : format!("{:?}", &cycle.phase),
             parent: "battle",
-            phase: &phase,
+            cycle: &cycle,
         },
     )
 }
