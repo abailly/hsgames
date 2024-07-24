@@ -33,13 +33,13 @@
         <option value="Night">Night</option>
       </select>
     </div>
-    <button class="next" type="submit" name="set_lighting" value="choose">Set</button>
+    <button type="submit" name="set_lighting" value="choose">Set</button>
     {{else}}
       {{#if operation_advance}}
-      <button class="next" type="submit" name="set_lighting" value="operation_advance">Advance lighting 2 steps</button>
+      <button type="submit" name="set_lighting" value="operation_advance">Advance lighting 2 steps</button>
       {{/if}}
-    <button class="next" type="submit" name="set_lighting" value="advance">Advance lighting</button>
     {{/if}}
+    <button class="next" type="submit" name="set_lighting" value="advance">Advance lighting</button>
    </form>
 </div>
 {{/inline}}

@@ -227,8 +227,7 @@ fn set_lighting(
                     phase.next_lighting();
                 }
                 "operation_advance" => {
-                    phase.next_lighting();
-                    phase.next_lighting();
+                    phase.operation_advance_lighting();
                 }
                 _ => {
                     return Err(Status::BadRequest);

@@ -167,6 +167,7 @@ pub enum MovementType {
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct BattleCycle {
     pub lighting_condition: Option<Lighting>,
+    pub lighting_chosen: bool,
     pub intelligence_condition: Intelligence,
     pub count: u8,
     pub phase: BattleCycleSegment,
@@ -177,6 +178,7 @@ impl BattleCycle {
     pub fn new(intelligence_condition: Intelligence, seed: u128) -> Self {
         BattleCycle {
             lighting_condition: None,
+            lighting_chosen: false,
             intelligence_condition,
             count: 1,
             phase: BattleCycleSegment::SetLighting,
@@ -250,6 +252,7 @@ impl BattleCycle {
 
     pub fn choose_lighting(&mut self, lighting: Lighting) {
         self.lighting_condition = Some(lighting);
+        self.lighting_chosen = true;
     }
 
     pub fn random_lighting(&mut self) {
@@ -259,7 +262,7 @@ impl BattleCycle {
             2 => Lighting::Dusk,
             _ => Lighting::DayPM,
         };
-        self.choose_lighting(lighting);
+        self.lighting_condition = Some(lighting);
         self.seed = rng.get_seed();
     }
 
@@ -274,7 +277,8 @@ impl BattleCycle {
         self
     }
 
-    pub fn operational_advance(&mut self) -> &mut Self {
+    pub fn operation_advance_lighting(&mut self) -> &mut Self {
+        self.lighting_chosen = true;
         self.next_lighting().next_lighting()
     }
 
@@ -288,6 +292,7 @@ impl BattleCycle {
         self.count > 1
             && (self.intelligence_condition == Intelligence::Surprise
                 || self.intelligence_condition == Intelligence::Intercept)
+            && !self.lighting_chosen
     }
 }
 
@@ -656,23 +661,33 @@ pub mod core_test {
     }
 
     #[test]
-    fn lighting_can_advance_2_steps_by_operational_player() {
+    fn lighting_can_advance_2_steps_by_operational_player_after_first_cycle() {
         let mut battle_cycle = BattleCycle::intercept(12);
-        battle_cycle.choose_lighting(Lighting::Dusk);
+        battle_cycle.next_lighting();
+        battle_cycle.count = 2;
 
-        battle_cycle.operational_advance();
-
-        assert_eq!(Some(Lighting::DayAM), battle_cycle.lighting_condition);
+        assert!(battle_cycle.can_operation_player_advance_lighting());
     }
 
     #[test]
     fn lighting_can_advance_2_steps_by_operational_player_only_once() {
         let mut battle_cycle = BattleCycle::intercept(12);
+        battle_cycle.next_lighting();
+        battle_cycle.count = 2;
+
+        battle_cycle.operation_advance_lighting();
+
+        assert!(!battle_cycle.can_operation_player_advance_lighting());
+    }
+
+    #[test]
+    fn operational_player_cannot_advance_lightning_if_already_chosen() {
+        let mut battle_cycle = BattleCycle::intercept(12);
         battle_cycle.choose_lighting(Lighting::Dusk);
 
-        battle_cycle.operational_advance();
+        battle_cycle.count = 2;
 
-        assert_eq!(Some(Lighting::DayAM), battle_cycle.lighting_condition);
+        assert!(!battle_cycle.can_operation_player_advance_lighting());
     }
 
     #[test]
