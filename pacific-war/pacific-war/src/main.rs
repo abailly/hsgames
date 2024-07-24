@@ -145,6 +145,10 @@ fn render_battle_cycle_lighting(battle: &Battle, cycle: &BattleCycle) -> Templat
             duration : &battle.battle_data.duration,
             current_date : &battle.current_date,
             cycle: &cycle,
+            // FIXME: lighting selection logic is complicated
+            choose: cycle.count == 1,
+            reaction_choose: battle.battle_data.intelligence_condition == Intelligence::Ambush || battle.battle_data.intelligence_condition == Intelligence::AmbushCV ,
+            operation_choose: battle.battle_data.intelligence_condition == Intelligence::Intercept || battle.battle_data.intelligence_condition == Intelligence::Surprise ,
             parent: "battle",
         },
     )
@@ -194,17 +198,34 @@ impl FromFormField<'_> for Lighting {
     }
 }
 
+#[derive(FromForm)]
+struct SetLightingForm<'r> {
+    lighting: Option<Lighting>,
+    r#set_lighting: &'r str,
+}
+
 #[post("/battle/<id>/set_lighting", data = "<form>")]
 fn set_lighting(
     battles: &State<Battles>,
     id: UuidForm,
-    form: Form<Lighting>,
+    form: Form<SetLightingForm>,
 ) -> Result<Redirect, Status> {
     let mut battles_map = battles.battles.lock().unwrap();
     let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
     match &mut battle.phase {
         Phase::BattleCyclePhase(phase) => {
-            phase.set_lighting(form.into_inner());
+            let inner = form.into_inner();
+            if inner.r#set_lighting == "choose" {
+                if let Some(lighting) = inner.lighting {
+                    phase.set_lighting(lighting);
+                } else {
+                    return Err(Status::BadRequest);
+                }
+            } else if inner.r#set_lighting == "advance" {
+                phase.next_lighting();
+            } else {
+                return Err(Status::BadRequest);
+            }
             battle.next();
             // FIXME: would rather a return a template directly here but borrow checker
             // prevents this because we are borrowing `battle` mutably
@@ -340,7 +361,7 @@ mod test {
     }
 
     #[test]
-    fn can_chose_lighting_condition_when_battle_cycle_starts() {
+    fn can_choose_lighting_condition_when_battle_cycle_starts() {
         let id = Uuid::new_v4();
         let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
@@ -352,8 +373,90 @@ mod test {
         let response = client
             .post(format!("/battle/{}/set_lighting", id))
             .header(ContentType::Form)
-            .body("lighting=Night")
+            .body("lighting=Night&set_lighting=choose")
             .dispatch();
         assert_eq!(response.status(), Status::SeeOther);
+    }
+
+    #[test]
+    fn advance_lighting_condition() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::new(id.as_u128()));
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response = client
+            .post(format!("/battle/{}/set_lighting", id))
+            .header(ContentType::Form)
+            .body("set_lighting=advance")
+            .dispatch();
+        assert_eq!(response.status(), Status::SeeOther);
+    }
+
+    #[test]
+    fn reaction_player_can_choose_lighting_condition_at_first_cycle_given_intelligence_is_ambush() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        battle.battle_data.intelligence_condition = Intelligence::Ambush;
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::new(id.as_u128()));
+
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response_string = client
+            .get(format!("/battle/{}", id))
+            .dispatch()
+            .into_string()
+            .unwrap();
+        assert!(response_string.contains("Reaction player choose lighting"));
+    }
+
+    #[test]
+    fn operation_player_can_choose_lighting_condition_at_first_cycle_given_intelligence_is_intercept(
+    ) {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        battle.battle_data.intelligence_condition = Intelligence::Intercept;
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::new(id.as_u128()));
+
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response_string = client
+            .get(format!("/battle/{}", id))
+            .dispatch()
+            .into_string()
+            .unwrap();
+        assert!(response_string.contains("Operation player choose lighting"));
+    }
+
+    #[test]
+    fn reaction_player_cannot_choose_lighting_condition_after_first_cycle_even_when_intelligence_is_ambush(
+    ) {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        battle.battle_data.intelligence_condition = Intelligence::Ambush;
+        let mut cycle = BattleCycle::new(id.as_u128());
+        cycle.count = 2;
+        battle.phase = Phase::BattleCyclePhase(cycle);
+
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response_string = client
+            .get(format!("/battle/{}", id))
+            .dispatch()
+            .into_string()
+            .unwrap();
+        assert!(response_string.contains("Advance lighting"));
     }
 }
