@@ -110,6 +110,15 @@ impl Battle {
             }
         }
     }
+
+    pub fn determine_advantage(&mut self) {
+        match &mut self.phase {
+            Phase::BattleCyclePhase(battle_cycle) => {
+                battle_cycle.determine_advantage(self.battle_data.operation_player);
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -169,6 +178,7 @@ pub struct BattleCycle {
     pub lighting_condition: Option<Lighting>,
     pub lighting_chosen: bool,
     pub intelligence_condition: Intelligence,
+    pub advantage_player: Option<Side>,
     pub count: u8,
     pub phase: BattleCycleSegment,
     seed: u64,
@@ -179,6 +189,7 @@ impl BattleCycle {
         BattleCycle {
             lighting_condition: None,
             lighting_chosen: false,
+            advantage_player: None,
             intelligence_condition,
             count: 1,
             phase: BattleCycleSegment::SetLighting,
@@ -293,6 +304,10 @@ impl BattleCycle {
             && (self.intelligence_condition == Intelligence::Surprise
                 || self.intelligence_condition == Intelligence::Intercept)
             && !self.lighting_chosen
+    }
+
+    fn determine_advantage(&mut self, operation_player: Side) {
+        self.advantage_player = Some(operation_player);
     }
 }
 

@@ -1,22 +1,6 @@
 {{#*inline "page"}}
 <div>
-  <h2>Battle Cycle</h2>
-  <div>
-    <form>
-      <div>
-        <label for="count">Cycle count</label>
-        <input type="number" readonly name="count" value="{{cycle.count}}"/>
-      </div>
-      <div>
-        <label for="segment">Segment</label>
-        <input type="text" readonly name="segment" value="{{cycle.phase}}"/>
-      </div>
-      <div>
-        <label for="lighting_condition">Lighting condition</label>
-        <input type="text" readonly name="lighting_condition" value="{{cycle.lighting_condition}}"/>
-      </div>
-    </form>
-  </div>
+  {{> battle_cycle/common }}
 
   <form method="POST" action="/battle/{{battle_id}}/set_lighting">
     {{#if choose}}

@@ -115,8 +115,10 @@ fn render_contact_phase(battle: &Battle, phase: &ContactPhase) -> Template {
 fn render_battle_cycle(battle: &Battle, cycle: &BattleCycle) -> Template {
     match cycle.phase {
         BattleCycleSegment::SetLighting => render_battle_cycle_lighting(battle, cycle),
+        BattleCycleSegment::AdvantageDetermination => {
+            render_battle_cycle_advantage_determination(battle, cycle)
+        }
         _ => render_battle_cycle_default(battle, cycle),
-        // BattleCyclePhase::AdvantageDetermination => render_battle_cycle_advantage_determination(battle),
         // BattleCyclePhase::AdvantageMovement(phase) => render_battle_cycle_advantage_movement(battle, phase),
         // BattleCyclePhase::AdvantageAirMission => render_battle_cycle_advantage_air_mission(battle),
         // BattleCyclePhase::NavalCombat(phase) => render_battle_cycle_naval_combat(battle, phase),
@@ -131,6 +133,23 @@ fn render_battle_cycle(battle: &Battle, cycle: &BattleCycle) -> Template {
         // BattleCyclePhase::DetectionRemoval => render_battle_cycle_detection_removal(battle),
         // BattleCyclePhase::DayAdjustment => render_battle_cycle_day_adjustment(battle),
     }
+}
+
+fn render_battle_cycle_advantage_determination(battle: &Battle, cycle: &BattleCycle) -> Template {
+    Template::render(
+        "battle_cycle/advantage_determination",
+        context! {
+            battle_id: &battle.id,
+            operation_player: &battle.battle_data.operation_player,
+            intelligence_condition: &battle.battle_data.intelligence_condition,
+            battle_name : &battle.battle_data.battle_name,
+            start_date : &battle.battle_data.start_date.date,
+            duration : &battle.battle_data.duration,
+            current_date : &battle.current_date,
+            cycle: &cycle,
+            parent: "battle",
+        },
+    )
 }
 
 fn render_battle_cycle_lighting(battle: &Battle, cycle: &BattleCycle) -> Template {
@@ -242,6 +261,22 @@ fn set_lighting(
     }
 }
 
+#[post("/battle/<id>/advantage_determination")]
+fn advantage_determination(battles: &State<Battles>, id: UuidForm) -> Result<Redirect, Status> {
+    let mut battles_map = battles.battles.lock().unwrap();
+    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+    match &mut battle.phase {
+        Phase::BattleCyclePhase(_) => {
+            battle.determine_advantage();
+            battle.next();
+            // FIXME: would rather a return a template directly here but borrow checker
+            // prevents this because we are borrowing `battle` mutably
+            Ok(Redirect::to(uri!(battle(id))))
+        }
+        _ => Err(Status::BadRequest),
+    }
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket_with_state(Arc::new(Mutex::new(HashMap::new())))
@@ -259,7 +294,8 @@ fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build
                 battle,
                 battle_next,
                 contact_movement,
-                set_lighting
+                set_lighting,
+                advantage_determination
             ],
         )
         .mount("/public", FileServer::from("static"))
@@ -514,5 +550,21 @@ mod test {
             .into_string()
             .unwrap();
         assert!(response_string.contains("Advance lighting"));
+    }
+
+    #[test]
+    fn determine_advantage() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response = client
+            .post(format!("/battle/{}/advantage_determination", id))
+            .dispatch();
+        assert_eq!(response.status(), Status::SeeOther);
     }
 }
