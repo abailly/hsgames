@@ -12,6 +12,7 @@ rocket = { version = "0.5.1", features = ["json"]}
 rocket_dyn_templates = { version = "0.2.0", features = ["handlebars", "tera", "minijinja"]}
 serde = { version = "1.0", features = ["derive"] }
 chrono = { version= "0.4.38", features = ["serde"]}
+fastrand = "2.1.0"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.42"

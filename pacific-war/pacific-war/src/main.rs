@@ -344,7 +344,7 @@ mod test {
         let id = Uuid::new_v4();
         let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
-        battle.phase = Phase::BattleCyclePhase(BattleCycle::new());
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::new(id.as_u128()));
         battles_map.insert(id, battle);
         let battles = Arc::new(Mutex::new(battles_map));
 

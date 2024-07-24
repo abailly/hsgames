@@ -1026,6 +1026,7 @@ name = "pacific-war"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "fastrand",
  "rocket",
  "rocket_dyn_templates",
  "serde",

@@ -1,4 +1,5 @@
 use chrono::NaiveDate;
+use fastrand::Rng;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::fmt::Display;
@@ -97,7 +98,7 @@ impl Battle {
                 }
             },
             Phase::ReactionContactPhase(_) => {
-                self.phase = Phase::BattleCyclePhase(BattleCycle::new());
+                self.phase = Phase::BattleCyclePhase(BattleCycle::new(self.id.as_u128()));
             }
             Phase::BattleCyclePhase(battle_cycle) => {
                 if battle_cycle.next() {
@@ -165,14 +166,16 @@ pub struct BattleCycle {
     pub lighting_condition: Option<Lighting>,
     pub count: u8,
     pub phase: BattleCycleSegment,
+    seed: u64,
 }
 
 impl BattleCycle {
-    pub fn new() -> Self {
+    pub fn new(seed: u128) -> Self {
         BattleCycle {
             lighting_condition: None,
             count: 1,
             phase: BattleCycleSegment::SetLighting,
+            seed: seed as u64,
         }
     }
 
@@ -238,6 +241,17 @@ impl BattleCycle {
             }
         }
         false
+    }
+
+    pub fn random_lighting(&mut self) {
+        let mut rng = Rng::with_seed(self.seed);
+        let lighting = match rng.u8(0..10) {
+            0..=1 => Lighting::Night,
+            2 => Lighting::Dusk,
+            _ => Lighting::DayPM,
+        };
+        self.set_lighting(lighting);
+        self.seed = rng.get_seed();
     }
 }
 
@@ -563,7 +577,10 @@ pub mod core_test {
 
         battle.next();
 
-        assert_eq!(Phase::BattleCyclePhase(BattleCycle::new()), battle.phase);
+        assert_eq!(
+            Phase::BattleCyclePhase(BattleCycle::new(id.as_u128())),
+            battle.phase
+        );
     }
 
     #[test]
@@ -575,7 +592,7 @@ pub mod core_test {
             current_date: NaiveDate::from_ymd_opt(1942, 5, 1).unwrap(),
             phase: Phase::BattleCyclePhase(BattleCycle {
                 phase: DayAdjustment,
-                ..BattleCycle::new()
+                ..BattleCycle::new(id.as_u128())
             }),
         };
 
@@ -585,7 +602,7 @@ pub mod core_test {
             assert_eq!(SetLighting, cycle.phase);
             assert_eq!(2, cycle.count);
             assert_eq!(
-                NaiveDate::from_ymd_opt(1942, 05, 03).unwrap(),
+                NaiveDate::from_ymd_opt(1942, 5, 3).unwrap(),
                 battle.current_date
             );
         } else {
@@ -595,11 +612,19 @@ pub mod core_test {
 
     #[test]
     fn lighting_can_be_set_by_operational_player_on_first_cycle() {
-        let id = Uuid::new_v4();
-        let mut battle_cycle = BattleCycle::new();
+        let mut battle_cycle = BattleCycle::new(12);
 
         battle_cycle.set_lighting(Lighting::Dusk);
 
         assert_eq!(Some(Lighting::Dusk), battle_cycle.lighting_condition);
+    }
+
+    #[test]
+    fn lighting_can_be_chosen_randomly() {
+        let mut battle_cycle = BattleCycle::new(12);
+
+        battle_cycle.random_lighting();
+
+        assert_eq!(Some(Lighting::DayPM), battle_cycle.lighting_condition);
     }
 }
