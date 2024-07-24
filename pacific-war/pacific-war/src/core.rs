@@ -253,6 +253,16 @@ impl BattleCycle {
         self.set_lighting(lighting);
         self.seed = rng.get_seed();
     }
+
+    pub fn next_lighting(&mut self) {
+        match self.lighting_condition {
+            Some(Lighting::DayAM) => self.random_lighting(),
+            Some(Lighting::DayPM) => self.lighting_condition = Some(Lighting::Dusk),
+            Some(Lighting::Dusk) => self.lighting_condition = Some(Lighting::Night),
+            Some(Lighting::Night) => self.lighting_condition = Some(Lighting::DayAM),
+            None => self.random_lighting(),
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -626,5 +636,39 @@ pub mod core_test {
         battle_cycle.random_lighting();
 
         assert_eq!(Some(Lighting::DayPM), battle_cycle.lighting_condition);
+    }
+
+    #[test]
+    fn lighting_advances_one_step() {
+        let mut battle_cycle = BattleCycle::new(12);
+        battle_cycle.lighting_condition = Some(Lighting::DayPM);
+
+        battle_cycle.next_lighting();
+        assert_eq!(Some(Lighting::Dusk), battle_cycle.lighting_condition);
+
+        battle_cycle.next_lighting();
+        assert_eq!(Some(Lighting::Night), battle_cycle.lighting_condition);
+
+        battle_cycle.next_lighting();
+        assert_eq!(Some(Lighting::DayAM), battle_cycle.lighting_condition);
+    }
+
+    #[test]
+    fn lighting_after_day_am_is_random() {
+        let mut battle_cycle = BattleCycle::new(14);
+        battle_cycle.lighting_condition = Some(Lighting::DayAM);
+
+        battle_cycle.next_lighting();
+
+        assert_eq!(Some(Lighting::Night), battle_cycle.lighting_condition);
+    }
+
+    #[test]
+    fn lighting_next_is_random_given_its_not_set() {
+        let mut battle_cycle = BattleCycle::new(14);
+
+        battle_cycle.next_lighting();
+
+        assert_eq!(Some(Lighting::Night), battle_cycle.lighting_condition);
     }
 }
