@@ -215,16 +215,24 @@ fn set_lighting(
     match &mut battle.phase {
         Phase::BattleCyclePhase(phase) => {
             let inner = form.into_inner();
-            if inner.r#set_lighting == "choose" {
-                if let Some(lighting) = inner.lighting {
-                    phase.set_lighting(lighting);
-                } else {
+            match inner.r#set_lighting {
+                "choose" => {
+                    if let Some(lighting) = inner.lighting {
+                        phase.set_lighting(lighting);
+                    } else {
+                        return Err(Status::BadRequest);
+                    }
+                }
+                "advance" => {
+                    phase.next_lighting();
+                }
+                "operation_advance" => {
+                    phase.next_lighting();
+                    phase.next_lighting();
+                }
+                _ => {
                     return Err(Status::BadRequest);
                 }
-            } else if inner.r#set_lighting == "advance" {
-                phase.next_lighting();
-            } else {
-                return Err(Status::BadRequest);
             }
             battle.next();
             // FIXME: would rather a return a template directly here but borrow checker
@@ -394,6 +402,31 @@ mod test {
             .body("set_lighting=advance")
             .dispatch();
         assert_eq!(response.status(), Status::SeeOther);
+    }
+
+    #[test]
+    fn advance_lighting_condition_2_steps() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        let mut battle_cycle = BattleCycle::new(id.as_u128());
+        battle_cycle.count = 3;
+        battle_cycle.lighting_condition = Some(Lighting::DayPM);
+        battle.phase = Phase::BattleCyclePhase(battle_cycle);
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client =
+            Client::tracked(rocket_with_state(battles.clone())).expect("valid rocket instance");
+        let response = client
+            .post(format!("/battle/{}/set_lighting", id))
+            .header(ContentType::Form)
+            .body("set_lighting=operation_advance")
+            .dispatch();
+        assert_eq!(response.status(), Status::SeeOther);
+        if let Phase::BattleCyclePhase(cycle) = &battles.lock().unwrap().get(&id).unwrap().phase {
+            assert_eq!(cycle.lighting_condition, Some(Lighting::Night));
+        };
     }
 
     #[test]
