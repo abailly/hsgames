@@ -1,4 +1,6 @@
+use rocket::form;
 use rocket::form::Form;
+use rocket::form::{FromFormField, ValueField};
 use rocket::fs::FileServer;
 use rocket::http::Status;
 use rocket::request::FromParam;
@@ -62,8 +64,8 @@ fn battle(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
     }
 }
 
-/// Update current phase
-#[post("/battle/<id>/<movement>")]
+/// Update movement for contact phase
+#[post("/battle/<id>/contact/<movement>")]
 fn contact_movement(
     battles: &State<Battles>,
     movement: MovementType,
@@ -142,7 +144,7 @@ fn render_battle_cycle_lighting(battle: &Battle, cycle: &BattleCycle) -> Templat
             start_date : &battle.battle_data.start_date.date,
             duration : &battle.battle_data.duration,
             current_date : &battle.current_date,
-            phase_name : format!("{}", &battle.phase),
+            cycle: &cycle,
             parent: "battle",
         },
     )
@@ -159,7 +161,6 @@ fn render_battle_cycle_default(battle: &Battle, cycle: &BattleCycle) -> Template
             start_date : &battle.battle_data.start_date.date,
             duration : &battle.battle_data.duration,
             current_date : &battle.current_date,
-            phase_name : format!("{:?}", &cycle.phase),
             parent: "battle",
             cycle: &cycle,
         },
@@ -179,6 +180,40 @@ struct Battles {
     battles: Arc<Mutex<HashMap<Uuid, Battle>>>,
 }
 
+impl FromFormField<'_> for Lighting {
+    fn from_value(field: ValueField<'_>) -> form::Result<'_, Self> {
+        match field.value {
+            "DayAM" => Ok(Lighting::DayAM),
+            "DayPM" => Ok(Lighting::DayPM),
+            "Dusk" => Ok(Lighting::Dusk),
+            "Night" => Ok(Lighting::Night),
+            v => Err(
+                form::Error::validation(format!("not a valid lighting condition {:?}", v)).into(),
+            ),
+        }
+    }
+}
+
+#[post("/battle/<id>/set_lighting", data = "<form>")]
+fn set_lighting(
+    battles: &State<Battles>,
+    id: UuidForm,
+    form: Form<Lighting>,
+) -> Result<Redirect, Status> {
+    let mut battles_map = battles.battles.lock().unwrap();
+    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+    match &mut battle.phase {
+        Phase::BattleCyclePhase(phase) => {
+            phase.set_lighting(form.into_inner());
+            battle.next();
+            // FIXME: would rather a return a template directly here but borrow checker
+            // prevents this because we are borrowing `battle` mutably
+            Ok(Redirect::to(uri!(battle(id))))
+        }
+        _ => Err(Status::BadRequest),
+    }
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket_with_state(Arc::new(Mutex::new(HashMap::new())))
@@ -190,7 +225,14 @@ fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build
         .attach(Template::fairing())
         .mount(
             "/",
-            routes![index, create_battle, battle, battle_next, contact_movement],
+            routes![
+                index,
+                create_battle,
+                battle,
+                battle_next,
+                contact_movement,
+                set_lighting
+            ],
         )
         .mount("/public", FileServer::from("static"))
 }
@@ -266,7 +308,7 @@ mod test {
         let battles = Arc::new(Mutex::new(battles_map));
         let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
         let response = client
-            .post(format!("/battle/{}/GroundMovement", id))
+            .post(format!("/battle/{}/contact/GroundMovement", id))
             .dispatch();
         assert_eq!(response.status(), Status::Ok);
         let response_string = response.into_string().unwrap();
@@ -295,5 +337,23 @@ mod test {
         assert!(response_string.contains("AirMovement"));
         assert!(response_string.contains("NavalMovement"));
         assert!(response_string.contains("Next"));
+    }
+
+    #[test]
+    fn can_chose_lighting_condition_when_battle_cycle_starts() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::new());
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response = client
+            .post(format!("/battle/{}/set_lighting", id))
+            .header(ContentType::Form)
+            .body("lighting=Night")
+            .dispatch();
+        assert_eq!(response.status(), Status::SeeOther);
     }
 }

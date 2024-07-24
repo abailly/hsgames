@@ -14,7 +14,7 @@
   </form>
   <form method="POST" action="/battle/{{battle_id}}" >
   {{#each phase.remaining}}
-  <button type="submit" value="{{this}}" formaction="/battle/{{../battle_id}}/{{this}}">{{this}}</button>
+  <button type="submit" value="{{this}}" formaction="/battle/{{../battle_id}}/contact/{{this}}">{{this}}</button>
   {{/each}}
   </form>
   <form action="/battle/{{battle_id}}/next">

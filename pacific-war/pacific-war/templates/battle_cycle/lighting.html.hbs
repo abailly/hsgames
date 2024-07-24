@@ -1,10 +1,35 @@
 {{#*inline "page"}}
 <div>
   <h2>Battle Cycle</h2>
-  <h3>Lighting</h3>
-  <form>
-    <button class="next" type="submit" formaction="/battle/{{battle_id}}/next">Next</button>
-  </form>
+  <div>
+    <form>
+      <div>
+        <label for="count">Cycle count</label>
+        <input type="number" readonly name="count" value="{{cycle.count}}"/>
+      </div>
+      <div>
+        <label for="segment">Segment</label>
+        <input type="text" readonly name="segment" value="{{cycle.phase}}"/>
+      </div>
+      <div>
+        <label for="lighting_condition">Lighting condition</label>
+        <input type="text" readonly name="lighting_condition" value="{{cycle.lighting_condition}}"/>
+      </div>
+    </form>
+  </div>
+
+  <form method="POST" action="/battle/{{battle_id}}/set_lighting">
+    <div>
+      <label for="lighting">Choose lighting</label>
+      <select name="lighting">
+        <option value="DayAM">Day AM</option>
+        <option value="DayPM">Day PM</option>
+        <option value="Dusk">Dusk</option>
+        <option value="Night">Night</option>
+      </select>
+    </div>
+    <button class="next" type="submit">Set</button>
+   </form>
 </div>
 {{/inline}}
 {{> (lookup this "parent")}}
