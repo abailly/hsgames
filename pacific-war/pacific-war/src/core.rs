@@ -316,10 +316,28 @@ impl BattleCycle {
     }
 
     fn determine_advantage(&mut self, operation_player: Side) {
-        if self.intelligence_condition == Intelligence::Surprise {
-            self.advantage_player = Some(operation_player);
-        } else if self.intelligence_condition == Intelligence::Ambush {
-            self.advantage_player = Some(operation_player.opposite());
+        match self.intelligence_condition {
+            Intelligence::Surprise => {
+                self.advantage_player = Some(operation_player);
+            }
+            Intelligence::Ambush => {
+                self.advantage_player = Some(operation_player.opposite());
+            }
+            Intelligence::AmbushCV => {
+                self.advantage_player = Some(operation_player.opposite());
+            }
+            Intelligence::Intercept => {
+                let mut rng = Rng::with_seed(self.seed);
+                let operation_die = rng.u8(0..10);
+                let reaction_die = rng.u8(0..10);
+
+                if operation_die >= reaction_die {
+                    self.advantage_player = Some(operation_player);
+                } else {
+                    self.advantage_player = Some(operation_player.opposite());
+                }
+                self.seed = rng.get_seed();
+            }
         }
     }
 }
@@ -779,5 +797,27 @@ pub mod core_test {
         battle_cycle.determine_advantage(Side::Allies);
 
         assert_eq!(Some(Side::Japan), battle_cycle.advantage_player);
+    }
+
+    #[test]
+    fn advantage_is_decided_randomly_given_intelligence_is_intercept() {
+        let mut battle_cycle = BattleCycle::intercept(16); // dice = 8 6
+
+        battle_cycle.determine_advantage(Side::Allies);
+
+        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+
+        battle_cycle.seed = 14; // dice = 0 2
+        battle_cycle.determine_advantage(Side::Allies);
+
+        assert_eq!(Some(Side::Japan), battle_cycle.advantage_player);
+    }
+
+    #[test]
+    fn advantage_roll_ties_resolve_to_operation_player() {
+        let mut battle_cycle = BattleCycle::intercept(67); // dice = 3 3
+        battle_cycle.determine_advantage(Side::Allies);
+
+        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
     }
 }
