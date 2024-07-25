@@ -316,29 +316,55 @@ impl BattleCycle {
     }
 
     fn determine_advantage(&mut self, operation_player: Side) {
+        if self.count == 1 {
+            self.determine_advantage_first_cycle(operation_player);
+        } else {
+            self.determine_advantage_other_cycle(operation_player);
+        }
+    }
+
+    fn determine_advantage_first_cycle(&mut self, operation_player: Side) {
         match self.intelligence_condition {
             Intelligence::Surprise => {
                 self.advantage_player = Some(operation_player);
             }
-            Intelligence::Ambush => {
-                self.advantage_player = Some(operation_player.opposite());
-            }
-            Intelligence::AmbushCV => {
+            Intelligence::Ambush | Intelligence::AmbushCV => {
                 self.advantage_player = Some(operation_player.opposite());
             }
             Intelligence::Intercept => {
-                let mut rng = Rng::with_seed(self.seed);
-                let operation_die = rng.u8(0..10);
-                let reaction_die = rng.u8(0..10);
-
-                if operation_die >= reaction_die {
-                    self.advantage_player = Some(operation_player);
-                } else {
-                    self.advantage_player = Some(operation_player.opposite());
-                }
-                self.seed = rng.get_seed();
+                self.determine_advantage_randomly(operation_player, 0, 0);
             }
         }
+    }
+
+    fn determine_advantage_other_cycle(&mut self, operation_player: Side) {
+        match self.intelligence_condition {
+            Intelligence::Surprise => self.determine_advantage_randomly(operation_player, 2, 0),
+            Intelligence::Ambush | Intelligence::AmbushCV => {
+                self.determine_advantage_randomly(operation_player, 0, 2)
+            }
+            Intelligence::Intercept => {
+                self.determine_advantage_randomly(operation_player, 0, 0);
+            }
+        }
+    }
+
+    fn determine_advantage_randomly(
+        &mut self,
+        operation_player: Side,
+        operation_bonus: u8,
+        reaction_bonus: u8,
+    ) {
+        let mut rng = Rng::with_seed(self.seed);
+        let operation_die = rng.u8(0..10);
+        let reaction_die = rng.u8(0..10);
+
+        if operation_die + operation_bonus >= reaction_die + reaction_bonus {
+            self.advantage_player = Some(operation_player);
+        } else {
+            self.advantage_player = Some(operation_player.opposite());
+        }
+        self.seed = rng.get_seed();
     }
 }
 
@@ -820,4 +846,138 @@ pub mod core_test {
 
         assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
     }
+
+    #[test]
+    fn advantage_is_decided_randomly_after_1st_cycle_whatever_intelligence_level_is() {
+        let mut battle_cycle = BattleCycle::intercept(10); // dice = 8 3
+        battle_cycle.intelligence_condition = Intelligence::Ambush;
+        battle_cycle.count = 2;
+
+        battle_cycle.determine_advantage(Side::Allies);
+
+        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+    }
+
+    #[test]
+    fn operation_has_a_bonus_to_advantage_roll_given_intelligence_is_surprise() {
+        let mut battle_cycle = BattleCycle::intercept(19); // dice = 2 4
+        battle_cycle.intelligence_condition = Intelligence::Surprise;
+        battle_cycle.count = 2;
+
+        battle_cycle.determine_advantage(Side::Allies);
+
+        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+    }
+
+    #[test]
+    fn reaction_has_a_bonus_to_advantage_roll_given_intelligence_is_ambush() {
+        let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
+        battle_cycle.intelligence_condition = Intelligence::AmbushCV;
+        battle_cycle.count = 2;
+
+        battle_cycle.determine_advantage(Side::Japan);
+
+        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+    }
 }
+
+// dice 0: 5 0
+// dice 1: 7 6
+// dice 2: 2 4
+// dice 3: 9 9
+// dice 4: 4 7
+// dice 5: 6 7
+// dice 6: 3 2
+// dice 7: 4 2
+// dice 8: 0 0
+// dice 9: 2 5
+// dice 10: 8 3
+// dice 11: 7 9
+// dice 12: 3 6
+// dice 13: 5 2
+// dice 14: 0 2
+// dice 15: 3 8
+// dice 16: 8 6
+// dice 17: 1 1
+// dice 18: 7 9
+// dice 19: 2 4
+// dice 20: 8 2
+// dice 21: 0 2
+// dice 22: 6 7
+// dice 23: 8 7
+// dice 24: 4 5
+// dice 25: 7 0
+// dice 26: 2 8
+// dice 27: 9 3
+// dice 28: 5 1
+// dice 29: 8 6
+// dice 30: 3 7
+// dice 31: 5 3
+// dice 32: 0 0
+// dice 33: 3 6
+// dice 34: 8 3
+// dice 35: 5 9
+// dice 36: 1 7
+// dice 37: 2 7
+// dice 38: 9 1
+// dice 39: 0 2
+// dice 40: 6 0
+// dice 41: 9 6
+// dice 42: 4 3
+// dice 43: 3 9
+// dice 44: 9 6
+// dice 45: 1 7
+// dice 46: 6 2
+// dice 47: 9 8
+// dice 48: 5 5
+// dice 49: 7 1
+// dice 50: 3 8
+// dice 51: 8 4
+// dice 52: 4 1
+// dice 53: 7 2
+// dice 54: 2 1
+// dice 55: 5 7
+// dice 56: 0 4
+// dice 57: 3 5
+// dice 58: 9 2
+// dice 59: 7 9
+// dice 60: 3 5
+// dice 61: 6 2
+// dice 62: 1 6
+// dice 63: 4 7
+// dice 64: 9 5
+// dice 65: 2 0
+// dice 66: 8 8
+// dice 67: 3 3
+// dice 68: 8 1
+// dice 69: 1 6
+// dice 70: 7 7
+// dice 71: 9 8
+// dice 72: 5 5
+// dice 73: 8 1
+// dice 74: 3 8
+// dice 75: 2 4
+// dice 76: 7 1
+// dice 77: 0 7
+// dice 78: 6 1
+// dice 79: 7 3
+// dice 80: 4 0
+// dice 81: 5 6
+// dice 82: 1 4
+// dice 83: 8 9
+// dice 84: 3 7
+// dice 85: 6 8
+// dice 86: 1 2
+// dice 87: 3 2
+// dice 88: 8 0
+// dice 89: 1 5
+// dice 90: 6 3
+// dice 91: 2 9
+// dice 92: 8 6
+// dice 93: 0 2
+// dice 94: 6 3
+// dice 95: 8 8
+// dice 96: 3 6
+// dice 97: 6 1
+// dice 98: 2 9
+// dice 99: 8 4
