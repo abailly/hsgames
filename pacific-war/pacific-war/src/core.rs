@@ -13,6 +13,15 @@ pub enum Side {
     Allies,
 }
 
+impl Side {
+    fn opposite(&self) -> Side {
+        match self {
+            Side::Japan => Side::Allies,
+            Side::Allies => Side::Japan,
+        }
+    }
+}
+
 impl Display for Side {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
@@ -307,7 +316,11 @@ impl BattleCycle {
     }
 
     fn determine_advantage(&mut self, operation_player: Side) {
-        self.advantage_player = Some(operation_player);
+        if self.intelligence_condition == Intelligence::Surprise {
+            self.advantage_player = Some(operation_player);
+        } else if self.intelligence_condition == Intelligence::Ambush {
+            self.advantage_player = Some(operation_player.opposite());
+        }
     }
 }
 
@@ -746,5 +759,25 @@ pub mod core_test {
         battle_cycle.next_lighting();
 
         assert_eq!(Some(Lighting::Night), battle_cycle.lighting_condition);
+    }
+
+    #[test]
+    fn operation_player_has_advantage_on_1st_cycle_given_intelligence_is_surprise() {
+        let mut battle_cycle = BattleCycle::intercept(14);
+        battle_cycle.intelligence_condition = Intelligence::Surprise;
+
+        battle_cycle.determine_advantage(Side::Allies);
+
+        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+    }
+
+    #[test]
+    fn reaction_player_has_advantage_on_1st_cycle_given_intelligence_is_ambush() {
+        let mut battle_cycle = BattleCycle::intercept(14);
+        battle_cycle.intelligence_condition = Intelligence::Ambush;
+
+        battle_cycle.determine_advantage(Side::Allies);
+
+        assert_eq!(Some(Side::Japan), battle_cycle.advantage_player);
     }
 }
