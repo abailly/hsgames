@@ -113,26 +113,40 @@ fn render_contact_phase(battle: &Battle, phase: &ContactPhase) -> Template {
 }
 
 fn render_battle_cycle(battle: &Battle, cycle: &BattleCycle) -> Template {
-    match cycle.phase {
+    match &cycle.phase {
         BattleCycleSegment::SetLighting => render_battle_cycle_lighting(battle, cycle),
         BattleCycleSegment::AdvantageDetermination => {
             render_battle_cycle_advantage_determination(battle, cycle)
         }
+        BattleCycleSegment::AdvantageMovement(phase) => {
+            render_battle_cycle_advantage_movement(battle, cycle, phase)
+        }
         _ => render_battle_cycle_default(battle, cycle),
-        // BattleCyclePhase::AdvantageMovement(phase) => render_battle_cycle_advantage_movement(battle, phase),
-        // BattleCyclePhase::AdvantageAirMission => render_battle_cycle_advantage_air_mission(battle),
         // BattleCyclePhase::NavalCombat(phase) => render_battle_cycle_naval_combat(battle, phase),
-        // BattleCyclePhase::Bombardment => render_battle_cycle_bombardment(battle),
-        // BattleCyclePhase::Demolition => render_battle_cycle_demolition(battle),
-        // BattleCyclePhase::GroundCombat => render_battle_cycle_ground_combat(battle),
-        // BattleCyclePhase::AirBaseRepair => render_battle_cycle_air_base_repair(battle),
-        // BattleCyclePhase::Rally => render_battle_cycle_rally(battle),
         // BattleCyclePhase::DisadvantageMovement(phase) => render_battle_cycle_disadvantage_movement(battle, phase),
-        // BattleCyclePhase::DisadvantageAirMission => render_battle_cycle_disadvantage_air_mission(battle),
-        // BattleCyclePhase::ActivationDeactivation => render_battle_cycle_activation_deactivation(battle),
-        // BattleCyclePhase::DetectionRemoval => render_battle_cycle_detection_removal(battle),
-        // BattleCyclePhase::DayAdjustment => render_battle_cycle_day_adjustment(battle),
     }
+}
+
+fn render_battle_cycle_advantage_movement(
+    battle: &Battle,
+    cycle: &BattleCycle,
+    phase: &BattleMovementPhase,
+) -> Template {
+    Template::render(
+        "battle_cycle/advantage_movement",
+        context! {
+            battle_id: &battle.id,
+            operation_player: &battle.battle_data.operation_player,
+            intelligence_condition: &battle.battle_data.intelligence_condition,
+            battle_name : &battle.battle_data.battle_name,
+            start_date : &battle.battle_data.start_date.date,
+            duration : &battle.battle_data.duration,
+            current_date : &battle.current_date,
+            cycle: &cycle,
+            movement: &phase,
+            parent: "battle",
+        },
+    )
 }
 
 fn render_battle_cycle_advantage_determination(battle: &Battle, cycle: &BattleCycle) -> Template {
@@ -277,6 +291,44 @@ fn advantage_determination(battles: &State<Battles>, id: UuidForm) -> Result<Red
     }
 }
 
+#[derive(FromForm)]
+struct MovementForm {
+    movement: MovementType,
+}
+
+impl FromFormField<'_> for MovementType {
+    fn from_value(field: ValueField<'_>) -> form::Result<'_, Self> {
+        match field.value {
+            "NavalMovement" => Ok(MovementType::NavalMovement),
+            "GroundMovement" => Ok(MovementType::GroundMovement),
+            "AirMovement" => Ok(MovementType::AirMovement),
+            _ => Err(form::Error::validation(format!(
+                "not a valid movement type {:?}",
+                field.value
+            ))
+            .into()),
+        }
+    }
+}
+
+/// Update movement for battle phase
+#[post("/battle/<id>/advantage_movement", data = "<form>")]
+fn advantage_movement(
+    battles: &State<Battles>,
+    id: UuidForm,
+    form: Form<MovementForm>,
+) -> Result<Redirect, Status> {
+    let mut battles_map = battles.battles.lock().unwrap();
+    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+    match &mut battle.phase {
+        Phase::BattleCyclePhase(cycle) => {
+            cycle.advantage_movement(&form.into_inner().movement);
+            Ok(Redirect::to(uri!(battle(id))))
+        }
+        _ => Err(Status::BadRequest),
+    }
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket_with_state(Arc::new(Mutex::new(HashMap::new())))
@@ -295,7 +347,8 @@ fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build
                 battle_next,
                 contact_movement,
                 set_lighting,
-                advantage_determination
+                advantage_determination,
+                advantage_movement
             ],
         )
         .mount("/public", FileServer::from("static"))
@@ -564,6 +617,24 @@ mod test {
         let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
         let response = client
             .post(format!("/battle/{}/advantage_determination", id))
+            .dispatch();
+        assert_eq!(response.status(), Status::SeeOther);
+    }
+
+    #[test]
+    fn select_naval_movement_at_advantage_movement_segment() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response = client
+            .post(format!("/battle/{}/advantage_movement", id))
+            .header(ContentType::Form)
+            .body("movement=NavalMovement")
             .dispatch();
         assert_eq!(response.status(), Status::SeeOther);
     }

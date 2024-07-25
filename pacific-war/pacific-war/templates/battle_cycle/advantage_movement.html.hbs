@@ -1,0 +1,15 @@
+{{#*inline "page"}}
+<div>
+  {{> battle_cycle/common }}
+  <form method="POST" action="/battle/{{battle_id}}/advantage_movement">
+
+  {{#each movement.remaining}}
+  <button type="submit" name="movement" value="{{this}}">{{this}}</button>
+  {{/each}}
+   </form>
+  <form action="/battle/{{battle_id}}/next">
+    <button class="next" type="submit">Next</button>
+  </form>
+</div>
+{{/inline}}
+{{> (lookup this "parent")}}

@@ -366,6 +366,13 @@ impl BattleCycle {
         }
         self.seed = rng.get_seed();
     }
+
+    pub fn advantage_movement(&mut self, movement: &MovementType) {
+        match &mut self.phase {
+            BattleCycleSegment::AdvantageMovement(phase) => {}
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
