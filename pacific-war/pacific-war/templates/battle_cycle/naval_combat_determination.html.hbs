@@ -5,7 +5,7 @@
   <form method="POST" action="/battle/{{battle_id}}/naval_combat_determination">
     <div>
       <fieldset>
-        <legend>{{naval_combat.phase}}</legend>
+        <legend>{{naval_combat.phase}} - Combat #{{naval_combat.index}}</legend>
         <div>
           <div>
             <label for="hex_type">Hex type</label>
@@ -26,9 +26,12 @@
             <input type="checkbox" name="disadvantage" value="Detected" />
           </div>
         </div>
+        <button type="submit">Determine combat</button>
       </fieldset>
     </div>
-    <button class="next" type="submit">Determine combat</button>
+  </form>
+  <form action="/battle/{{battle_id}}/next">
+    <button class="next" type="submit">Skip</button>
   </form>
 </div>
 {{/inline}}

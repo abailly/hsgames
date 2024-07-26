@@ -434,6 +434,21 @@ fn naval_combat_determination(
     }
 }
 
+#[post("/battle/<id>/next_round")]
+fn next_naval_combat_round(battles: &State<Battles>, id: UuidForm) -> Result<Redirect, Status> {
+    let mut battles_map = battles.battles.lock().unwrap();
+    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+    match &mut battle.phase {
+        Phase::BattleCyclePhase(battle_cycle) => {
+            battle_cycle.next_round();
+            // FIXME: would rather a return a template directly here but borrow checker
+            // prevents this because we are borrowing `battle` mutably
+            Ok(Redirect::to(uri!(battle(id))))
+        }
+        _ => Err(Status::BadRequest),
+    }
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket_with_state(Arc::new(Mutex::new(HashMap::new())))
@@ -454,7 +469,8 @@ fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build
                 set_lighting,
                 advantage_determination,
                 movement,
-                naval_combat_determination
+                naval_combat_determination,
+                next_naval_combat_round
             ],
         )
         .mount("/public", FileServer::from("static"))
@@ -760,6 +776,20 @@ mod test {
             .header(ContentType::Form)
             .body("advantage=Detected&disadvantage=Detected&hex_type=Coastal")
             .dispatch();
+        assert_eq!(response.status(), Status::SeeOther);
+    }
+
+    #[test]
+    fn move_to_next_combat_round() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response = client.post(format!("/battle/{}/next_round", id)).dispatch();
         assert_eq!(response.status(), Status::SeeOther);
     }
 }

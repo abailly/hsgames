@@ -270,6 +270,13 @@ impl BattleCycle {
         self
     }
 
+    pub fn next_round(&mut self) -> &mut Self {
+        if let BattleCycleSegment::NavalCombats(combat) = &mut self.phase {
+            combat.next_round();
+        }
+        self
+    }
+
     pub fn choose_lighting(&mut self, lighting: Lighting) {
         self.lighting_condition = Some(lighting);
         self.lighting_chosen = true;
@@ -526,6 +533,29 @@ impl NavalCombat {
             (Some(HexType::Restricted), _) => self.distance = Some(CombatDistance::Short),
             _ => {}
         }
+    }
+
+    fn next_round(&mut self) {
+        match self.phase {
+            NavalCombatPhase::NavalCombat1 => {
+                self.phase = NavalCombatPhase::NavalCombat2;
+                self.distance = None;
+            }
+            NavalCombatPhase::NavalCombat2 => {
+                self.phase = NavalCombatPhase::NavalCombat3;
+                self.distance = None;
+            }
+            NavalCombatPhase::NavalCombat3 => self.reset(),
+            _ => {}
+        }
+    }
+
+    fn reset(&mut self) {
+        self.hex_type = None;
+        self.surprise = None;
+        self.phase = NavalCombatPhase::NavalCombatDetermination;
+        self.distance = None;
+        self.index += 1;
     }
 }
 
@@ -1080,6 +1110,7 @@ pub mod core_test {
         battle_cycle.intelligence_condition = Intelligence::AmbushCV;
         battle_cycle.count = 2;
         battle_cycle.phase = NavalCombats(NavalCombat::new(1));
+        battle_cycle.lighting_condition = Some(DayAM);
 
         battle_cycle.determine_naval_combat(
             &HexType::Open,
@@ -1104,6 +1135,7 @@ pub mod core_test {
         battle_cycle.count = 2;
         battle_cycle.phase = NavalCombats(NavalCombat::new(1));
         battle_cycle.advantage_player = Some(Side::Japan);
+        battle_cycle.lighting_condition = Some(DayAM);
 
         battle_cycle.determine_naval_combat(
             &HexType::Open,
@@ -1126,6 +1158,7 @@ pub mod core_test {
         battle_cycle.count = 2;
         battle_cycle.phase = NavalCombats(NavalCombat::new(1));
         battle_cycle.advantage_player = Some(Side::Japan);
+        battle_cycle.lighting_condition = Some(DayAM);
 
         battle_cycle.determine_naval_combat(
             &HexType::Open,
@@ -1201,6 +1234,48 @@ pub mod core_test {
         first_round_range_in_restricted_day_pm: (HexType::Restricted, DayPM, Short),
         first_round_range_in_restricted_dusk: (HexType::Restricted, Dusk, Short),
         first_round_range_in_restricted_night: (HexType::Restricted, Night, Short),
+    }
+
+    #[test]
+    fn reset_naval_combat_after_round_3() {
+        let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
+        battle_cycle.phase = NavalCombats(NavalCombat::new(1));
+        battle_cycle.lighting_condition = Some(DayAM);
+
+        battle_cycle.determine_naval_combat(
+            &HexType::Open,
+            &Detection::Detected,
+            &Detection::Detected,
+        );
+
+        battle_cycle.next_round().next_round().next_round();
+
+        if let NavalCombats(combat) = battle_cycle.phase {
+            assert_eq!(2, combat.index);
+        } else {
+            panic!("Expected NavalCombat")
+        }
+    }
+
+    #[test]
+    fn resets_naval_combat_distance_after_round_1() {
+        let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
+        battle_cycle.phase = NavalCombats(NavalCombat::new(1));
+        battle_cycle.lighting_condition = Some(DayAM);
+
+        battle_cycle.determine_naval_combat(
+            &HexType::Open,
+            &Detection::Detected,
+            &Detection::Detected,
+        );
+
+        battle_cycle.next_round();
+
+        if let NavalCombats(combat) = battle_cycle.phase {
+            assert_eq!(None, combat.distance);
+        } else {
+            panic!("Expected NavalCombat")
+        }
     }
 }
 

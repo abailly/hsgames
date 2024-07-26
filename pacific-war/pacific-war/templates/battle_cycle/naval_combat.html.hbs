@@ -5,7 +5,7 @@
   <form method="POST" action="/battle/{{battle_id}}/next">
     <div>
       <fieldset>
-        <legend>{{naval_combat.phase}}</legend>
+        <legend>{{naval_combat.phase}} - Combat #{{naval_combat.index}}</legend>
         <div>
           <div>
             <label for="surprise">Surprise</label>
@@ -42,12 +42,15 @@
               <option value="Withdraw">Withdraw</option>
             </select>
           </div>
-          <button class="next" type="submit" formaction="/battle/{{battle_id}}/bid_distance">Bid distance</button>
+          <button type="submit" formaction="/battle/{{battle_id}}/bid_distance">Bid distance</button>
           {{/if}}
         </div>
+        <button class="next" type="submit" formaction="/battle/{{battle_id}}/next_round">Next round</button>
       </fieldset>
     </div>
-    <button class="next" type="submit" >Next</button>
+  </form>
+  <form action="/battle/{{battle_id}}/next">
+    <button class="next" type="submit" >Skip</button>
   </form>
 </div>
 {{/inline}}
