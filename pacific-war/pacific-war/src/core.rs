@@ -7,6 +7,8 @@ use uuid::Uuid;
 
 use crate::util::*;
 
+use CombatDistance::*;
+
 #[derive(Debug, PartialEq, Serialize, Deserialize, FromFormField, Clone, Copy)]
 pub enum Side {
     Japan,
@@ -497,6 +499,7 @@ pub struct NavalCombat {
     pub surprise: Option<Side>,
     pub phase: NavalCombatPhase,
     pub distance: Option<CombatDistance>,
+    pub previous_distance: Option<CombatDistance>,
 }
 
 impl NavalCombat {
@@ -507,6 +510,7 @@ impl NavalCombat {
             surprise: None,
             phase: NavalCombatPhase::NavalCombatDetermination,
             distance: None,
+            previous_distance: None,
         }
     }
 
@@ -552,10 +556,12 @@ impl NavalCombat {
         match self.phase {
             NavalCombatPhase::NavalCombat1 => {
                 self.phase = NavalCombatPhase::NavalCombat2;
+                self.previous_distance.clone_from(&self.distance);
                 self.distance = None;
             }
             NavalCombatPhase::NavalCombat2 => {
                 self.phase = NavalCombatPhase::NavalCombat3;
+                self.previous_distance.clone_from(&self.distance);
                 self.distance = None;
             }
             NavalCombatPhase::NavalCombat3 => self.reset(),
@@ -572,7 +578,57 @@ impl NavalCombat {
     }
 
     fn bid_distance(&mut self, advantage_bid: &CombatDistance, disadvantage_bid: &CombatDistance) {
-        todo!()
+        match self.previous_distance {
+            Some(Long) => {
+                self.distance = match (advantage_bid, disadvantage_bid) {
+                    (Withdraw, Withdraw) => Some(Withdraw),
+                    (Withdraw, _) => Some(Long),
+                    (_, Withdraw) => Some(Long),
+                    (Long, Long) => Some(Long),
+                    (Long, Medium) => Some(Long),
+                    (Short, Long) => Some(Medium),
+                    (Long, Short) => Some(Medium),
+                    (Medium, Long) => Some(Long),
+                    (Medium, Medium) => Some(Medium),
+                    (Medium, Short) => Some(Short),
+                    (Short, Medium) => Some(Short),
+                    (Short, Short) => Some(Short),
+                }
+            }
+            Some(Medium) => {
+                self.distance = match (advantage_bid, disadvantage_bid) {
+                    (Withdraw, Withdraw) => Some(Withdraw),
+                    (Withdraw, _) => Some(Medium),
+                    (_, Withdraw) => Some(Medium),
+                    (Long, Long) => Some(Long),
+                    (Long, Medium) => Some(Long),
+                    (Long, Short) => Some(Short),
+                    (Short, Long) => Some(Short),
+                    (Medium, Long) => Some(Long),
+                    (Medium, Medium) => Some(Medium),
+                    (Medium, Short) => Some(Short),
+                    (Short, Medium) => Some(Short),
+                    (Short, Short) => Some(Short),
+                }
+            }
+            Some(Short) => {
+                self.distance = match (advantage_bid, disadvantage_bid) {
+                    (Withdraw, Withdraw) => Some(Withdraw),
+                    (Withdraw, _) => Some(Short),
+                    (_, Withdraw) => Some(Short),
+                    (Long, Long) => Some(Medium),
+                    (Long, Medium) => Some(Medium),
+                    (Long, Short) => Some(Short),
+                    (Short, Long) => Some(Short),
+                    (Medium, Long) => Some(Medium),
+                    (Medium, Medium) => Some(Medium),
+                    (Medium, Short) => Some(Short),
+                    (Short, Medium) => Some(Short),
+                    (Short, Short) => Some(Short),
+                }
+            }
+            _ => {}
+        }
     }
 }
 
@@ -1212,12 +1268,12 @@ pub mod core_test {
         }
     }
 
-    macro_rules! first_round_range_tests {
+    macro_rules! first_round_distance_tests {
     ($($name:ident: $value:expr,)*) => {
         $(
             #[test]
             fn $name() {
-                let (hex_type, lighting, expected_range) = $value;
+                let (hex_type, lighting, expected_distance) = $value;
                 let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
                 battle_cycle.intelligence_condition = Intelligence::AmbushCV;
                 battle_cycle.lighting_condition = Some(lighting);
@@ -1229,7 +1285,7 @@ pub mod core_test {
                 battle_cycle.determine_combat_distance_first_round();
 
                 if let NavalCombats(combat) = battle_cycle.phase {
-                    assert_eq!(Some(expected_range), combat.distance);
+                    assert_eq!(Some(expected_distance), combat.distance);
                 } else {
                     panic!("Expected NavalCombat")
                 }
@@ -1238,19 +1294,78 @@ pub mod core_test {
       }
     }
 
-    first_round_range_tests! {
-        first_round_range_in_open_day_am: (HexType::Open, DayAM, Long),
-        first_round_range_in_open_day_pm: (HexType::Open, DayPM, Long),
-        first_round_range_in_open_dusk: (HexType::Open, Dusk, Long),
-        first_round_range_in_open_night: (HexType::Open, Night, Medium),
-        first_round_range_in_coastal_day_am: (HexType::Coastal, DayAM, Medium),
-        first_round_range_in_coastal_day_pm: (HexType::Coastal, DayPM, Medium),
-        first_round_range_in_coastal_dusk: (HexType::Coastal, Dusk, Medium),
-        first_round_range_in_coastal_night: (HexType::Coastal, Night, Short),
-        first_round_range_in_restricted_day_am: (HexType::Restricted, DayAM, Short),
-        first_round_range_in_restricted_day_pm: (HexType::Restricted, DayPM, Short),
-        first_round_range_in_restricted_dusk: (HexType::Restricted, Dusk, Short),
-        first_round_range_in_restricted_night: (HexType::Restricted, Night, Short),
+    first_round_distance_tests! {
+        first_round_distance_in_open_day_am: (HexType::Open, DayAM, Long),
+        first_round_distance_in_open_day_pm: (HexType::Open, DayPM, Long),
+        first_round_distance_in_open_dusk: (HexType::Open, Dusk, Long),
+        first_round_distance_in_open_night: (HexType::Open, Night, Medium),
+        first_round_distance_in_coastal_day_am: (HexType::Coastal, DayAM, Medium),
+        first_round_distance_in_coastal_day_pm: (HexType::Coastal, DayPM, Medium),
+        first_round_distance_in_coastal_dusk: (HexType::Coastal, Dusk, Medium),
+        first_round_distance_in_coastal_night: (HexType::Coastal, Night, Short),
+        first_round_distance_in_restricted_day_am: (HexType::Restricted, DayAM, Short),
+        first_round_distance_in_restricted_day_pm: (HexType::Restricted, DayPM, Short),
+        first_round_distance_in_restricted_dusk: (HexType::Restricted, Dusk, Short),
+        first_round_distance_in_restricted_night: (HexType::Restricted, Night, Short),
+    }
+
+    macro_rules! bid_distance_tests {
+    ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                let (previous_distance, advantage_bid, disadvantage_bid, expected_distance) = $value;
+                let mut combat =  NavalCombat::new(1);
+                combat.phase = NavalCombatPhase::NavalCombat2;
+                combat.previous_distance = Some(previous_distance);
+
+                combat.bid_distance(&advantage_bid, &disadvantage_bid);
+
+                assert_eq!(Some(expected_distance), combat.distance);
+
+            }
+        )*
+      }
+    }
+
+    bid_distance_tests! {
+            bid_distance_long_1: (Long, Withdraw, Withdraw, Withdraw),
+            bid_distance_long_2: (Long, Withdraw, Long, Long),
+            bid_distance_long_3: (Long,  Long, Withdraw, Long),
+            bid_distance_long_4: (Long,  Long, Medium, Long),
+            bid_distance_long_5: (Long,  Medium, Long, Long),
+            bid_distance_long_6: (Long,  Long, Short, Medium),
+            bid_distance_long_7: (Long,  Short, Long, Medium),
+            bid_distance_long_8: (Long,  Medium, Medium, Medium),
+            bid_distance_long_9: (Long,  Medium, Short, Short),
+            bid_distance_long_10: (Long,  Short, Medium, Short),
+            bid_distance_long_11: (Long,  Short, Short, Short),
+
+            bid_distance_medium_1: (Medium, Withdraw, Withdraw, Withdraw),
+            bid_distance_medium_2: (Medium, Withdraw, Long, Medium),
+            bid_distance_medium_3: (Medium, Medium, Withdraw, Medium),
+            bid_distance_medium_4: (Medium, Long, Long, Long),
+            bid_distance_medium_5: (Medium, Medium, Long, Long),
+            bid_distance_medium_6: (Medium, Long, Medium, Long),
+            bid_distance_medium_7: (Medium, Long, Short, Short),
+            bid_distance_medium_8: (Medium, Short, Long, Short),
+            bid_distance_medium_9: (Medium, Medium, Medium, Medium),
+            bid_distance_medium_10: (Medium, Medium, Short, Short),
+            bid_distance_medium_11:(Medium, Short, Medium, Short),
+            bid_distance_medium_12:(Medium, Short, Short, Short),
+
+            bid_distance_short_1: (Short, Withdraw, Withdraw, Withdraw),
+            bid_distance_short_2: (Short, Withdraw, Long, Short),
+            bid_distance_short_3: (Short, Medium, Withdraw, Short),
+            bid_distance_short_4: (Short, Long, Long, Medium),
+            bid_distance_short_5: (Short, Medium, Long, Medium),
+            bid_distance_short_6: (Short, Long, Medium, Medium),
+            bid_distance_short_7: (Short, Long, Short, Short),
+            bid_distance_short_8: (Short, Short, Long, Short),
+            bid_distance_short_9: (Short, Medium, Medium, Medium),
+            bid_distance_short_10:(Short, Medium, Short, Short),
+            bid_distance_short_11:(Short, Short, Medium, Short),
+            bid_distance_short_12:(Short, Short, Short, Short),
     }
 
     #[test]
@@ -1286,10 +1401,13 @@ pub mod core_test {
             &Detection::Detected,
         );
 
+        battle_cycle.determine_combat_distance_first_round();
+
         battle_cycle.next_round();
 
         if let NavalCombats(combat) = battle_cycle.phase {
             assert_eq!(None, combat.distance);
+            assert_eq!(Some(Long), combat.previous_distance);
         } else {
             panic!("Expected NavalCombat")
         }

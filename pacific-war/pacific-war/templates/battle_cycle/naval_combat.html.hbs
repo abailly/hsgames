@@ -24,6 +24,10 @@
           </div>
           {{else}}
           <div>
+            <label for="previous_distance">Previous distance</label>
+            <input type="text" readonly name="previous_distance" value="{{naval_combat.previous_distance}}" />
+          </div>
+          <div>
             <label for="advantage_bid">Advantage distance bid</label>
             <select id="advantage_bid" name="advantage_bid">
               <option value="Short">Short</option>
