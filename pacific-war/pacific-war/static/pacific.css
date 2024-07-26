@@ -15,7 +15,7 @@
 }
 
 body {
-    background-color: black;
+    background-color: darkgray;
     padding: 20px 5%;
     font-family: "Nunito Sans", sans-serif;
 }
@@ -48,6 +48,7 @@ h1 {
 
 .DayAM {
    background-image: url('/public/day-am.jpeg');
+   color: #eea;
 }
 
 .Dusk {
@@ -139,6 +140,9 @@ button.next {
 }
 
 @media (max-width: 600px) {
+    body {
+        padding: 10px 3%;
+    }
     h1 {
         font-size: 200%;
     }
