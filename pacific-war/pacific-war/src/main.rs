@@ -124,7 +124,7 @@ fn render_battle_cycle(battle: &Battle, cycle: &BattleCycle) -> Template {
         BattleCycleSegment::DisadvantageMovement(phase) => {
             render_battle_cycle_movement(battle, cycle, phase)
         }
-        BattleCycleSegment::NavalCombat(phase) => {
+        BattleCycleSegment::NavalCombats(phase) => {
             render_battle_cycle_naval_combat(battle, cycle, phase)
         }
         _ => render_battle_cycle_default(battle, cycle),

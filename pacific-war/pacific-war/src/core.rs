@@ -227,9 +227,9 @@ impl BattleCycle {
                 self.phase = BattleCycleSegment::AdvantageAirMission;
             }
             BattleCycleSegment::AdvantageAirMission => {
-                self.phase = BattleCycleSegment::NavalCombat(NavalCombat::new());
+                self.phase = BattleCycleSegment::NavalCombats(NavalCombat::new());
             }
-            BattleCycleSegment::NavalCombat(_) => {
+            BattleCycleSegment::NavalCombats(_) => {
                 self.phase = BattleCycleSegment::Bombardment;
             }
             BattleCycleSegment::Bombardment => {
@@ -380,6 +380,21 @@ impl BattleCycle {
             _ => {}
         }
     }
+
+    pub fn determine_naval_combat(
+        &mut self,
+        hex_type: HexType,
+        reaction_detection: Detection,
+        operation_detection: Detection,
+    ) {
+        match &mut self.phase {
+            BattleCycleSegment::NavalCombats(combat) => {
+                combat.hex_type = Some(hex_type);
+                combat.surprise = None;
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -396,7 +411,7 @@ pub enum BattleCycleSegment {
     AdvantageDetermination,
     AdvantageMovement(BattleMovementPhase),
     AdvantageAirMission,
-    NavalCombat(NavalCombat),
+    NavalCombats(NavalCombat),
     Bombardment,
     Demolition,
     GroundCombat,
@@ -416,7 +431,7 @@ impl Display for BattleCycleSegment {
             BattleCycleSegment::AdvantageDetermination => write!(f, "Advantage Determination"),
             BattleCycleSegment::AdvantageMovement(_) => write!(f, "Advantage Movement"),
             BattleCycleSegment::AdvantageAirMission => write!(f, "Advantage Air Mission"),
-            BattleCycleSegment::NavalCombat(_) => write!(f, "Naval Combat"),
+            BattleCycleSegment::NavalCombats(_) => write!(f, "Naval Combat"),
             BattleCycleSegment::Bombardment => write!(f, "Bombardment"),
             BattleCycleSegment::Demolition => write!(f, "Demolition"),
             BattleCycleSegment::GroundCombat => write!(f, "Ground Combat"),
@@ -477,6 +492,12 @@ pub enum CombatDistance {
 pub struct BattleMovementPhase {
     pub remaining: Vec<MovementType>,
     pub current: Option<MovementType>,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub enum Detection {
+    Detected,
+    Undetected,
 }
 
 pub fn update_contact_phase(phase: &mut ContactPhase, movement: &MovementType) -> bool {
@@ -984,6 +1005,27 @@ pub mod core_test {
         if let DisadvantageMovement(phase) = battle_cycle.phase {
             assert_eq!(vec![MovementType::GroundMovement], phase.remaining);
             assert_eq!(MovementType::NavalMovement, phase.current.unwrap());
+        } else {
+            panic!("Expected AdvantageMovement")
+        }
+    }
+
+    #[test]
+    fn naval_combat_takes_place_without_surprise_given_both_are_detected() {
+        let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
+        battle_cycle.intelligence_condition = Intelligence::AmbushCV;
+        battle_cycle.count = 2;
+        battle_cycle.phase = NavalCombats(NavalCombat::new());
+
+        battle_cycle.determine_naval_combat(
+            HexType::Open,
+            Detection::Detected,
+            Detection::Detected,
+        );
+
+        if let NavalCombats(combat) = battle_cycle.phase {
+            assert_eq!(Some(HexType::Open), combat.hex_type);
+            assert_eq!(None, combat.surprise);
         } else {
             panic!("Expected AdvantageMovement")
         }
