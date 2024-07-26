@@ -1,3 +1,13 @@
+.nunito-sans-title {
+  font-family: "Nunito Sans", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 900;
+  font-style: normal;
+  font-variation-settings:
+    "wdth" 100,
+    "YTLC" 500;
+}
+
 * {
     -webkit-box-sizing: border-box;
     -moz-box-sizing: border-box;
@@ -5,14 +15,32 @@
 }
 
 body {
+    background-color: black;
     padding: 20px 5%;
+    font-family: "Nunito Sans", sans-serif;
+}
+
+h1 {
+    color: red;
+    text-shadow: -1px 0  #fff, 0 1px  #fff, 1px 0  #fff, 0 -1px  #fff;
+    font-weight: 900;
+    font-style: normal;
+    font-size: 300%;
+    text-align: center;
+}
+
+
+.operation {
+   background-image: url('/public/battle_bw.jpeg');
+   padding: 10px;
 }
 
 .combat {
-    padding: 5px;
+    padding: 10px;
     background-size: 100vw 100vh;
     background-repeat: no-repeat;
 }
+
 
 .DayPM {
     background-image: url('/public/day-pm.jpeg');
@@ -24,6 +52,7 @@ body {
 
 .Dusk {
    background-image: url('/public/dusk.jpeg');
+   color: white;
 }
 
 .Night {
@@ -110,6 +139,10 @@ button.next {
 }
 
 @media (max-width: 600px) {
+    h1 {
+        font-size: 200%;
+    }
+
     form > div {
         margin: 0 0 15px 0;
     }
@@ -128,6 +161,7 @@ button.next {
     input[type=email],
     input[type=url],
     input[type=password],
+    input[type=number],
     textarea,
     select {
         width: 100%;

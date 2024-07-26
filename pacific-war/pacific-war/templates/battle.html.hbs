@@ -4,13 +4,16 @@
     <meta charset="utf-8">
     <title>Pacific War</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito+Sans:ital,opsz,wght@0,6..12,200..1000;1,6..12,200..1000&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/public/pacific.css">
   </head>
   <body>
     <!-- <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript> -->
     <!-- <script src="./bootstrap.js"></script> -->
-
-    <h1>Pacific War</h1>
+    <div  class="operation">
+    <h1>PACIFIC WAR</h1>
     <form>
     <header><h2>{{battle_name}} Battle</h2></header>
       <div><label for="operation_player">Operation player</label>
@@ -30,7 +33,8 @@
         <input type="text" readonly name="current_date" value="{{current_date}}" />
       </div>
     </form>
-    <div class="{{cycle.lighting_condition}} combat">
+    </div>
+    <div class="{{#if cycle.lighting_condition}}{{cycle.lighting_condition}}{{else}}DayPM{{/if}} combat">
       {{> page }}
     </div>
   </body>

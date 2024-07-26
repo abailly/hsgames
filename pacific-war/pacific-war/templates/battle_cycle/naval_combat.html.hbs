@@ -22,6 +22,7 @@
             <label for="distance">Distance</label>
             <input type="text" readonly name="distance" value="{{naval_combat.distance}}" />
           </div>
+          <button class="next" type="submit" formaction="/battle/{{battle_id}}/next_round">Next round</button>
           {{else}}
           <div>
             <label for="previous_distance">Previous distance</label>
@@ -49,7 +50,6 @@
           <button type="submit" formaction="/battle/{{battle_id}}/bid_distance">Bid distance</button>
           {{/if}}
         </div>
-        <button class="next" type="submit" formaction="/battle/{{battle_id}}/next_round">Next round</button>
       </fieldset>
     </div>
   </form>
