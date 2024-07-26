@@ -143,6 +143,7 @@ fn render_battle_cycle_advantage_movement(
             duration : &battle.battle_data.duration,
             current_date : &battle.current_date,
             cycle: &cycle,
+            cycle_phase: format!("{}", cycle.phase),
             movement: &phase,
             parent: "battle",
         },
@@ -161,6 +162,7 @@ fn render_battle_cycle_advantage_determination(battle: &Battle, cycle: &BattleCy
             duration : &battle.battle_data.duration,
             current_date : &battle.current_date,
             cycle: &cycle,
+            cycle_phase: format!("{}", cycle.phase),
             parent: "battle",
         },
     )
@@ -178,6 +180,7 @@ fn render_battle_cycle_lighting(battle: &Battle, cycle: &BattleCycle) -> Templat
             duration : &battle.battle_data.duration,
             current_date : &battle.current_date,
             cycle: &cycle,
+            cycle_phase: format!("{}", cycle.phase),
             // FIXME: lighting selection logic is complicated
             choose: cycle.count == 1,
             reaction_choose: cycle.can_reaction_player_choose_lighting(),
@@ -200,6 +203,7 @@ fn render_battle_cycle_default(battle: &Battle, cycle: &BattleCycle) -> Template
             current_date : &battle.current_date,
             parent: "battle",
             cycle: &cycle,
+            cycle_phase: format!("{}", cycle.phase),
         },
     )
 }

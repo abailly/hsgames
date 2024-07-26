@@ -406,6 +406,28 @@ pub enum BattleCycleSegment {
     DayAdjustment,
 }
 
+impl Display for BattleCycleSegment {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            BattleCycleSegment::SetLighting => write!(f, "Set Lighting"),
+            BattleCycleSegment::AdvantageDetermination => write!(f, "Advantage Determination"),
+            BattleCycleSegment::AdvantageMovement(_) => write!(f, "Advantage Movement"),
+            BattleCycleSegment::AdvantageAirMission => write!(f, "Advantage Air Mission"),
+            BattleCycleSegment::NavalCombat(_) => write!(f, "Naval Combat"),
+            BattleCycleSegment::Bombardment => write!(f, "Bombardment"),
+            BattleCycleSegment::Demolition => write!(f, "Demolition"),
+            BattleCycleSegment::GroundCombat => write!(f, "Ground Combat"),
+            BattleCycleSegment::AirBaseRepair => write!(f, "Air Base Repair"),
+            BattleCycleSegment::Rally => write!(f, "Rally"),
+            BattleCycleSegment::DisadvantageMovement(_) => write!(f, "Disadvantage Movement"),
+            BattleCycleSegment::DisadvantageAirMission => write!(f, "Disadvantage Air Mission"),
+            BattleCycleSegment::ActivationDeactivation => write!(f, "Activation Deactivation"),
+            BattleCycleSegment::DetectionRemoval => write!(f, "Detection Removal"),
+            BattleCycleSegment::DayAdjustment => write!(f, "Day Adjustment"),
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum NavalBattleCycle {
     NavalCombatDetermination,

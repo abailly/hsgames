@@ -2,6 +2,10 @@
 <div>
   {{> battle_cycle/common }}
   <form method="POST" action="/battle/{{battle_id}}/advantage_movement">
+    <div>
+      <label for="current">Current movement</label>
+      <input type="text" readonly value="{{movement.current}}" />
+    </div>
 
   {{#each movement.remaining}}
   <button type="submit" name="movement" value="{{this}}">{{this}}</button>
