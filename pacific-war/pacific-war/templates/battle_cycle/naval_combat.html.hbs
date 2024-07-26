@@ -2,33 +2,52 @@
 <div>
   {{> battle_cycle/common }}
 
-  <form method="POST" action="/battle/{{battle_id}}/naval_combat_determination">
+  <form method="POST" action="/battle/{{battle_id}}/next">
     <div>
       <fieldset>
         <legend>{{naval_combat.phase}}</legend>
         <div>
           <div>
+            <label for="surprise">Surprise</label>
+            <input type="text"  readonly name="surprise" value="{{naval_combat.surprise}}" />
+          </div>
+
+          <div>
             <label for="hex_type">Hex type</label>
-            <select id="hex_type" name="hex_type">
-              <option value="Open">Open</option>
-              <option value="Coastal">Coastal</option>
-              <option value="Restricted">Restricted</option>
+            <input type="text"  readonly name="hex_type" value="{{naval_combat.hex_type}}" />
+          </div>
+
+          {{#if naval_combat.distance}}
+          <div>
+            <label for="distance">Distance</label>
+            <input type="text" readonly name="distance" value="{{naval_combat.distance}}" />
+          </div>
+          {{else}}
+          <div>
+            <label for="advantage_bid">Advantage distance bid</label>
+            <select id="advantage_bid" name="advantage_bid">
+              <option value="Short">Short</option>
+              <option value="Medium">Medium</option>
+              <option value="Long">Long</option>
+              <option value="Withdraw">Withdraw</option>
             </select>
           </div>
 
           <div>
-            <label for="advantage_detected">Advantage detected</label>
-            <input type="checkbox" name="advantage" value="Detected" />
+            <label for="disadvantage_bid">Disadvantage distance bid</label>
+            <select id="disadvantage_bid" name="disadvantage_bid">
+              <option value="Short">Short</option>
+              <option value="Medium">Medium</option>
+              <option value="Long">Long</option>
+              <option value="Withdraw">Withdraw</option>
+            </select>
           </div>
-
-          <div>
-            <label for="disadvantage_detected">Disadvantage detected</label>
-            <input type="checkbox" name="disadvantage" value="Detected" />
-          </div>
+          <button class="next" type="submit" formaction="/battle/{{battle_id}}/bid_distance">Bid distance</button>
+          {{/if}}
         </div>
       </fieldset>
     </div>
-    <button class="next" type="submit">Determine combat</button>
+    <button class="next" type="submit" >Next</button>
   </form>
 </div>
 {{/inline}}

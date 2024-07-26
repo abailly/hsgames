@@ -433,19 +433,28 @@ impl Display for BattleCycleSegment {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct NavalCombat {
-    surprise: Option<Side>,
-    phase: NavalCombatPhase,
-    distance: Option<CombatDistance>,
+    pub hex_type: Option<HexType>,
+    pub surprise: Option<Side>,
+    pub phase: NavalCombatPhase,
+    pub distance: Option<CombatDistance>,
 }
 
 impl NavalCombat {
     fn new() -> NavalCombat {
         NavalCombat {
+            hex_type: None,
             surprise: None,
             phase: NavalCombatPhase::NavalCombatDetermination,
             distance: None,
         }
     }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub enum HexType {
+    Restricted,
+    Coastal,
+    Open,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]

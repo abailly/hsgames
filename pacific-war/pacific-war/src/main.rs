@@ -136,22 +136,40 @@ fn render_battle_cycle_naval_combat(
     cycle: &BattleCycle,
     naval_combat: &NavalCombat,
 ) -> Template {
-    Template::render(
-        "battle_cycle/naval_combat",
-        context! {
-            battle_id: &battle.id,
-            operation_player: &battle.battle_data.operation_player,
-            intelligence_condition: &battle.battle_data.intelligence_condition,
-            battle_name : &battle.battle_data.battle_name,
-            start_date : &battle.battle_data.start_date.date,
-            duration : &battle.battle_data.duration,
-            current_date : &battle.current_date,
-            cycle,
-            cycle_phase: format!("{}", cycle.phase),
-            naval_combat,
-            parent: "battle",
-        },
-    )
+    match &naval_combat.phase {
+        NavalCombatPhase::NavalCombatDetermination => Template::render(
+            "battle_cycle/naval_combat_determination",
+            context! {
+                battle_id: &battle.id,
+                operation_player: &battle.battle_data.operation_player,
+                intelligence_condition: &battle.battle_data.intelligence_condition,
+                battle_name : &battle.battle_data.battle_name,
+                start_date : &battle.battle_data.start_date.date,
+                duration : &battle.battle_data.duration,
+                current_date : &battle.current_date,
+                cycle,
+                cycle_phase: format!("{}", cycle.phase),
+                naval_combat,
+                parent: "battle",
+            },
+        ),
+        _ => Template::render(
+            "battle_cycle/naval_combat",
+            context! {
+                battle_id: &battle.id,
+                operation_player: &battle.battle_data.operation_player,
+                intelligence_condition: &battle.battle_data.intelligence_condition,
+                battle_name : &battle.battle_data.battle_name,
+                start_date : &battle.battle_data.start_date.date,
+                duration : &battle.battle_data.duration,
+                current_date : &battle.current_date,
+                cycle,
+                cycle_phase: format!("{}", cycle.phase),
+                naval_combat,
+                parent: "battle",
+            },
+        ),
+    }
 }
 
 fn render_battle_cycle_movement(
