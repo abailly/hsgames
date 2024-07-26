@@ -449,6 +449,48 @@ fn next_naval_combat_round(battles: &State<Battles>, id: UuidForm) -> Result<Red
     }
 }
 
+#[derive(FromForm)]
+struct BidDistanceForm {
+    advantage_bid: CombatDistance,
+    disadvantage_bid: CombatDistance,
+}
+
+impl FromFormField<'_> for CombatDistance {
+    fn from_value(field: ValueField<'_>) -> form::Result<'_, Self> {
+        match field.value {
+            "Short" => Ok(CombatDistance::Short),
+            "Medium" => Ok(CombatDistance::Medium),
+            "Long" => Ok(CombatDistance::Long),
+            "Withdraw" => Ok(CombatDistance::Withdraw),
+            _ => Err(form::Error::validation(format!(
+                "not a valid combat distance {:?}",
+                field.value
+            ))
+            .into()),
+        }
+    }
+}
+
+#[post("/battle/<id>/bid_distance", data = "<form>")]
+fn bid_distance(
+    battles: &State<Battles>,
+    id: UuidForm,
+    form: Form<BidDistanceForm>,
+) -> Result<Redirect, Status> {
+    let mut battles_map = battles.battles.lock().unwrap();
+    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+    match &mut battle.phase {
+        Phase::BattleCyclePhase(battle_cycle) => {
+            let form = form.into_inner();
+            battle_cycle.bid_distance(&form.advantage_bid, &form.disadvantage_bid);
+            // FIXME: would rather a return a template directly here but borrow checker
+            // prevents this because we are borrowing `battle` mutably
+            Ok(Redirect::to(uri!(battle(id))))
+        }
+        _ => Err(Status::BadRequest),
+    }
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket_with_state(Arc::new(Mutex::new(HashMap::new())))
@@ -470,7 +512,8 @@ fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build
                 advantage_determination,
                 movement,
                 naval_combat_determination,
-                next_naval_combat_round
+                next_naval_combat_round,
+                bid_distance
             ],
         )
         .mount("/public", FileServer::from("static"))
@@ -790,6 +833,24 @@ mod test {
 
         let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
         let response = client.post(format!("/battle/{}/next_round", id)).dispatch();
+        assert_eq!(response.status(), Status::SeeOther);
+    }
+
+    #[test]
+    fn can_bid_combat_distance() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response = client
+            .post(format!("/battle/{}/bid_distance", id))
+            .header(ContentType::Form)
+            .body("advantage_bid=Short&disadvantage_bid=Long")
+            .dispatch();
         assert_eq!(response.status(), Status::SeeOther);
     }
 }

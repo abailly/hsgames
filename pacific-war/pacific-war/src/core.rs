@@ -426,6 +426,19 @@ impl BattleCycle {
             _ => {}
         }
     }
+
+    pub fn bid_distance(
+        &mut self,
+        advantage_bid: &CombatDistance,
+        disadvantage_bid: &CombatDistance,
+    ) {
+        match &mut self.phase {
+            BattleCycleSegment::NavalCombats(combat) => {
+                combat.bid_distance(advantage_bid, disadvantage_bid);
+            }
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -556,6 +569,10 @@ impl NavalCombat {
         self.phase = NavalCombatPhase::NavalCombatDetermination;
         self.distance = None;
         self.index += 1;
+    }
+
+    fn bid_distance(&mut self, advantage_bid: &CombatDistance, disadvantage_bid: &CombatDistance) {
+        todo!()
     }
 }
 
