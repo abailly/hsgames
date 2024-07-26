@@ -7,6 +7,30 @@
 body {
     padding: 20px 5%;
 }
+
+.combat {
+    padding: 5px;
+    background-size: 100vw 100vh;
+    background-repeat: no-repeat;
+}
+
+.DayPM {
+    background-image: url('/public/day-pm.jpeg');
+}
+
+.DayAM {
+   background-image: url('/public/day-am.jpeg');
+}
+
+.Dusk {
+   background-image: url('/public/dusk.jpeg');
+}
+
+.Night {
+   background-image: url('/public/night.jpeg');
+    color: white;
+}
+
 form header {
     margin: 0 0 20px 0;
 }
