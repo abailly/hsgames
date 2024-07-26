@@ -1,0 +1,35 @@
+{{#*inline "page"}}
+<div>
+  {{> battle_cycle/common }}
+
+  <form method="POST" action="/battle/{{battle_id}}/naval_combat_determination">
+    <div>
+      <fieldset>
+        <legend>{{naval_combat.phase}}</legend>
+        <div>
+          <div>
+            <label for="hex_type">Hex type</label>
+            <select id="hex_type" name="hex_type">
+              <option value="Open">Open</option>
+              <option value="Coastal">Coastal</option>
+              <option value="Restricted">Restricted</option>
+            </select>
+          </div>
+
+          <div>
+            <label for="advantage_detected">Advantage detected</label>
+            <input type="checkbox" name="advantage" value="Detected" />
+          </div>
+
+          <div>
+            <label for="disadvantage_detected">Disadvantage detected</label>
+            <input type="checkbox" name="disadvantage" value="Detected" />
+          </div>
+        </div>
+      </fieldset>
+    </div>
+    <button class="next" type="submit">Determine combat</button>
+  </form>
+</div>
+{{/inline}}
+{{> (lookup this "parent")}}

@@ -23,11 +23,14 @@ form > div {
     padding: 1px;
     margin: 0 0 10px 0;
 }
+fieldset {
+    border: thin solid black;
+}
+
 form > div > fieldset > div > div {
     margin: 0 0 5px 0;
 }
-form > div > label,
-legend {
+form > div > label{
 	  width: 25%;
     float: left;
     padding-right: 10px;
@@ -39,10 +42,6 @@ form > div > fieldset > div {
 }
 form > div > fieldset label {
 	  font-size: 90%;
-}
-fieldset {
-	  border: 0;
-    padding: 0;
 }
 
 input[type=text],
@@ -112,8 +111,7 @@ button.next {
 }
 
 @media (600px < width < 1200px) {
-    form > div > label,
-	  legend {
+    form > div > label{
   	    text-align: right;
     }
 
@@ -124,8 +122,7 @@ button.next {
 
 
 @media (width >= 1200px) {
-    form > div > label,
-	  legend {
+    form > div > label {
   	    text-align: right;
     }
 

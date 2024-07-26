@@ -227,8 +227,7 @@ impl BattleCycle {
                 self.phase = BattleCycleSegment::AdvantageAirMission;
             }
             BattleCycleSegment::AdvantageAirMission => {
-                self.phase =
-                    BattleCycleSegment::NavalCombat(NavalBattleCycle::NavalCombatDetermination);
+                self.phase = BattleCycleSegment::NavalCombat(NavalCombat::new());
             }
             BattleCycleSegment::NavalCombat(_) => {
                 self.phase = BattleCycleSegment::Bombardment;
@@ -397,7 +396,7 @@ pub enum BattleCycleSegment {
     AdvantageDetermination,
     AdvantageMovement(BattleMovementPhase),
     AdvantageAirMission,
-    NavalCombat(NavalBattleCycle),
+    NavalCombat(NavalCombat),
     Bombardment,
     Demolition,
     GroundCombat,
@@ -433,9 +432,36 @@ impl Display for BattleCycleSegment {
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub enum NavalBattleCycle {
+pub struct NavalCombat {
+    surprise: Option<Side>,
+    phase: NavalCombatPhase,
+    distance: Option<CombatDistance>,
+}
+
+impl NavalCombat {
+    fn new() -> NavalCombat {
+        NavalCombat {
+            surprise: None,
+            phase: NavalCombatPhase::NavalCombatDetermination,
+            distance: None,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub enum NavalCombatPhase {
     NavalCombatDetermination,
-    NavalCombat(u8),
+    NavalCombat1,
+    NavalCombat2,
+    NavalCombat3,
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub enum CombatDistance {
+    Long,
+    Medium,
+    Short,
+    Withdraw,
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]

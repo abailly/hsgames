@@ -124,9 +124,34 @@ fn render_battle_cycle(battle: &Battle, cycle: &BattleCycle) -> Template {
         BattleCycleSegment::DisadvantageMovement(phase) => {
             render_battle_cycle_movement(battle, cycle, phase)
         }
+        BattleCycleSegment::NavalCombat(phase) => {
+            render_battle_cycle_naval_combat(battle, cycle, phase)
+        }
         _ => render_battle_cycle_default(battle, cycle),
-        // BattleCyclePhase::NavalCombat(phase) => render_battle_cycle_naval_combat(battle, phase),
     }
+}
+
+fn render_battle_cycle_naval_combat(
+    battle: &Battle,
+    cycle: &BattleCycle,
+    naval_combat: &NavalCombat,
+) -> Template {
+    Template::render(
+        "battle_cycle/naval_combat",
+        context! {
+            battle_id: &battle.id,
+            operation_player: &battle.battle_data.operation_player,
+            intelligence_condition: &battle.battle_data.intelligence_condition,
+            battle_name : &battle.battle_data.battle_name,
+            start_date : &battle.battle_data.start_date.date,
+            duration : &battle.battle_data.duration,
+            current_date : &battle.current_date,
+            cycle,
+            cycle_phase: format!("{}", cycle.phase),
+            naval_combat,
+            parent: "battle",
+        },
+    )
 }
 
 fn render_battle_cycle_movement(
@@ -144,7 +169,7 @@ fn render_battle_cycle_movement(
             start_date : &battle.battle_data.start_date.date,
             duration : &battle.battle_data.duration,
             current_date : &battle.current_date,
-            cycle: &cycle,
+            cycle,
             cycle_phase: format!("{}", cycle.phase),
             movement: &phase,
             parent: "battle",
@@ -163,7 +188,7 @@ fn render_battle_cycle_advantage_determination(battle: &Battle, cycle: &BattleCy
             start_date : &battle.battle_data.start_date.date,
             duration : &battle.battle_data.duration,
             current_date : &battle.current_date,
-            cycle: &cycle,
+            cycle,
             cycle_phase: format!("{}", cycle.phase),
             parent: "battle",
         },
@@ -181,7 +206,7 @@ fn render_battle_cycle_lighting(battle: &Battle, cycle: &BattleCycle) -> Templat
             start_date : &battle.battle_data.start_date.date,
             duration : &battle.battle_data.duration,
             current_date : &battle.current_date,
-            cycle: &cycle,
+            cycle,
             cycle_phase: format!("{}", cycle.phase),
             // FIXME: lighting selection logic is complicated
             choose: cycle.count == 1,
@@ -204,7 +229,7 @@ fn render_battle_cycle_default(battle: &Battle, cycle: &BattleCycle) -> Template
             duration : &battle.battle_data.duration,
             current_date : &battle.current_date,
             parent: "battle",
-            cycle: &cycle,
+            cycle,
             cycle_phase: format!("{}", cycle.phase),
         },
     )
