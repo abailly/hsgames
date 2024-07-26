@@ -113,7 +113,9 @@ impl Battle {
                 ));
             }
             Phase::BattleCyclePhase(battle_cycle) => {
-                if battle_cycle.next() {
+                let count = battle_cycle.count;
+                battle_cycle.next();
+                if battle_cycle.count != count {
                     self.current_date = self.current_date.succ().succ();
                 }
             }
@@ -210,7 +212,7 @@ impl BattleCycle {
         BattleCycle::new(Intelligence::Intercept, seed)
     }
 
-    fn next(&mut self) -> bool {
+    fn next(&mut self) -> &mut Self {
         match self.phase {
             BattleCycleSegment::SetLighting => {
                 self.phase = BattleCycleSegment::AdvantageDetermination;
@@ -264,10 +266,9 @@ impl BattleCycle {
             BattleCycleSegment::DayAdjustment => {
                 self.phase = BattleCycleSegment::SetLighting;
                 self.count += 1;
-                return true;
             }
         }
-        false
+        self
     }
 
     pub fn choose_lighting(&mut self, lighting: Lighting) {
@@ -369,7 +370,10 @@ impl BattleCycle {
 
     pub fn advantage_movement(&mut self, movement: &MovementType) {
         match &mut self.phase {
-            BattleCycleSegment::AdvantageMovement(phase) => {}
+            BattleCycleSegment::AdvantageMovement(phase) => {
+                phase.remaining.retain(|m| m != movement);
+                phase.current = Some(movement.clone());
+            }
             _ => {}
         }
     }
@@ -885,6 +889,23 @@ pub mod core_test {
         battle_cycle.determine_advantage(Side::Japan);
 
         assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+    }
+
+    #[test]
+    fn advantage_movement_removes_chosen_type_from_remaining() {
+        let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
+        battle_cycle.intelligence_condition = Intelligence::AmbushCV;
+        battle_cycle.count = 2;
+        battle_cycle.next().next();
+
+        battle_cycle.advantage_movement(&MovementType::NavalMovement);
+
+        if let AdvantageMovement(phase) = battle_cycle.phase {
+            assert_eq!(vec![MovementType::GroundMovement], phase.remaining);
+            assert_eq!(MovementType::NavalMovement, phase.current.unwrap());
+        } else {
+            panic!("Expected AdvantageMovement")
+        }
     }
 }
 
