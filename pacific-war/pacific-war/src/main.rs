@@ -119,21 +119,23 @@ fn render_battle_cycle(battle: &Battle, cycle: &BattleCycle) -> Template {
             render_battle_cycle_advantage_determination(battle, cycle)
         }
         BattleCycleSegment::AdvantageMovement(phase) => {
-            render_battle_cycle_advantage_movement(battle, cycle, phase)
+            render_battle_cycle_movement(battle, cycle, phase)
+        }
+        BattleCycleSegment::DisadvantageMovement(phase) => {
+            render_battle_cycle_movement(battle, cycle, phase)
         }
         _ => render_battle_cycle_default(battle, cycle),
         // BattleCyclePhase::NavalCombat(phase) => render_battle_cycle_naval_combat(battle, phase),
-        // BattleCyclePhase::DisadvantageMovement(phase) => render_battle_cycle_disadvantage_movement(battle, phase),
     }
 }
 
-fn render_battle_cycle_advantage_movement(
+fn render_battle_cycle_movement(
     battle: &Battle,
     cycle: &BattleCycle,
     phase: &BattleMovementPhase,
 ) -> Template {
     Template::render(
-        "battle_cycle/advantage_movement",
+        "battle_cycle/movement",
         context! {
             battle_id: &battle.id,
             operation_player: &battle.battle_data.operation_player,
@@ -316,8 +318,8 @@ impl FromFormField<'_> for MovementType {
 }
 
 /// Update movement for battle phase
-#[post("/battle/<id>/advantage_movement", data = "<form>")]
-fn advantage_movement(
+#[post("/battle/<id>/movement", data = "<form>")]
+fn movement(
     battles: &State<Battles>,
     id: UuidForm,
     form: Form<MovementForm>,
@@ -326,7 +328,7 @@ fn advantage_movement(
     let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
     match &mut battle.phase {
         Phase::BattleCyclePhase(cycle) => {
-            cycle.advantage_movement(&form.into_inner().movement);
+            cycle.movement(&form.into_inner().movement);
             Ok(Redirect::to(uri!(battle(id))))
         }
         _ => Err(Status::BadRequest),
@@ -352,7 +354,7 @@ fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build
                 contact_movement,
                 set_lighting,
                 advantage_determination,
-                advantage_movement
+                movement
             ],
         )
         .mount("/public", FileServer::from("static"))
@@ -626,7 +628,7 @@ mod test {
     }
 
     #[test]
-    fn select_naval_movement_at_advantage_movement_segment() {
+    fn select_naval_movement_at_movement_segment() {
         let id = Uuid::new_v4();
         let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
@@ -636,7 +638,7 @@ mod test {
 
         let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
         let response = client
-            .post(format!("/battle/{}/advantage_movement", id))
+            .post(format!("/battle/{}/movement", id))
             .header(ContentType::Form)
             .body("movement=NavalMovement")
             .dispatch();

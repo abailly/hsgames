@@ -1,7 +1,7 @@
 {{#*inline "page"}}
 <div>
   {{> battle_cycle/common }}
-  <form method="POST" action="/battle/{{battle_id}}/advantage_movement">
+  <form method="POST" action="/battle/{{battle_id}}/movement">
     <div>
       <label for="current">Current movement</label>
       <input type="text" readonly value="{{movement.current}}" />

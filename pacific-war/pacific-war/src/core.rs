@@ -368,9 +368,13 @@ impl BattleCycle {
         self.seed = rng.get_seed();
     }
 
-    pub fn advantage_movement(&mut self, movement: &MovementType) {
+    pub fn movement(&mut self, movement: &MovementType) {
         match &mut self.phase {
             BattleCycleSegment::AdvantageMovement(phase) => {
+                phase.remaining.retain(|m| m != movement);
+                phase.current = Some(movement.clone());
+            }
+            BattleCycleSegment::DisadvantageMovement(phase) => {
                 phase.remaining.retain(|m| m != movement);
                 phase.current = Some(movement.clone());
             }
@@ -920,9 +924,29 @@ pub mod core_test {
         battle_cycle.count = 2;
         battle_cycle.next().next();
 
-        battle_cycle.advantage_movement(&MovementType::NavalMovement);
+        battle_cycle.movement(&MovementType::NavalMovement);
 
         if let AdvantageMovement(phase) = battle_cycle.phase {
+            assert_eq!(vec![MovementType::GroundMovement], phase.remaining);
+            assert_eq!(MovementType::NavalMovement, phase.current.unwrap());
+        } else {
+            panic!("Expected AdvantageMovement")
+        }
+    }
+
+    #[test]
+    fn disadvantage_movement_removes_chosen_type_from_remaining() {
+        let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
+        battle_cycle.intelligence_condition = Intelligence::AmbushCV;
+        battle_cycle.count = 2;
+        battle_cycle.phase = DisadvantageMovement(BattleMovementPhase {
+            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            current: None,
+        });
+
+        battle_cycle.movement(&MovementType::NavalMovement);
+
+        if let DisadvantageMovement(phase) = battle_cycle.phase {
             assert_eq!(vec![MovementType::GroundMovement], phase.remaining);
             assert_eq!(MovementType::NavalMovement, phase.current.unwrap());
         } else {
