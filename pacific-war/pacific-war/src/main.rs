@@ -378,6 +378,62 @@ fn movement(
     }
 }
 
+#[derive(FromForm)]
+struct CombatDeterminationForm {
+    hex_type: HexType,
+    advantage: Option<Detection>,
+    disadvantage: Option<Detection>,
+}
+
+impl FromFormField<'_> for HexType {
+    fn from_value(field: ValueField<'_>) -> form::Result<'_, Self> {
+        match field.value {
+            "Coastal" => Ok(HexType::Coastal),
+            "Open" => Ok(HexType::Open),
+            "Restricted" => Ok(HexType::Restricted),
+            _ => Err(
+                form::Error::validation(format!("not a valid hex type {:?}", field.value)).into(),
+            ),
+        }
+    }
+}
+
+impl FromFormField<'_> for Detection {
+    fn from_value(field: ValueField<'_>) -> form::Result<'_, Self> {
+        match field.value {
+            "Detected" => Ok(Detection::Detected),
+            "Undetected" => Ok(Detection::Undetected),
+            _ => Err(
+                form::Error::validation(format!("not a valid detection {:?}", field.value)).into(),
+            ),
+        }
+    }
+}
+
+#[post("/battle/<id>/naval_combat_determination", data = "<form>")]
+fn naval_combat_determination(
+    battles: &State<Battles>,
+    id: UuidForm,
+    form: Form<CombatDeterminationForm>,
+) -> Result<Redirect, Status> {
+    let mut battles_map = battles.battles.lock().unwrap();
+    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+    match &mut battle.phase {
+        Phase::BattleCyclePhase(battle_cycle) => {
+            let form = form.into_inner();
+            battle_cycle.determine_naval_combat(
+                &form.hex_type,
+                &form.advantage.unwrap_or(Detection::Undetected),
+                &form.disadvantage.unwrap_or(Detection::Undetected),
+            );
+            // FIXME: would rather a return a template directly here but borrow checker
+            // prevents this because we are borrowing `battle` mutably
+            Ok(Redirect::to(uri!(battle(id))))
+        }
+        _ => Err(Status::BadRequest),
+    }
+}
+
 #[launch]
 fn rocket() -> _ {
     rocket_with_state(Arc::new(Mutex::new(HashMap::new())))
@@ -397,7 +453,8 @@ fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build
                 contact_movement,
                 set_lighting,
                 advantage_determination,
-                movement
+                movement,
+                naval_combat_determination
             ],
         )
         .mount("/public", FileServer::from("static"))
@@ -684,6 +741,24 @@ mod test {
             .post(format!("/battle/{}/movement", id))
             .header(ContentType::Form)
             .body("movement=NavalMovement")
+            .dispatch();
+        assert_eq!(response.status(), Status::SeeOther);
+    }
+
+    #[test]
+    fn determine_combat_status_at_start_of_naval_combat_phase() {
+        let id = Uuid::new_v4();
+        let mut battles_map = HashMap::new();
+        let mut battle = coral_sea_battle(id);
+        battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
+        battles_map.insert(id, battle);
+        let battles = Arc::new(Mutex::new(battles_map));
+
+        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let response = client
+            .post(format!("/battle/{}/naval_combat_determination", id))
+            .header(ContentType::Form)
+            .body("advantage=Detected&disadvantage=Detected&hex_type=Coastal")
             .dispatch();
         assert_eq!(response.status(), Status::SeeOther);
     }

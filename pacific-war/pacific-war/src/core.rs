@@ -404,6 +404,17 @@ impl BattleCycle {
                     reaction_detection,
                     &self.advantage_player,
                 );
+                combat.phase = NavalCombatPhase::NavalCombat1;
+                combat.determine_distance(self.lighting_condition.as_ref().unwrap());
+            }
+            _ => {}
+        }
+    }
+
+    pub fn determine_combat_distance_first_round(&mut self) {
+        match &mut self.phase {
+            BattleCycleSegment::NavalCombats(combat) => {
+                combat.determine_distance(self.lighting_condition.as_ref().unwrap());
             }
             _ => {}
         }
@@ -503,6 +514,19 @@ impl NavalCombat {
             _ => None,
         };
     }
+
+    fn determine_distance(&mut self, lighting: &Lighting) {
+        match (&self.hex_type, lighting) {
+            (Some(HexType::Open), Lighting::Night) => self.distance = Some(CombatDistance::Medium),
+            (Some(HexType::Open), _) => self.distance = Some(CombatDistance::Long),
+            (Some(HexType::Coastal), Lighting::Night) => {
+                self.distance = Some(CombatDistance::Short)
+            }
+            (Some(HexType::Coastal), _) => self.distance = Some(CombatDistance::Medium),
+            (Some(HexType::Restricted), _) => self.distance = Some(CombatDistance::Short),
+            _ => {}
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
@@ -572,7 +596,7 @@ pub fn update_contact_phase(phase: &mut ContactPhase, movement: &MovementType) -
 #[cfg(test)]
 pub mod core_test {
     use super::*;
-    use super::{BattleCycleSegment::*, NewBattle, Side};
+    use super::{BattleCycleSegment::*, CombatDistance::*, Lighting::*, NewBattle, Side::*};
     use chrono::NaiveDate;
 
     pub fn coral_sea() -> NewBattle {
@@ -1066,6 +1090,8 @@ pub mod core_test {
         if let NavalCombats(combat) = battle_cycle.phase {
             assert_eq!(Some(HexType::Open), combat.hex_type);
             assert_eq!(None, combat.surprise);
+            assert_eq!(NavalCombatPhase::NavalCombat1, combat.phase);
+            assert_eq!(Some(Long), combat.distance);
         } else {
             panic!("Expected NavalCombat")
         }
@@ -1134,6 +1160,47 @@ pub mod core_test {
         } else {
             panic!("Expected NavalCombat")
         }
+    }
+
+    macro_rules! first_round_range_tests {
+    ($($name:ident: $value:expr,)*) => {
+        $(
+            #[test]
+            fn $name() {
+                let (hex_type, lighting, expected_range) = $value;
+                let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
+                battle_cycle.intelligence_condition = Intelligence::AmbushCV;
+                battle_cycle.lighting_condition = Some(lighting);
+                battle_cycle.count = 2;
+                let mut combat =  NavalCombat::new(1);
+                combat.hex_type = Some(hex_type);
+                battle_cycle.phase = NavalCombats(combat);
+
+                battle_cycle.determine_combat_distance_first_round();
+
+                if let NavalCombats(combat) = battle_cycle.phase {
+                    assert_eq!(Some(expected_range), combat.distance);
+                } else {
+                    panic!("Expected NavalCombat")
+                }
+            }
+        )*
+      }
+    }
+
+    first_round_range_tests! {
+        first_round_range_in_open_day_am: (HexType::Open, DayAM, Long),
+        first_round_range_in_open_day_pm: (HexType::Open, DayPM, Long),
+        first_round_range_in_open_dusk: (HexType::Open, Dusk, Long),
+        first_round_range_in_open_night: (HexType::Open, Night, Medium),
+        first_round_range_in_coastal_day_am: (HexType::Coastal, DayAM, Medium),
+        first_round_range_in_coastal_day_pm: (HexType::Coastal, DayPM, Medium),
+        first_round_range_in_coastal_dusk: (HexType::Coastal, Dusk, Medium),
+        first_round_range_in_coastal_night: (HexType::Coastal, Night, Short),
+        first_round_range_in_restricted_day_am: (HexType::Restricted, DayAM, Short),
+        first_round_range_in_restricted_day_pm: (HexType::Restricted, DayPM, Short),
+        first_round_range_in_restricted_dusk: (HexType::Restricted, Dusk, Short),
+        first_round_range_in_restricted_night: (HexType::Restricted, Night, Short),
     }
 }
 
