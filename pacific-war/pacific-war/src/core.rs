@@ -227,7 +227,7 @@ impl BattleCycle {
                 self.phase = BattleCycleSegment::AdvantageAirMission;
             }
             BattleCycleSegment::AdvantageAirMission => {
-                self.phase = BattleCycleSegment::NavalCombats(NavalCombat::new());
+                self.phase = BattleCycleSegment::NavalCombats(NavalCombat::new(1));
             }
             BattleCycleSegment::NavalCombats(_) => {
                 self.phase = BattleCycleSegment::Bombardment;
@@ -383,14 +383,27 @@ impl BattleCycle {
 
     pub fn determine_naval_combat(
         &mut self,
-        hex_type: HexType,
-        reaction_detection: Detection,
-        operation_detection: Detection,
+        hex_type: &HexType,
+        operation_detection: &Detection,
+        reaction_detection: &Detection,
     ) {
         match &mut self.phase {
+            BattleCycleSegment::NavalCombats(combat)
+                if NavalCombat::should_skip_combat(
+                    hex_type,
+                    operation_detection,
+                    reaction_detection,
+                ) =>
+            {
+                self.phase = BattleCycleSegment::NavalCombats(NavalCombat::new(combat.index + 1));
+            }
             BattleCycleSegment::NavalCombats(combat) => {
-                combat.hex_type = Some(hex_type);
-                combat.surprise = None;
+                combat.determine_surprise(
+                    hex_type,
+                    operation_detection,
+                    reaction_detection,
+                    &self.advantage_player,
+                );
             }
             _ => {}
         }
@@ -448,6 +461,7 @@ impl Display for BattleCycleSegment {
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub struct NavalCombat {
+    pub index: u8,
     pub hex_type: Option<HexType>,
     pub surprise: Option<Side>,
     pub phase: NavalCombatPhase,
@@ -455,13 +469,39 @@ pub struct NavalCombat {
 }
 
 impl NavalCombat {
-    fn new() -> NavalCombat {
+    fn new(index: u8) -> NavalCombat {
         NavalCombat {
+            index,
             hex_type: None,
             surprise: None,
             phase: NavalCombatPhase::NavalCombatDetermination,
             distance: None,
         }
+    }
+
+    fn should_skip_combat(
+        hex_type: &HexType,
+        operation_detection: &Detection,
+        reaction_detection: &Detection,
+    ) -> bool {
+        hex_type == &HexType::Open
+            && operation_detection == &Detection::Undetected
+            && reaction_detection == &Detection::Undetected
+    }
+
+    fn determine_surprise(
+        &mut self,
+        hex_type: &HexType,
+        operation_detection: &Detection,
+        reaction_detection: &Detection,
+        advantage_player: &Option<Side>,
+    ) {
+        self.hex_type = Some(hex_type.clone());
+        self.surprise = match (operation_detection, reaction_detection) {
+            (Detection::Undetected, Detection::Detected) => advantage_player.clone(),
+            (Detection::Detected, Detection::Undetected) => advantage_player.map(|p| p.opposite()),
+            _ => None,
+        };
     }
 }
 
@@ -1015,19 +1055,84 @@ pub mod core_test {
         let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
         battle_cycle.intelligence_condition = Intelligence::AmbushCV;
         battle_cycle.count = 2;
-        battle_cycle.phase = NavalCombats(NavalCombat::new());
+        battle_cycle.phase = NavalCombats(NavalCombat::new(1));
 
         battle_cycle.determine_naval_combat(
-            HexType::Open,
-            Detection::Detected,
-            Detection::Detected,
+            &HexType::Open,
+            &Detection::Detected,
+            &Detection::Detected,
         );
 
         if let NavalCombats(combat) = battle_cycle.phase {
             assert_eq!(Some(HexType::Open), combat.hex_type);
             assert_eq!(None, combat.surprise);
         } else {
-            panic!("Expected AdvantageMovement")
+            panic!("Expected NavalCombat")
+        }
+    }
+
+    #[test]
+    fn naval_combat_takes_place_with_surprise_given_advantage_is_undetected() {
+        let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
+        battle_cycle.intelligence_condition = Intelligence::AmbushCV;
+        battle_cycle.count = 2;
+        battle_cycle.phase = NavalCombats(NavalCombat::new(1));
+        battle_cycle.advantage_player = Some(Side::Japan);
+
+        battle_cycle.determine_naval_combat(
+            &HexType::Open,
+            &Detection::Undetected,
+            &Detection::Detected,
+        );
+
+        if let NavalCombats(combat) = battle_cycle.phase {
+            assert_eq!(Some(HexType::Open), combat.hex_type);
+            assert_eq!(Some(Side::Japan), combat.surprise);
+        } else {
+            panic!("Expected NavalCombat")
+        }
+    }
+
+    #[test]
+    fn naval_combat_takes_place_with_surprise_given_reaction_is_undetected() {
+        let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
+        battle_cycle.intelligence_condition = Intelligence::AmbushCV;
+        battle_cycle.count = 2;
+        battle_cycle.phase = NavalCombats(NavalCombat::new(1));
+        battle_cycle.advantage_player = Some(Side::Japan);
+
+        battle_cycle.determine_naval_combat(
+            &HexType::Open,
+            &Detection::Detected,
+            &Detection::Undetected,
+        );
+
+        if let NavalCombats(combat) = battle_cycle.phase {
+            assert_eq!(Some(HexType::Open), combat.hex_type);
+            assert_eq!(Some(Side::Allies), combat.surprise);
+        } else {
+            panic!("Expected NavalCombat")
+        }
+    }
+
+    #[test]
+    fn combat_does_not_take_place_given_both_are_undetected_in_open_water() {
+        let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
+        battle_cycle.intelligence_condition = Intelligence::AmbushCV;
+        battle_cycle.count = 2;
+        battle_cycle.phase = NavalCombats(NavalCombat::new(1));
+        battle_cycle.advantage_player = Some(Side::Japan);
+
+        battle_cycle.determine_naval_combat(
+            &HexType::Open,
+            &Detection::Undetected,
+            &Detection::Undetected,
+        );
+
+        if let NavalCombats(combat) = battle_cycle.phase {
+            assert_eq!(2, combat.index);
+        } else {
+            panic!("Expected NavalCombat")
         }
     }
 }
