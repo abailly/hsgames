@@ -254,6 +254,7 @@ input#modal[type="checkbox"]:checked ~ .modal-background {
     display: none;
     width: 50vw;
     height: 50vh;
+    border-radius: 5px;
     background-color: #fff;
     box-sizing: border-box;
     z-index: 9999;

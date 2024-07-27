@@ -1,5 +1,5 @@
 {{#*inline "page"}}
-<div>
+<div class="battle-cycle">
   {{> battle_cycle/common }}
 
   <form method="POST" action="/battle/{{battle_id}}/set_lighting">
@@ -25,6 +25,7 @@
     {{/if}}
     <button class="next" type="submit" name="set_lighting" value="advance">Advance lighting</button>
    </form>
+  {{> battle_cycle/rules/lighting }}
 </div>
 {{/inline}}
 {{> (lookup this "parent")}}
