@@ -1,9 +1,10 @@
 {{#*inline "page"}}
-<div>
+<div class="battle-cycle">
   {{> battle_cycle/common }}
   <form method="POST" action="/battle/{{battle_id}}/advantage_determination">
     <button class="next" type="submit">Select advantage</button>
-   </form>
+  </form>
+  {{> battle_cycle/rules/advantage_determination }}
 </div>
 {{/inline}}
 {{> (lookup this "parent")}}

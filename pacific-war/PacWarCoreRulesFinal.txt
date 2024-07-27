@@ -5230,6 +5230,28 @@ of an Operation:
 
 A. If the Operational Intelligence Condition is Ambush (or AmbushCV), the Reaction player is automatically the Advantage player.
 
+
+B. If the Operational Intelligence Condition is Surprise Attack, the
+Operation player is automatically the Advantage player.
+
+
+27.2 In the Second and Subsequent Advantage
+Determination Phases of an Operation
+
+Each player rolls the die and applies the following modifications to
+the die rolls:
+
+A. If the Operational Intelligence Condition is Ambush (or AmbushCV), the Reaction player adds 2 to his die roll.
+
+B. If the Operational Intelligence Condition is Surprise Attack, the
+Operation player adds 2 to his die roll.
+
+C. If the Operational Intelligence Condition is Intercept there is no
+die roll modifier.
+D. The player with the higher modified die roll is the Advantage
+player. If both players have the same result after applying
+modification, the Operation player is the Advantage player.
+
 45
 
 28.0 Air Missions
@@ -5261,9 +5283,6 @@ quantity of what was historically available.
 
 28.1 Air Mission Eligibility
 
-B. If the Operational Intelligence Condition is Surprise Attack, the
-Operation player is automatically the Advantage player.
-
 The following characteristics are common to each of the four Air
 Mission types:
 
@@ -5274,11 +5293,6 @@ is the Advantage player.
 
 B. The Air Installation from which the air units depart must be nonInterdicted (and Linked in Campaign and Strategic scenarios).
 
-27.2 In the Second and Subsequent Advantage
-Determination Phases of an Operation
-
-Each player rolls the die and applies the following modifications to
-the die rolls:
 
 A. Only Activated air units can perform an Air Mission.
 
@@ -5287,23 +5301,11 @@ its Launch capacity. No redistribution of strength or creation of
 new units is permitted.
 D. No hex can be designated as the target of an Air Mission more
 than once in a single Air Mission Phase.
-
-A. If the Operational Intelligence Condition is Ambush (or AmbushCV), the Reaction player adds 2 to his die roll.
-
 E. A “suicide mission”, in which an air unit has insufficient Range
 to reach its target and land again, is not allowed except for
 Kamikazes.
 
-B. If the Operational Intelligence Condition is Surprise Attack, the
-Operation player adds 2 to his die roll.
-
 28.2 Air Mission Types
-
-C. If the Operational Intelligence Condition is Intercept there is no
-die roll modifier.
-D. The player with the higher modified die roll is the Advantage
-player. If both players have the same result after applying
-modification, the Operation player is the Advantage player.
 
 The only time air units can be used to perform any of the four possible types of Air Missions is during a friendly Air Mission Phase.
 While an Air Mission is in progress, it may be subject to Flak, CAP
