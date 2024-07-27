@@ -5,6 +5,7 @@
   <form action="/battle/{{battle_id}}/next">
     <button class="next" type="submit">Next</button>
   </form>
+  {{> battle_cycle/rules/deactivation }}
 </div>
 {{/inline}}
 {{> (lookup this "parent")}}

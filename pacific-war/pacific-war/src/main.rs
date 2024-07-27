@@ -127,6 +127,12 @@ fn render_battle_cycle(battle: &Battle, cycle: &BattleCycle) -> Template {
         BattleCycleSegment::NavalCombats(phase) => {
             render_battle_cycle_naval_combat(battle, cycle, phase)
         }
+        BattleCycleSegment::Bombardment => render_battle_cycle_phase(battle, cycle, "bombardment"),
+        BattleCycleSegment::Demolition => render_battle_cycle_phase(battle, cycle, "demolition"),
+        BattleCycleSegment::Rally => render_battle_cycle_phase(battle, cycle, "rally"),
+        BattleCycleSegment::ActivationDeactivation => {
+            render_battle_cycle_phase(battle, cycle, "deactivation")
+        }
         _ => render_battle_cycle_default(battle, cycle),
     }
 }
@@ -238,6 +244,24 @@ fn render_battle_cycle_lighting(battle: &Battle, cycle: &BattleCycle) -> Templat
 fn render_battle_cycle_default(battle: &Battle, cycle: &BattleCycle) -> Template {
     Template::render(
         "battle_cycle/default",
+        context! {
+            battle_id: &battle.id,
+            operation_player: &battle.battle_data.operation_player,
+            intelligence_condition: &battle.battle_data.intelligence_condition,
+            battle_name : &battle.battle_data.battle_name,
+            start_date : &battle.battle_data.start_date.date,
+            duration : &battle.battle_data.duration,
+            current_date : &battle.current_date,
+            parent: "battle",
+            cycle,
+            cycle_phase: format!("{}", cycle.phase),
+        },
+    )
+}
+
+fn render_battle_cycle_phase(battle: &Battle, cycle: &BattleCycle, phase: &str) -> Template {
+    Template::render(
+        format!("battle_cycle/{}", phase),
         context! {
             battle_id: &battle.id,
             operation_player: &battle.battle_data.operation_player,
