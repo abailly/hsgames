@@ -8,6 +8,9 @@ use uuid::Uuid;
 use crate::util::*;
 
 use CombatDistance::*;
+use Lighting::*;
+use MovementType::*;
+use Side::*;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, FromFormField, Clone, Copy)]
 pub enum Side {
@@ -18,8 +21,8 @@ pub enum Side {
 impl Side {
     fn opposite(&self) -> Side {
         match self {
-            Side::Japan => Side::Allies,
-            Side::Allies => Side::Japan,
+            Japan => Allies,
+            Allies => Japan,
         }
     }
 }
@@ -27,8 +30,8 @@ impl Side {
 impl Display for Side {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            Side::Japan => write!(f, "japan"),
-            Side::Allies => write!(f, "allies"),
+            Japan => write!(f, "japan"),
+            Allies => write!(f, "allies"),
         }
     }
 }
@@ -167,11 +170,7 @@ pub struct ContactPhase {
 impl ContactPhase {
     pub fn new() -> Self {
         ContactPhase {
-            remaining: vec![
-                MovementType::GroundMovement,
-                MovementType::AirMovement,
-                MovementType::NavalMovement,
-            ],
+            remaining: vec![GroundMovement, AirMovement, NavalMovement],
             max_naval_movement_count: u8::MAX,
             current: None,
             naval_movement_count: 0,
@@ -220,10 +219,7 @@ impl BattleCycle {
                 self.phase = BattleCycleSegment::AdvantageDetermination;
             }
             BattleCycleSegment::AdvantageDetermination => {
-                self.phase = BattleCycleSegment::AdvantageMovement(BattleMovementPhase {
-                    remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-                    current: None,
-                });
+                self.phase = BattleCycleSegment::AdvantageMovement(BattleMovementPhase::new());
             }
             BattleCycleSegment::AdvantageMovement(_) => {
                 self.phase = BattleCycleSegment::AdvantageAirMission;
@@ -247,10 +243,7 @@ impl BattleCycle {
                 self.phase = BattleCycleSegment::Rally;
             }
             BattleCycleSegment::Rally => {
-                self.phase = BattleCycleSegment::DisadvantageMovement(BattleMovementPhase {
-                    remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-                    current: None,
-                });
+                self.phase = BattleCycleSegment::DisadvantageMovement(BattleMovementPhase::new());
             }
             BattleCycleSegment::DisadvantageMovement(_) => {
                 self.phase = BattleCycleSegment::DisadvantageAirMission;
@@ -287,9 +280,9 @@ impl BattleCycle {
     pub fn random_lighting(&mut self) {
         let mut rng = Rng::with_seed(self.seed);
         let lighting = match rng.u8(0..10) {
-            0..=1 => Lighting::Night,
-            2 => Lighting::Dusk,
-            _ => Lighting::DayPM,
+            0..=1 => Night,
+            2 => Dusk,
+            _ => DayPM,
         };
         self.lighting_condition = Some(lighting);
         self.seed = rng.get_seed();
@@ -297,10 +290,10 @@ impl BattleCycle {
 
     pub fn next_lighting(&mut self) -> &mut Self {
         match self.lighting_condition {
-            Some(Lighting::DayAM) => self.random_lighting(),
-            Some(Lighting::DayPM) => self.lighting_condition = Some(Lighting::Dusk),
-            Some(Lighting::Dusk) => self.lighting_condition = Some(Lighting::Night),
-            Some(Lighting::Night) => self.lighting_condition = Some(Lighting::DayAM),
+            Some(DayAM) => self.random_lighting(),
+            Some(DayPM) => self.lighting_condition = Some(Dusk),
+            Some(Dusk) => self.lighting_condition = Some(Night),
+            Some(Night) => self.lighting_condition = Some(DayAM),
             None => self.random_lighting(),
         }
         self
@@ -541,11 +534,9 @@ impl NavalCombat {
 
     fn determine_distance(&mut self, lighting: &Lighting) {
         match (&self.hex_type, lighting) {
-            (Some(HexType::Open), Lighting::Night) => self.distance = Some(CombatDistance::Medium),
+            (Some(HexType::Open), Night) => self.distance = Some(CombatDistance::Medium),
             (Some(HexType::Open), _) => self.distance = Some(CombatDistance::Long),
-            (Some(HexType::Coastal), Lighting::Night) => {
-                self.distance = Some(CombatDistance::Short)
-            }
+            (Some(HexType::Coastal), Night) => self.distance = Some(CombatDistance::Short),
             (Some(HexType::Coastal), _) => self.distance = Some(CombatDistance::Medium),
             (Some(HexType::Restricted), _) => self.distance = Some(CombatDistance::Short),
             _ => {}
@@ -661,6 +652,15 @@ pub struct BattleMovementPhase {
     pub current: Option<MovementType>,
 }
 
+impl BattleMovementPhase {
+    fn new() -> Self {
+        BattleMovementPhase {
+            remaining: vec![GroundMovement, NavalMovement],
+            current: None,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum Detection {
     Detected,
@@ -669,13 +669,11 @@ pub enum Detection {
 
 pub fn update_contact_phase(phase: &mut ContactPhase, movement: &MovementType) -> bool {
     match movement {
-        MovementType::NavalMovement => {
-            if let Some(MovementType::NavalMovement) = phase.current {
+        NavalMovement => {
+            if let Some(NavalMovement) = phase.current {
                 phase.naval_movement_count += 1;
                 if phase.naval_movement_count == phase.max_naval_movement_count {
-                    phase
-                        .remaining
-                        .retain(|m| m != &MovementType::NavalMovement);
+                    phase.remaining.retain(|m| m != &NavalMovement);
                 };
                 (phase.naval_movement_count - 1) % 3 == 0
             } else {
@@ -684,10 +682,8 @@ pub fn update_contact_phase(phase: &mut ContactPhase, movement: &MovementType) -
             }
         }
         other => {
-            if let Some(MovementType::NavalMovement) = phase.current {
-                phase
-                    .remaining
-                    .retain(|m| m != &MovementType::NavalMovement);
+            if let Some(NavalMovement) = phase.current {
+                phase.remaining.retain(|m| m != &NavalMovement);
             }
             phase.current = Some(movement.clone());
             phase.remaining.retain(|m| m != other);
@@ -709,7 +705,7 @@ pub mod core_test {
                 date: NaiveDate::from_ymd_opt(1942, 5, 1).unwrap(),
             },
             duration: 21,
-            operation_player: Side::Japan,
+            operation_player: Japan,
             intelligence_condition: Intelligence::Intercept,
         }
     }
@@ -726,29 +722,27 @@ pub mod core_test {
     #[test]
     fn choosing_naval_movement_at_contact_phase_keeps_it_from_available_movements() {
         let mut contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            remaining: vec![GroundMovement, NavalMovement],
             current: None,
             max_naval_movement_count: u8::MAX,
             naval_movement_count: 0,
         };
 
-        update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+        update_contact_phase(&mut contact_phase, &NavalMovement);
 
-        assert!(contact_phase
-            .remaining
-            .contains(&MovementType::NavalMovement));
+        assert!(contact_phase.remaining.contains(&NavalMovement));
     }
 
     #[test]
     fn choosing_naval_movement_given_other_movement_type_does_not_increase_movement_count() {
         let mut contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            remaining: vec![GroundMovement, NavalMovement],
             current: None,
             max_naval_movement_count: u8::MAX,
             naval_movement_count: 0,
         };
 
-        update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+        update_contact_phase(&mut contact_phase, &NavalMovement);
 
         assert_eq!(0, contact_phase.naval_movement_count);
     }
@@ -756,29 +750,27 @@ pub mod core_test {
     #[test]
     fn choosing_naval_movement_given_maximum_movement_count_is_reached_removes_it_from_remaining() {
         let mut contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-            current: Some(MovementType::NavalMovement),
+            remaining: vec![GroundMovement, NavalMovement],
+            current: Some(NavalMovement),
             max_naval_movement_count: 3,
             naval_movement_count: 2,
         };
 
-        update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+        update_contact_phase(&mut contact_phase, &NavalMovement);
 
-        assert!(!contact_phase
-            .remaining
-            .contains(&MovementType::NavalMovement));
+        assert!(!contact_phase.remaining.contains(&NavalMovement));
     }
 
     #[test]
     fn choosing_ground_movement_given_naval_movement_is_in_play_removes_it_from_remaining() {
         let mut contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-            current: Some(MovementType::NavalMovement),
+            remaining: vec![GroundMovement, NavalMovement],
+            current: Some(NavalMovement),
             max_naval_movement_count: u8::MAX,
             naval_movement_count: 0,
         };
 
-        update_contact_phase(&mut contact_phase, &MovementType::GroundMovement);
+        update_contact_phase(&mut contact_phase, &GroundMovement);
 
         assert_eq!(contact_phase.remaining, vec![]);
     }
@@ -786,13 +778,13 @@ pub mod core_test {
     #[test]
     fn more_naval_movement_at_contact_phase_increases_movement_count() {
         let mut contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-            current: Some(MovementType::NavalMovement),
+            remaining: vec![GroundMovement, NavalMovement],
+            current: Some(NavalMovement),
             max_naval_movement_count: u8::MAX,
             naval_movement_count: 0,
         };
 
-        update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+        update_contact_phase(&mut contact_phase, &NavalMovement);
 
         assert_eq!(1, contact_phase.naval_movement_count);
     }
@@ -800,13 +792,13 @@ pub mod core_test {
     #[test]
     fn naval_movement_increase_date_by_1_day_when_total_is_1() {
         let mut contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-            current: Some(MovementType::NavalMovement),
+            remaining: vec![GroundMovement, NavalMovement],
+            current: Some(NavalMovement),
             max_naval_movement_count: u8::MAX,
             naval_movement_count: 0,
         };
 
-        let add_day = update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+        let add_day = update_contact_phase(&mut contact_phase, &NavalMovement);
 
         assert!(add_day);
     }
@@ -814,13 +806,13 @@ pub mod core_test {
     #[test]
     fn naval_movement_does_not_increase_date_when_total_is_2() {
         let mut contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-            current: Some(MovementType::NavalMovement),
+            remaining: vec![GroundMovement, NavalMovement],
+            current: Some(NavalMovement),
             max_naval_movement_count: u8::MAX,
             naval_movement_count: 1,
         };
 
-        let add_day = update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+        let add_day = update_contact_phase(&mut contact_phase, &NavalMovement);
 
         assert!(!add_day);
     }
@@ -828,13 +820,13 @@ pub mod core_test {
     #[test]
     fn naval_movement_increase_date_by_1_when_total_is_4() {
         let mut contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-            current: Some(MovementType::NavalMovement),
+            remaining: vec![GroundMovement, NavalMovement],
+            current: Some(NavalMovement),
             max_naval_movement_count: u8::MAX,
             naval_movement_count: 3,
         };
 
-        let add_day = update_contact_phase(&mut contact_phase, &MovementType::NavalMovement);
+        let add_day = update_contact_phase(&mut contact_phase, &NavalMovement);
 
         assert!(add_day);
     }
@@ -843,8 +835,8 @@ pub mod core_test {
     fn battle_date_changes_when_naval_movement_increases_day() {
         let id = Uuid::new_v4();
         let contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-            current: Some(MovementType::NavalMovement),
+            remaining: vec![GroundMovement, NavalMovement],
+            current: Some(NavalMovement),
             max_naval_movement_count: u8::MAX,
             naval_movement_count: 3,
         };
@@ -856,7 +848,7 @@ pub mod core_test {
             phase: Phase::OperationContactPhase(contact_phase),
         };
 
-        battle.contact_movement(&MovementType::NavalMovement);
+        battle.contact_movement(&NavalMovement);
 
         assert_eq!(
             NaiveDate::from_ymd_opt(1942, 05, 02).unwrap(),
@@ -868,8 +860,8 @@ pub mod core_test {
     fn set_reaction_player_max_naval_movement_to_movement_count_from_operation_player() {
         let id = Uuid::new_v4();
         let contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-            current: Some(MovementType::NavalMovement),
+            remaining: vec![GroundMovement, NavalMovement],
+            current: Some(NavalMovement),
             max_naval_movement_count: u8::MAX,
             naval_movement_count: 3,
         };
@@ -898,8 +890,8 @@ pub mod core_test {
     ) {
         let id = Uuid::new_v4();
         let contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-            current: Some(MovementType::NavalMovement),
+            remaining: vec![GroundMovement, NavalMovement],
+            current: Some(NavalMovement),
             max_naval_movement_count: u8::MAX,
             naval_movement_count: 3,
         };
@@ -912,7 +904,7 @@ pub mod core_test {
                     date: NaiveDate::from_ymd_opt(1942, 5, 1).unwrap(),
                 },
                 duration: 21,
-                operation_player: Side::Japan,
+                operation_player: Japan,
                 intelligence_condition: Intelligence::Ambush,
             },
             current_date: NaiveDate::from_ymd_opt(1942, 5, 1).unwrap(),
@@ -935,8 +927,8 @@ pub mod core_test {
     fn given_reaction_phase_when_next_move_to_battle_cycle() {
         let id = Uuid::new_v4();
         let contact_phase = ContactPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
-            current: Some(MovementType::NavalMovement),
+            remaining: vec![GroundMovement, NavalMovement],
+            current: Some(NavalMovement),
             max_naval_movement_count: u8::MAX,
             naval_movement_count: 3,
         };
@@ -987,9 +979,9 @@ pub mod core_test {
     fn lighting_can_be_set_by_operational_player_on_first_cycle() {
         let mut battle_cycle = BattleCycle::intercept(12);
 
-        battle_cycle.choose_lighting(Lighting::Dusk);
+        battle_cycle.choose_lighting(Dusk);
 
-        assert_eq!(Some(Lighting::Dusk), battle_cycle.lighting_condition);
+        assert_eq!(Some(Dusk), battle_cycle.lighting_condition);
     }
 
     #[test]
@@ -1015,7 +1007,7 @@ pub mod core_test {
     #[test]
     fn operational_player_cannot_advance_lightning_if_already_chosen() {
         let mut battle_cycle = BattleCycle::intercept(12);
-        battle_cycle.choose_lighting(Lighting::Dusk);
+        battle_cycle.choose_lighting(Dusk);
 
         battle_cycle.count = 2;
 
@@ -1028,32 +1020,32 @@ pub mod core_test {
 
         battle_cycle.random_lighting();
 
-        assert_eq!(Some(Lighting::DayPM), battle_cycle.lighting_condition);
+        assert_eq!(Some(DayPM), battle_cycle.lighting_condition);
     }
 
     #[test]
     fn lighting_advances_one_step() {
         let mut battle_cycle = BattleCycle::intercept(12);
-        battle_cycle.lighting_condition = Some(Lighting::DayPM);
+        battle_cycle.lighting_condition = Some(DayPM);
 
         battle_cycle.next_lighting();
-        assert_eq!(Some(Lighting::Dusk), battle_cycle.lighting_condition);
+        assert_eq!(Some(Dusk), battle_cycle.lighting_condition);
 
         battle_cycle.next_lighting();
-        assert_eq!(Some(Lighting::Night), battle_cycle.lighting_condition);
+        assert_eq!(Some(Night), battle_cycle.lighting_condition);
 
         battle_cycle.next_lighting();
-        assert_eq!(Some(Lighting::DayAM), battle_cycle.lighting_condition);
+        assert_eq!(Some(DayAM), battle_cycle.lighting_condition);
     }
 
     #[test]
     fn lighting_after_day_am_is_random() {
         let mut battle_cycle = BattleCycle::intercept(14);
-        battle_cycle.lighting_condition = Some(Lighting::DayAM);
+        battle_cycle.lighting_condition = Some(DayAM);
 
         battle_cycle.next_lighting();
 
-        assert_eq!(Some(Lighting::Night), battle_cycle.lighting_condition);
+        assert_eq!(Some(Night), battle_cycle.lighting_condition);
     }
 
     #[test]
@@ -1062,7 +1054,7 @@ pub mod core_test {
 
         battle_cycle.next_lighting();
 
-        assert_eq!(Some(Lighting::Night), battle_cycle.lighting_condition);
+        assert_eq!(Some(Night), battle_cycle.lighting_condition);
     }
 
     #[test]
@@ -1070,9 +1062,9 @@ pub mod core_test {
         let mut battle_cycle = BattleCycle::intercept(14);
         battle_cycle.intelligence_condition = Intelligence::Surprise;
 
-        battle_cycle.determine_advantage(Side::Allies);
+        battle_cycle.determine_advantage(Allies);
 
-        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+        assert_eq!(Some(Allies), battle_cycle.advantage_player);
     }
 
     #[test]
@@ -1080,31 +1072,31 @@ pub mod core_test {
         let mut battle_cycle = BattleCycle::intercept(14);
         battle_cycle.intelligence_condition = Intelligence::Ambush;
 
-        battle_cycle.determine_advantage(Side::Allies);
+        battle_cycle.determine_advantage(Allies);
 
-        assert_eq!(Some(Side::Japan), battle_cycle.advantage_player);
+        assert_eq!(Some(Japan), battle_cycle.advantage_player);
     }
 
     #[test]
     fn advantage_is_decided_randomly_given_intelligence_is_intercept() {
         let mut battle_cycle = BattleCycle::intercept(16); // dice = 8 6
 
-        battle_cycle.determine_advantage(Side::Allies);
+        battle_cycle.determine_advantage(Allies);
 
-        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+        assert_eq!(Some(Allies), battle_cycle.advantage_player);
 
         battle_cycle.seed = 14; // dice = 0 2
-        battle_cycle.determine_advantage(Side::Allies);
+        battle_cycle.determine_advantage(Allies);
 
-        assert_eq!(Some(Side::Japan), battle_cycle.advantage_player);
+        assert_eq!(Some(Japan), battle_cycle.advantage_player);
     }
 
     #[test]
     fn advantage_roll_ties_resolve_to_operation_player() {
         let mut battle_cycle = BattleCycle::intercept(67); // dice = 3 3
-        battle_cycle.determine_advantage(Side::Allies);
+        battle_cycle.determine_advantage(Allies);
 
-        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+        assert_eq!(Some(Allies), battle_cycle.advantage_player);
     }
 
     #[test]
@@ -1113,9 +1105,9 @@ pub mod core_test {
         battle_cycle.intelligence_condition = Intelligence::Ambush;
         battle_cycle.count = 2;
 
-        battle_cycle.determine_advantage(Side::Allies);
+        battle_cycle.determine_advantage(Allies);
 
-        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+        assert_eq!(Some(Allies), battle_cycle.advantage_player);
     }
 
     #[test]
@@ -1124,9 +1116,9 @@ pub mod core_test {
         battle_cycle.intelligence_condition = Intelligence::Surprise;
         battle_cycle.count = 2;
 
-        battle_cycle.determine_advantage(Side::Allies);
+        battle_cycle.determine_advantage(Allies);
 
-        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+        assert_eq!(Some(Allies), battle_cycle.advantage_player);
     }
 
     #[test]
@@ -1135,9 +1127,9 @@ pub mod core_test {
         battle_cycle.intelligence_condition = Intelligence::AmbushCV;
         battle_cycle.count = 2;
 
-        battle_cycle.determine_advantage(Side::Japan);
+        battle_cycle.determine_advantage(Japan);
 
-        assert_eq!(Some(Side::Allies), battle_cycle.advantage_player);
+        assert_eq!(Some(Allies), battle_cycle.advantage_player);
     }
 
     #[test]
@@ -1147,11 +1139,11 @@ pub mod core_test {
         battle_cycle.count = 2;
         battle_cycle.next().next();
 
-        battle_cycle.movement(&MovementType::NavalMovement);
+        battle_cycle.movement(&NavalMovement);
 
         if let AdvantageMovement(phase) = battle_cycle.phase {
-            assert_eq!(vec![MovementType::GroundMovement], phase.remaining);
-            assert_eq!(MovementType::NavalMovement, phase.current.unwrap());
+            assert_eq!(vec![GroundMovement], phase.remaining);
+            assert_eq!(NavalMovement, phase.current.unwrap());
         } else {
             panic!("Expected AdvantageMovement")
         }
@@ -1163,15 +1155,15 @@ pub mod core_test {
         battle_cycle.intelligence_condition = Intelligence::AmbushCV;
         battle_cycle.count = 2;
         battle_cycle.phase = DisadvantageMovement(BattleMovementPhase {
-            remaining: vec![MovementType::GroundMovement, MovementType::NavalMovement],
+            remaining: vec![GroundMovement, NavalMovement],
             current: None,
         });
 
-        battle_cycle.movement(&MovementType::NavalMovement);
+        battle_cycle.movement(&NavalMovement);
 
         if let DisadvantageMovement(phase) = battle_cycle.phase {
-            assert_eq!(vec![MovementType::GroundMovement], phase.remaining);
-            assert_eq!(MovementType::NavalMovement, phase.current.unwrap());
+            assert_eq!(vec![GroundMovement], phase.remaining);
+            assert_eq!(NavalMovement, phase.current.unwrap());
         } else {
             panic!("Expected AdvantageMovement")
         }
@@ -1207,7 +1199,7 @@ pub mod core_test {
         battle_cycle.intelligence_condition = Intelligence::AmbushCV;
         battle_cycle.count = 2;
         battle_cycle.phase = NavalCombats(NavalCombat::new(1));
-        battle_cycle.advantage_player = Some(Side::Japan);
+        battle_cycle.advantage_player = Some(Japan);
         battle_cycle.lighting_condition = Some(DayAM);
 
         battle_cycle.determine_naval_combat(
@@ -1218,7 +1210,7 @@ pub mod core_test {
 
         if let NavalCombats(combat) = battle_cycle.phase {
             assert_eq!(Some(HexType::Open), combat.hex_type);
-            assert_eq!(Some(Side::Japan), combat.surprise);
+            assert_eq!(Some(Japan), combat.surprise);
         } else {
             panic!("Expected NavalCombat")
         }
@@ -1230,7 +1222,7 @@ pub mod core_test {
         battle_cycle.intelligence_condition = Intelligence::AmbushCV;
         battle_cycle.count = 2;
         battle_cycle.phase = NavalCombats(NavalCombat::new(1));
-        battle_cycle.advantage_player = Some(Side::Japan);
+        battle_cycle.advantage_player = Some(Japan);
         battle_cycle.lighting_condition = Some(DayAM);
 
         battle_cycle.determine_naval_combat(
@@ -1241,7 +1233,7 @@ pub mod core_test {
 
         if let NavalCombats(combat) = battle_cycle.phase {
             assert_eq!(Some(HexType::Open), combat.hex_type);
-            assert_eq!(Some(Side::Allies), combat.surprise);
+            assert_eq!(Some(Allies), combat.surprise);
         } else {
             panic!("Expected NavalCombat")
         }
@@ -1253,7 +1245,7 @@ pub mod core_test {
         battle_cycle.intelligence_condition = Intelligence::AmbushCV;
         battle_cycle.count = 2;
         battle_cycle.phase = NavalCombats(NavalCombat::new(1));
-        battle_cycle.advantage_player = Some(Side::Japan);
+        battle_cycle.advantage_player = Some(Japan);
 
         battle_cycle.determine_naval_combat(
             &HexType::Open,
