@@ -13,26 +13,34 @@
     <!-- <noscript>This page contains webassembly and javascript content, please enable javascript in your browser.</noscript> -->
     <!-- <script src="./bootstrap.js"></script> -->
     <div  class="operation">
-    <h1>PACIFIC WAR</h1>
-    <form>
-    <header><h2>{{battle_name}} Battle</h2></header>
-      <div><label for="operation_player">Operation player</label>
-        <input type="text" readonly name="operation_player" value="{{operation_player}}" />
-      </div>
-      <div><label for="intelligence_condition">Intelligence condition</label>
-        <input type="text" readonly name="intelligence_condition" value="{{intelligence_condition}}" />
-      </div>
-      <div>
-        <label for="start_date">Start date</label>
-        <input type="text" readonly name="start_date" value="{{start_date}}" />
-      </div>
-      <div><label for="duration">Duration</label>
-        <input type="number" readonly name="duration" value="{{duration}}" />
-      </div>
-      <div><label for="current_date">Current date</label>
-        <input type="text" readonly name="current_date" value="{{current_date}}" />
-      </div>
-    </form>
+      <h1>PACIFIC WAR</h1>
+      <section class="accordion">
+        <input type="checkbox" name="collapse" id="handle1"/>v
+        <h2 class="handle">
+          <label for="handle1">{{battle_name}} Battle</label>
+        </h2>
+        <div class="content">
+          <form>
+            <div>
+              <label for="operation_player">Operation player</label>
+              <input type="text" readonly name="operation_player" id="operation_player" value="{{operation_player}}" />
+            </div>
+            <div><label for="intelligence_condition">Intelligence condition</label>
+              <input type="text" readonly name="intelligence_condition" id="intelligence_condition" value="{{intelligence_condition}}" />
+            </div>
+            <div>
+              <label for="start_date">Start date</label>
+              <input type="text" readonly name="start_date" id="start_date" value="{{start_date}}" />
+            </div>
+            <div><label for="duration">Duration</label>
+              <input type="number" readonly name="duration" id="duration" value="{{duration}}" />
+            </div>
+            <div><label for="current_date">Current date</label>
+              <input type="text" readonly name="current_date" id="current_date" value="{{current_date}}" />
+            </div>
+          </form>
+        </div>
+      </section>
     </div>
     <div class="{{#if cycle.lighting_condition}}{{cycle.lighting_condition}}{{else}}DayPM{{/if}} combat">
       {{> page }}

@@ -139,6 +139,62 @@ button.next {
     background: #f00;
 }
 
+/*
+ Accordion CSS for the main interaction
+*/
+.accordion > input[type="checkbox"] {
+  position: absolute;
+  left: -100vw;
+}
+
+.accordion .content {
+  overflow-y: hidden;
+  height: 0;
+  transition: height 0.3s ease;
+}
+
+.accordion > input[type="checkbox"]:checked ~ .content {
+  height: auto;
+  overflow: visible;
+}
+
+.accordion label {
+  display: block;
+}
+
+.accordion > input[type="checkbox"]:checked ~ .content {
+  padding: 15px;
+  border: 1px solid #e8e8e8;
+  border-top: 0;
+}
+
+.accordion .handle {
+  margin: 0;
+}
+
+.accordion > .handle > label {
+  cursor: pointer;
+  padding: 15px;
+}
+
+.accordion label:hover,
+.accordion label:focus {
+  background: rgba(200, 200,200, .50) ;
+}
+
+.accordion .handle label:before {
+    content: "\25b6";
+    display: inline-block;
+    margin-right: 10px;
+    font-size: .48em;
+    line-height: 1em;
+    vertical-align: middle;
+}
+
+.accordion > input[type="checkbox"]:checked ~ .handle label:before {
+    content: "\25bc";
+}
+
 @media (max-width: 600px) {
     body {
         padding: 10px 3%;

@@ -9,24 +9,24 @@
         <div>
           <div>
             <label for="surprise">Surprise</label>
-            <input type="text"  readonly name="surprise" value="{{naval_combat.surprise}}" />
+            <input type="text"  readonly name="surprise" id="surprise" value="{{naval_combat.surprise}}" />
           </div>
 
           <div>
             <label for="hex_type">Hex type</label>
-            <input type="text"  readonly name="hex_type" value="{{naval_combat.hex_type}}" />
+            <input type="text"  readonly name="hex_type" id="hex_type" value="{{naval_combat.hex_type}}" />
           </div>
 
           {{#if naval_combat.distance}}
           <div>
             <label for="distance">Distance</label>
-            <input type="text" readonly name="distance" value="{{naval_combat.distance}}" />
+            <input type="text" readonly name="distance" id="distance" value="{{naval_combat.distance}}" />
           </div>
           <button class="next" type="submit" formaction="/battle/{{battle_id}}/next_round">Next round</button>
           {{else}}
           <div>
             <label for="previous_distance">Previous distance</label>
-            <input type="text" readonly name="previous_distance" value="{{naval_combat.previous_distance}}" />
+            <input type="text" readonly name="previous_distance" id="previous_distance" value="{{naval_combat.previous_distance}}" />
           </div>
           <div>
             <label for="advantage_bid">Advantage distance bid</label>

@@ -4,7 +4,7 @@
   <form method="POST" action="/battle/{{battle_id}}/movement">
     <div>
       <label for="current">Current movement</label>
-      <input type="text" readonly value="{{movement.current}}" />
+      <input type="text" readonly id="current" value="{{movement.current}}" />
     </div>
 
   {{#each movement.remaining}}
