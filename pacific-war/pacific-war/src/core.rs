@@ -413,15 +413,6 @@ impl BattleCycle {
         }
     }
 
-    pub fn determine_combat_distance_first_round(&mut self) {
-        match &mut self.phase {
-            BattleCycleSegment::NavalCombats(combat) => {
-                combat.determine_distance(self.lighting_condition.as_ref().unwrap());
-            }
-            _ => {}
-        }
-    }
-
     pub fn bid_distance(
         &mut self,
         advantage_bid: &CombatDistance,
@@ -1266,21 +1257,12 @@ pub mod core_test {
             #[test]
             fn $name() {
                 let (hex_type, lighting, expected_distance) = $value;
-                let mut battle_cycle = BattleCycle::intercept(1); // dice = 7 6
-                battle_cycle.intelligence_condition = Intelligence::AmbushCV;
-                battle_cycle.lighting_condition = Some(lighting);
-                battle_cycle.count = 2;
                 let mut combat =  NavalCombat::new(1);
                 combat.hex_type = Some(hex_type);
-                battle_cycle.phase = NavalCombats(combat);
 
-                battle_cycle.determine_combat_distance_first_round();
+                combat.determine_distance(&lighting);
 
-                if let NavalCombats(combat) = battle_cycle.phase {
-                    assert_eq!(Some(expected_distance), combat.distance);
-                } else {
-                    panic!("Expected NavalCombat")
-                }
+                assert_eq!(Some(expected_distance), combat.distance);
             }
         )*
       }
@@ -1392,8 +1374,6 @@ pub mod core_test {
             &Detection::Detected,
             &Detection::Detected,
         );
-
-        battle_cycle.determine_combat_distance_first_round();
 
         battle_cycle.next_round();
 
