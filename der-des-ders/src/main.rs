@@ -1,5 +1,6 @@
 use clap::Parser;
 use clap::ValueEnum;
+use robot::RobotIO;
 use std::cmp::Ordering;
 use std::io::{stdin, stdout};
 
@@ -23,6 +24,7 @@ mod event;
 mod events;
 mod fixtures;
 mod logic;
+mod robot;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum PlayerType {
@@ -86,7 +88,7 @@ fn make_player(side: Side, player_type: PlayerType) -> Box<dyn Player> {
             outp: stdout(),
             out: vec![],
         }),
-        PlayerType::Robot => Box::new(RobotIO {}),
+        PlayerType::Robot => Box::new(RobotIO::new(&side, 42)),
     }
 }
 

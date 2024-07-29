@@ -117,22 +117,6 @@ impl Player for Console {
     }
 }
 
-pub struct RobotIO {}
-
-impl Player for RobotIO {
-    fn output(&mut self, _message: &Output) {
-        // TODO
-    }
-
-    fn input(&mut self) -> Input {
-        Input::Next
-    }
-
-    fn out(&self) -> Vec<Output> {
-        vec![]
-    }
-}
-
 fn num(input: &str) -> IResult<&str, Input> {
     map(map_res(digit1, |s: &str| s.parse::<u8>()), |n| {
         Input::Number(n)
@@ -254,7 +238,6 @@ pub fn parse(string: &str) -> Result<Input, ParseError> {
 
 #[cfg(test)]
 mod tests {
-    use std::assert_matches::assert_matches;
 
     use super::{parse, Input::*, Nation::*, TechnologyType::*};
 
@@ -278,7 +261,7 @@ mod tests {
         assert_eq!(parse("defense 3"), Ok(Select(Defense, 3)));
         assert_eq!(parse("artillery 1"), Ok(Select(Artillery, 1)));
         assert_eq!(parse("air 4"), Ok(Select(Air, 4)));
-        assert_matches!(parse("attack foo"), Err(_));
+        assert!(parse("attack foo").is_err());
     }
 
     #[test]
@@ -307,7 +290,7 @@ mod tests {
     #[test]
     fn rejects_invalid_commands() {
         for command in &["ne", "x", ""] {
-            assert_matches!(parse(command), Err(_));
+            assert!(parse(command).is_err());
         }
     }
 }
