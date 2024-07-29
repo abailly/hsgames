@@ -1,5 +1,5 @@
-#![feature(assert_matches)]
-
+use clap::Parser;
+use clap::ValueEnum;
 use std::cmp::Ordering;
 use std::io::{stdin, stdout};
 
@@ -24,21 +24,36 @@ mod events;
 mod fixtures;
 mod logic;
 
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum PlayerType {
     Human,
-    #[allow(dead_code)]
     Robot,
 }
 
+/// Sets types of player for allies and empires and optionally provide a seed
+/// for dice rolling.
+#[derive(Parser)]
 struct Options {
+    /// Player type for allies
+    #[arg(long, value_enum, default_value_t = PlayerType::Human)]
     allies: PlayerType,
+    /// Player type for empires
+    #[arg(long, value_enum, default_value_t = PlayerType::Robot)]
     empires: PlayerType,
+    /// Initial seed for dice rolling
+    #[arg(short, long, default_value_t = 42)]
+    seed: u64,
 }
 
-const DEFAULT_OPTIONS: Options = Options {
-    allies: PlayerType::Human,
-    empires: PlayerType::Human,
-};
+impl Default for Options {
+    fn default() -> Self {
+        Options {
+            allies: PlayerType::Human,
+            empires: PlayerType::Human,
+            seed: 42,
+        }
+    }
+}
 
 struct Players {
     allies_player: Box<dyn Player>,
@@ -46,8 +61,9 @@ struct Players {
 }
 
 fn main() {
-    let mut game_engine = GameEngine::new(42);
-    let mut players = initialise_players(DEFAULT_OPTIONS);
+    let options = Options::parse();
+    let mut game_engine = GameEngine::new(options.seed);
+    let mut players = initialise_players(options);
     while !game_engine.game_ends() {
         run_turn(&mut players, &mut game_engine);
     }
