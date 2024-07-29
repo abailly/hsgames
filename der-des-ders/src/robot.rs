@@ -54,7 +54,9 @@ impl Player for RobotIO {
                 self.phase = Some(message.clone());
             }
             Output::BlockadeResult(_) => {}
-            Output::SelectNationForHit => {}
+            Output::SelectNationForHit => {
+                self.phase = Some(message.clone());
+            }
             Output::EventDrawn(_, _) => {}
         }
     }
@@ -133,7 +135,24 @@ impl Player for RobotIO {
             }
             Some(Output::IncreaseUBoot) => Input::Number(0),
             Some(Output::IncreaseBlockade) => Input::Number(0),
-            _ => Input::Next,
+            Some(Output::SelectNationForHit) => {
+                let state = self.state.as_ref().unwrap();
+                let nations = state.all_nations_at_war(self.side);
+                let mut nations = nations
+                    .iter()
+                    .filter_map(|n| {
+                        if state.breakdown_level(n) > 0 {
+                            Some((*n, state.breakdown_level(n)))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<(Nation, u8)>>();
+                nations.sort_by(|a, b| a.1.cmp(&b.1).reverse());
+                let nation_index = self.rng.gen_range(0..nations.len());
+                Input::ApplyHit(nations[nation_index].0)
+            }
+            _ => panic!("Unexpected phase: {:?}", self.phase),
         }
     }
 
@@ -246,5 +265,22 @@ mod robot_tests {
         let input = robot.input();
 
         assert_eq!(Input::Number(0), input);
+    }
+
+    #[test]
+    fn choose_nation_with_maximum_breakdown_when_applying_hits() {
+        let engine = EngineBuilder::new(14)
+            .with_nation(Nation::Germany, NationState::AtWar(6))
+            .with_nation(Nation::AustriaHungary, NationState::AtWar(2))
+            .build();
+
+        let mut robot = RobotIO::new(&Side::Empires, 15);
+
+        robot.output(&Output::CurrentState(engine.state));
+        robot.output(&Output::SelectNationForHit);
+
+        let input = robot.input();
+
+        assert_eq!(Input::ApplyHit(Nation::GermanAfrica), input);
     }
 }
