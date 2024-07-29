@@ -127,6 +127,9 @@ impl Player for RobotIO {
                         }
                     })
                     .collect::<Vec<(Nation, u8)>>();
+                if nations.is_empty() {
+                    return Input::Pass;
+                }
                 nations.sort();
                 let nation_index = self.rng.gen_range(0..nations.len());
                 let (nation, loss) = nations[nation_index];
@@ -233,6 +236,22 @@ mod robot_tests {
         let input = robot.input();
 
         assert_eq!(Input::Reinforce(Nation::Germany, 2), input);
+    }
+
+    #[test]
+    fn pass_when_there_is_no_nation_to_reinforce() {
+        let engine = EngineBuilder::new(14)
+            .with_resources(Side::Empires, 5)
+            .build();
+
+        let mut robot = RobotIO::new(&Side::Empires, 15);
+
+        robot.output(&Output::CurrentState(engine.state));
+        robot.output(&Output::ReinforceNations);
+
+        let input = robot.input();
+
+        assert_eq!(Input::Pass, input);
     }
 
     #[test]
