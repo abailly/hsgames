@@ -247,6 +247,32 @@ impl GameState {
                 .cloned(),
         );
     }
+
+    /// List technologies available to the given side in the current turn
+    pub(crate) fn available_technologies(&self, side: &Side) -> Vec<Technology> {
+        match side {
+            Side::Allies => self.available_technologies_for(&ALLIES_TECHNOLOGIES),
+            Side::Empires => self.available_technologies_for(&EMPIRE_TECHNOLOGIES),
+        }
+    }
+
+    fn available_technologies_for(
+        &self,
+        technologies: &[[Option<Technology>; 4]; 4],
+    ) -> Vec<Technology> {
+        technologies
+            .iter()
+            .flatten()
+            .filter(|s| s.is_some())
+            .filter_map(|tech| {
+                if tech.unwrap().date <= self.current_year() {
+                    *tech
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
 impl Display for GameState {
@@ -315,5 +341,16 @@ mod game_state_tests {
         let mut engine = EngineBuilder::new(11).build();
 
         assert_eq!(NationNotAtWar(Italy), engine.apply_hits(&Italy, 2));
+    }
+
+    #[test]
+    fn only_technologies_for_1914_are_available_at_start() {
+        let engine = EngineBuilder::new(11).build();
+
+        let allies_techs = engine.state.available_technologies(&Allies);
+        assert!(allies_techs.iter().all(|tech| tech.date == 1914));
+
+        let empires_techs = engine.state.available_technologies(&Empires);
+        assert!(empires_techs.iter().all(|tech| tech.date == 1914));
     }
 }

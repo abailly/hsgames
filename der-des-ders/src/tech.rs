@@ -49,7 +49,9 @@ pub fn initial_technologies() -> Technologies {
     }
 }
 
+#[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub struct Technology {
+    pub category: TechnologyType,
     #[allow(dead_code)]
     pub level: u8,
     #[allow(dead_code)]
@@ -62,18 +64,21 @@ pub const EMPIRE_TECHNOLOGIES: [[Option<Technology>; 4]; 4] = [
     // Attack
     [
         Some(Technology {
+            category: TechnologyType::Attack,
             level: 1,
             name: "Combat Gas",
             date: 1915,
             min_dice_unlock: 4,
         }),
         Some(Technology {
+            category: TechnologyType::Attack,
             level: 2,
             name: "Firepower",
             date: 1916,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Attack,
             level: 3,
             name: "Stosstruppen",
             date: 1917,
@@ -84,24 +89,28 @@ pub const EMPIRE_TECHNOLOGIES: [[Option<Technology>; 4]; 4] = [
     // Defense
     [
         Some(Technology {
+            category: TechnologyType::Defense,
             level: 1,
             name: "Machine guns",
             date: 1914,
             min_dice_unlock: 4,
         }),
         Some(Technology {
+            category: TechnologyType::Defense,
             level: 2,
             name: "Trench warfare",
             date: 1915,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Defense,
             level: 3,
             name: "Bunkers",
             date: 1916,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Defense,
             level: 4,
             name: "Hindenburg line",
             date: 1917,
@@ -111,18 +120,21 @@ pub const EMPIRE_TECHNOLOGIES: [[Option<Technology>; 4]; 4] = [
     // Artillery
     [
         Some(Technology {
+            category: TechnologyType::Artillery,
             level: 1,
             name: "Heavy artillery",
             date: 1915,
             min_dice_unlock: 4,
         }),
         Some(Technology {
+            category: TechnologyType::Artillery,
             level: 2,
             name: "Barrage fire",
             date: 1916,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Artillery,
             level: 3,
             name: "Bruchmüller",
             date: 1917,
@@ -133,18 +145,21 @@ pub const EMPIRE_TECHNOLOGIES: [[Option<Technology>; 4]; 4] = [
     // Air
     [
         Some(Technology {
+            category: TechnologyType::Air,
             level: 1,
             name: "Reco",
             date: 1915,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Air,
             level: 5,
             name: "Jagdstaffeln",
             date: 1916,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Air,
             level: 6,
             name: "Fokker D.VII",
             date: 1918,
@@ -158,24 +173,28 @@ pub const ALLIES_TECHNOLOGIES: [[Option<Technology>; 4]; 4] = [
     // Attack
     [
         Some(Technology {
+            category: TechnologyType::Attack,
             level: 1,
             name: "Combat Gas",
             date: 1915,
             min_dice_unlock: 4,
         }),
         Some(Technology {
+            category: TechnologyType::Attack,
             level: 2,
             name: "New Tactics",
             date: 1916,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Attack,
             level: 3,
             name: "English Tanks Mark",
             date: 1917,
             min_dice_unlock: 6,
         }),
         Some(Technology {
+            category: TechnologyType::Attack,
             level: 4,
             name: "French Tanks Renault FT",
             date: 1918,
@@ -185,18 +204,21 @@ pub const ALLIES_TECHNOLOGIES: [[Option<Technology>; 4]; 4] = [
     // Defense
     [
         Some(Technology {
+            category: TechnologyType::Defense,
             level: 1,
             name: "Machine guns",
             date: 1914,
             min_dice_unlock: 4,
         }),
         Some(Technology {
+            category: TechnologyType::Defense,
             level: 2,
             name: "Trench warfare",
             date: 1915,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Defense,
             level: 3,
             name: "Bunkers",
             date: 1916,
@@ -207,18 +229,21 @@ pub const ALLIES_TECHNOLOGIES: [[Option<Technology>; 4]; 4] = [
     // Artillery
     [
         Some(Technology {
+            category: TechnologyType::Artillery,
             level: 1,
             name: "Heavy artillery",
             date: 1915,
             min_dice_unlock: 4,
         }),
         Some(Technology {
+            category: TechnologyType::Artillery,
             level: 2,
             name: "Barrage fire",
             date: 1916,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Artillery,
             level: 3,
             name: "Rolling barrage",
             date: 1916,
@@ -229,24 +254,28 @@ pub const ALLIES_TECHNOLOGIES: [[Option<Technology>; 4]; 4] = [
     // Air
     [
         Some(Technology {
+            category: TechnologyType::Air,
             level: 1,
             name: "Reco",
             date: 1915,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Air,
             level: 4,
             name: "Nieuport 11",
             date: 1916,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Air,
             level: 5,
             name: "Spad",
             date: 1917,
             min_dice_unlock: 5,
         }),
         Some(Technology {
+            category: TechnologyType::Air,
             level: 7,
             name: "Air division",
             date: 1918,
