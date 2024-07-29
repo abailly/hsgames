@@ -96,17 +96,16 @@ impl Player for RobotIO {
                 let mut sources: Vec<Nation> = state.all_nations_at_war(self.side);
                 sources.sort();
                 let source_index = self.rng.gen_range(0..sources.len());
-                println!("sources: {:?} / {}", source_index, sources.len());
                 let source = sources[source_index];
                 // select a target for offensive
                 let mut targets: Vec<&Nation> = state.neighbours(&source);
                 targets.sort();
                 let target_index = self.rng.gen_range(0..targets.len());
-                println!("target: {:?} / {}", target_index, targets.len());
                 let target = targets[target_index];
-                if resources > 0 {
-                    let pr = self.rng.gen_range(0..=resources.min(3));
-                    println!("pr: {:?}", pr);
+                let pr = self
+                    .rng
+                    .gen_range(0..=resources.min(state.operational_level(&source)));
+                if pr > 0 {
                     Input::Offensive(source, *target, pr)
                 } else {
                     Input::Pass
@@ -134,7 +133,11 @@ impl Player for RobotIO {
                 let nation_index = self.rng.gen_range(0..nations.len());
                 let (nation, loss) = nations[nation_index];
                 let pr = self.rng.gen_range(0..=resources.min(loss));
-                Input::Reinforce(nation, pr)
+                if pr > 0 {
+                    Input::Reinforce(nation, pr)
+                } else {
+                    Input::Pass
+                }
             }
             Some(Output::IncreaseUBoot) => Input::Number(0),
             Some(Output::IncreaseBlockade) => Input::Number(0),
