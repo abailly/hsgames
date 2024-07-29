@@ -46,9 +46,13 @@ impl Player for RobotIO {
             Output::AttackingNonAdjacentCountry(_, _) => {}
             Output::OperationalLevelTooLow(_, _) => {}
             Output::OffensiveResult { from, to, result } => {}
-            Output::IncreaseUBoot => {}
+            Output::IncreaseUBoot => {
+                self.phase = Some(message.clone());
+            }
             Output::UBootResult(_) => {}
-            Output::IncreaseBlockade => {}
+            Output::IncreaseBlockade => {
+                self.phase = Some(message.clone());
+            }
             Output::BlockadeResult(_) => {}
             Output::SelectNationForHit => {}
             Output::EventDrawn(_, _) => {}
@@ -127,6 +131,8 @@ impl Player for RobotIO {
                 let pr = self.rng.gen_range(0..=resources.min(loss));
                 Input::Reinforce(nation, pr)
             }
+            Some(Output::IncreaseUBoot) => Input::Number(0),
+            Some(Output::IncreaseBlockade) => Input::Number(0),
             _ => Input::Next,
         }
     }
@@ -208,5 +214,37 @@ mod robot_tests {
         let input = robot.input();
 
         assert_eq!(Input::Reinforce(Nation::Germany, 2), input);
+    }
+
+    #[test]
+    fn never_commits_or_for_u_boot() {
+        let engine = EngineBuilder::new(14)
+            .with_resources(Side::Empires, 5)
+            .build();
+
+        let mut robot = RobotIO::new(&Side::Empires, 15);
+
+        robot.output(&Output::CurrentState(engine.state));
+        robot.output(&Output::IncreaseUBoot);
+
+        let input = robot.input();
+
+        assert_eq!(Input::Number(0), input);
+    }
+
+    #[test]
+    fn never_commits_or_for_blockade() {
+        let engine = EngineBuilder::new(14)
+            .with_resources(Side::Allies, 5)
+            .build();
+
+        let mut robot = RobotIO::new(&Side::Allies, 15);
+
+        robot.output(&Output::CurrentState(engine.state));
+        robot.output(&Output::IncreaseBlockade);
+
+        let input = robot.input();
+
+        assert_eq!(Input::Number(0), input);
     }
 }
