@@ -1,7 +1,7 @@
 use core::fmt;
 use std::fmt::{Display, Formatter};
 
-#[derive(Hash, Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Hash, Eq, PartialEq, PartialOrd, Ord, Copy, Clone, Debug)]
 pub enum Nation {
     France,
     Italy,
@@ -19,11 +19,14 @@ pub enum Nation {
 }
 
 impl Nation {
+    /// Returns whether the nation is adjacent to another nation.
+    /// This function only considers _enemies_ as adjacent as its main use is to determine
+    /// whether a nation can attack another.
     pub fn adjacent_to(&self, to: &Nation) -> bool {
         match self {
             France => match to {
                 France => false,
-                Italy => true,
+                Italy => false,
                 Russia => false,
                 Egypt => false,
                 Serbia => false,
@@ -37,7 +40,7 @@ impl Nation {
                 GermanAfrica => false,
             },
             Italy => match to {
-                France => true,
+                France => false,
                 Italy => false,
                 Russia => false,
                 Egypt => false,
@@ -57,7 +60,7 @@ impl Nation {
                 Russia => false,
                 Egypt => false,
                 Serbia => false,
-                Romania => true,
+                Romania => false,
                 Greece => false,
                 FrenchAfrica => false,
                 Germany => true,
@@ -88,7 +91,7 @@ impl Nation {
                 Egypt => false,
                 Serbia => false,
                 Romania => true,
-                Greece => true,
+                Greece => false,
                 FrenchAfrica => false,
                 Germany => false,
                 AustriaHungary => true,
@@ -101,7 +104,7 @@ impl Nation {
                 Italy => false,
                 Russia => true,
                 Egypt => false,
-                Serbia => true,
+                Serbia => false,
                 Romania => false,
                 Greece => false,
                 FrenchAfrica => false,
@@ -116,7 +119,7 @@ impl Nation {
                 Italy => false,
                 Russia => false,
                 Egypt => false,
-                Serbia => true,
+                Serbia => false,
                 Romania => false,
                 Greece => false,
                 FrenchAfrica => false,
@@ -151,7 +154,7 @@ impl Nation {
                 Greece => false,
                 FrenchAfrica => false,
                 Germany => false,
-                AustriaHungary => true,
+                AustriaHungary => false,
                 OttomanEmpire => false,
                 Bulgaria => false,
                 GermanAfrica => false,
@@ -165,10 +168,10 @@ impl Nation {
                 Romania => true,
                 Greece => false,
                 FrenchAfrica => false,
-                Germany => true,
+                Germany => false,
                 AustriaHungary => false,
-                OttomanEmpire => true,
-                Bulgaria => true,
+                OttomanEmpire => false,
+                Bulgaria => false,
                 GermanAfrica => false,
             },
             OttomanEmpire => match to {
@@ -181,9 +184,9 @@ impl Nation {
                 Greece => true,
                 FrenchAfrica => false,
                 Germany => false,
-                AustriaHungary => true,
+                AustriaHungary => false,
                 OttomanEmpire => false,
-                Bulgaria => true,
+                Bulgaria => false,
                 GermanAfrica => false,
             },
             Bulgaria => match to {
@@ -197,7 +200,7 @@ impl Nation {
                 FrenchAfrica => false,
                 Germany => false,
                 AustriaHungary => false,
-                OttomanEmpire => true,
+                OttomanEmpire => false,
                 Bulgaria => false,
                 GermanAfrica => false,
             },
@@ -235,6 +238,25 @@ impl Nation {
             .unwrap()
             .1
             .max_breakdown
+    }
+
+    pub(crate) fn values() -> impl Iterator<Item = &'static Nation> {
+        [
+            France,
+            Italy,
+            Russia,
+            Egypt,
+            Serbia,
+            Romania,
+            Greece,
+            FrenchAfrica,
+            Germany,
+            AustriaHungary,
+            OttomanEmpire,
+            Bulgaria,
+            GermanAfrica,
+        ]
+        .iter()
     }
 }
 

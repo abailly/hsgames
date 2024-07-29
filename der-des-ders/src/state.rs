@@ -276,6 +276,17 @@ impl GameState {
             })
             .collect()
     }
+
+    /// List enemy nations neighbouring the given nation
+    pub(crate) fn neighbours(&self, source: &Nation) -> Vec<&Nation> {
+        let mut neighbours = Vec::new();
+        for n in Nation::values() {
+            if source.adjacent_to(n) {
+                neighbours.push(n);
+            }
+        }
+        neighbours
+    }
 }
 
 impl Display for GameState {
@@ -396,5 +407,13 @@ mod game_state_tests {
                 .map(|tech| tech.name.into())
                 .collect::<Vec<String>>()
         );
+    }
+
+    #[test]
+    fn can_list_all_neighbouring_nations_one_can_attack() {
+        let engine = EngineBuilder::new(11).build();
+
+        assert_eq!(vec![&Germany], engine.state.neighbours(&France));
+        assert_eq!(vec![&France, &Russia], engine.state.neighbours(&Germany));
     }
 }
