@@ -260,16 +260,19 @@ impl GameState {
         &self,
         technologies: &[[Option<Technology>; 4]; 4],
     ) -> Vec<Technology> {
+        let tech_map: HashMap<TechnologyType, u8> = self
+            .state_of_war
+            .get(&Side::Empires)
+            .unwrap()
+            .technologies
+            .as_ref()
+            .into();
         technologies
             .iter()
             .flatten()
-            .filter(|s| s.is_some())
-            .filter_map(|tech| {
-                if tech.unwrap().date <= self.current_year() {
-                    *tech
-                } else {
-                    None
-                }
+            .filter_map(|s| *s)
+            .filter(|tech| {
+                tech.date <= self.current_year() && tech.level == tech_map[&tech.category] + 1
             })
             .collect()
     }
@@ -304,7 +307,7 @@ impl Display for GameState {
 mod game_state_tests {
 
     use super::HitsResult::*;
-    use crate::{fixtures::EngineBuilder, Nation::*, NationState::*, Side::*};
+    use crate::{fixtures::EngineBuilder, Nation::*, NationState::*, Side::*, ZERO_TECHNOLOGIES};
 
     #[test]
     fn nation_surrenders_when_brought_to_0_then_increase_vp_of_other_side() {
@@ -352,5 +355,46 @@ mod game_state_tests {
 
         let empires_techs = engine.state.available_technologies(&Empires);
         assert!(empires_techs.iter().all(|tech| tech.date == 1914));
+    }
+
+    #[test]
+    fn only_technologies_beyond_current_level_are_available() {
+        let engine = EngineBuilder::new(11)
+            .with_technologies(
+                Empires,
+                crate::Technologies {
+                    defense: 1,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .with_technologies(
+                Allies,
+                crate::Technologies {
+                    attack: 1,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .on_turn(3)
+            .build();
+
+        let allies_techs = engine.state.available_technologies(&Allies);
+
+        assert_eq!(
+            vec!["Combat Gas", "Trench warfare", "Heavy artillery", "Reco"],
+            allies_techs
+                .iter()
+                .map(|tech| tech.name.into())
+                .collect::<Vec<String>>()
+        );
+
+        let empires_techs = engine.state.available_technologies(&Empires);
+
+        assert_eq!(
+            vec!["Combat Gas", "Trench warfare", "Heavy artillery", "Reco"],
+            empires_techs
+                .iter()
+                .map(|tech| tech.name.into())
+                .collect::<Vec<String>>()
+        );
     }
 }

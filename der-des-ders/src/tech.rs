@@ -1,7 +1,10 @@
 use core::fmt;
-use std::fmt::{Display, Formatter};
+use std::{
+    collections::HashMap,
+    fmt::{Display, Formatter},
+};
 
-#[derive(Eq, PartialEq, Clone, Copy, Debug)]
+#[derive(Eq, PartialEq, Clone, Copy, Debug, Hash)]
 pub enum TechnologyType {
     Attack,
     Defense,
@@ -18,6 +21,17 @@ pub struct Technologies {
     pub defense: u8,
     pub artillery: u8,
     pub air: u8,
+}
+
+impl From<&Technologies> for HashMap<TechnologyType, u8> {
+    fn from(value: &Technologies) -> Self {
+        let mut map = HashMap::new();
+        map.insert(TechnologyType::Attack, value.attack);
+        map.insert(TechnologyType::Defense, value.defense);
+        map.insert(TechnologyType::Artillery, value.artillery);
+        map.insert(TechnologyType::Air, value.air);
+        map
+    }
 }
 
 pub type TechEffects = (u8, i8, i8, u8);
