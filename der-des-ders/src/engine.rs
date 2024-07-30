@@ -5,6 +5,7 @@ use crate::logic::*;
 use crate::side::*;
 use crate::state::*;
 use crate::TechEffects;
+use crate::TechnologyType;
 use std::mem::swap;
 
 pub struct GameEngine {
@@ -248,6 +249,16 @@ impl GameEngine {
 
     pub(crate) fn blockade_effect(&mut self, bonus: u8) -> u8 {
         self.logic.blockade_effect(&mut self.state, bonus)
+    }
+
+    pub(crate) fn improve_technology(&mut self, initiative: &Side, tech: &TechnologyType) {
+        self.state
+            .state_of_war
+            .get_mut(initiative)
+            .unwrap()
+            .technologies
+            .as_mut()
+            .improve(tech);
     }
 }
 

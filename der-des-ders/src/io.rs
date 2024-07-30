@@ -35,6 +35,10 @@ pub enum Output {
     BlockadeResult(u8),
     SelectNationForHit,
     EventDrawn(u8, String),
+    ImprovedTechnology(TechnologyType, u8),
+    FailedTechnology(TechnologyType, u8),
+    TechnologyNotAvailable(String, u16, u16),
+    NoMoreTechnologyImprovement(TechnologyType, u8),
 }
 
 impl Display for Output {
@@ -69,6 +73,22 @@ impl Display for Output {
             }
             Output::SelectNationForHit => write!(f, "Select nation to apply hit"),
             Output::EventDrawn(event_id, event) => write!(f, "Event {} drawn: {}", event_id, event),
+            Output::ImprovedTechnology(tech, pr) => {
+                write!(f, "Improved {}, spent {}", tech, pr)
+            }
+            Output::FailedTechnology(tech, pr) => {
+                write!(f, "Failed to improve {}, spent {}", tech, pr)
+            }
+            Output::TechnologyNotAvailable(tech, not_before, current) => {
+                write!(
+                    f,
+                    "Technology {} not available before {} (year: {})",
+                    tech, not_before, current
+                )
+            }
+            Output::NoMoreTechnologyImprovement(tech, level) => {
+                write!(f, "No more improvement for {} at level {}", tech, level)
+            }
         }
     }
 }

@@ -58,6 +58,10 @@ impl Player for RobotIO {
                 self.phase = Some(message.clone());
             }
             Output::EventDrawn(_, _) => {}
+            Output::ImprovedTechnology(_, _) => {}
+            Output::FailedTechnology(_, _) => {}
+            Output::TechnologyNotAvailable(_, _, _) => {}
+            Output::NoMoreTechnologyImprovement(_, _) => {}
         }
     }
 

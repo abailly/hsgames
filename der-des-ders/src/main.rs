@@ -178,7 +178,19 @@ fn improve_technologies(initiative: Side, players: &mut Players, game_engine: &m
                     continue;
                 }
                 let die = game_engine.roll();
-                improve_technology(game_engine, initiative, tech, n, die);
+                let output = improve_technology(game_engine, initiative, tech, n, die);
+                player.output(&output);
+                match output {
+                    Output::ImprovedTechnology(tech, pr) => {
+                        game_engine.improve_technology(&initiative, &tech);
+                        game_engine.reduce_pr(initiative, pr);
+                    }
+                    Output::FailedTechnology(_, pr) => {
+                        game_engine.reduce_pr(initiative, pr);
+                    }
+                    _ => {}
+                }
+
                 improved.push(tech);
             }
             Input::Pass => break,
@@ -193,7 +205,7 @@ fn improve_technology(
     tech: TechnologyType,
     n: u8,
     die: u8,
-) {
+) -> Output {
     let year = game_engine.current_year();
     let techs = &mut game_engine
         .state
@@ -211,10 +223,19 @@ fn improve_technology(
             if let Some(technology) = &technologies[0][current as usize] {
                 if year >= technology.date {
                     if die + n >= technology.min_dice_unlock {
-                        techs.attack += 1;
+                        Output::ImprovedTechnology(tech, n)
+                    } else {
+                        Output::FailedTechnology(tech, n)
                     }
-                    game_engine.reduce_pr(initiative, n);
+                } else {
+                    Output::TechnologyNotAvailable(
+                        technology.name.to_string(),
+                        technology.date,
+                        year,
+                    )
                 }
+            } else {
+                Output::NoMoreTechnologyImprovement(tech, current)
             }
         }
         TechnologyType::Defense => {
@@ -222,10 +243,19 @@ fn improve_technology(
             if let Some(technology) = &technologies[1][current as usize] {
                 if year >= technology.date {
                     if die + n >= technology.min_dice_unlock {
-                        techs.defense += 1;
+                        Output::ImprovedTechnology(tech, n)
+                    } else {
+                        Output::FailedTechnology(tech, n)
                     }
-                    game_engine.reduce_pr(initiative, n);
+                } else {
+                    Output::TechnologyNotAvailable(
+                        technology.name.to_string(),
+                        technology.date,
+                        year,
+                    )
                 }
+            } else {
+                Output::NoMoreTechnologyImprovement(tech, current)
             }
         }
         TechnologyType::Artillery => {
@@ -233,10 +263,19 @@ fn improve_technology(
             if let Some(technology) = &technologies[2][current as usize] {
                 if year >= technology.date {
                     if die + n >= technology.min_dice_unlock {
-                        techs.artillery += 1;
+                        Output::ImprovedTechnology(tech, n)
+                    } else {
+                        Output::FailedTechnology(tech, n)
                     }
-                    game_engine.reduce_pr(initiative, n);
+                } else {
+                    Output::TechnologyNotAvailable(
+                        technology.name.to_string(),
+                        technology.date,
+                        year,
+                    )
                 }
+            } else {
+                Output::NoMoreTechnologyImprovement(tech, current)
             }
         }
         TechnologyType::Air => {
@@ -244,10 +283,19 @@ fn improve_technology(
             if let Some(technology) = &technologies[3][current as usize] {
                 if year >= technology.date {
                     if die + n >= technology.min_dice_unlock {
-                        techs.air += 1;
+                        Output::ImprovedTechnology(tech, n)
+                    } else {
+                        Output::FailedTechnology(tech, n)
                     }
-                    game_engine.reduce_pr(initiative, n);
+                } else {
+                    Output::TechnologyNotAvailable(
+                        technology.name.to_string(),
+                        technology.date,
+                        year,
+                    )
                 }
+            } else {
+                Output::NoMoreTechnologyImprovement(tech, current)
             }
         }
     }
@@ -851,6 +899,14 @@ mod technologies {
                 .technologies
         );
         assert_eq!(4, engine.state.resources_for(&Empires));
+        assert_eq!(
+            vec![
+                Output::ImproveTechnologies,
+                Output::TechnologyNotAvailable("Combat Gas".to_string(), 1915, 1914),
+                Output::ImproveTechnologies
+            ],
+            players.empires_player.out()
+        );
     }
 
     #[test]
@@ -988,6 +1044,14 @@ mod technologies {
                 ..ZERO_TECHNOLOGIES
             },
             *engine.state.state_of_war.get(&Allies).unwrap().technologies
+        );
+        assert_eq!(
+            vec![
+                Output::ImproveTechnologies,
+                Output::NoMoreTechnologyImprovement(Defense, 3),
+                Output::ImproveTechnologies
+            ],
+            players.allies_player.out()
         );
     }
 

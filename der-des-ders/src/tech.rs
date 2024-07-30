@@ -12,6 +12,21 @@ pub enum TechnologyType {
     Air,
 }
 
+impl Display for TechnologyType {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                TechnologyType::Attack => "Attack",
+                TechnologyType::Defense => "Defense",
+                TechnologyType::Artillery => "Artillery",
+                TechnologyType::Air => "Air",
+            }
+        )
+    }
+}
+
 /// Current technologies of a side
 /// Note these numbers are not the actual technology levels but 1-based indices into the
 /// side's technology list (see EMPIRE_TECHNOLOGIES and ALLIES_TECHNOLOGIES).
@@ -26,6 +41,15 @@ pub struct Technologies {
 impl Technologies {
     pub fn values(&self) -> Vec<u8> {
         vec![self.attack, self.defense, self.artillery, self.air]
+    }
+
+    pub fn improve(&mut self, category: &TechnologyType) {
+        match category {
+            TechnologyType::Attack => self.attack += 1,
+            TechnologyType::Defense => self.defense += 1,
+            TechnologyType::Artillery => self.artillery += 1,
+            TechnologyType::Air => self.air += 1,
+        }
     }
 }
 
