@@ -174,7 +174,7 @@ fn improve_technologies(initiative: Side, players: &mut Players, game_engine: &m
         player.output(&Output::ImproveTechnologies);
         match player.input() {
             Input::Select(tech, n) => {
-                if improved.contains(&tech) {
+                if improved.contains(&tech) || n == 0 {
                     continue;
                 }
                 let die = game_engine.roll();
@@ -231,7 +231,7 @@ fn improve_technology_result(
 ) -> Output {
     if let Some(technology) = &technologies_track[tech_type.index()][current_tech_level as usize] {
         if year >= technology.date {
-            if die + pr_spent >= technology.min_dice_unlock {
+            if die + pr_spent - 1 >= technology.min_dice_unlock {
                 Output::ImprovedTechnology(tech_type, pr_spent)
             } else {
                 Output::FailedTechnology(tech_type, pr_spent)
@@ -788,13 +788,13 @@ mod technologies {
 
     #[test]
     fn empires_improve_attack_technology_1_level_given_player_spends_resources() {
-        let mut engine = EngineBuilder::new(14)
+        let mut engine = EngineBuilder::new(11) // die roll = 2
             .with_resources(Empires, 4)
             .with_initiative(Empires)
             .on_turn(2)
             .build();
         let mut players = PlayersBuilder::new()
-            .with_input(Empires, Select(Attack, 2))
+            .with_input(Empires, Select(Attack, 3))
             .with_input(Empires, Pass)
             .build();
 
@@ -812,7 +812,7 @@ mod technologies {
                 .unwrap()
                 .technologies
         );
-        assert_eq!(2, engine.state.resources_for(&Empires));
+        assert_eq!(1, engine.state.resources_for(&Empires));
     }
 
     #[test]
@@ -881,6 +881,37 @@ mod technologies {
             *engine.state.state_of_war.get(&Allies).unwrap().technologies
         );
         assert_eq!(0, engine.state.resources_for(&Allies));
+    }
+
+    #[test]
+    fn cannot_improve_technology_without_spending_resources() {
+        let mut engine = EngineBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_technologies(
+                Allies,
+                Technologies {
+                    defense: 1,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .with_initiative(Allies)
+            .on_turn(2)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Select(Defense, 0))
+            .with_input(Allies, Pass)
+            .build();
+
+        improve_technologies(Allies, &mut players, &mut engine);
+
+        assert_eq!(
+            Technologies {
+                defense: 1,
+                ..ZERO_TECHNOLOGIES
+            },
+            *engine.state.state_of_war.get(&Allies).unwrap().technologies
+        );
+        assert_eq!(4, engine.state.resources_for(&Allies));
     }
 
     #[test]
