@@ -668,6 +668,18 @@ mod events_tests {
     }
 
     #[test]
+    fn stop_drawing_events_if_no_events_are_available() {
+        let mut engine = EngineBuilder::new(18).build();
+        let mut players = PlayersBuilder::new().build();
+
+        draw_events(&mut players, &mut engine);
+        draw_events(&mut players, &mut engine);
+        draw_events(&mut players, &mut engine);
+
+        assert_eq!(5, players.allies_player.out().len());
+    }
+
+    #[test]
     fn add_events_from_year_to_pool_at_start_of_year_and_remove_invalid_events() {
         let mut engine = EngineBuilder::new(18).build();
         let mut players = PlayersBuilder::new().build();

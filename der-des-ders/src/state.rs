@@ -213,6 +213,9 @@ impl GameState {
     pub(crate) fn draw_events(&mut self) -> Vec<Event> {
         let mut events = Vec::new();
         for _ in 0..3 {
+            if self.events_pool.is_empty() {
+                break;
+            }
             let idx = self.rng.gen_range(0..self.events_pool.len());
             let event = self.events_pool.remove(idx);
             events.push(event);
