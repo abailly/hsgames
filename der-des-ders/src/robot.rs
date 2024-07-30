@@ -34,7 +34,7 @@ impl Player for RobotIO {
             Output::ImproveTechnologies => {
                 self.phase = Some(message.clone());
             }
-            Output::LaunchOffensive => {
+            Output::LaunchOffensive(_) => {
                 self.phase = Some(message.clone());
             }
             Output::ReinforceNations => {
@@ -83,36 +83,37 @@ impl Player for RobotIO {
             Some(Output::ImproveTechnologies) => {
                 let state = self.state.as_ref().unwrap();
                 let resources = state.state_of_war.get(&self.side).unwrap().resources;
-                let max_pr = resources.min(3);
-                let techs: Vec<Technology> = state.available_technologies(&self.side);
-                let pr = self.rng.gen_range(0..=max_pr);
-                if pr > 0 && !techs.is_empty() {
-                    let tech = &techs[self.rng.gen_range(0..techs.len())];
-                    Input::Select(tech.category, pr)
-                } else {
-                    Input::Pass
-                }
+                let max_pr = resources.min(5);
+                let mut possible_plays = state
+                    .available_technologies(&self.side)
+                    .iter()
+                    .flat_map(|t| (1..=max_pr).map(move |pr| Input::Select(t.category, pr)))
+                    .collect::<Vec<Input>>();
+                possible_plays.push(Input::Pass);
+                possible_plays[self.rng.gen_range(0..possible_plays.len())]
             }
-            Some(Output::LaunchOffensive) => {
+            Some(Output::LaunchOffensive(sources)) => {
                 let state = self.state.as_ref().unwrap();
                 let resources = state.state_of_war.get(&self.side).unwrap().resources;
-                // select a source for offensive
-                let mut sources: Vec<Nation> = state.all_nations_at_war(self.side);
-                sources.sort();
-                let source_index = self.rng.gen_range(0..sources.len());
-                let source = sources[source_index];
-                // select a target for offensive
-                let mut targets: Vec<&Nation> = state.neighbours(&source);
-                targets.sort();
-                let target_index = self.rng.gen_range(0..targets.len());
-                let target = targets[target_index];
-                let pr = self
-                    .rng
-                    .gen_range(0..=resources.min(state.operational_level(&source)));
-                if pr > 0 {
-                    Input::Offensive(source, *target, pr)
-                } else {
+                let mut possible_plays: Vec<Input> = Vec::new();
+
+                for source in sources.iter() {
+                    let mut targets: Vec<&Nation> = state.neighbours(source);
+                    targets.sort();
+                    for target in targets.iter() {
+                        for pr in 1..=state.operational_level(source) {
+                            if pr <= resources {
+                                possible_plays.push(Input::Offensive(*source, **target, pr))
+                            };
+                        }
+                    }
+                }
+                println!("possible offensives ({}): {:?}", resources, possible_plays);
+                possible_plays.push(Input::Pass);
+                if possible_plays.is_empty() {
                     Input::Pass
+                } else {
+                    possible_plays[self.rng.gen_range(0..possible_plays.len())]
                 }
             }
             Some(Output::ReinforceNations) => {
@@ -206,7 +207,7 @@ mod robot_tests {
 
         let input = robot.input();
 
-        assert_eq!(Input::Select(TechnologyType::Defense, 3), input);
+        assert_eq!(Input::Select(TechnologyType::Defense, 4), input);
     }
 
     #[test]
@@ -215,17 +216,16 @@ mod robot_tests {
             .with_resources(Side::Empires, 5)
             .build();
 
-        let mut robot = RobotIO::new(&Side::Empires, 15);
+        let mut robot = RobotIO::new(&Side::Empires, 16);
+        let mut all_nations_at_war = engine.state.all_nations_at_war(Side::Empires);
+        all_nations_at_war.sort();
 
         robot.output(&Output::CurrentState(engine.state));
-        robot.output(&Output::LaunchOffensive);
+        robot.output(&Output::LaunchOffensive(all_nations_at_war));
 
         let input = robot.input();
 
-        assert_eq!(
-            Input::Offensive(Nation::OttomanEmpire, Nation::Egypt, 2),
-            input
-        );
+        assert_eq!(Input::Offensive(Nation::Germany, Nation::France, 3), input);
     }
 
     #[test]

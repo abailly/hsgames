@@ -284,7 +284,7 @@ impl GameState {
     pub(crate) fn neighbours(&self, source: &Nation) -> Vec<&Nation> {
         let mut neighbours = Vec::new();
         for n in Nation::values() {
-            if source.adjacent_to(n) {
+            if source.adjacent_to(n) && self.is_at_war(n) {
                 neighbours.push(n);
             }
         }
@@ -320,6 +320,10 @@ impl GameState {
         let empires_total =
             empires_resources + empires_technologies + empires_breakdowns + empires_victory_points;
         (allies_total - empires_total) / (allies_total + empires_total)
+    }
+
+    fn is_at_war(&self, n: &Nation) -> bool {
+        matches!(self.nations.get(n), Some(NationState::AtWar(_)))
     }
 }
 

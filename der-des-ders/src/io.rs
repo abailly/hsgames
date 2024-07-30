@@ -18,7 +18,7 @@ pub enum Output {
     ChooseInitiative,
     ImproveTechnologies,
     ReinforceNations,
-    LaunchOffensive,
+    LaunchOffensive(Vec<Nation>),
     WrongInput(Input),
     NotEnoughResources(u8, u8),
     CountryAlreadyAttacked(Nation),
@@ -47,7 +47,17 @@ impl Display for Output {
             Output::CurrentState(st) => write!(f, "Current state: {}", st),
             Output::ChooseInitiative => write!(f, "Select PR for initiative"),
             Output::ImproveTechnologies => write!(f, "Select PR to improve technologies, or Pass"),
-            Output::LaunchOffensive => write!(f, "Spend PR to launch offensive, or Pass"),
+            Output::LaunchOffensive(sources) => {
+                write!(
+                    f,
+                    "Spend PR to launch offensive (from {}), or Pass",
+                    sources
+                        .iter()
+                        .map(|n| format!("{}", n))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
             Output::WrongInput(inp) => write!(f, "Invalid input: {:?}", inp),
             Output::NotEnoughResources(wanted, actual) => {
                 write!(f, "Not enough resources ({}) to spend {}", actual, wanted)

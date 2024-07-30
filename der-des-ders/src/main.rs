@@ -118,6 +118,8 @@ fn run_turn(players: &mut Players, game_engine: &mut GameEngine) {
     draw_events(players, game_engine);
     game_engine.collect_resources();
 
+    players.output(&Output::CurrentState(game_engine.state.clone()));
+
     run_player_turn(game_engine.state.initiative, players, game_engine);
     run_player_turn(game_engine.state.initiative.other(), players, game_engine);
 
@@ -251,9 +253,10 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_engine: &mut 
     };
 
     let mut nations = game_engine.all_nations_at_war(initiative);
+    nations.sort();
 
     while !nations.is_empty() {
-        player.output(&Output::LaunchOffensive);
+        player.output(&Output::LaunchOffensive(nations.clone()));
         match player.input() {
             Input::Offensive(from, _, _) if !nations.contains(&from) => {
                 player.output(&Output::CountryAlreadyAttacked(from));
@@ -1117,12 +1120,14 @@ mod offensives {
         fixtures::{EngineBuilder, PlayersBuilder},
         launch_offensives, HitsResult,
         Input::*,
-        Nation::*,
+        Nation::{self, *},
         NationState::*,
         Output,
         Side::*,
         Technologies, ZERO_TECHNOLOGIES,
     };
+
+    const ALLIES_AT_START: [Nation; 5] = [France, Russia, Egypt, Serbia, FrenchAfrica];
 
     #[test]
     fn initiative_player_can_spend_pr_to_launch_offensive_between_adjacent_countries() {
@@ -1158,9 +1163,9 @@ mod offensives {
 
         assert_eq!(
             vec![
-                Output::LaunchOffensive,
+                Output::LaunchOffensive(ALLIES_AT_START.to_vec()),
                 Output::NotEnoughResources(3, 2),
-                Output::LaunchOffensive,
+                Output::LaunchOffensive(ALLIES_AT_START.to_vec()),
             ],
             players.allies_player.out()
         );
@@ -1188,6 +1193,41 @@ mod offensives {
     }
 
     #[test]
+    fn prompt_list_possible_attacker() {
+        let mut engine = EngineBuilder::new(16)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Offensive(France, Germany, 1))
+            .with_input(Allies, Offensive(Russia, OttomanEmpire, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        launch_offensives(Allies, &mut players, &mut engine);
+
+        assert_eq!(
+            vec![
+                Output::LaunchOffensive(vec![France, Russia, Egypt, Serbia, FrenchAfrica]),
+                Output::OffensiveResult {
+                    from: France,
+                    to: Germany,
+                    result: HitsResult::Hits(Germany, 1)
+                },
+                Output::LaunchOffensive(vec![Russia, Egypt, Serbia, FrenchAfrica]),
+                Output::OffensiveResult {
+                    from: Russia,
+                    to: OttomanEmpire,
+                    result: HitsResult::Hits(OttomanEmpire, 1)
+                },
+                Output::LaunchOffensive(vec![Egypt, Serbia, FrenchAfrica])
+            ],
+            players.allies_player.out()
+        );
+    }
+
+    #[test]
     fn cannot_launch_offensive_to_not_adjacent_country() {
         let mut engine = EngineBuilder::new(16)
             .with_resources(Allies, 4)
@@ -1203,9 +1243,9 @@ mod offensives {
 
         assert_eq!(
             vec![
-                Output::LaunchOffensive,
+                Output::LaunchOffensive(ALLIES_AT_START.to_vec()),
                 Output::AttackingNonAdjacentCountry(France, AustriaHungary),
-                Output::LaunchOffensive,
+                Output::LaunchOffensive(ALLIES_AT_START.to_vec()),
             ],
             players.allies_player.out()
         );
@@ -1230,15 +1270,15 @@ mod offensives {
         assert_eq!(AtWar(7), *engine.state.nations.get(&Germany).unwrap());
         assert_eq!(
             vec![
-                Output::LaunchOffensive,
+                Output::LaunchOffensive(ALLIES_AT_START.to_vec()),
                 Output::OffensiveResult {
                     from: Russia,
                     to: Germany,
                     result: HitsResult::Hits(Germany, 1),
                 },
-                Output::LaunchOffensive,
+                Output::LaunchOffensive([France, Egypt, Serbia, FrenchAfrica].to_vec()),
                 Output::CountryAlreadyAttacked(Russia),
-                Output::LaunchOffensive,
+                Output::LaunchOffensive([France, Egypt, Serbia, FrenchAfrica].to_vec()),
             ],
             players.allies_player.out()
         );
@@ -1261,9 +1301,9 @@ mod offensives {
 
         assert_eq!(
             vec![
-                Output::LaunchOffensive,
+                Output::LaunchOffensive(ALLIES_AT_START.to_vec()),
                 Output::OperationalLevelTooLow(1, 2),
-                Output::LaunchOffensive,
+                Output::LaunchOffensive(ALLIES_AT_START.to_vec()),
             ],
             players.allies_player.out()
         );
