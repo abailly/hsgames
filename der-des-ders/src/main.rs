@@ -217,87 +217,30 @@ fn improve_technology(
         Side::Allies => &ALLIES_TECHNOLOGIES,
         Side::Empires => &EMPIRE_TECHNOLOGIES,
     };
-    match tech {
-        TechnologyType::Attack => {
-            let current = techs.attack;
-            if let Some(technology) = &technologies[0][current as usize] {
-                if year >= technology.date {
-                    if die + n >= technology.min_dice_unlock {
-                        Output::ImprovedTechnology(tech, n)
-                    } else {
-                        Output::FailedTechnology(tech, n)
-                    }
-                } else {
-                    Output::TechnologyNotAvailable(
-                        technology.name.to_string(),
-                        technology.date,
-                        year,
-                    )
-                }
+
+    improve_technology_result(technologies, techs.value(&tech), year, die, n, tech)
+}
+
+fn improve_technology_result(
+    technologies_track: &[[Option<Technology>; 4]; 4],
+    current_tech_level: u8,
+    year: u16,
+    die: u8,
+    pr_spent: u8,
+    tech_type: TechnologyType,
+) -> Output {
+    if let Some(technology) = &technologies_track[tech_type.index()][current_tech_level as usize] {
+        if year >= technology.date {
+            if die + pr_spent >= technology.min_dice_unlock {
+                Output::ImprovedTechnology(tech_type, pr_spent)
             } else {
-                Output::NoMoreTechnologyImprovement(tech, current)
+                Output::FailedTechnology(tech_type, pr_spent)
             }
+        } else {
+            Output::TechnologyNotAvailable(technology.name.to_string(), technology.date, year)
         }
-        TechnologyType::Defense => {
-            let current = techs.defense;
-            if let Some(technology) = &technologies[1][current as usize] {
-                if year >= technology.date {
-                    if die + n >= technology.min_dice_unlock {
-                        Output::ImprovedTechnology(tech, n)
-                    } else {
-                        Output::FailedTechnology(tech, n)
-                    }
-                } else {
-                    Output::TechnologyNotAvailable(
-                        technology.name.to_string(),
-                        technology.date,
-                        year,
-                    )
-                }
-            } else {
-                Output::NoMoreTechnologyImprovement(tech, current)
-            }
-        }
-        TechnologyType::Artillery => {
-            let current = techs.artillery;
-            if let Some(technology) = &technologies[2][current as usize] {
-                if year >= technology.date {
-                    if die + n >= technology.min_dice_unlock {
-                        Output::ImprovedTechnology(tech, n)
-                    } else {
-                        Output::FailedTechnology(tech, n)
-                    }
-                } else {
-                    Output::TechnologyNotAvailable(
-                        technology.name.to_string(),
-                        technology.date,
-                        year,
-                    )
-                }
-            } else {
-                Output::NoMoreTechnologyImprovement(tech, current)
-            }
-        }
-        TechnologyType::Air => {
-            let current = techs.air;
-            if let Some(technology) = &technologies[3][current as usize] {
-                if year >= technology.date {
-                    if die + n >= technology.min_dice_unlock {
-                        Output::ImprovedTechnology(tech, n)
-                    } else {
-                        Output::FailedTechnology(tech, n)
-                    }
-                } else {
-                    Output::TechnologyNotAvailable(
-                        technology.name.to_string(),
-                        technology.date,
-                        year,
-                    )
-                }
-            } else {
-                Output::NoMoreTechnologyImprovement(tech, current)
-            }
-        }
+    } else {
+        Output::NoMoreTechnologyImprovement(tech_type, current_tech_level)
     }
 }
 

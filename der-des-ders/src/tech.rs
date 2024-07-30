@@ -12,6 +12,17 @@ pub enum TechnologyType {
     Air,
 }
 
+impl TechnologyType {
+    pub(crate) fn index(&self) -> usize {
+        match self {
+            TechnologyType::Attack => 0,
+            TechnologyType::Defense => 1,
+            TechnologyType::Artillery => 2,
+            TechnologyType::Air => 3,
+        }
+    }
+}
+
 impl Display for TechnologyType {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(
@@ -41,6 +52,15 @@ pub struct Technologies {
 impl Technologies {
     pub fn values(&self) -> Vec<u8> {
         vec![self.attack, self.defense, self.artillery, self.air]
+    }
+
+    pub fn value(&self, category: &TechnologyType) -> u8 {
+        match category {
+            TechnologyType::Attack => self.attack,
+            TechnologyType::Defense => self.defense,
+            TechnologyType::Artillery => self.artillery,
+            TechnologyType::Air => self.air,
+        }
     }
 
     pub fn improve(&mut self, category: &TechnologyType) {
