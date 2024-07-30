@@ -287,16 +287,49 @@ impl GameState {
         }
         neighbours
     }
+
+    /// Evaluate the value of the given state, yielding a number -1 and +1 where
+    /// positive values are better for the Allies and negative values are better for the Empires.
+    pub fn valuation(&self) -> f64 {
+        let allies = self.state_of_war.get(&Side::Allies).unwrap();
+        let empires = self.state_of_war.get(&Side::Empires).unwrap();
+        let allies_resources = allies.resources as f64;
+        let empires_resources = empires.resources as f64;
+        let allies_technologies = allies.technologies.values().into_iter().sum::<u8>() as f64;
+        let empires_technologies = empires.technologies.values().into_iter().sum::<u8>() as f64;
+        let (allies_breakdowns, empires_breakdowns): (f64, f64) = self.nations.iter().fold(
+            (0.0, 0.0),
+            |(acc_a, acc_e), (nation, status)| match status {
+                NationState::AtWar(level) => {
+                    if nation.is_allies() {
+                        (acc_a + *level as f64, acc_e)
+                    } else {
+                        (acc_a, acc_e + *level as f64)
+                    }
+                }
+                _ => (acc_a, acc_e),
+            },
+        );
+        let allies_victory_points = allies.vp as f64;
+        let empires_victory_points = empires.vp as f64;
+        let allies_total =
+            allies_resources + allies_technologies + allies_breakdowns + allies_victory_points;
+        let empires_total =
+            empires_resources + empires_technologies + empires_breakdowns + empires_victory_points;
+        (allies_total - empires_total) / (allies_total + empires_total)
+    }
 }
 
 impl Display for GameState {
     /// TODO: take care of writeln! result
     #[allow(unused_must_use)]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        writeln!(f, "Turn: {}", self.current_turn);
+        writeln!(f, "Turn: {} ({})", self.current_turn, self.current_year());
         writeln!(f, "Initiative: {}", self.initiative);
         if let Some(winner) = self.winner {
             writeln!(f, "Winner: {}", winner);
+        } else {
+            writeln!(f, "Game value: {}", self.valuation());
         }
         writeln!(f, "Russian Revolution: {}", self.russian_revolution);
         writeln!(f, "Breakdown:");

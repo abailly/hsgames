@@ -23,6 +23,12 @@ pub struct Technologies {
     pub air: u8,
 }
 
+impl Technologies {
+    pub fn values(&self) -> Vec<u8> {
+        vec![self.attack, self.defense, self.artillery, self.air]
+    }
+}
+
 impl From<&Technologies> for HashMap<TechnologyType, u8> {
     fn from(value: &Technologies) -> Self {
         let mut map = HashMap::new();

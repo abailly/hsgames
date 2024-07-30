@@ -2,7 +2,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
 use crate::io::{Input, Output, Player};
-use crate::{GameState, Nation, Side, Technology};
+use crate::{GameState, Nation, NationState, Side, Technology};
 
 pub struct RobotIO {
     pub state: Option<GameState>,

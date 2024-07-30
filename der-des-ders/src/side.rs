@@ -258,6 +258,10 @@ impl Nation {
         ]
         .iter()
     }
+
+    pub(crate) fn is_allies(&self) -> bool {
+        self.side() == Side::Allies
+    }
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
