@@ -367,9 +367,11 @@ impl GameLogic for DefaultGameLogic {
     fn new_turn(&mut self, state: &mut GameState) {
         let current_turn_year = state.current_year();
         state.current_turn += 1;
-        let next_year = state.current_year();
-        if next_year != current_turn_year {
-            state.new_year(current_turn_year, next_year);
+        if !state.game_ends() {
+            let next_year = state.current_year();
+            if next_year != current_turn_year {
+                state.new_year(current_turn_year, next_year);
+            }
         }
     }
 
@@ -426,5 +428,14 @@ mod engine_test {
         engine.collect_resources();
 
         assert_eq!(15, engine.state.resources_for(&Allies));
+    }
+
+    #[test]
+    fn when_turn_reaches_14_end_the_game() {
+        let mut engine = EngineBuilder::new(14).on_turn(14).build();
+
+        engine.new_turn();
+
+        assert!(engine.game_ends());
     }
 }
