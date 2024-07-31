@@ -602,7 +602,9 @@ impl GameLogic for FlyingCircus {
     }
 
     fn new_turn(&mut self, state: &mut GameState) {
-        self.number_of_turns_remaining -= 1;
+        if self.number_of_turns_remaining > 0 {
+            self.number_of_turns_remaining -= 1;
+        }
         self.previous.new_turn(state);
     }
 }
@@ -1259,6 +1261,24 @@ mod game_events_tests {
             pr: 2,
         });
         assert_eq!(2, air);
+        engine.new_turn();
+        let (_, _, _, air) = engine.compute_bonus(&Offensive {
+            initiative: Empires,
+            from: Germany,
+            to: Russia,
+            pr: 2,
+        });
+
+        assert_eq!(0, air);
+    }
+
+    #[test]
+    fn flying_circus_does_not_apply_after_2_turns() {
+        let mut engine = EngineBuilder::new(30).build();
+
+        engine.play_events(&ALL_EVENTS[26]);
+        engine.new_turn();
+        engine.new_turn();
         engine.new_turn();
         let (_, _, _, air) = engine.compute_bonus(&Offensive {
             initiative: Empires,

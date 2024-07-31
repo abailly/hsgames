@@ -159,7 +159,7 @@ impl GameState {
             8..=10 => 1917,
             11..=13 => 1918,
             14 => 1919,
-            _ => panic!("Invalid turn"),
+            turn => panic!("Invalid turn {}", turn),
         }
     }
 
