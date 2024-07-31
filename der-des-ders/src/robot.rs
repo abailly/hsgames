@@ -2,7 +2,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
 use crate::io::{Input, Output, Player};
-use crate::{GameState, Nation, NationState, Side, Technology};
+use crate::{GameState, Nation, Side};
 
 pub struct RobotIO {
     pub state: Option<GameState>,
@@ -45,7 +45,11 @@ impl Player for RobotIO {
             Output::CountryAlreadyAttacked(_) => {}
             Output::AttackingNonAdjacentCountry(_, _) => {}
             Output::OperationalLevelTooLow(_, _) => {}
-            Output::OffensiveResult { from, to, result } => {}
+            Output::OffensiveResult {
+                from: _,
+                to: _,
+                result: _,
+            } => {}
             Output::IncreaseUBoot => {
                 self.phase = Some(message.clone());
             }
@@ -108,7 +112,6 @@ impl Player for RobotIO {
                         }
                     }
                 }
-                println!("possible offensives ({}): {:?}", resources, possible_plays);
                 possible_plays.push(Input::Pass);
                 if possible_plays.is_empty() {
                     Input::Pass

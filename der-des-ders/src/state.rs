@@ -148,9 +148,7 @@ impl GameState {
     }
 
     pub fn roll(&mut self) -> u8 {
-        let die = self.rng.gen_range(1..=6);
-        println!("Die roll: {}", die);
-        die
+        self.rng.gen_range(1..=6)
     }
 
     pub fn current_year(&self) -> u16 {
