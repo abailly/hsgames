@@ -233,9 +233,12 @@ fn improve_technology_result(
     pr_spent: u8,
     tech_type: TechnologyType,
 ) -> Output {
+    if current_tech_level == 4 {
+        return Output::NoMoreTechnologyImprovement(tech_type, current_tech_level);
+    }
     if let Some(technology) = &technologies_track[tech_type.index()][current_tech_level as usize] {
         if year >= technology.date {
-            if die + pr_spent - 1 >= technology.min_dice_unlock {
+            if die + pr_spent > technology.min_dice_unlock {
                 Output::ImprovedTechnology(tech_type, pr_spent)
             } else {
                 Output::FailedTechnology(tech_type, pr_spent)
@@ -1040,6 +1043,44 @@ mod technologies {
             vec![
                 Output::ImproveTechnologies,
                 Output::NoMoreTechnologyImprovement(Defense, 3),
+                Output::ImproveTechnologies
+            ],
+            players.allies_player.out()
+        );
+    }
+
+    #[test]
+    fn allies_cannot_improve_attack_technology_level_past_4() {
+        let mut engine = EngineBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .with_technologies(
+                Allies,
+                Technologies {
+                    attack: 4,
+                    ..ZERO_TECHNOLOGIES
+                },
+            )
+            .on_turn(8)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Select(Attack, 1))
+            .with_input(Allies, Pass)
+            .build();
+
+        improve_technologies(Allies, &mut players, &mut engine);
+
+        assert_eq!(
+            Technologies {
+                attack: 4,
+                ..ZERO_TECHNOLOGIES
+            },
+            *engine.state.state_of_war.get(&Allies).unwrap().technologies
+        );
+        assert_eq!(
+            vec![
+                Output::ImproveTechnologies,
+                Output::NoMoreTechnologyImprovement(Attack, 4),
                 Output::ImproveTechnologies
             ],
             players.allies_player.out()
