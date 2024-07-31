@@ -3,6 +3,7 @@ use clap::ValueEnum;
 use robot::RobotIO;
 use std::cmp::Ordering;
 use std::io::{stdin, stdout};
+use std::process::exit;
 
 mod tech;
 use event::Event;
@@ -68,6 +69,10 @@ fn main() {
     let mut players = initialise_players(options);
     while !game_engine.game_ends() {
         run_turn(&mut players, &mut game_engine);
+    }
+    match game_engine.winner() {
+        Side::Allies => exit(1),
+        Side::Empires => exit(-1),
     }
 }
 
@@ -145,8 +150,8 @@ fn apply_event(players: &mut Players, game_engine: &mut GameEngine, event: &Even
             };
             let result = game_engine.resolve_offensive(&offensive);
             players.output(&Output::OffensiveResult {
-                from: Nation::France,
-                to: Nation::Germany,
+                from: Nation::Germany,
+                to: Nation::France,
                 result,
             });
         }

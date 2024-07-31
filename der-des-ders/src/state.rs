@@ -330,6 +330,20 @@ impl GameState {
         self.end_game_this_turn || self.current_turn >= 15 || self.winner.is_some()
     }
 
+    pub(crate) fn winner(&self) -> Side {
+        match self.winner {
+            Some(side) => side,
+            None => {
+                let empires_pv = self.state_of_war.get(&Side::Empires).unwrap().vp;
+                let allies_pv = self.state_of_war.get(&Side::Allies).unwrap().vp;
+                if empires_pv >= allies_pv {
+                    Side::Empires
+                } else {
+                    Side::Allies
+                }
+            }
+        }
+    }
 }
 
 impl Display for GameState {
@@ -378,14 +392,52 @@ mod game_state_tests {
     }
 
     #[test]
-    fn side_wins_if_die_roll_lower_than_vp_given_nation_surrenders() {
+    fn side_wins_and_game_ends_if_die_roll_lower_than_vp_given_nation_surrenders() {
         let mut engine = EngineBuilder::new(11) // die roll = 2
             .with_nation(France, AtWar(4))
             .build();
         let result = engine.apply_hits(&France, 4);
 
-        assert_eq!(Some(Empires), engine.state.winner);
+        assert_eq!(Empires, engine.state.winner());
         assert_eq!(Winner(Empires), result);
+        assert!(engine.game_ends());
+    }
+
+    #[test]
+    fn empires_is_winning_given_they_have_more_vps() {
+        let mut engine = EngineBuilder::new(11) // die roll = 2
+            .with_nation(Italy, AtWar(4))
+            .build();
+
+        engine.apply_hits(&Italy, 4);
+
+        assert_eq!(Empires, engine.state.winner());
+    }
+
+    #[test]
+    fn empires_is_winning_given_they_have_equal_vps() {
+        let mut engine = EngineBuilder::new(11) // die roll = 2
+            .with_nation(Italy, AtWar(4))
+            .with_nation(OttomanEmpire, AtWar(4))
+            .build();
+
+        engine.apply_hits(&Italy, 4);
+        engine.apply_hits(&OttomanEmpire, 4);
+
+        assert_eq!(Empires, engine.state.winner());
+    }
+
+    #[test]
+    fn allies_is_winning_given_they_have_more_vps() {
+        let mut engine = EngineBuilder::new(11) // die roll = 2
+            .with_nation(Italy, AtWar(4))
+            .with_nation(AustriaHungary, AtWar(4))
+            .build();
+
+        engine.apply_hits(&Italy, 4);
+        engine.apply_hits(&AustriaHungary, 4);
+
+        assert_eq!(Allies, engine.state.winner());
     }
 
     #[test]

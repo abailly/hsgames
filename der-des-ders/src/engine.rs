@@ -259,6 +259,10 @@ impl GameEngine {
             .as_mut()
             .improve(tech);
     }
+
+    pub(crate) fn winner(&self) -> Side {
+        self.state.winner()
+    }
 }
 
 struct DefaultGameLogic {}
