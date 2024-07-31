@@ -1465,6 +1465,16 @@ mod game_events_tests {
 
         assert!(engine.state.can_draw_event(&ARMISTICE));
     }
+
+    #[test]
+    fn armistice_event_ends_game() {
+        let mut engine = EngineBuilder::new(11).on_turn(14).build();
+
+        engine.play_events(&ARMISTICE);
+
+        assert!(engine.game_ends());
+        assert_eq!(1919, engine.state.current_year());
+    }
 }
 
 // 0 : 5 4 5

@@ -123,10 +123,7 @@ fn run_turn(players: &mut Players, game_engine: &mut GameEngine) {
     run_player_turn(game_engine.state.initiative, players, game_engine);
     run_player_turn(game_engine.state.initiative.other(), players, game_engine);
 
-    let inp = players.allies_player.input();
-    if let Input::Next = inp {
-        game_engine.new_turn();
-    }
+    game_engine.new_turn();
 }
 
 fn draw_events(players: &mut Players, game_engine: &mut GameEngine) {

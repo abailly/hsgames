@@ -31,8 +31,8 @@ impl GameEngine {
         }
     }
 
-    pub fn game_ends(self: &mut GameEngine) -> bool {
-        self.state.current_turn >= 15 || self.state.winner.is_some()
+    pub fn game_ends(self: &GameEngine) -> bool {
+        self.state.game_ends()
     }
 
     pub fn collect_resources(&mut self) {
@@ -225,8 +225,7 @@ impl GameEngine {
                 self.state.add_event(ARMISTICE);
             }
             42 => {
-                // armistice: the game ends
-                self.state.current_turn = 15;
+                self.state.end_game_this_turn = true;
             }
             _ => {}
         }

@@ -26,6 +26,7 @@ pub struct GameState {
     pub nations: HashMap<Nation, NationState>,
     pub countries: HashMap<Nation, Country>,
     pub state_of_war: HashMap<Side, WarState>,
+    pub end_game_this_turn: bool,
     seed: u64,
     rng: StdRng,
     events_pool: Vec<Event>,
@@ -102,6 +103,7 @@ impl GameState {
             nations,
             countries,
             state_of_war: initial_state_of_war,
+            end_game_this_turn: false,
             seed,
             rng: StdRng::seed_from_u64(seed),
             events_pool: ALL_EVENTS
@@ -325,6 +327,11 @@ impl GameState {
     fn is_at_war(&self, n: &Nation) -> bool {
         matches!(self.nations.get(n), Some(NationState::AtWar(_)))
     }
+
+    pub(crate) fn game_ends(&self) -> bool {
+        self.end_game_this_turn || self.current_turn >= 15 || self.winner.is_some()
+    }
+
 }
 
 impl Display for GameState {
