@@ -151,12 +151,12 @@ impl GameEngine {
 
     fn play(&mut self, event: &Event) -> ActiveEvent {
         match event.event_id {
-            4 => self.make_event_active(RaceToTheSea::new),
-            5 => self.make_event_active(ShellCrisis::new),
-            6 => self.make_event_active(Gas::new),
-            7 => self.make_event_active(VonLettowInAfrica::new),
-            8 => self.make_event_active(Gallipoli::new),
-            9 => self.make_event_active(SeparatePeace::new),
+            4 => self.activate_event(RaceToTheSea::new),
+            5 => self.activate_event(ShellCrisis::new),
+            6 => self.activate_event(Gas::new),
+            7 => self.activate_event(VonLettowInAfrica::new),
+            8 => self.activate_event(Gallipoli::new),
+            9 => self.activate_event(SeparatePeace::new),
             10 => {
                 self.state
                     .nations
@@ -167,52 +167,52 @@ impl GameEngine {
                     .nations
                     .insert(Nation::Bulgaria, NationState::AtWar(3));
             }
-            12 => self.make_event_active(LusitaniaSunk::new),
+            12 => self.activate_event(LusitaniaSunk::new),
             14 => match self.roll() {
                 1 => {
                     self.increase_pr(Side::Empires, 3);
                 }
                 5 => {
-                    self.make_event_active(GermanFleetDefeated::new);
+                    self.activate_event(GermanFleetDefeated::new);
                 }
                 6 => {
-                    self.make_event_active(GermanFleetDestroyed::new);
+                    self.activate_event(GermanFleetDestroyed::new);
                 }
                 _ => {}
             },
-            15 => self.make_event_active(AustrianOffensive::new),
-            16 => self.make_event_active(WoodrowWilson::new),
-            19 => self.make_event_active(BrusilovOffensive::new),
+            15 => self.activate_event(AustrianOffensive::new),
+            16 => self.activate_event(WoodrowWilson::new),
+            19 => self.activate_event(BrusilovOffensive::new),
             20 => {
                 self.state
                     .nations
                     .insert(Nation::Romania, NationState::AtWar(3));
             }
-            22 => self.make_event_active(Mutinies::new),
-            23 => self.make_event_active(GazaOffensive::new),
+            22 => self.activate_event(Mutinies::new),
+            23 => self.activate_event(GazaOffensive::new),
             24 => {
                 self.reduce_pr(Side::Empires, 2);
             }
-            25 => self.make_event_active(AustrianOffensive::new),
-            26 => self.make_event_active(UBoot::new),
-            27 => self.make_event_active(FlyingCircus::new),
+            25 => self.activate_event(AustrianOffensive::new),
+            26 => self.activate_event(UBoot::new),
+            27 => self.activate_event(FlyingCircus::new),
             28 => {
                 self.state
                     .nations
                     .insert(Nation::Greece, NationState::AtWar(3));
             }
-            29 => self.make_event_active(ZimmermanTelegram::new),
+            29 => self.activate_event(ZimmermanTelegram::new),
             31 => {
                 self.state
                     .nations
                     .insert(Nation::Russia, NationState::AtPeace);
             }
-            32 => self.make_event_active(Friedensturm::new),
-            33 => self.make_event_active(UnifiedCommand::new),
-            35 => self.make_event_active(BattleOfMegiddo::new),
+            32 => self.activate_event(Friedensturm::new),
+            33 => self.activate_event(UnifiedCommand::new),
+            35 => self.activate_event(BattleOfMegiddo::new),
             36 => {
                 if let Some(NationState::AtWar(_)) = self.state.nations.get(&Nation::Greece) {
-                    self.make_event_active(SalonikiExpedition::new)
+                    self.activate_event(SalonikiExpedition::new)
                 }
             }
             37 => {
@@ -237,7 +237,7 @@ impl GameEngine {
         active_event
     }
 
-    fn make_event_active<T>(&mut self, new: fn(Box<dyn GameLogic>) -> T)
+    fn activate_event<T>(&mut self, new: fn(Box<dyn GameLogic>) -> T)
     where
         T: GameLogic + 'static,
     {
