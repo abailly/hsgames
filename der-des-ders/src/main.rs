@@ -1578,8 +1578,8 @@ mod reinforcements {
             .on_turn(1)
             .build();
         let mut players = PlayersBuilder::new()
-            .with_input(Allies, Reinforce(France, 2))
-            .with_input(Allies, Reinforce(Russia, 3))
+            .with_input(Allies, Reinforce(France, 2)) // 1 pr spent only  => 1 reinforcement
+            .with_input(Allies, Reinforce(Russia, 3)) // 1 + 2 = 3 pr spint => 2 reinforcements
             .with_input(Allies, Pass)
             .build();
 
@@ -1588,6 +1588,25 @@ mod reinforcements {
         assert_eq!(AtWar(5), *engine.state.nations.get(&France).unwrap());
         assert_eq!(AtWar(5), *engine.state.nations.get(&Russia).unwrap());
         assert_eq!(0, engine.state.resources_for(&Allies));
+    }
+
+    #[test]
+    fn reinforcements_cannot_spend_more_pr_than_available_resources() {
+        let mut engine = EngineBuilder::new(14)
+            .with_resources(Allies, 4)
+            .with_initiative(Allies)
+            .with_nation(France, AtWar(4))
+            .on_turn(1)
+            .build();
+        let mut players = PlayersBuilder::new()
+            .with_input(Allies, Reinforce(France, 6))
+            .with_input(Allies, Pass)
+            .build();
+
+        reinforcements(Allies, &mut players, &mut engine);
+
+        assert_eq!(1, engine.state.resources_for(&Allies));
+        assert_eq!(AtWar(6), *engine.state.nations.get(&France).unwrap());
     }
 
     #[test]

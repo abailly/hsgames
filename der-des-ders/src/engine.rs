@@ -62,13 +62,18 @@ impl GameEngine {
     }
 
     pub(crate) fn reinforce(&mut self, nation: Nation, pr: u8) -> &Self {
+        let available_resources = self.state.resources_for(&nation.side());
         let nation_state = self.state.nations.get_mut(&nation).unwrap();
         let maximum_breakdown = nation.maximum_breakdown();
         let current_breakdown = nation_state.breakdown();
 
         let (spent, reinforcement) =
             (1..=(pr + 1)).fold((0, 0), |(spent, reinforcement), resource| {
-                if spent + resource <= pr && reinforcement + current_breakdown < maximum_breakdown {
+                let new_spent = spent + resource;
+                if new_spent <= pr
+                    && reinforcement + current_breakdown < maximum_breakdown
+                    && new_spent <= available_resources
+                {
                     (spent + resource, reinforcement + 1)
                 } else {
                     (spent, reinforcement)
@@ -76,6 +81,15 @@ impl GameEngine {
             });
         nation_state.reinforce(reinforcement);
         self.reduce_pr(nation.side(), spent);
+
+        if nation == Nation::Russia && reinforcement > 0 {
+            let revolution_increase = (0..reinforcement)
+                .map(|_| self.roll())
+                .filter(|&die| die == 1)
+                .count() as u8;
+            self.state.russian_revolution += revolution_increase;
+        }
+
         self
     }
 
@@ -407,7 +421,12 @@ fn default_game_logic() -> impl GameLogic {
 
 #[cfg(test)]
 mod engine_test {
-    use crate::{event::ALL_EVENTS, fixtures::EngineBuilder, Side::*};
+    use crate::{
+        event::ALL_EVENTS,
+        fixtures::EngineBuilder,
+        Nation, NationState,
+        Side::{self, *},
+    };
 
     #[test]
     fn played_events_stay_between_turns() {
@@ -437,5 +456,47 @@ mod engine_test {
         engine.new_turn();
 
         assert!(engine.game_ends());
+    }
+
+    #[test]
+    fn when_reinforcing_russia_and_die_is_1_increase_revolution_track_by_one() {
+        let mut engine = EngineBuilder::new(2) // die roll = 1
+            .with_resources(Side::Allies, 1)
+            .with_nation(Nation::Russia, NationState::AtWar(5))
+            .build();
+
+        engine.reinforce(Nation::Russia, 1);
+
+        assert_eq!(
+            6,
+            engine
+                .state
+                .nations
+                .get(&Nation::Russia)
+                .unwrap()
+                .breakdown()
+        );
+        assert_eq!(1, engine.state.russian_revolution);
+    }
+
+    #[test]
+    fn when_reinforcing_russia_roll_as_many_dice_as_reinforcement() {
+        let mut engine = EngineBuilder::new(7) // die roll = 3 1 1
+            .with_resources(Allies, 10)
+            .with_nation(Nation::Russia, NationState::AtWar(2))
+            .build();
+
+        engine.reinforce(Nation::Russia, 6);
+
+        assert_eq!(
+            5,
+            engine
+                .state
+                .nations
+                .get(&Nation::Russia)
+                .unwrap()
+                .breakdown()
+        );
+        assert_eq!(2, engine.state.russian_revolution);
     }
 }
