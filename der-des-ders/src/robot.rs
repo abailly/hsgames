@@ -2,7 +2,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
 use crate::io::{Input, Output, Player};
-use crate::{GameState, Nation, Side};
+use crate::{GameState, Nation, Side, TechnologyType};
 
 pub struct RobotIO {
     pub state: Option<GameState>,
@@ -41,13 +41,14 @@ impl RobotIO {
         possible_plays
     }
 
-    fn possible_tech_improvements(&self) -> Vec<Input> {
+    fn possible_tech_improvements(&self, techs: &[TechnologyType]) -> Vec<Input> {
         let state = self.state.as_ref().unwrap();
         let resources = state.state_of_war.get(&self.side).unwrap().resources;
         let max_pr = resources.min(5);
         let mut possible_plays = state
             .available_technologies(&self.side)
             .iter()
+            .filter(|t| techs.contains(&t.category))
             .flat_map(|t| (1..=max_pr).map(move |pr| Input::Select(t.category, pr)))
             .collect::<Vec<Input>>();
         possible_plays.push(Input::Pass);
@@ -117,8 +118,8 @@ impl Player for RobotIO {
                 let pr = self.rng.gen_range(0..=max_pr);
                 Input::Number(pr)
             }
-            Some(Output::ImproveTechnologies(_)) => {
-                let possible_plays = self.possible_tech_improvements();
+            Some(Output::ImproveTechnologies(techs)) => {
+                let possible_plays = self.possible_tech_improvements(techs);
                 possible_plays[self.rng.gen_range(0..possible_plays.len())]
             }
             Some(Output::LaunchOffensive(sources)) => {
@@ -210,7 +211,7 @@ mod robot_tests {
     }
 
     #[test]
-    fn choose_random_techs_to_improve() {
+    fn choose_random_tech_to_improve() {
         let engine = EngineBuilder::new(14)
             .with_resources(Side::Empires, 5)
             .build();
@@ -220,9 +221,22 @@ mod robot_tests {
         robot.output(&Output::CurrentState(engine.state));
         robot.output(&Output::ImproveTechnologies(all_technology_types()));
 
-        let input = robot.input();
+        assert_eq!(Input::Select(TechnologyType::Defense, 4), robot.input());
+    }
 
-        assert_eq!(Input::Select(TechnologyType::Defense, 4), input);
+    #[test]
+    fn choose_random_tech_from_available_set_to_improve() {
+        let engine = EngineBuilder::new(11)
+            .with_resources(Side::Empires, 5)
+            .on_turn(2)
+            .build();
+
+        let mut robot = RobotIO::new(&Side::Empires, 15);
+
+        robot.output(&Output::CurrentState(engine.state));
+        robot.output(&Output::ImproveTechnologies(vec![TechnologyType::Attack]));
+
+        assert_eq!(Input::Select(TechnologyType::Attack, 4), robot.input());
     }
 
     #[test]
