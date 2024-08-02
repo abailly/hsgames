@@ -69,6 +69,7 @@ impl Display for HitsResult {
 }
 
 pub enum StateChange {
+    NoChange,
     ChangeResources { side: Side, pr: i8 },
     MoreChanges(Vec<StateChange>),
 }
@@ -358,6 +359,7 @@ impl GameState {
 
     fn apply_change(&mut self, change: &StateChange) -> &mut Self {
         match change {
+            StateChange::NoChange => {}
             StateChange::ChangeResources { side, pr } => {
                 if *pr >= 0 {
                     self.increase_pr(*side, *pr as u8);
@@ -544,6 +546,16 @@ mod game_state_tests {
 
         assert_eq!(vec![&Germany], engine.state.neighbours(&France));
         assert_eq!(vec![&France, &Russia], engine.state.neighbours(&Germany));
+    }
+
+    #[test]
+    fn no_change_does_not_modify_state() {
+        let mut state = GameState::new(12);
+        state.increase_pr(Allies, state.tally_resources(&Allies));
+
+        state.apply_change(&StateChange::NoChange);
+
+        assert_eq!(14, state.resources_for(&Allies));
     }
 
     #[test]
