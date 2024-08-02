@@ -12,6 +12,15 @@ pub enum TechnologyType {
     Air,
 }
 
+pub fn all_technology_types() -> Vec<TechnologyType> {
+    vec![
+        TechnologyType::Attack,
+        TechnologyType::Defense,
+        TechnologyType::Artillery,
+        TechnologyType::Air,
+    ]
+}
+
 impl TechnologyType {
     pub(crate) fn index(&self) -> usize {
         match self {

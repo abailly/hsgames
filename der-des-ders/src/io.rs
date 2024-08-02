@@ -16,7 +16,7 @@ use crate::{tech::*, GameState};
 pub enum Output {
     CurrentState(GameState),
     ChooseInitiative,
-    ImproveTechnologies,
+    ImproveTechnologies(Vec<TechnologyType>),
     ReinforceNations,
     LaunchOffensive(Vec<Nation>),
     WrongInput(Input),
@@ -46,7 +46,17 @@ impl Display for Output {
         match self {
             Output::CurrentState(st) => write!(f, "Current state: {}", st),
             Output::ChooseInitiative => write!(f, "Select PR for initiative"),
-            Output::ImproveTechnologies => write!(f, "Select PR to improve technologies, or Pass"),
+            Output::ImproveTechnologies(techs) => {
+                write!(
+                    f,
+                    "Select PR to improve technologies ({}), or Pass",
+                    techs
+                        .iter()
+                        .map(|t| format!("{}", t))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                )
+            }
             Output::LaunchOffensive(sources) => {
                 write!(
                     f,

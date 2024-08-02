@@ -79,6 +79,7 @@ impl GameEngine {
                     (spent, reinforcement)
                 }
             });
+
         nation_state.reinforce(reinforcement);
         self.reduce_pr(nation.side(), spent);
 

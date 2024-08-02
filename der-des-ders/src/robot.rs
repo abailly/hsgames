@@ -20,6 +20,39 @@ impl RobotIO {
             rng: StdRng::seed_from_u64(seed),
         }
     }
+
+    fn possible_offensives(&self, sources: &[Nation]) -> Vec<Input> {
+        let state = self.state.as_ref().unwrap();
+        let resources = state.state_of_war.get(&self.side).unwrap().resources;
+        let mut possible_plays: Vec<Input> = Vec::new();
+
+        for source in sources.iter() {
+            let mut targets: Vec<&Nation> = state.neighbours(source);
+            targets.sort();
+            for target in targets.iter() {
+                for pr in 1..=state.operational_level(source) {
+                    if pr <= resources {
+                        possible_plays.push(Input::Offensive(*source, **target, pr))
+                    };
+                }
+            }
+        }
+        possible_plays.push(Input::Pass);
+        possible_plays
+    }
+
+    fn possible_tech_improvements(&self) -> Vec<Input> {
+        let state = self.state.as_ref().unwrap();
+        let resources = state.state_of_war.get(&self.side).unwrap().resources;
+        let max_pr = resources.min(5);
+        let mut possible_plays = state
+            .available_technologies(&self.side)
+            .iter()
+            .flat_map(|t| (1..=max_pr).map(move |pr| Input::Select(t.category, pr)))
+            .collect::<Vec<Input>>();
+        possible_plays.push(Input::Pass);
+        possible_plays
+    }
 }
 
 impl Player for RobotIO {
@@ -31,7 +64,7 @@ impl Player for RobotIO {
             Output::ChooseInitiative => {
                 self.phase = Some(message.clone());
             }
-            Output::ImproveTechnologies => {
+            Output::ImproveTechnologies(_) => {
                 self.phase = Some(message.clone());
             }
             Output::LaunchOffensive(_) => {
@@ -84,35 +117,12 @@ impl Player for RobotIO {
                 let pr = self.rng.gen_range(0..=max_pr);
                 Input::Number(pr)
             }
-            Some(Output::ImproveTechnologies) => {
-                let state = self.state.as_ref().unwrap();
-                let resources = state.state_of_war.get(&self.side).unwrap().resources;
-                let max_pr = resources.min(5);
-                let mut possible_plays = state
-                    .available_technologies(&self.side)
-                    .iter()
-                    .flat_map(|t| (1..=max_pr).map(move |pr| Input::Select(t.category, pr)))
-                    .collect::<Vec<Input>>();
-                possible_plays.push(Input::Pass);
+            Some(Output::ImproveTechnologies(_)) => {
+                let possible_plays = self.possible_tech_improvements();
                 possible_plays[self.rng.gen_range(0..possible_plays.len())]
             }
             Some(Output::LaunchOffensive(sources)) => {
-                let state = self.state.as_ref().unwrap();
-                let resources = state.state_of_war.get(&self.side).unwrap().resources;
-                let mut possible_plays: Vec<Input> = Vec::new();
-
-                for source in sources.iter() {
-                    let mut targets: Vec<&Nation> = state.neighbours(source);
-                    targets.sort();
-                    for target in targets.iter() {
-                        for pr in 1..=state.operational_level(source) {
-                            if pr <= resources {
-                                possible_plays.push(Input::Offensive(*source, **target, pr))
-                            };
-                        }
-                    }
-                }
-                possible_plays.push(Input::Pass);
+                let possible_plays = self.possible_offensives(sources);
                 if possible_plays.is_empty() {
                     Input::Pass
                 } else {
@@ -178,7 +188,9 @@ impl Player for RobotIO {
 #[cfg(test)]
 mod robot_tests {
     use super::*;
-    use crate::{fixtures::EngineBuilder, io::Output, NationState, TechnologyType};
+    use crate::{
+        all_technology_types, fixtures::EngineBuilder, io::Output, NationState, TechnologyType,
+    };
 
     #[test]
     fn choose_pr_to_spend_for_initiative_uniformly_within_available_resources_with_a_maximum_of_3()
@@ -206,7 +218,7 @@ mod robot_tests {
         let mut robot = RobotIO::new(&Side::Empires, 15);
 
         robot.output(&Output::CurrentState(engine.state));
-        robot.output(&Output::ImproveTechnologies);
+        robot.output(&Output::ImproveTechnologies(all_technology_types()));
 
         let input = robot.input();
 

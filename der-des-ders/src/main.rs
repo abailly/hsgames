@@ -6,7 +6,7 @@ use std::io::{stdin, stdout};
 use std::process::exit;
 
 mod tech;
-use event::Event;
+use tech::TechnologyType::*;
 use tech::*;
 
 mod io;
@@ -22,6 +22,8 @@ mod engine;
 use engine::*;
 
 mod event;
+use event::Event;
+
 mod events;
 mod fixtures;
 mod logic;
@@ -172,13 +174,13 @@ fn improve_technologies(initiative: Side, players: &mut Players, game_engine: &m
         Side::Empires => &mut players.empires_player,
     };
 
-    let mut improved: Vec<TechnologyType> = vec![];
+    let mut available: Vec<TechnologyType> = vec![Attack, Defense, Artillery, Air];
 
-    while improved.len() < 4 {
-        player.output(&Output::ImproveTechnologies);
+    while !available.is_empty() {
+        player.output(&Output::ImproveTechnologies(available.clone()));
         match player.input() {
             Input::Select(tech, n) => {
-                if improved.contains(&tech) || n == 0 {
+                if !available.contains(&tech) || n == 0 {
                     continue;
                 }
                 let die = game_engine.roll();
@@ -195,7 +197,7 @@ fn improve_technologies(initiative: Side, players: &mut Players, game_engine: &m
                     _ => {}
                 }
 
-                improved.push(tech);
+                available.retain(|&t| t != tech);
             }
             Input::Pass => break,
             other => player.output(&Output::WrongInput(other)),
@@ -778,6 +780,7 @@ mod events_tests {
 mod technologies {
 
     use crate::{
+        all_technology_types,
         fixtures::{EngineBuilder, PlayersBuilder},
         improve_technologies,
         Input::*,
@@ -864,9 +867,9 @@ mod technologies {
         assert_eq!(4, engine.state.resources_for(&Empires));
         assert_eq!(
             vec![
-                Output::ImproveTechnologies,
+                Output::ImproveTechnologies(all_technology_types()),
                 Output::TechnologyNotAvailable("Combat Gas".to_string(), 1915, 1914),
-                Output::ImproveTechnologies
+                Output::ImproveTechnologies(vec![Defense, Artillery, Air]),
             ],
             players.empires_player.out()
         );
@@ -1041,9 +1044,9 @@ mod technologies {
         );
         assert_eq!(
             vec![
-                Output::ImproveTechnologies,
+                Output::ImproveTechnologies(all_technology_types()),
                 Output::NoMoreTechnologyImprovement(Defense, 3),
-                Output::ImproveTechnologies
+                Output::ImproveTechnologies(vec![Attack, Artillery, Air])
             ],
             players.allies_player.out()
         );
@@ -1079,9 +1082,9 @@ mod technologies {
         );
         assert_eq!(
             vec![
-                Output::ImproveTechnologies,
+                Output::ImproveTechnologies(all_technology_types()),
                 Output::NoMoreTechnologyImprovement(Attack, 4),
-                Output::ImproveTechnologies
+                Output::ImproveTechnologies(vec![Defense, Artillery, Air])
             ],
             players.allies_player.out()
         );
@@ -1147,9 +1150,9 @@ mod technologies {
 
         assert_eq!(
             vec![
-                Output::ImproveTechnologies,
+                Output::ImproveTechnologies(all_technology_types()),
                 Output::WrongInput(Number(2)),
-                Output::ImproveTechnologies
+                Output::ImproveTechnologies(all_technology_types())
             ],
             players.empires_player.out()
         );
