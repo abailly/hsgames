@@ -326,10 +326,11 @@ fn uboot(players: &mut Players, game_engine: &mut GameEngine) {
         _ => 0,
     };
 
-    let loss = game_engine.uboot_losses(bonus);
+    let (loss, cost) = game_engine.uboot_losses(bonus);
 
     let pr_lost = apply_hits(players, game_engine, loss);
 
+    game_engine.reduce_pr(Side::Empires, cost);
     game_engine.reduce_pr(Side::Allies, pr_lost);
 }
 

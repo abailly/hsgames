@@ -157,7 +157,7 @@ impl GameEngine {
         self.logic.compute_bonus(&self.state, offensive)
     }
 
-    pub fn uboot_losses(&mut self, bonus: u8) -> u8 {
+    pub fn uboot_losses(&mut self, bonus: u8) -> (u8, u8) {
         self.logic.uboot_losses(&mut self.state, bonus)
     }
 
@@ -397,15 +397,14 @@ impl GameLogic for DefaultGameLogic {
         }
     }
 
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
         let die = state.roll() + bonus;
         let loss = match die {
             1..=4 => 0,
             5 => 2,
             _ => 4,
         };
-        self.reduce_pr(state, &Side::Empires, bonus);
-        loss
+        (loss, bonus)
     }
 
     fn blockade_effect(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {

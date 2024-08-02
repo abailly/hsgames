@@ -199,13 +199,14 @@ impl GameLogic for GermanFleetDefeated {
         Some(&mut *self.previous)
     }
 
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
         let die = (state.roll() - 1 + bonus).max(1);
-        match die {
+        let loss = match die {
             1..=4 => 0,
             5 => 2,
             _ => 4,
-        }
+        };
+        (loss, bonus)
     }
 }
 
@@ -329,11 +330,11 @@ impl GameLogic for WoodrowWilson {
         Some(&mut *self.previous)
     }
 
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
         if self.uboot_played {
             self.previous.uboot_losses(state, bonus)
         } else {
-            0
+            (0, 0)
         }
     }
 
@@ -562,7 +563,7 @@ impl GameLogic for UBoot {
         Some(&mut *self.previous)
     }
 
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
         let die = state.roll() + 1 + bonus;
         let loss = match die {
             1..=4 => 0,
@@ -570,7 +571,7 @@ impl GameLogic for UBoot {
             _ => 4,
         };
         self.reduce_pr(state, &Side::Empires, bonus);
-        loss
+        (loss, bonus)
     }
 }
 
@@ -1043,7 +1044,7 @@ mod game_events_tests {
 
         engine.play_events(&ALL_EVENTS[13]);
 
-        assert_eq!(2, engine.uboot_losses(0));
+        assert_eq!((2, 0), engine.uboot_losses(0));
     }
 
     #[test]
@@ -1052,7 +1053,7 @@ mod game_events_tests {
 
         engine.play_events(&ALL_EVENTS[13]);
 
-        assert_eq!(4, engine.uboot_losses(0));
+        assert_eq!((4, 0), engine.uboot_losses(0));
     }
 
     #[test]
@@ -1086,7 +1087,7 @@ mod game_events_tests {
 
         engine.play_events(&ALL_EVENTS[15]);
 
-        assert_eq!(0, engine.uboot_losses(1));
+        assert_eq!((0, 0), engine.uboot_losses(1));
         assert_eq!(2, engine.state.resources_for(&Empires));
     }
 
@@ -1097,7 +1098,7 @@ mod game_events_tests {
         engine.play_events(&ALL_EVENTS[15]);
         engine.play_events(&ALL_EVENTS[25]);
 
-        assert_eq!(4, engine.uboot_losses(1));
+        assert_eq!((4, 1), engine.uboot_losses(1));
         assert_eq!(1, engine.state.resources_for(&Empires));
     }
 
@@ -1229,7 +1230,7 @@ mod game_events_tests {
 
         engine.play_events(&ALL_EVENTS[25]);
 
-        assert_eq!(4, engine.uboot_losses(0));
+        assert_eq!((4, 0), engine.uboot_losses(0));
     }
 
     #[test]
