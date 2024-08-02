@@ -74,7 +74,7 @@ impl GameEngine {
                     && reinforcement + current_breakdown < maximum_breakdown
                     && new_spent <= available_resources
                 {
-                    (spent + resource, reinforcement + 1)
+                    (new_spent, reinforcement + 1)
                 } else {
                     (spent, reinforcement)
                 }
@@ -83,14 +83,21 @@ impl GameEngine {
         self.reduce_pr(nation.side(), spent);
 
         if nation == Nation::Russia && reinforcement > 0 {
-            let revolution_increase = (0..reinforcement)
-                .map(|_| self.roll())
-                .filter(|&die| die == 1)
-                .count() as u8;
-            self.state.russian_revolution += revolution_increase;
+            self.track_russian_revolution(reinforcement);
         }
 
         self
+    }
+
+    fn track_russian_revolution(&mut self, reinforcement: u8) {
+        let revolution_increase = (0..reinforcement)
+            .map(|_| self.roll())
+            .filter(|&die| die == 1)
+            .count() as u8;
+        self.state.russian_revolution += revolution_increase;
+        if self.state.russian_revolution >= 6 {
+            self.state.surrenders(&Nation::Russia);
+        }
     }
 
     pub(crate) fn apply_hits(&mut self, to: &Nation, hits: u8) -> HitsResult {
@@ -498,5 +505,23 @@ mod engine_test {
                 .breakdown()
         );
         assert_eq!(2, engine.state.russian_revolution);
+    }
+
+    #[test]
+    fn russia_surrenders_when_revolution_track_reaches_6() {
+        let mut engine = EngineBuilder::new(7) // die roll = 3 1 1
+            .with_resources(Allies, 10)
+            .with_russian_revolution(4)
+            .with_nation(Nation::Russia, NationState::AtWar(2))
+            .build();
+
+        engine.reinforce(Nation::Russia, 6);
+
+        assert_eq!(
+            &NationState::AtPeace,
+            engine.state.nations.get(&Nation::Russia).unwrap()
+        );
+        assert_eq!(3, engine.state.state_of_war.get(&Empires).unwrap().vp);
+        assert_eq!(6, engine.state.russian_revolution);
     }
 }

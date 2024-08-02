@@ -101,4 +101,9 @@ impl EngineBuilder {
         self.state.state_of_war.get_mut(&side).unwrap().technologies = Box::new(technologies);
         self
     }
+
+    pub(crate) fn with_russian_revolution(&mut self, index: u8) -> &mut Self {
+        self.state.russian_revolution = index;
+        self
+    }
 }
