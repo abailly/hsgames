@@ -68,6 +68,11 @@ impl Display for HitsResult {
     }
 }
 
+pub enum StateChange {
+    ChangeResources { side: Side, pr: i8 },
+    MoreChanges(Vec<StateChange>),
+}
+
 impl GameState {
     pub fn new(seed: u64) -> Self {
         let nations = INITIAL_NATION_STATE.iter().cloned().collect();
@@ -140,6 +145,12 @@ impl GameState {
         if st.resources > 20 {
             st.resources = 20;
         }
+        self
+    }
+
+    pub fn decrease_pr(&mut self, side: Side, pr: u8) -> &mut Self {
+        let st = self.state_of_war.get_mut(&side).unwrap();
+        st.resources -= pr;
         self
     }
 
@@ -344,6 +355,24 @@ impl GameState {
             }
         }
     }
+
+    fn apply_change(&mut self, change: &StateChange) -> &mut Self {
+        match change {
+            StateChange::ChangeResources { side, pr } => {
+                if *pr >= 0 {
+                    self.increase_pr(*side, *pr as u8);
+                } else {
+                    self.decrease_pr(*side, -*pr as u8);
+                }
+            }
+            StateChange::MoreChanges(changes) => {
+                changes.iter().for_each(|change| {
+                    self.apply_change(change);
+                });
+            }
+        }
+        self
+    }
 }
 
 impl Display for GameState {
@@ -377,7 +406,10 @@ impl Display for GameState {
 mod game_state_tests {
 
     use super::HitsResult::*;
-    use crate::{fixtures::EngineBuilder, Nation::*, NationState::*, Side::*, ZERO_TECHNOLOGIES};
+    use crate::{
+        fixtures::EngineBuilder, GameState, Nation::*, NationState::*, Side::*, StateChange,
+        ZERO_TECHNOLOGIES,
+    };
 
     #[test]
     fn nation_surrenders_when_brought_to_0_then_increase_vp_of_other_side() {
@@ -512,5 +544,38 @@ mod game_state_tests {
 
         assert_eq!(vec![&Germany], engine.state.neighbours(&France));
         assert_eq!(vec![&France, &Russia], engine.state.neighbours(&Germany));
+    }
+
+    #[test]
+    fn applying_change_modifies_state() {
+        let mut state = GameState::new(12);
+        state.increase_pr(Allies, state.tally_resources(&Allies));
+
+        state.apply_change(&StateChange::ChangeResources {
+            side: Allies,
+            pr: -4,
+        });
+
+        assert_eq!(10, state.resources_for(&Allies));
+    }
+
+    #[test]
+    fn applying_more_changes_modifies_state_for_each_individual_change() {
+        let mut state = GameState::new(12);
+        state.increase_pr(Allies, state.tally_resources(&Allies));
+        state.increase_pr(Empires, state.tally_resources(&Empires));
+
+        let reduce_pr = StateChange::ChangeResources {
+            side: Allies,
+            pr: -4,
+        };
+        let add_pr = StateChange::ChangeResources {
+            side: Empires,
+            pr: 2,
+        };
+        state.apply_change(&StateChange::MoreChanges(vec![reduce_pr, add_pr]));
+
+        assert_eq!(10, state.resources_for(&Allies));
+        assert_eq!(11, state.resources_for(&Empires));
     }
 }
