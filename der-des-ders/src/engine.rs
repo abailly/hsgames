@@ -268,7 +268,7 @@ impl GameEngine {
         self.logic = Box::new((new)(previous));
     }
 
-    pub(crate) fn blockade_effect(&mut self, bonus: u8) -> u8 {
+    pub(crate) fn blockade_effect(&mut self, bonus: u8) -> (u8, u8) {
         self.logic.blockade_effect(&mut self.state, bonus)
     }
 
@@ -408,7 +408,7 @@ impl GameLogic for DefaultGameLogic {
         loss
     }
 
-    fn blockade_effect(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+    fn blockade_effect(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
         let die = state.roll() + bonus;
         let gain = match die {
             1 => 3,
@@ -416,10 +416,7 @@ impl GameLogic for DefaultGameLogic {
             _ => 0,
         };
 
-        state.increase_pr(Side::Empires, gain);
-        self.reduce_pr(state, &Side::Allies, bonus);
-
-        gain
+        (gain, bonus)
     }
 }
 

@@ -15,7 +15,7 @@ impl RobotIO {
     pub fn new(side: &Side, seed: u64) -> Self {
         RobotIO {
             state: None,
-            side: side.clone(),
+            side: *side,
             phase: None,
             rng: StdRng::seed_from_u64(seed),
         }

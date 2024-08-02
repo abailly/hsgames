@@ -226,8 +226,8 @@ impl GameLogic for GermanFleetDestroyed {
         Some(&mut *self.previous)
     }
 
-    fn blockade_effect(&mut self, _state: &mut GameState, _bonus: u8) -> u8 {
-        0
+    fn blockade_effect(&mut self, _state: &mut GameState, _bonus: u8) -> (u8, u8) {
+        (0, 0)
     }
 }
 
@@ -1061,7 +1061,7 @@ mod game_events_tests {
 
         engine.play_events(&ALL_EVENTS[13]);
 
-        assert_eq!(0, engine.blockade_effect(1));
+        assert_eq!((0, 0), engine.blockade_effect(1));
         assert_eq!(6, engine.state.resources_for(&Allies));
     }
 

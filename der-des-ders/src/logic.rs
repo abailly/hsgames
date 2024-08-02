@@ -77,11 +77,11 @@ pub trait GameLogic {
             0
         }
     }
-    fn blockade_effect(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+    fn blockade_effect(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
         if let Some(previous) = self.previous() {
             previous.blockade_effect(state, bonus)
         } else {
-            0
+            (0, 0)
         }
     }
     fn new_turn(&mut self, state: &mut GameState) {
@@ -151,7 +151,7 @@ impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
         self.as_mut().uboot_losses(state, bonus)
     }
 
-    fn blockade_effect(&mut self, state: &mut GameState, bonus: u8) -> u8 {
+    fn blockade_effect(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
         self.as_mut().blockade_effect(state, bonus)
     }
 
@@ -224,7 +224,7 @@ impl GameLogic for DummyLogic {
         panic!("dummy logic")
     }
 
-    fn blockade_effect(&mut self, _state: &mut GameState, _bonus: u8) -> u8 {
+    fn blockade_effect(&mut self, _state: &mut GameState, _bonus: u8) -> (u8, u8) {
         panic!("dummy logic")
     }
     fn event_activated(&mut self, _event: &ActiveEvent) {

@@ -362,9 +362,12 @@ fn blocus(players: &mut Players, game_engine: &mut GameEngine) {
         _ => 0,
     };
 
-    let gain = game_engine.blockade_effect(bonus);
+    let (empires_gain, allies_cost) = game_engine.blockade_effect(bonus);
 
-    players.output(&Output::BlockadeResult(gain));
+    game_engine.increase_pr(Side::Empires, empires_gain);
+    game_engine.reduce_pr(Side::Allies, allies_cost);
+
+    players.output(&Output::BlockadeResult(empires_gain));
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
