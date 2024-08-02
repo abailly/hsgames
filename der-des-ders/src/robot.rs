@@ -44,7 +44,7 @@ impl RobotIO {
     fn possible_tech_improvements(&self, techs: &[TechnologyType]) -> Vec<Input> {
         let state = self.state.as_ref().unwrap();
         let resources = state.state_of_war.get(&self.side).unwrap().resources;
-        let max_pr = resources.min(5);
+        let max_pr = resources.min(4);
         let mut possible_plays = state
             .available_technologies(&self.side)
             .iter()
