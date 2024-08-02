@@ -100,6 +100,7 @@ impl Player for RobotIO {
             Output::FailedTechnology(_, _) => {}
             Output::TechnologyNotAvailable(_, _, _) => {}
             Output::NoMoreTechnologyImprovement(_, _) => {}
+            Output::TurnFor(_, _) => {}
         }
     }
 

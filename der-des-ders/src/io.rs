@@ -39,6 +39,7 @@ pub enum Output {
     FailedTechnology(TechnologyType, u8),
     TechnologyNotAvailable(String, u16, u16),
     NoMoreTechnologyImprovement(TechnologyType, u8),
+    TurnFor(Side, u8),
 }
 
 impl Display for Output {
@@ -109,6 +110,7 @@ impl Display for Output {
             Output::NoMoreTechnologyImprovement(tech, level) => {
                 write!(f, "No more improvement for {} at level {}", tech, level)
             }
+            Output::TurnFor(side, turn) => write!(f, "Turn for {} ({})", side, turn),
         }
     }
 }

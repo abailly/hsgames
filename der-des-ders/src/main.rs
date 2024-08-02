@@ -162,10 +162,15 @@ fn apply_event(players: &mut Players, game_engine: &mut GameEngine, event: &Even
 }
 
 fn run_player_turn(initiative: Side, players: &mut Players, game_engine: &mut GameEngine) {
+    notify_turn(initiative, players, game_engine);
     improve_technologies(initiative, players, game_engine);
     launch_offensives(initiative, players, game_engine);
     reinforcements(initiative, players, game_engine);
     sea_control(initiative, players, game_engine);
+}
+
+fn notify_turn(initiative: Side, players: &mut Players, game_engine: &GameEngine) {
+    players.output(&Output::TurnFor(initiative, game_engine.state.current_turn));
 }
 
 fn improve_technologies(initiative: Side, players: &mut Players, game_engine: &mut GameEngine) {
