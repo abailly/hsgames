@@ -5,7 +5,7 @@ ALLIES_WIN=0
 EMPIRES_WIN=0
 
 for i in $(seq 1 $NUM_RUNS); do
-    printf "Run $i\x1b[0G"
+    printf "Run $i ($EMPIRES_WIN / $ALLIES_WIN)\x1b[0G"
     RUST_BACKTRACE=1 ./target/debug/der-des-ders --empires robot --seed $i --allies robot
     case $? in
         255)
@@ -20,6 +20,8 @@ for i in $(seq 1 $NUM_RUNS); do
             ;;
     esac
 done
+
+echo ""
 
 echo "Empires win: $EMPIRES_WIN"
 echo "Allies win: $ALLIES_WIN"
