@@ -68,10 +68,37 @@ impl Display for HitsResult {
     }
 }
 
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum StateChange {
     NoChange,
     ChangeResources { side: Side, pr: i8 },
     MoreChanges(Vec<StateChange>),
+}
+
+impl StateChange {
+    pub(crate) fn allies_loss(&self) -> u8 {
+        match self {
+            StateChange::ChangeResources { side, pr } if *pr < 0 && *side == Side::Allies => {
+                -*pr as u8
+            }
+            StateChange::MoreChanges(changes) => changes
+                .iter()
+                .fold(0, |acc, change| acc + change.allies_loss()),
+            _ => 0,
+        }
+    }
+
+    pub(crate) fn empires_gain(&self) -> u8 {
+        match self {
+            StateChange::ChangeResources { side, pr } if *pr > 0 && *side == Side::Empires => {
+                *pr as u8
+            }
+            StateChange::MoreChanges(changes) => changes
+                .iter()
+                .fold(0, |acc, change| acc + change.empires_gain()),
+            _ => 0,
+        }
+    }
 }
 
 impl GameState {
@@ -357,7 +384,7 @@ impl GameState {
         }
     }
 
-    fn apply_change(&mut self, change: &StateChange) -> &mut Self {
+    pub(crate) fn apply_change(&mut self, change: &StateChange) -> &mut Self {
         match change {
             StateChange::NoChange => {}
             StateChange::ChangeResources { side, pr } => {

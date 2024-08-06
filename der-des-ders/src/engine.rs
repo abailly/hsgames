@@ -3,6 +3,7 @@ use crate::event::ARMISTICE;
 use crate::events::*;
 use crate::logic::*;
 use crate::side::*;
+use crate::state::StateChange::*;
 use crate::state::*;
 use crate::TechEffects;
 use crate::TechnologyType;
@@ -157,7 +158,7 @@ impl GameEngine {
         self.logic.compute_bonus(&self.state, offensive)
     }
 
-    pub fn uboot_losses(&mut self, bonus: u8) -> (u8, u8) {
+    pub fn uboot_losses(&mut self, bonus: u8) -> StateChange {
         self.logic.uboot_losses(&mut self.state, bonus)
     }
 
@@ -268,7 +269,7 @@ impl GameEngine {
         self.logic = Box::new((new)(previous));
     }
 
-    pub(crate) fn blockade_effect(&mut self, bonus: u8) -> (u8, u8) {
+    pub(crate) fn blockade_effect(&mut self, bonus: u8) -> StateChange {
         self.logic.blockade_effect(&mut self.state, bonus)
     }
 
@@ -284,6 +285,10 @@ impl GameEngine {
 
     pub(crate) fn winner(&self) -> Side {
         self.state.winner()
+    }
+
+    pub(crate) fn apply_change(&mut self, change: &StateChange) {
+        self.state.apply_change(change);
     }
 }
 
@@ -397,17 +402,26 @@ impl GameLogic for DefaultGameLogic {
         }
     }
 
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> StateChange {
         let die = state.roll() + bonus;
         let loss = match die {
             1..=4 => 0,
             5 => 2,
             _ => 4,
         };
-        (loss, bonus)
+        MoreChanges(vec![
+            ChangeResources {
+                side: Side::Allies,
+                pr: -loss,
+            },
+            ChangeResources {
+                side: Side::Empires,
+                pr: -(bonus as i8),
+            },
+        ])
     }
 
-    fn blockade_effect(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
+    fn blockade_effect(&mut self, state: &mut GameState, bonus: u8) -> StateChange {
         let die = state.roll() + bonus;
         let gain = match die {
             1 => 3,
@@ -415,7 +429,16 @@ impl GameLogic for DefaultGameLogic {
             _ => 0,
         };
 
-        (gain, bonus)
+        MoreChanges(vec![
+            ChangeResources {
+                side: Side::Allies,
+                pr: -(bonus as i8),
+            },
+            ChangeResources {
+                side: Side::Empires,
+                pr: gain,
+            },
+        ])
     }
 }
 

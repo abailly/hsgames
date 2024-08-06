@@ -326,15 +326,15 @@ fn uboot(players: &mut Players, game_engine: &mut GameEngine) {
         _ => 0,
     };
 
-    let (loss, cost) = game_engine.uboot_losses(bonus);
+    let change = game_engine.uboot_losses(bonus);
+    let loss = change.allies_loss();
 
     let pr_lost = apply_hits(players, game_engine, loss);
 
-    game_engine.reduce_pr(Side::Empires, cost);
-    game_engine.reduce_pr(Side::Allies, pr_lost);
+    game_engine.apply_change(&StateChange::MoreChanges(vec![pr_lost, change]));
 }
 
-fn apply_hits(players: &mut Players, game_engine: &mut GameEngine, loss: u8) -> u8 {
+fn apply_hits(players: &mut Players, game_engine: &mut GameEngine, loss: u8) -> StateChange {
     players.output(&Output::UBootResult(loss));
 
     let allies_player = &mut players.allies_player;
@@ -349,9 +349,12 @@ fn apply_hits(players: &mut Players, game_engine: &mut GameEngine, loss: u8) -> 
                 hits -= 1;
             }
         }
-        pr
+        StateChange::ChangeResources {
+            side: Side::Allies,
+            pr: (loss - pr) as i8,
+        }
     } else {
-        loss
+        StateChange::NoChange
     }
 }
 
@@ -363,12 +366,10 @@ fn blocus(players: &mut Players, game_engine: &mut GameEngine) {
         _ => 0,
     };
 
-    let (empires_gain, allies_cost) = game_engine.blockade_effect(bonus);
+    let change = game_engine.blockade_effect(bonus);
 
-    game_engine.increase_pr(Side::Empires, empires_gain);
-    game_engine.reduce_pr(Side::Allies, allies_cost);
-
-    players.output(&Output::BlockadeResult(empires_gain));
+    game_engine.apply_change(&change);
+    players.output(&Output::BlockadeResult(change.empires_gain()));
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [

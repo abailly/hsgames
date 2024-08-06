@@ -1,5 +1,6 @@
 use crate::logic::*;
 use crate::side::*;
+use crate::state::StateChange::*;
 use crate::state::*;
 use crate::TechEffects;
 
@@ -199,14 +200,23 @@ impl GameLogic for GermanFleetDefeated {
         Some(&mut *self.previous)
     }
 
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> StateChange {
         let die = (state.roll() - 1 + bonus).max(1);
         let loss = match die {
             1..=4 => 0,
             5 => 2,
             _ => 4,
         };
-        (loss, bonus)
+        MoreChanges(vec![
+            ChangeResources {
+                side: Side::Allies,
+                pr: -loss,
+            },
+            ChangeResources {
+                side: Side::Empires,
+                pr: -(bonus as i8),
+            },
+        ])
     }
 }
 
@@ -227,8 +237,8 @@ impl GameLogic for GermanFleetDestroyed {
         Some(&mut *self.previous)
     }
 
-    fn blockade_effect(&mut self, _state: &mut GameState, _bonus: u8) -> (u8, u8) {
-        (0, 0)
+    fn blockade_effect(&mut self, _state: &mut GameState, _bonus: u8) -> StateChange {
+        NoChange
     }
 }
 
@@ -330,11 +340,11 @@ impl GameLogic for WoodrowWilson {
         Some(&mut *self.previous)
     }
 
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> StateChange {
         if self.uboot_played {
             self.previous.uboot_losses(state, bonus)
         } else {
-            (0, 0)
+            NoChange
         }
     }
 
@@ -563,15 +573,23 @@ impl GameLogic for UBoot {
         Some(&mut *self.previous)
     }
 
-    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> (u8, u8) {
+    fn uboot_losses(&mut self, state: &mut GameState, bonus: u8) -> StateChange {
         let die = state.roll() + 1 + bonus;
         let loss = match die {
             1..=4 => 0,
             5 => 2,
             _ => 4,
         };
-        self.reduce_pr(state, &Side::Empires, bonus);
-        (loss, bonus)
+        MoreChanges(vec![
+            ChangeResources {
+                side: Side::Allies,
+                pr: -loss,
+            },
+            ChangeResources {
+                side: Side::Empires,
+                pr: -(bonus as i8),
+            },
+        ])
     }
 }
 
@@ -843,6 +861,7 @@ mod game_events_tests {
         Nation::*,
         NationState, Offensive,
         Side::*,
+        StateChange::*,
     };
 
     #[test]
@@ -1044,7 +1063,19 @@ mod game_events_tests {
 
         engine.play_events(&ALL_EVENTS[13]);
 
-        assert_eq!((2, 0), engine.uboot_losses(0));
+        assert_eq!(
+            MoreChanges(vec![
+                ChangeResources {
+                    side: Allies,
+                    pr: -2
+                },
+                ChangeResources {
+                    side: Empires,
+                    pr: 0
+                }
+            ]),
+            engine.uboot_losses(0)
+        );
     }
 
     #[test]
@@ -1053,7 +1084,19 @@ mod game_events_tests {
 
         engine.play_events(&ALL_EVENTS[13]);
 
-        assert_eq!((4, 0), engine.uboot_losses(0));
+        assert_eq!(
+            MoreChanges(vec![
+                ChangeResources {
+                    side: Allies,
+                    pr: -4
+                },
+                ChangeResources {
+                    side: Empires,
+                    pr: 0
+                }
+            ]),
+            engine.uboot_losses(0)
+        );
     }
 
     #[test]
@@ -1062,7 +1105,7 @@ mod game_events_tests {
 
         engine.play_events(&ALL_EVENTS[13]);
 
-        assert_eq!((0, 0), engine.blockade_effect(1));
+        assert_eq!(NoChange, engine.blockade_effect(1));
         assert_eq!(6, engine.state.resources_for(&Allies));
     }
 
@@ -1087,7 +1130,7 @@ mod game_events_tests {
 
         engine.play_events(&ALL_EVENTS[15]);
 
-        assert_eq!((0, 0), engine.uboot_losses(1));
+        assert_eq!(NoChange, engine.uboot_losses(1));
         assert_eq!(2, engine.state.resources_for(&Empires));
     }
 
@@ -1098,8 +1141,19 @@ mod game_events_tests {
         engine.play_events(&ALL_EVENTS[15]);
         engine.play_events(&ALL_EVENTS[25]);
 
-        assert_eq!((4, 1), engine.uboot_losses(1));
-        assert_eq!(1, engine.state.resources_for(&Empires));
+        assert_eq!(
+            MoreChanges(vec![
+                ChangeResources {
+                    side: Allies,
+                    pr: -4
+                },
+                ChangeResources {
+                    side: Empires,
+                    pr: -1
+                }
+            ]),
+            engine.uboot_losses(1)
+        );
     }
 
     #[test]
@@ -1230,7 +1284,19 @@ mod game_events_tests {
 
         engine.play_events(&ALL_EVENTS[25]);
 
-        assert_eq!((4, 0), engine.uboot_losses(0));
+        assert_eq!(
+            MoreChanges(vec![
+                ChangeResources {
+                    side: Allies,
+                    pr: -4
+                },
+                ChangeResources {
+                    side: Empires,
+                    pr: 0
+                }
+            ]),
+            engine.uboot_losses(0)
+        );
     }
 
     #[test]
