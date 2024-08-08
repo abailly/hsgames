@@ -17,8 +17,21 @@ pub struct WarState {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
+pub enum Phase {
+    Initiative(Side),
+    DrawEvents,
+    CollectResources,
+    ImproveTechnologies(Side),
+    LaunchOffensives(Side),
+    Reinforcements(Side),
+    UBoot,
+    Blockade,
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct GameState {
     pub current_turn: u8,
+    pub phase: Phase,
     pub initiative: Side,
     pub winner: Option<Side>,
     pub russian_revolution: u8,
@@ -129,6 +142,7 @@ impl GameState {
 
         GameState {
             current_turn: 1,
+            phase: Phase::DrawEvents,
             initiative: Side::Empires,
             winner: None,
             russian_revolution: 0,
@@ -401,6 +415,23 @@ impl GameState {
             }
         }
         self
+    }
+
+    pub(crate) fn set_phase(&mut self, phase: Phase) {
+        self.phase = phase;
+    }
+
+    pub(crate) fn side_to_play(&self) -> Option<Side> {
+        match self.phase {
+            Phase::Initiative(side) => Some(side),
+            Phase::ImproveTechnologies(side) => Some(side),
+            Phase::LaunchOffensives(side) => Some(side),
+            Phase::Reinforcements(side) => Some(side),
+            Phase::DrawEvents => None,
+            Phase::CollectResources => None,
+            Phase::UBoot => Some(Side::Empires),
+            Phase::Blockade => Some(Side::Allies),
+        }
     }
 }
 

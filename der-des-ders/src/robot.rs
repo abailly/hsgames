@@ -54,6 +54,20 @@ impl RobotIO {
         possible_plays.push(Input::Pass);
         possible_plays
     }
+
+    fn possible_intiatives(&mut self) -> Input {
+        let resources = self
+            .state
+            .as_ref()
+            .unwrap()
+            .state_of_war
+            .get(&self.side)
+            .unwrap()
+            .resources;
+        let max_pr = resources.min(3);
+        let pr = self.rng.gen_range(0..=max_pr);
+        Input::Number(pr)
+    }
 }
 
 impl Player for RobotIO {
@@ -106,19 +120,7 @@ impl Player for RobotIO {
 
     fn input(&mut self) -> Input {
         match &self.phase {
-            Some(Output::ChooseInitiative) => {
-                let resources = self
-                    .state
-                    .as_ref()
-                    .unwrap()
-                    .state_of_war
-                    .get(&self.side)
-                    .unwrap()
-                    .resources;
-                let max_pr = resources.min(3);
-                let pr = self.rng.gen_range(0..=max_pr);
-                Input::Number(pr)
-            }
+            Some(Output::ChooseInitiative) => self.possible_intiatives(),
             Some(Output::ImproveTechnologies(techs)) => {
                 let possible_plays = self.possible_tech_improvements(techs);
                 possible_plays[self.rng.gen_range(0..possible_plays.len())]

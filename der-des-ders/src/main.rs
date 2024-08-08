@@ -123,7 +123,7 @@ fn run_turn(players: &mut Players, game_engine: &mut GameEngine) {
     players.output(&Output::CurrentState(game_engine.state.clone()));
     determine_initiative(players, game_engine);
     draw_events(players, game_engine);
-    game_engine.collect_resources();
+    collect_resources(game_engine);
 
     players.output(&Output::CurrentState(game_engine.state.clone()));
 
@@ -133,7 +133,13 @@ fn run_turn(players: &mut Players, game_engine: &mut GameEngine) {
     game_engine.new_turn();
 }
 
+fn collect_resources(game_engine: &mut GameEngine) {
+    game_engine.set_phase(Phase::CollectResources);
+    game_engine.collect_resources()
+}
+
 fn draw_events(players: &mut Players, game_engine: &mut GameEngine) {
+    game_engine.set_phase(Phase::DrawEvents);
     let events = game_engine.draw_events();
     for event in events.iter() {
         players.output(&Output::EventDrawn(event.event_id, event.title.to_string()));
@@ -178,6 +184,8 @@ fn improve_technologies(initiative: Side, players: &mut Players, game_engine: &m
         Side::Allies => &mut players.allies_player,
         Side::Empires => &mut players.empires_player,
     };
+
+    game_engine.set_phase(Phase::ImproveTechnologies(initiative));
 
     let mut available: Vec<TechnologyType> = vec![Attack, Defense, Artillery, Air];
 
@@ -264,6 +272,8 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_engine: &mut 
         Side::Empires => &mut players.empires_player,
     };
 
+    game_engine.set_phase(Phase::LaunchOffensives(initiative));
+
     let mut nations = game_engine.all_nations_at_war(initiative);
     nations.sort();
 
@@ -319,6 +329,8 @@ fn sea_control(initiative: Side, players: &mut Players, game_engine: &mut GameEn
 }
 
 fn uboot(players: &mut Players, game_engine: &mut GameEngine) {
+    game_engine.set_phase(Phase::UBoot);
+
     let player = &mut players.empires_player;
     player.output(&Output::IncreaseUBoot);
     let bonus = match player.input() {
@@ -359,6 +371,8 @@ fn apply_hits(players: &mut Players, game_engine: &mut GameEngine, loss: u8) -> 
 }
 
 fn blocus(players: &mut Players, game_engine: &mut GameEngine) {
+    game_engine.set_phase(Phase::Blockade);
+
     let player = &mut players.allies_player;
     player.output(&Output::IncreaseBlockade);
     let bonus = match player.input() {
@@ -398,25 +412,17 @@ const DEFAULT_INITIATIVE: [Side; 14] = [
 fn determine_initiative(players: &mut Players, game_engine: &mut GameEngine) {
     if game_engine.state.current_turn > 1 {
         players.output(&Output::ChooseInitiative);
+        game_engine.set_phase(Phase::Initiative(Side::Allies));
         let allies_pr = match players.allies_player.input() {
             Input::Number(pr) => pr,
             _ => 0,
         };
+        game_engine.set_phase(Phase::Initiative(Side::Empires));
         let empires_pr = match players.empires_player.input() {
             Input::Number(pr) => pr,
             _ => 0,
         };
-        let allies_initiative = allies_pr + game_engine.roll();
-        let empires_initiative = empires_pr + game_engine.roll();
-
-        game_engine.state.initiative = match allies_initiative.cmp(&empires_initiative) {
-            Ordering::Greater => Side::Allies,
-            Ordering::Less => Side::Empires,
-            Ordering::Equal => DEFAULT_INITIATIVE[game_engine.state.current_turn as usize - 1],
-        };
-
-        game_engine.reduce_pr(Side::Allies, allies_pr);
-        game_engine.reduce_pr(Side::Empires, empires_pr);
+        game_engine.determine_initiative(allies_pr, empires_pr);
     }
 }
 
@@ -425,6 +431,8 @@ fn reinforcements(initiative: Side, players: &mut Players, game_engine: &mut Gam
         Side::Allies => &mut players.allies_player,
         Side::Empires => &mut players.empires_player,
     };
+
+    game_engine.set_phase(Phase::Reinforcements(initiative));
 
     while game_engine
         .state

@@ -7,6 +7,8 @@ use crate::state::StateChange::*;
 use crate::state::*;
 use crate::TechEffects;
 use crate::TechnologyType;
+use crate::DEFAULT_INITIATIVE;
+use std::cmp::Ordering;
 use std::mem::swap;
 
 pub struct GameEngine {
@@ -289,6 +291,24 @@ impl GameEngine {
 
     pub(crate) fn apply_change(&mut self, change: &StateChange) {
         self.state.apply_change(change);
+    }
+
+    pub(crate) fn set_phase(&mut self, phase: Phase) {
+        self.state.set_phase(phase)
+    }
+
+    pub(crate) fn determine_initiative(&mut self, allies_pr: u8, empires_pr: u8) {
+        let allies_initiative = allies_pr + self.roll();
+        let empires_initiative = empires_pr + self.roll();
+
+        self.state.initiative = match allies_initiative.cmp(&empires_initiative) {
+            Ordering::Greater => Side::Allies,
+            Ordering::Less => Side::Empires,
+            Ordering::Equal => DEFAULT_INITIATIVE[self.state.current_turn as usize - 1],
+        };
+
+        self.reduce_pr(Side::Allies, allies_pr);
+        self.reduce_pr(Side::Empires, empires_pr);
     }
 }
 
