@@ -27,6 +27,7 @@ use event::Event;
 mod events;
 mod fixtures;
 mod logic;
+mod minimax;
 mod robot;
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]

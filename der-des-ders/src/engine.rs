@@ -9,8 +9,10 @@ use crate::TechEffects;
 use crate::TechnologyType;
 use crate::DEFAULT_INITIATIVE;
 use std::cmp::Ordering;
+use std::fmt::Debug;
 use std::mem::swap;
 
+#[derive(Debug, Clone)]
 pub struct GameEngine {
     pub(crate) state: GameState,
     logic: Box<dyn GameLogic>,
@@ -310,8 +312,13 @@ impl GameEngine {
         self.reduce_pr(Side::Allies, allies_pr);
         self.reduce_pr(Side::Empires, empires_pr);
     }
+
+    pub(crate) fn valuation(&self) -> f64 {
+        self.state.valuation()
+    }
 }
 
+#[derive(Clone, Debug)]
 struct DefaultGameLogic {}
 
 impl GameLogic for DefaultGameLogic {

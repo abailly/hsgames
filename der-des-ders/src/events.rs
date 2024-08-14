@@ -28,6 +28,7 @@ impl GameLogic for RaceToTheSea {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct RaceToTheSea {
     pub active: bool,
     pub previous: Box<dyn GameLogic>,
@@ -37,12 +38,12 @@ impl RaceToTheSea {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         RaceToTheSea {
             active: true,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
 
-impl<T: GameLogic> GameLogic for ShellCrisis<T> {
+impl GameLogic for ShellCrisis {
     fn previous(&mut self) -> Option<&mut dyn GameLogic> {
         Some(&mut *self.previous)
     }
@@ -63,16 +64,17 @@ impl<T: GameLogic> GameLogic for ShellCrisis<T> {
     }
 }
 
-pub struct ShellCrisis<T: GameLogic> {
+#[derive(Debug, Clone)]
+pub struct ShellCrisis {
     pub active: bool,
-    pub previous: Box<T>,
+    pub previous: Box<dyn GameLogic>,
 }
 
-impl<T: GameLogic> ShellCrisis<T> {
-    pub fn new(previous: T) -> Self {
+impl ShellCrisis {
+    pub fn new(previous: Box<dyn GameLogic>) -> Self {
         ShellCrisis {
             active: true,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -103,6 +105,7 @@ impl GameLogic for Gas {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Gas {
     pub active: bool,
     pub previous: Box<dyn GameLogic>,
@@ -114,7 +117,7 @@ impl Gas {
         Gas {
             active: true,
             offensive: None,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -146,6 +149,7 @@ impl GameLogic for VonLettowInAfrica {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct VonLettowInAfrica {
     pub offensive: Option<Offensive>,
     pub active: bool,
@@ -157,7 +161,7 @@ impl VonLettowInAfrica {
         VonLettowInAfrica {
             offensive: None,
             active: true,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -181,6 +185,7 @@ impl GameLogic for Gallipoli {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Gallipoli {
     pub active: bool,
     pub previous: Box<dyn GameLogic>,
@@ -190,7 +195,7 @@ impl Gallipoli {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         Gallipoli {
             active: true,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -220,15 +225,14 @@ impl GameLogic for GermanFleetDefeated {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct GermanFleetDefeated {
     pub previous: Box<dyn GameLogic>,
 }
 
 impl GermanFleetDefeated {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
-        GermanFleetDefeated {
-            previous: Box::new(previous),
-        }
+        GermanFleetDefeated { previous }
     }
 }
 
@@ -242,15 +246,14 @@ impl GameLogic for GermanFleetDestroyed {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct GermanFleetDestroyed {
     pub previous: Box<dyn GameLogic>,
 }
 
 impl GermanFleetDestroyed {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
-        GermanFleetDestroyed {
-            previous: Box::new(previous),
-        }
+        GermanFleetDestroyed { previous }
     }
 }
 
@@ -283,6 +286,7 @@ impl GameLogic for SeparatePeace {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct SeparatePeace {
     pub offensive: Option<Offensive>,
     pub active: bool,
@@ -294,7 +298,7 @@ impl SeparatePeace {
         SeparatePeace {
             offensive: None,
             active: true,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -321,6 +325,7 @@ impl GameLogic for AustrianOffensive {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct AustrianOffensive {
     pub active: bool,
     pub previous: Box<dyn GameLogic>,
@@ -330,7 +335,7 @@ impl AustrianOffensive {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         AustrianOffensive {
             active: true,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -356,6 +361,7 @@ impl GameLogic for WoodrowWilson {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct WoodrowWilson {
     pub uboot_played: bool,
     pub previous: Box<dyn GameLogic>,
@@ -365,7 +371,7 @@ impl WoodrowWilson {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         WoodrowWilson {
             uboot_played: false,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -425,6 +431,7 @@ impl GameLogic for BrusilovOffensive {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct BrusilovOffensive {
     pub offensive: Option<Offensive>,
     pub active: bool,
@@ -436,7 +443,7 @@ impl BrusilovOffensive {
         BrusilovOffensive {
             offensive: None,
             active: true,
-            previous: Box::new(previous),
+            previous,
         }
     }
 
@@ -475,6 +482,7 @@ impl GameLogic for Mutinies {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Mutinies {
     pub offensive: Option<Offensive>,
     pub active: bool,
@@ -486,7 +494,7 @@ impl Mutinies {
         Mutinies {
             offensive: None,
             active: true,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -546,6 +554,7 @@ impl GameLogic for GazaOffensive {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct GazaOffensive {
     pub dice: Option<Vec<u8>>,
     pub offensive: Option<Offensive>,
@@ -559,7 +568,7 @@ impl GazaOffensive {
             dice: None,
             offensive: None,
             active: true,
-            previous: Box::new(previous),
+            previous,
         }
     }
 
@@ -593,15 +602,14 @@ impl GameLogic for UBoot {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct UBoot {
     pub previous: Box<dyn GameLogic>,
 }
 
 impl UBoot {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
-        UBoot {
-            previous: Box::new(previous),
-        }
+        UBoot { previous }
     }
 }
 
@@ -628,6 +636,7 @@ impl GameLogic for FlyingCircus {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct FlyingCircus {
     pub number_of_turns_remaining: u8,
     pub previous: Box<dyn GameLogic>,
@@ -637,7 +646,7 @@ impl FlyingCircus {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         FlyingCircus {
             number_of_turns_remaining: 2,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -662,6 +671,7 @@ impl GameLogic for LusitaniaSunk {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct LusitaniaSunk {
     pub lafayette_nous_voila: bool,
     pub previous: Box<dyn GameLogic>,
@@ -671,7 +681,7 @@ impl LusitaniaSunk {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         LusitaniaSunk {
             lafayette_nous_voila: false,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -696,6 +706,7 @@ impl GameLogic for ZimmermanTelegram {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct ZimmermanTelegram {
     pub lafayette_nous_voila: bool,
     pub previous: Box<dyn GameLogic>,
@@ -705,7 +716,7 @@ impl ZimmermanTelegram {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         ZimmermanTelegram {
             lafayette_nous_voila: false,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -731,6 +742,7 @@ impl GameLogic for Friedensturm {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Friedensturm {
     pub active: bool,
     pub previous: Box<dyn GameLogic>,
@@ -740,7 +752,7 @@ impl Friedensturm {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         Friedensturm {
             active: true,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -761,15 +773,14 @@ impl GameLogic for UnifiedCommand {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct UnifiedCommand {
     pub previous: Box<dyn GameLogic>,
 }
 
 impl UnifiedCommand {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
-        UnifiedCommand {
-            previous: Box::new(previous),
-        }
+        UnifiedCommand { previous }
     }
 }
 
@@ -802,6 +813,7 @@ impl GameLogic for BattleOfMegiddo {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct BattleOfMegiddo {
     pub offensive: Option<Offensive>,
     pub active: bool,
@@ -813,7 +825,7 @@ impl BattleOfMegiddo {
         BattleOfMegiddo {
             offensive: None,
             active: true,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }
@@ -838,6 +850,7 @@ impl GameLogic for SalonikiExpedition {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct SalonikiExpedition {
     pub offensive: Option<Offensive>,
     pub previous: Box<dyn GameLogic>,
@@ -847,7 +860,7 @@ impl SalonikiExpedition {
     pub fn new(previous: Box<dyn GameLogic>) -> Self {
         SalonikiExpedition {
             offensive: None,
-            previous: Box::new(previous),
+            previous,
         }
     }
 }

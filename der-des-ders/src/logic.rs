@@ -1,8 +1,30 @@
 use crate::side::*;
 use crate::state::*;
 use crate::TechEffects;
+use std::fmt::Debug;
 
-pub trait GameLogic {
+// from https://users.rust-lang.org/t/how-to-deal-with-the-trait-cannot-be-made-into-an-object-error-in-rust-which-traits-are-object-safe-and-which-aint/90620/3
+
+pub trait DynClone {
+    // Optional if you want them           vvvvvvvvvvvvv
+    fn dyn_clone(&self) -> Box<dyn GameLogic /* + Send + Sync + 'static */>;
+    // Implicitly present already                          ^^^^^^^
+}
+
+//         vvvvvvv Implicitly present
+impl<T: GameLogic + Clone + 'static> DynClone for T {
+    fn dyn_clone(&self) -> Box<dyn GameLogic> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<dyn GameLogic> {
+    fn clone(&self) -> Self {
+        (**self).dyn_clone()
+    }
+}
+
+pub trait GameLogic: Debug + DynClone {
     fn previous(&mut self) -> Option<&mut dyn GameLogic> {
         None
     }
@@ -96,7 +118,7 @@ pub trait GameLogic {
     }
 }
 
-impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
+impl<T: ?Sized + Clone + GameLogic + 'static> GameLogic for Box<T> {
     fn collect_resources(&mut self, state: &mut GameState) {
         self.as_mut().collect_resources(state)
     }
@@ -164,6 +186,7 @@ impl<T: ?Sized + GameLogic> GameLogic for Box<T> {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct DummyLogic {}
 
 impl DummyLogic {
