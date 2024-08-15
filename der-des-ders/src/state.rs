@@ -63,6 +63,37 @@ pub enum HitsResult {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
+pub enum TechnologyImprovement {
+    ImprovedTechnology(TechnologyType, u8),
+    FailedTechnology(TechnologyType, u8),
+    TechnologyNotAvailable(String, u16, u16),
+    NoMoreTechnologyImprovement(TechnologyType, u8),
+}
+
+impl Display for TechnologyImprovement {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            TechnologyImprovement::ImprovedTechnology(tech, pr) => {
+                write!(f, "Improved {}, spent {}", tech, pr)
+            }
+            TechnologyImprovement::FailedTechnology(tech, pr) => {
+                write!(f, "Failed to improve {}, spent {}", tech, pr)
+            }
+            TechnologyImprovement::TechnologyNotAvailable(tech, not_before, current) => {
+                write!(
+                    f,
+                    "Technology {} not available before {} (year: {})",
+                    tech, not_before, current
+                )
+            }
+            TechnologyImprovement::NoMoreTechnologyImprovement(tech, level) => {
+                write!(f, "No more improvement for {} at level {}", tech, level)
+            }
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub struct ActiveEvent {
     pub event: Event,
     pub deactivation: fn(&GameState) -> bool,

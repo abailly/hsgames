@@ -197,73 +197,13 @@ fn improve_technologies(initiative: Side, players: &mut Players, game_engine: &m
                 if !available.contains(&tech) || n == 0 {
                     continue;
                 }
-                let die = game_engine.roll();
-                let output = improve_technology(game_engine, initiative, tech, n, die);
-                player.output(&output);
-                match output {
-                    Output::ImprovedTechnology(tech, pr) => {
-                        game_engine.improve_technology(&initiative, &tech);
-                        game_engine.reduce_pr(initiative, pr);
-                    }
-                    Output::FailedTechnology(_, pr) => {
-                        game_engine.reduce_pr(initiative, pr);
-                    }
-                    _ => {}
-                }
-
+                let result = game_engine.try_improve_technology(initiative, tech, n);
+                player.output(&Output::TechnologyResult(result));
                 available.retain(|&t| t != tech);
             }
             Input::Pass => break,
             other => player.output(&Output::WrongInput(other)),
         }
-    }
-}
-
-fn improve_technology(
-    game_engine: &mut GameEngine,
-    initiative: Side,
-    tech: TechnologyType,
-    n: u8,
-    die: u8,
-) -> Output {
-    let year = game_engine.current_year();
-    let techs = &mut game_engine
-        .state
-        .state_of_war
-        .get_mut(&initiative)
-        .unwrap()
-        .technologies;
-    let technologies = match initiative {
-        Side::Allies => &ALLIES_TECHNOLOGIES,
-        Side::Empires => &EMPIRE_TECHNOLOGIES,
-    };
-
-    improve_technology_result(technologies, techs.value(&tech), year, die, n, tech)
-}
-
-fn improve_technology_result(
-    technologies_track: &[[Option<Technology>; 4]; 4],
-    current_tech_level: u8,
-    year: u16,
-    die: u8,
-    pr_spent: u8,
-    tech_type: TechnologyType,
-) -> Output {
-    if current_tech_level == 4 {
-        return Output::NoMoreTechnologyImprovement(tech_type, current_tech_level);
-    }
-    if let Some(technology) = &technologies_track[tech_type.index()][current_tech_level as usize] {
-        if year >= technology.date {
-            if die + pr_spent > technology.min_dice_unlock {
-                Output::ImprovedTechnology(tech_type, pr_spent)
-            } else {
-                Output::FailedTechnology(tech_type, pr_spent)
-            }
-        } else {
-            Output::TechnologyNotAvailable(technology.name.to_string(), technology.date, year)
-        }
-    } else {
-        Output::NoMoreTechnologyImprovement(tech_type, current_tech_level)
     }
 }
 
@@ -806,6 +746,7 @@ mod technologies {
         Output,
         Side::*,
         Technologies,
+        TechnologyImprovement::*,
         TechnologyType::*,
         ZERO_TECHNOLOGIES,
     };
@@ -887,7 +828,11 @@ mod technologies {
         assert_eq!(
             vec![
                 Output::ImproveTechnologies(all_technology_types()),
-                Output::TechnologyNotAvailable("Combat Gas".to_string(), 1915, 1914),
+                Output::TechnologyResult(TechnologyNotAvailable(
+                    "Combat Gas".to_string(),
+                    1915,
+                    1914
+                )),
                 Output::ImproveTechnologies(vec![Defense, Artillery, Air]),
             ],
             players.empires_player.out()
@@ -1064,7 +1009,7 @@ mod technologies {
         assert_eq!(
             vec![
                 Output::ImproveTechnologies(all_technology_types()),
-                Output::NoMoreTechnologyImprovement(Defense, 3),
+                Output::TechnologyResult(NoMoreTechnologyImprovement(Defense, 3)),
                 Output::ImproveTechnologies(vec![Attack, Artillery, Air])
             ],
             players.allies_player.out()
@@ -1102,7 +1047,7 @@ mod technologies {
         assert_eq!(
             vec![
                 Output::ImproveTechnologies(all_technology_types()),
-                Output::NoMoreTechnologyImprovement(Attack, 4),
+                Output::TechnologyResult(NoMoreTechnologyImprovement(Attack, 4)),
                 Output::ImproveTechnologies(vec![Defense, Artillery, Air])
             ],
             players.allies_player.out()

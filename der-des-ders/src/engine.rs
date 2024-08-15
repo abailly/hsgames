@@ -7,7 +7,9 @@ use crate::state::StateChange::*;
 use crate::state::*;
 use crate::TechEffects;
 use crate::TechnologyType;
+use crate::ALLIES_TECHNOLOGIES;
 use crate::DEFAULT_INITIATIVE;
+use crate::EMPIRE_TECHNOLOGIES;
 use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::mem::swap;
@@ -315,6 +317,52 @@ impl GameEngine {
 
     pub(crate) fn valuation(&self) -> f64 {
         self.state.valuation()
+    }
+
+    pub(crate) fn try_improve_technology(
+        &mut self,
+        initiative: Side,
+        tech: TechnologyType,
+        pr_spent: u8,
+    ) -> TechnologyImprovement {
+        let die = self.roll();
+        let year = self.current_year();
+        let techs = &mut self
+            .state
+            .state_of_war
+            .get_mut(&initiative)
+            .unwrap()
+            .technologies;
+        let current_tech_level = techs.value(&tech);
+        let technologies_track = match initiative {
+            Side::Allies => &ALLIES_TECHNOLOGIES,
+            Side::Empires => &EMPIRE_TECHNOLOGIES,
+        };
+
+        if current_tech_level == 4 {
+            return TechnologyImprovement::NoMoreTechnologyImprovement(tech, current_tech_level);
+        }
+
+        if let Some(technology) = &technologies_track[tech.index()][current_tech_level as usize] {
+            if year >= technology.date {
+                if die + pr_spent > technology.min_dice_unlock {
+                    self.improve_technology(&initiative, &tech);
+                    self.reduce_pr(initiative, pr_spent);
+                    TechnologyImprovement::ImprovedTechnology(tech, pr_spent)
+                } else {
+                    self.reduce_pr(initiative, pr_spent);
+                    TechnologyImprovement::FailedTechnology(tech, pr_spent)
+                }
+            } else {
+                TechnologyImprovement::TechnologyNotAvailable(
+                    technology.name.to_string(),
+                    technology.date,
+                    year,
+                )
+            }
+        } else {
+            TechnologyImprovement::NoMoreTechnologyImprovement(tech, current_tech_level)
+        }
     }
 }
 
