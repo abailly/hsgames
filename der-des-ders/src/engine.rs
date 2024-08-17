@@ -474,6 +474,7 @@ impl GameLogic for DefaultGameLogic {
             if next_year != current_turn_year {
                 state.new_year(current_turn_year, next_year);
             }
+            state.phase = Phase::Initiative(Side::Allies);
         }
     }
 

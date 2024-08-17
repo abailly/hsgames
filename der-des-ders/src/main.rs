@@ -131,6 +131,7 @@ fn run_turn(players: &mut Players, game_engine: &mut GameEngine) {
     run_player_turn(game_engine.state.initiative, players, game_engine);
     run_player_turn(game_engine.state.initiative.other(), players, game_engine);
 
+    game_engine.set_phase(Phase::NewTurn);
     game_engine.new_turn();
 }
 

@@ -26,6 +26,7 @@ pub enum Phase {
     Reinforcements(Side),
     UBoot,
     Blockade,
+    NewTurn,
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -462,6 +463,7 @@ impl GameState {
             Phase::CollectResources => None,
             Phase::UBoot => Some(Side::Empires),
             Phase::Blockade => Some(Side::Allies),
+            Phase::NewTurn => None,
         }
     }
 }
