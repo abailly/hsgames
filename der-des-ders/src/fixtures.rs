@@ -1,5 +1,5 @@
 use crate::{engine::GameEngine, GameState, Nation, NationState, Output, Player, Side::*};
-use crate::{Input, Players, Side};
+use crate::{Input, Phase, Players, Side};
 
 pub struct PlayerDouble {
     pub out: Vec<Output>,
@@ -104,6 +104,11 @@ impl EngineBuilder {
 
     pub(crate) fn with_russian_revolution(&mut self, index: u8) -> &mut Self {
         self.state.russian_revolution = index;
+        self
+    }
+
+    pub(crate) fn at_phase(&mut self, phase: Phase) -> &mut Self {
+        self.state.phase = phase;
         self
     }
 }

@@ -1,7 +1,6 @@
 use clap::Parser;
 use clap::ValueEnum;
 use robot::RobotIO;
-use std::cmp::Ordering;
 use std::io::{stdin, stdout};
 use std::process::exit;
 

@@ -9,7 +9,7 @@ use nom::character::complete::{char, digit1};
 use nom::combinator::{all_consuming, map, map_res};
 use nom::{IResult, Parser};
 
-use crate::{side::*, HitsResult, OffensiveOutcome, TechnologyImprovement};
+use crate::{side::*, OffensiveOutcome, TechnologyImprovement};
 use crate::{tech::*, GameState};
 
 #[derive(Eq, PartialEq, Clone, Debug)]

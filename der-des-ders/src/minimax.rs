@@ -1,12 +1,9 @@
-use std::{
-    f64::{MAX, MIN},
-    fmt::{self, Display, Formatter},
-};
+use std::fmt::{self, Display, Formatter};
 
-use crate::{Event, GameEngine, GameState, Nation, Offensive, Phase, Side};
+use crate::{Event, GameEngine, Nation, Offensive, Phase, Side};
 
 #[derive(Debug, Clone)]
-enum Move {
+pub enum Move {
     BetForInitiative(Side, u8),
     EventsDrawn(Vec<Event>),
     ResourcesCollected,
@@ -116,7 +113,7 @@ impl Search {
             }
             Phase::ImproveTechnologies(side) => {
                 let mut moves = vec![];
-                let mut resources = self.engine.state.resources_for(&side);
+                let resources = self.engine.state.resources_for(&side);
                 let mut available_techs = self.engine.state.available_technologies(&side);
                 if resources > 0 && !available_techs.is_empty() {
                     let tech = available_techs.pop().unwrap();
@@ -157,7 +154,7 @@ impl Search {
             Phase::Reinforcements(side) => {
                 let mut moves = vec![];
                 let resources = self.engine.state.resources_for(&side);
-                let mut nations = self
+                let nations = self
                     .engine
                     .all_nations_at_war(self.side)
                     .iter()
@@ -314,15 +311,6 @@ impl Iterator for SearchIterator<'_> {
 }
 
 fn alphabeta(search: &mut Search, depth: u32, mut alpha: f64, mut beta: f64) -> f64 {
-    println!(
-        "depth: {}, phase: {:?}, turn: {}, alpha: {}, beta: {}, moved: {:?}",
-        depth,
-        search.engine.state.phase,
-        search.engine.state.current_turn,
-        alpha,
-        beta,
-        search.moved
-    );
     if depth <= 0 || search.game_ends() {
         return search.valuation();
     }
@@ -356,8 +344,38 @@ fn alphabeta(search: &mut Search, depth: u32, mut alpha: f64, mut beta: f64) -> 
     }
 }
 
+/// TODO: works only for the allies
+pub fn best_move(me: Side, engine: &GameEngine, depth: u32) -> Option<Move> {
+    let side = engine.state.side_to_play();
+    match side {
+        Some(s) if s == me => {
+            let mut search = Search {
+                me,
+                side: me,
+                engine: engine.clone(),
+                allies_initiative: 0,
+                nations_played: vec![],
+                moved: None,
+            };
+            let mut best_value = -1.0;
+            let mut best_move = None;
+            for mut child in search.iter() {
+                let value = alphabeta(&mut child, depth, -1.0, 1.0);
+                if value > best_value {
+                    best_value = value;
+                    best_move = child.moved;
+                }
+            }
+            best_move
+        }
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod minimax_test {
+    use crate::fixtures::EngineBuilder;
+
     use super::*;
 
     #[test]
@@ -387,7 +405,25 @@ mod minimax_test {
             moved: None,
         };
         let value = alphabeta(&mut search, 10, -1.0, 1.0);
-        println!("valuation: {}", value);
-        assert!(value < engine.valuation());
+        assert!(value > engine.valuation());
+    }
+
+    #[test]
+    fn returns_no_move_given_not_side_phase() {
+        let engine = EngineBuilder::new(42).build();
+        let best_move = best_move(Side::Allies, &engine, 10);
+        assert!(best_move.is_none());
+    }
+
+    #[test]
+    fn returns_some_move_given_its_side_phase_to_play() {
+        let engine = EngineBuilder::new(42)
+            .on_turn(2)
+            .at_phase(Phase::LaunchOffensives(Side::Allies))
+            .with_resources(Side::Allies, 10)
+            .with_resources(Side::Empires, 10)
+            .build();
+        let best_move = best_move(Side::Allies, &engine, 6);
+        assert!(best_move.is_some());
     }
 }
