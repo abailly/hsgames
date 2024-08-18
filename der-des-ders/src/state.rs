@@ -55,6 +55,27 @@ pub struct Offensive {
 }
 
 #[derive(Eq, PartialEq, Clone, Debug)]
+pub enum OffensiveOutcome {
+    NotEnoughResources(u8, u8),
+    OperationalLevelTooLow(u8, u8),
+    Hits(HitsResult),
+}
+
+impl Display for OffensiveOutcome {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            OffensiveOutcome::NotEnoughResources(pr, resources) => {
+                write!(f, "Not enough resources ({} < {})", pr, resources)
+            }
+            OffensiveOutcome::OperationalLevelTooLow(level, required) => {
+                write!(f, "Operational level too low ({} < {})", level, required)
+            }
+            OffensiveOutcome::Hits(result) => write!(f, "{}", result),
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, Debug)]
 pub enum HitsResult {
     Surrenders(Nation),
     Winner(Side),

@@ -116,7 +116,26 @@ impl GameEngine {
         self.state.draw_events()
     }
 
-    pub(crate) fn resolve_offensive(&mut self, offensive: &Offensive) -> HitsResult {
+    pub(crate) fn resolve_offensive(&mut self, offensive: &Offensive) -> OffensiveOutcome {
+        let operational = self
+            .state
+            .nations
+            .get(&offensive.from)
+            .unwrap()
+            .operational_level();
+        let resources = self
+            .state
+            .state_of_war
+            .get(&offensive.initiative)
+            .unwrap()
+            .resources;
+
+        if operational < offensive.pr {
+            return OffensiveOutcome::OperationalLevelTooLow(operational, offensive.pr);
+        } else if resources < offensive.pr {
+            return OffensiveOutcome::NotEnoughResources(offensive.pr, resources);
+        }
+
         let (artillery_bonus, attack_bonus, defense_malus, _) = self.compute_bonus(offensive);
 
         let dice: Vec<u8> = self.roll_offensive_dice(offensive.pr);
@@ -127,7 +146,7 @@ impl GameEngine {
         let artillery_hits = self.evaluate_artillery_hits(offensive, &artillery_dice);
 
         self.reduce_pr(offensive.initiative, offensive.pr);
-        self.apply_hits(&offensive.to, attack_hits + artillery_hits)
+        OffensiveOutcome::Hits(self.apply_hits(&offensive.to, attack_hits + artillery_hits))
     }
 
     fn evaluate_artillery_hits(&mut self, offensive: &Offensive, artillery_dice: &Vec<u8>) -> u8 {

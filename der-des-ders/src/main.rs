@@ -229,33 +229,15 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_engine: &mut 
                 player.output(&Output::AttackingNonAdjacentCountry(from, to));
             }
             Input::Offensive(from, to, pr) => {
-                let operational = game_engine
-                    .state
-                    .nations
-                    .get(&from)
-                    .unwrap()
-                    .operational_level();
-                let resources = game_engine
-                    .state
-                    .state_of_war
-                    .get(&initiative)
-                    .unwrap()
-                    .resources;
-                if operational < pr {
-                    player.output(&Output::OperationalLevelTooLow(operational, pr));
-                } else if resources < pr {
-                    player.output(&Output::NotEnoughResources(pr, resources));
-                } else {
-                    let offensive = Offensive {
-                        initiative,
-                        from,
-                        to,
-                        pr,
-                    };
-                    let result = game_engine.resolve_offensive(&offensive);
-                    nations.retain(|&nat| nat != from);
-                    player.output(&Output::OffensiveResult { from, to, result });
-                }
+                let offensive = Offensive {
+                    initiative,
+                    from,
+                    to,
+                    pr,
+                };
+                let result = game_engine.resolve_offensive(&offensive);
+                nations.retain(|&nat| nat != from);
+                player.output(&Output::OffensiveResult { from, to, result });
             }
             Input::Pass => return,
             _ => (),
@@ -1133,7 +1115,7 @@ mod offensives {
         Input::*,
         Nation::{self, *},
         NationState::*,
-        Output,
+        OffensiveOutcome, Output,
         Side::*,
         Technologies, ZERO_TECHNOLOGIES,
     };
@@ -1175,7 +1157,11 @@ mod offensives {
         assert_eq!(
             vec![
                 Output::LaunchOffensive(ALLIES_AT_START.to_vec()),
-                Output::NotEnoughResources(3, 2),
+                Output::OffensiveResult {
+                    from: France,
+                    to: Germany,
+                    result: OffensiveOutcome::NotEnoughResources(3, 2)
+                },
                 Output::LaunchOffensive(ALLIES_AT_START.to_vec()),
             ],
             players.allies_player.out()
@@ -1224,13 +1210,13 @@ mod offensives {
                 Output::OffensiveResult {
                     from: France,
                     to: Germany,
-                    result: HitsResult::Hits(Germany, 1)
+                    result: OffensiveOutcome::Hits(HitsResult::Hits(Germany, 1))
                 },
                 Output::LaunchOffensive(vec![Russia, Egypt, Serbia, FrenchAfrica]),
                 Output::OffensiveResult {
                     from: Russia,
                     to: OttomanEmpire,
-                    result: HitsResult::Hits(OttomanEmpire, 1)
+                    result: OffensiveOutcome::Hits(HitsResult::Hits(OttomanEmpire, 1))
                 },
                 Output::LaunchOffensive(vec![Egypt, Serbia, FrenchAfrica])
             ],
@@ -1285,7 +1271,7 @@ mod offensives {
                 Output::OffensiveResult {
                     from: Russia,
                     to: Germany,
-                    result: HitsResult::Hits(Germany, 1),
+                    result: OffensiveOutcome::Hits(HitsResult::Hits(Germany, 1)),
                 },
                 Output::LaunchOffensive([France, Egypt, Serbia, FrenchAfrica].to_vec()),
                 Output::CountryAlreadyAttacked(Russia),
@@ -1313,7 +1299,11 @@ mod offensives {
         assert_eq!(
             vec![
                 Output::LaunchOffensive(ALLIES_AT_START.to_vec()),
-                Output::OperationalLevelTooLow(1, 2),
+                Output::OffensiveResult {
+                    from: Serbia,
+                    to: AustriaHungary,
+                    result: OffensiveOutcome::OperationalLevelTooLow(1, 2)
+                },
                 Output::LaunchOffensive(ALLIES_AT_START.to_vec()),
             ],
             players.allies_player.out()

@@ -9,7 +9,7 @@ use nom::character::complete::{char, digit1};
 use nom::combinator::{all_consuming, map, map_res};
 use nom::{IResult, Parser};
 
-use crate::{side::*, HitsResult, TechnologyImprovement};
+use crate::{side::*, HitsResult, OffensiveOutcome, TechnologyImprovement};
 use crate::{tech::*, GameState};
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -20,14 +20,12 @@ pub enum Output {
     ReinforceNations,
     LaunchOffensive(Vec<Nation>),
     WrongInput(Input),
-    NotEnoughResources(u8, u8),
     CountryAlreadyAttacked(Nation),
     AttackingNonAdjacentCountry(Nation, Nation),
-    OperationalLevelTooLow(u8, u8),
     OffensiveResult {
         from: Nation,
         to: Nation,
-        result: HitsResult,
+        result: OffensiveOutcome,
     },
     IncreaseUBoot,
     UBootResult(u8),
@@ -67,17 +65,11 @@ impl Display for Output {
                 )
             }
             Output::WrongInput(inp) => write!(f, "Invalid input: {:?}", inp),
-            Output::NotEnoughResources(wanted, actual) => {
-                write!(f, "Not enough resources ({}) to spend {}", actual, wanted)
-            }
             Output::CountryAlreadyAttacked(country) => {
                 write!(f, "Country already attacked: {}", country)
             }
             Output::AttackingNonAdjacentCountry(from, to) => {
                 write!(f, "{} is not adjacent to  {}", from, to)
-            }
-            Output::OperationalLevelTooLow(maximum, actual) => {
-                write!(f, "Operational level ({}) too low for {}", maximum, actual)
             }
             Output::OffensiveResult { from, to, result } => {
                 write!(f, "Offensive from {} to {} result: {}", from, to, result)

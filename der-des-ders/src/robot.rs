@@ -89,10 +89,8 @@ impl Player for RobotIO {
                 self.phase = Some(message.clone());
             }
             Output::WrongInput(_) => {}
-            Output::NotEnoughResources(_, _) => {}
             Output::CountryAlreadyAttacked(_) => {}
             Output::AttackingNonAdjacentCountry(_, _) => {}
-            Output::OperationalLevelTooLow(_, _) => {}
             Output::OffensiveResult {
                 from: _,
                 to: _,
