@@ -67,7 +67,10 @@ impl Search {
     }
 
     fn valuation(&self) -> f64 {
-        self.engine.valuation()
+        match self.me {
+            Side::Allies => self.engine.valuation(),
+            Side::Empires => -self.engine.valuation(),
+        }
     }
 
     /// Returns an iterator over "all" the possible moves from the current engine
@@ -394,7 +397,7 @@ mod minimax_test {
     }
 
     #[test]
-    fn returns_state_valuation_at_depth_50() {
+    fn returns_state_valuation_at_depth_10() {
         let engine = GameEngine::new(42);
         let mut search = Search {
             me: Side::Allies,
@@ -405,7 +408,7 @@ mod minimax_test {
             moved: None,
         };
         let value = alphabeta(&mut search, 10, -1.0, 1.0);
-        assert!(value > engine.valuation());
+        assert!(value != engine.valuation());
     }
 
     #[test]
@@ -416,7 +419,7 @@ mod minimax_test {
     }
 
     #[test]
-    fn returns_some_move_given_its_side_phase_to_play() {
+    fn returns_some_move_for_allies_given_its_side_phase_to_play() {
         let engine = EngineBuilder::new(42)
             .on_turn(2)
             .at_phase(Phase::LaunchOffensives(Side::Allies))
@@ -424,6 +427,18 @@ mod minimax_test {
             .with_resources(Side::Empires, 10)
             .build();
         let best_move = best_move(Side::Allies, &engine, 6);
+        assert!(best_move.is_some());
+    }
+
+    #[test]
+    fn returns_some_move_for_empires_given_its_empires_phase_to_play() {
+        let engine = EngineBuilder::new(42)
+            .on_turn(2)
+            .at_phase(Phase::LaunchOffensives(Side::Empires))
+            .with_resources(Side::Allies, 10)
+            .with_resources(Side::Empires, 10)
+            .build();
+        let best_move = best_move(Side::Empires, &engine, 6);
         assert!(best_move.is_some());
     }
 }

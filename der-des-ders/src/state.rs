@@ -421,10 +421,14 @@ impl GameState {
         );
         let allies_victory_points = allies.vp as f64;
         let empires_victory_points = empires.vp as f64;
-        let allies_total =
-            allies_resources + allies_technologies + allies_breakdowns + allies_victory_points;
-        let empires_total =
-            empires_resources + empires_technologies + empires_breakdowns + empires_victory_points;
+        let allies_total = allies_resources
+            + allies_technologies * 3.0
+            + allies_breakdowns * 5.0
+            + allies_victory_points * 4.0;
+        let empires_total = empires_resources
+            + empires_technologies * 3.0
+            + empires_breakdowns * 5.0
+            + empires_victory_points * 4.0;
         (allies_total - empires_total) / (allies_total + empires_total)
     }
 
