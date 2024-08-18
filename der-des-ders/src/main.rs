@@ -1,5 +1,6 @@
 use clap::Parser;
 use clap::ValueEnum;
+use minimax::Robot;
 use robot::RobotIO;
 use std::io::{stdin, stdout};
 use std::process::exit;
@@ -73,7 +74,7 @@ struct Players {
 fn main() {
     let options = Options::parse();
     let mut game_engine = GameEngine::new(options.seed);
-    let mut players = initialise_players(options);
+    let mut players = initialise_players(&options);
     while !game_engine.game_ends() {
         run_turn(&mut players, &mut game_engine);
     }
@@ -83,16 +84,21 @@ fn main() {
     }
 }
 
-fn initialise_players(default_options: Options) -> Players {
-    let allies_player = make_player(Side::Allies, default_options.allies);
-    let empires_player = make_player(Side::Empires, default_options.empires);
+fn initialise_players(options: &Options) -> Players {
+    let allies_player = make_player(Side::Allies, options);
+    let empires_player = make_player(Side::Empires, options);
     Players {
         allies_player,
         empires_player,
     }
 }
 
-fn make_player(side: Side, player_type: PlayerType) -> Box<dyn Player> {
+fn make_player(side: Side, options: &Options) -> Box<dyn Player> {
+    let player_type: PlayerType = match side {
+        Side::Allies => options.allies,
+        Side::Empires => options.empires,
+    };
+
     match player_type {
         PlayerType::Human => Box::new(Console {
             side,
@@ -101,7 +107,7 @@ fn make_player(side: Side, player_type: PlayerType) -> Box<dyn Player> {
             out: vec![],
         }),
         PlayerType::Robot => Box::new(RobotIO::new(&side, 42)),
-        PlayerType::Search => todo!(),
+        PlayerType::Search => Box::new(Robot::new(side, options.depth)),
     }
 }
 
