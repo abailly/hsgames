@@ -70,6 +70,22 @@ impl RobotIO {
     }
 }
 
+pub fn possible_hits(side: &Side, state: &GameState) -> Vec<(Nation, u8)> {
+    let nations = state.all_nations_at_war(*side);
+    let mut nations = nations
+        .iter()
+        .filter_map(|n| {
+            if state.breakdown_level(n) > 0 {
+                Some((*n, state.breakdown_level(n)))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<(Nation, u8)>>();
+    nations.sort_by(|a, b| a.1.cmp(&b.1).reverse());
+    nations
+}
+
 impl Player for RobotIO {
     fn output(&mut self, message: &Output, _: &GameEngine) {
         match message {
@@ -159,19 +175,8 @@ impl Player for RobotIO {
             Some(Output::IncreaseUBoot) => Input::Number(0),
             Some(Output::IncreaseBlockade) => Input::Number(0),
             Some(Output::SelectNationForHit) => {
-                let state = self.state.as_ref().unwrap();
-                let nations = state.all_nations_at_war(self.side);
-                let mut nations = nations
-                    .iter()
-                    .filter_map(|n| {
-                        if state.breakdown_level(n) > 0 {
-                            Some((*n, state.breakdown_level(n)))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect::<Vec<(Nation, u8)>>();
-                nations.sort_by(|a, b| a.1.cmp(&b.1).reverse());
+                let nations: Vec<(Nation, u8)> =
+                    possible_hits(&self.side, self.state.as_ref().unwrap());
                 let nation_index = self.rng.gen_range(0..nations.len());
                 Input::ApplyHit(nations[nation_index].0)
             }

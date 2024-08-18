@@ -1,6 +1,9 @@
 use std::fmt::{self, Display, Formatter};
 
-use crate::{Event, GameEngine, Input, Nation, Offensive, Output, Phase, Player, Side};
+use crate::{
+    robot::possible_hits, Event, GameEngine, Input, Nation, Offensive, Output, Phase, Player, Side,
+    TechnologyType,
+};
 
 pub struct Robot {
     side: Side,
@@ -22,12 +25,39 @@ impl Player for Robot {
     fn output(&mut self, message: &Output, engine: &GameEngine) {
         match message {
             Output::ChooseInitiative => {
-                let best_move = best_move(self.side, engine, self.depth);
+                let best_move = best_move(self.side, engine, self.depth, vec![], vec![]);
                 if let Some(m) = best_move {
                     self.next_move = m;
                 }
             }
-            _ => {}
+            Output::ImproveTechnologies(available) => {
+                let best_move =
+                    best_move(self.side, engine, self.depth, vec![], available.to_vec());
+                if let Some(m) = best_move {
+                    self.next_move = m;
+                }
+            }
+            Output::LaunchOffensive(available) => {
+                let mut played = engine.all_nations_at_war(self.side);
+                played.retain(|n| !available.contains(n));
+                let best_move = best_move(self.side, engine, self.depth, played, vec![]);
+                if let Some(m) = best_move {
+                    self.next_move = m;
+                }
+            }
+            Output::ReinforceNations => {
+                let best_move = best_move(self.side, engine, self.depth, vec![], vec![]);
+                if let Some(m) = best_move {
+                    self.next_move = m;
+                }
+            }
+            Output::SelectNationForHit => {
+                let nations = possible_hits(&self.side, &engine.state);
+                self.next_move = Move::Hit(nations[0].0);
+            }
+            other => {
+                println!("Robot received message: {:?}", other);
+            }
         }
     }
 
@@ -41,6 +71,7 @@ impl Player for Robot {
             Move::NextTurn => panic!("Cannot input NextTurn"),
             Move::Offensive(from, to, pr) => Input::Offensive(from, to, pr),
             Move::Reinforce(nation, pr) => Input::Reinforce(nation, pr),
+            Move::Hit(nation) => Input::ApplyHit(nation),
         }
     }
 
@@ -59,6 +90,7 @@ pub enum Move {
     NextTurn,
     Offensive(Nation, Nation, u8),
     Reinforce(Nation, u8),
+    Hit(Nation),
 }
 
 impl Display for Move {
@@ -74,6 +106,7 @@ impl Display for Move {
             Move::NextTurn => write!(f, "NextTurn"),
             Move::Offensive(from, to, pr) => write!(f, "Offensive({:?}, {:?}, {})", from, to, pr),
             Move::Reinforce(nation, pr) => write!(f, "Reinforce({:?}, {})", nation, pr),
+            Move::Hit(nation) => write!(f, "Hit({:?})", nation),
         }
     }
 }
@@ -101,6 +134,9 @@ struct Search {
 
     /// The moves that have been played to reach this state
     moved: Option<Move>,
+
+    /// TODO: This should be part of the state
+    available_tech: Vec<TechnologyType>,
 }
 
 struct SearchIterator<'a> {
@@ -165,6 +201,8 @@ impl Search {
                 let mut moves = vec![];
                 let resources = self.engine.state.resources_for(&side);
                 let mut available_techs = self.engine.state.available_technologies(&side);
+                available_techs.retain(|t| self.available_tech.contains(&t.category));
+
                 if resources > 0 && !available_techs.is_empty() {
                     let tech = available_techs.pop().unwrap();
                     let max_pr = resources.min(5);
@@ -269,6 +307,7 @@ impl Search {
                     .set_phase(Phase::ImproveTechnologies(self.engine.state.initiative));
             }
             Move::ImproveTechnology(side, tech, pr) => {
+                self.available_tech.retain(|t| t != &tech.category);
                 self.engine
                     .try_improve_technology(*side, tech.category, *pr);
                 self.engine
@@ -281,7 +320,7 @@ impl Search {
                     to: *to,
                     pr: *pr,
                 };
-                self.engine.resolve_offensive(&offensive);
+                let result = self.engine.resolve_offensive(&offensive);
                 self.nations_played.push(*from);
                 self.engine
                     .set_phase(Phase::LaunchOffensives(self.engine.state.initiative));
@@ -339,6 +378,7 @@ impl Search {
             Move::NextTurn => {
                 self.engine.new_turn();
             }
+            Move::Hit(_) => panic!("Cannot apply Hit move"),
         }
     }
 }
@@ -395,27 +435,37 @@ fn alphabeta(search: &mut Search, depth: u8, mut alpha: f64, mut beta: f64) -> f
 }
 
 /// TODO: works only for the allies
-pub fn best_move(me: Side, engine: &GameEngine, depth: u8) -> Option<Move> {
+pub fn best_move(
+    me: Side,
+    engine: &GameEngine,
+    depth: u8,
+    nations_played: Vec<Nation>,
+    available_tech: Vec<TechnologyType>,
+) -> Option<Move> {
     let side = engine.state.side_to_play();
     match side {
         Some(s) if s == me => {
+            println!("({:?}) searching for side: {:?} ", engine.state.phase, me);
             let mut search = Search {
                 me,
                 side: me,
                 engine: engine.clone(),
                 allies_initiative: 0,
-                nations_played: vec![],
+                nations_played,
                 moved: None,
+                available_tech,
             };
             let mut best_value = -1.0;
             let mut best_move = None;
             for mut child in search.iter() {
                 let value = alphabeta(&mut child, depth, -1.0, 1.0);
+                println!(" {:?} = {}", child.moved, value);
                 if value > best_value {
                     best_value = value;
                     best_move = child.moved;
                 }
             }
+            println!(" => best move: {:?}", best_move);
             best_move
         }
         _ => None,
@@ -437,6 +487,7 @@ mod minimax_test {
             engine: engine.clone(),
             allies_initiative: 0,
             nations_played: vec![],
+            available_tech: vec![],
             moved: None,
         };
         let value = alphabeta(&mut search, 0, -1.0, 1.0);
@@ -452,6 +503,7 @@ mod minimax_test {
             engine: engine.clone(),
             allies_initiative: 0,
             nations_played: vec![],
+            available_tech: vec![],
             moved: None,
         };
         let value = alphabeta(&mut search, 10, -1.0, 1.0);
@@ -461,7 +513,7 @@ mod minimax_test {
     #[test]
     fn returns_no_move_given_not_side_phase() {
         let engine = EngineBuilder::new(42).build();
-        let best_move = best_move(Side::Allies, &engine, 10);
+        let best_move = best_move(Side::Allies, &engine, 10, vec![], vec![]);
         assert!(best_move.is_none());
     }
 
@@ -473,7 +525,7 @@ mod minimax_test {
             .with_resources(Side::Allies, 10)
             .with_resources(Side::Empires, 10)
             .build();
-        let best_move = best_move(Side::Allies, &engine, 6);
+        let best_move = best_move(Side::Allies, &engine, 6, vec![], vec![]);
         assert!(best_move.is_some());
     }
 
@@ -485,7 +537,7 @@ mod minimax_test {
             .with_resources(Side::Allies, 10)
             .with_resources(Side::Empires, 10)
             .build();
-        let best_move = best_move(Side::Empires, &engine, 6);
+        let best_move = best_move(Side::Empires, &engine, 6, vec![], vec![]);
         assert!(best_move.is_some());
     }
 

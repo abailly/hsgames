@@ -6,7 +6,7 @@ EMPIRES_WIN=0
 
 for i in $(seq 1 $NUM_RUNS); do
     printf "Run $i ($EMPIRES_WIN / $ALLIES_WIN)\x1b[0G"
-    RUST_BACKTRACE=1 ./target/debug/der-des-ders --empires robot --seed $i --allies robot
+    RUST_BACKTRACE=1 ./target/debug/der-des-ders --empires robot --seed $i --allies search --depth 6
     case $? in
         255)
             EMPIRES_WIN=$((EMPIRES_WIN+1))
