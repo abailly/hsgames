@@ -158,6 +158,7 @@ fn apply_event(players: &mut Players, game_engine: &mut GameEngine, event: &Even
                 to: Nation::France,
                 pr: 2,
             };
+            game_engine.increase_pr(Side::Empires, 2);
             let result = game_engine.resolve_offensive(&offensive);
             players.output(&Output::OffensiveResult {
                 from: Nation::Germany,
@@ -236,7 +237,12 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_engine: &mut 
                     pr,
                 };
                 let result = game_engine.resolve_offensive(&offensive);
-                nations.retain(|&nat| nat != from);
+                match result {
+                    OffensiveOutcome::Hits(_) => {
+                        nations.retain(|&nat| nat != from);
+                    }
+                    _ => {}
+                }
                 player.output(&Output::OffensiveResult { from, to, result });
             }
             Input::Pass => return,
@@ -588,11 +594,12 @@ mod events_tests {
         apply_event, draw_events,
         event::ALL_EVENTS,
         fixtures::{EngineBuilder, PlayersBuilder},
-        launch_offensives,
+        launch_offensives, HitsResult,
         Input::*,
         Nation::*,
         NationState::*,
-        Output::*,
+        OffensiveOutcome,
+        Output::{self, *},
         Side::*,
     };
 
@@ -665,6 +672,14 @@ mod events_tests {
 
         apply_event(&mut players, &mut engine, &ALL_EVENTS[2]);
 
+        assert_eq!(
+            vec![Output::OffensiveResult {
+                from: Germany,
+                to: France,
+                result: OffensiveOutcome::Hits(HitsResult::Hits(France, 2))
+            },],
+            players.allies_player.out()
+        );
         assert_eq!(AtWar(5), *engine.state.nations.get(&France).unwrap());
     }
 
