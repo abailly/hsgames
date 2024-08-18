@@ -2,7 +2,7 @@ use rand::rngs::StdRng;
 use rand::{Rng, SeedableRng};
 
 use crate::io::{Input, Output, Player};
-use crate::{GameState, Nation, Side, TechnologyType};
+use crate::{GameEngine, GameState, Nation, Side, TechnologyType};
 
 pub struct RobotIO {
     pub state: Option<GameState>,
@@ -71,7 +71,7 @@ impl RobotIO {
 }
 
 impl Player for RobotIO {
-    fn output(&mut self, message: &Output) {
+    fn output(&mut self, message: &Output, _: &GameEngine) {
         match message {
             Output::CurrentState(state) => {
                 self.state = Some(state.clone());
@@ -200,8 +200,8 @@ mod robot_tests {
 
         let mut robot = RobotIO::new(&Side::Empires, 15);
 
-        robot.output(&Output::CurrentState(engine.state));
-        robot.output(&Output::ChooseInitiative);
+        robot.output(&Output::CurrentState(engine.state.clone()), &engine);
+        robot.output(&Output::ChooseInitiative, &engine);
 
         let input = robot.input();
 
@@ -216,8 +216,11 @@ mod robot_tests {
 
         let mut robot = RobotIO::new(&Side::Empires, 15);
 
-        robot.output(&Output::CurrentState(engine.state));
-        robot.output(&Output::ImproveTechnologies(all_technology_types()));
+        robot.output(&Output::CurrentState(engine.state.clone()), &engine);
+        robot.output(
+            &Output::ImproveTechnologies(all_technology_types()),
+            &engine,
+        );
 
         assert_eq!(Input::Select(TechnologyType::Defense, 4), robot.input());
     }
@@ -231,8 +234,11 @@ mod robot_tests {
 
         let mut robot = RobotIO::new(&Side::Empires, 15);
 
-        robot.output(&Output::CurrentState(engine.state));
-        robot.output(&Output::ImproveTechnologies(vec![TechnologyType::Attack]));
+        robot.output(&Output::CurrentState(engine.state.clone()), &engine);
+        robot.output(
+            &Output::ImproveTechnologies(vec![TechnologyType::Attack]),
+            &engine,
+        );
 
         assert_eq!(Input::Select(TechnologyType::Attack, 4), robot.input());
     }
@@ -247,8 +253,8 @@ mod robot_tests {
         let mut all_nations_at_war = engine.state.all_nations_at_war(Side::Empires);
         all_nations_at_war.sort();
 
-        robot.output(&Output::CurrentState(engine.state));
-        robot.output(&Output::LaunchOffensive(all_nations_at_war));
+        robot.output(&Output::CurrentState(engine.state.clone()), &engine);
+        robot.output(&Output::LaunchOffensive(all_nations_at_war), &engine);
 
         let input = robot.input();
 
@@ -264,8 +270,8 @@ mod robot_tests {
 
         let mut robot = RobotIO::new(&Side::Empires, 15);
 
-        robot.output(&Output::CurrentState(engine.state));
-        robot.output(&Output::ReinforceNations);
+        robot.output(&Output::CurrentState(engine.state.clone()), &engine);
+        robot.output(&Output::ReinforceNations, &engine);
 
         let input = robot.input();
 
@@ -280,8 +286,8 @@ mod robot_tests {
 
         let mut robot = RobotIO::new(&Side::Empires, 15);
 
-        robot.output(&Output::CurrentState(engine.state));
-        robot.output(&Output::ReinforceNations);
+        robot.output(&Output::CurrentState(engine.state.clone()), &engine);
+        robot.output(&Output::ReinforceNations, &engine);
 
         let input = robot.input();
 
@@ -296,8 +302,8 @@ mod robot_tests {
 
         let mut robot = RobotIO::new(&Side::Empires, 15);
 
-        robot.output(&Output::CurrentState(engine.state));
-        robot.output(&Output::IncreaseUBoot);
+        robot.output(&Output::CurrentState(engine.state.clone()), &engine);
+        robot.output(&Output::IncreaseUBoot, &engine);
 
         let input = robot.input();
 
@@ -312,8 +318,8 @@ mod robot_tests {
 
         let mut robot = RobotIO::new(&Side::Allies, 15);
 
-        robot.output(&Output::CurrentState(engine.state));
-        robot.output(&Output::IncreaseBlockade);
+        robot.output(&Output::CurrentState(engine.state.clone()), &engine);
+        robot.output(&Output::IncreaseBlockade, &engine);
 
         let input = robot.input();
 
@@ -329,8 +335,8 @@ mod robot_tests {
 
         let mut robot = RobotIO::new(&Side::Empires, 15);
 
-        robot.output(&Output::CurrentState(engine.state));
-        robot.output(&Output::SelectNationForHit);
+        robot.output(&Output::CurrentState(engine.state.clone()), &engine);
+        robot.output(&Output::SelectNationForHit, &engine);
 
         let input = robot.input();
 

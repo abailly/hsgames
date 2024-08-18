@@ -2,29 +2,27 @@ use std::fmt::{self, Display, Formatter};
 
 use crate::{Event, GameEngine, Input, Nation, Offensive, Output, Phase, Player, Side};
 
-pub struct Robot<'a> {
+pub struct Robot {
     side: Side,
     depth: u8,
-    engine: &'a GameEngine,
     next_move: Move,
 }
 
-impl<'a> Robot<'a> {
-    pub fn new(side: Side, depth: u8, engine: &'a GameEngine) -> Self {
+impl Robot {
+    pub fn new(side: Side, depth: u8) -> Self {
         Robot {
             side,
             depth,
-            engine,
             next_move: Move::Pass,
         }
     }
 }
 
-impl<'a> Player for Robot<'a> {
-    fn output(&mut self, message: &Output) {
+impl Player for Robot {
+    fn output(&mut self, message: &Output, engine: &GameEngine) {
         match message {
             Output::ChooseInitiative => {
-                let best_move = best_move(self.side, self.engine, self.depth);
+                let best_move = best_move(self.side, engine, self.depth);
                 if let Some(m) = best_move {
                     self.next_move = m;
                 }
@@ -499,9 +497,9 @@ mod minimax_test {
             .with_resources(Side::Empires, 5)
             .build();
 
-        let mut robot = Robot::new(Side::Empires, 6, &engine);
+        let mut robot = Robot::new(Side::Empires, 6);
 
-        robot.output(&Output::ChooseInitiative);
+        robot.output(&Output::ChooseInitiative, &engine);
 
         let input = robot.input();
 

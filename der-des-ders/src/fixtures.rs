@@ -7,7 +7,7 @@ pub struct PlayerDouble {
 }
 
 impl Player for PlayerDouble {
-    fn output(&mut self, message: &Output) {
+    fn output(&mut self, message: &Output, _: &GameEngine) {
         self.out.push(message.clone());
     }
 

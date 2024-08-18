@@ -101,13 +101,14 @@ fn make_player(side: Side, player_type: PlayerType) -> Box<dyn Player> {
             out: vec![],
         }),
         PlayerType::Robot => Box::new(RobotIO::new(&side, 42)),
+        PlayerType::Search => todo!(),
     }
 }
 
 impl Player for Players {
-    fn output(&mut self, message: &Output) {
-        self.allies_player.output(message);
-        self.empires_player.output(message);
+    fn output(&mut self, message: &Output, engine: &GameEngine) {
+        self.allies_player.output(message, engine);
+        self.empires_player.output(message, engine);
     }
 
     fn input(&mut self) -> Input {
@@ -125,12 +126,18 @@ impl Player for Players {
 }
 
 fn run_turn(players: &mut Players, game_engine: &mut GameEngine) {
-    players.output(&Output::CurrentState(game_engine.state.clone()));
+    players.output(
+        &Output::CurrentState(game_engine.state.clone()),
+        &game_engine,
+    );
     determine_initiative(players, game_engine);
     draw_events(players, game_engine);
     collect_resources(game_engine);
 
-    players.output(&Output::CurrentState(game_engine.state.clone()));
+    players.output(
+        &Output::CurrentState(game_engine.state.clone()),
+        &game_engine,
+    );
 
     run_player_turn(game_engine.state.initiative, players, game_engine);
     run_player_turn(game_engine.state.initiative.other(), players, game_engine);
@@ -148,7 +155,10 @@ fn draw_events(players: &mut Players, game_engine: &mut GameEngine) {
     game_engine.set_phase(Phase::DrawEvents);
     let events = game_engine.draw_events();
     for event in events.iter() {
-        players.output(&Output::EventDrawn(event.event_id, event.title.to_string()));
+        players.output(
+            &Output::EventDrawn(event.event_id, event.title.to_string()),
+            &game_engine,
+        );
         apply_event(players, game_engine, event);
     }
 }
@@ -164,11 +174,14 @@ fn apply_event(players: &mut Players, game_engine: &mut GameEngine, event: &Even
             };
             game_engine.increase_pr(Side::Empires, 2);
             let result = game_engine.resolve_offensive(&offensive);
-            players.output(&Output::OffensiveResult {
-                from: Nation::Germany,
-                to: Nation::France,
-                result,
-            });
+            players.output(
+                &Output::OffensiveResult {
+                    from: Nation::Germany,
+                    to: Nation::France,
+                    result,
+                },
+                &game_engine,
+            );
         }
         _ => game_engine.play_events(event),
     }
@@ -183,7 +196,10 @@ fn run_player_turn(initiative: Side, players: &mut Players, game_engine: &mut Ga
 }
 
 fn notify_turn(initiative: Side, players: &mut Players, game_engine: &GameEngine) {
-    players.output(&Output::TurnFor(initiative, game_engine.state.current_turn));
+    players.output(
+        &Output::TurnFor(initiative, game_engine.state.current_turn),
+        &game_engine,
+    );
 }
 
 fn improve_technologies(initiative: Side, players: &mut Players, game_engine: &mut GameEngine) {
@@ -197,18 +213,21 @@ fn improve_technologies(initiative: Side, players: &mut Players, game_engine: &m
     let mut available: Vec<TechnologyType> = vec![Attack, Defense, Artillery, Air];
 
     while !available.is_empty() {
-        player.output(&Output::ImproveTechnologies(available.clone()));
+        player.output(
+            &Output::ImproveTechnologies(available.clone()),
+            &game_engine,
+        );
         match player.input() {
             Input::Select(tech, n) => {
                 if !available.contains(&tech) || n == 0 {
                     continue;
                 }
                 let result = game_engine.try_improve_technology(initiative, tech, n);
-                player.output(&Output::TechnologyResult(result));
+                player.output(&Output::TechnologyResult(result), &game_engine);
                 available.retain(|&t| t != tech);
             }
             Input::Pass => break,
-            other => player.output(&Output::WrongInput(other)),
+            other => player.output(&Output::WrongInput(other), &game_engine),
         }
     }
 }
@@ -225,13 +244,13 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_engine: &mut 
     nations.sort();
 
     while !nations.is_empty() {
-        player.output(&Output::LaunchOffensive(nations.clone()));
+        player.output(&Output::LaunchOffensive(nations.clone()), &game_engine);
         match player.input() {
             Input::Offensive(from, _, _) if !nations.contains(&from) => {
-                player.output(&Output::CountryAlreadyAttacked(from));
+                player.output(&Output::CountryAlreadyAttacked(from), &game_engine);
             }
             Input::Offensive(from, to, _) if !from.adjacent_to(&to) => {
-                player.output(&Output::AttackingNonAdjacentCountry(from, to));
+                player.output(&Output::AttackingNonAdjacentCountry(from, to), &game_engine);
             }
             Input::Offensive(from, to, pr) => {
                 let offensive = Offensive {
@@ -247,7 +266,7 @@ fn launch_offensives(initiative: Side, players: &mut Players, game_engine: &mut 
                     }
                     _ => {}
                 }
-                player.output(&Output::OffensiveResult { from, to, result });
+                player.output(&Output::OffensiveResult { from, to, result }, &game_engine);
             }
             Input::Pass => return,
             _ => (),
@@ -266,7 +285,7 @@ fn uboot(players: &mut Players, game_engine: &mut GameEngine) {
     game_engine.set_phase(Phase::UBoot);
 
     let player = &mut players.empires_player;
-    player.output(&Output::IncreaseUBoot);
+    player.output(&Output::IncreaseUBoot, &game_engine);
     let bonus = match player.input() {
         Input::Number(n) => n.min(game_engine.state.resources_for(&Side::Empires)),
         _ => 0,
@@ -281,7 +300,7 @@ fn uboot(players: &mut Players, game_engine: &mut GameEngine) {
 }
 
 fn apply_hits(players: &mut Players, game_engine: &mut GameEngine, loss: u8) -> StateChange {
-    players.output(&Output::UBootResult(loss));
+    players.output(&Output::UBootResult(loss), &game_engine);
 
     let allies_player = &mut players.allies_player;
     let pr = game_engine.state.resources_for(&Side::Allies);
@@ -289,7 +308,7 @@ fn apply_hits(players: &mut Players, game_engine: &mut GameEngine, loss: u8) -> 
     if loss > pr {
         let mut hits = loss - pr;
         while hits > 0 {
-            allies_player.output(&Output::SelectNationForHit);
+            allies_player.output(&Output::SelectNationForHit, &game_engine);
             if let Input::ApplyHit(nation) = allies_player.input() {
                 game_engine.apply_hits(&nation, 1);
                 hits -= 1;
@@ -308,7 +327,7 @@ fn blocus(players: &mut Players, game_engine: &mut GameEngine) {
     game_engine.set_phase(Phase::Blockade);
 
     let player = &mut players.allies_player;
-    player.output(&Output::IncreaseBlockade);
+    player.output(&Output::IncreaseBlockade, &game_engine);
     let bonus = match player.input() {
         Input::Number(n) => n.min(game_engine.state.resources_for(&Side::Allies)),
         _ => 0,
@@ -317,7 +336,7 @@ fn blocus(players: &mut Players, game_engine: &mut GameEngine) {
     let change = game_engine.blockade_effect(bonus);
 
     game_engine.apply_change(&change);
-    players.output(&Output::BlockadeResult(change.empires_gain()));
+    players.output(&Output::BlockadeResult(change.empires_gain()), &game_engine);
 }
 
 const DEFAULT_INITIATIVE: [Side; 14] = [
@@ -345,7 +364,7 @@ const DEFAULT_INITIATIVE: [Side; 14] = [
 ///   array.
 fn determine_initiative(players: &mut Players, game_engine: &mut GameEngine) {
     if game_engine.state.current_turn > 1 {
-        players.output(&Output::ChooseInitiative);
+        players.output(&Output::ChooseInitiative, &game_engine);
         game_engine.set_phase(Phase::Initiative(Side::Allies));
         let allies_pr = match players.allies_player.input() {
             Input::Number(pr) => pr,
@@ -376,7 +395,7 @@ fn reinforcements(initiative: Side, players: &mut Players, game_engine: &mut Gam
         .resources
         > 0
     {
-        player.output(&Output::ReinforceNations);
+        player.output(&Output::ReinforceNations, &game_engine);
         match player.input() {
             Input::Reinforce(nation, pr) => {
                 game_engine.reinforce(nation, pr);

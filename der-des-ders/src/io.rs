@@ -9,7 +9,7 @@ use nom::character::complete::{char, digit1};
 use nom::combinator::{all_consuming, map, map_res};
 use nom::{IResult, Parser};
 
-use crate::{side::*, OffensiveOutcome, TechnologyImprovement};
+use crate::{side::*, GameEngine, OffensiveOutcome, TechnologyImprovement};
 use crate::{tech::*, GameState};
 
 #[derive(Eq, PartialEq, Clone, Debug)]
@@ -103,7 +103,7 @@ pub enum Input {
 }
 
 pub trait Player {
-    fn output(&mut self, message: &Output);
+    fn output(&mut self, message: &Output, engine: &GameEngine);
     fn input(&mut self) -> Input;
     fn out(&self) -> Vec<Output>;
 }
@@ -116,7 +116,7 @@ pub struct Console {
 }
 
 impl Player for Console {
-    fn output(&mut self, message: &Output) {
+    fn output(&mut self, message: &Output, _: &GameEngine) {
         self.out.push(message.clone());
         let mut stdout = self.outp.lock();
         stdout
