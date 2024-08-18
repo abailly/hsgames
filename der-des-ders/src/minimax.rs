@@ -4,13 +4,13 @@ use crate::{Event, GameEngine, Input, Nation, Offensive, Output, Phase, Player, 
 
 pub struct Robot<'a> {
     side: Side,
-    depth: u32,
+    depth: u8,
     engine: &'a GameEngine,
     next_move: Move,
 }
 
 impl<'a> Robot<'a> {
-    pub fn new(side: Side, depth: u32, engine: &'a GameEngine) -> Self {
+    pub fn new(side: Side, depth: u8, engine: &'a GameEngine) -> Self {
         Robot {
             side,
             depth,
@@ -362,7 +362,7 @@ impl Iterator for SearchIterator<'_> {
     }
 }
 
-fn alphabeta(search: &mut Search, depth: u32, mut alpha: f64, mut beta: f64) -> f64 {
+fn alphabeta(search: &mut Search, depth: u8, mut alpha: f64, mut beta: f64) -> f64 {
     if depth <= 0 || search.game_ends() {
         return search.valuation();
     }
@@ -397,7 +397,7 @@ fn alphabeta(search: &mut Search, depth: u32, mut alpha: f64, mut beta: f64) -> 
 }
 
 /// TODO: works only for the allies
-pub fn best_move(me: Side, engine: &GameEngine, depth: u32) -> Option<Move> {
+pub fn best_move(me: Side, engine: &GameEngine, depth: u8) -> Option<Move> {
     let side = engine.state.side_to_play();
     match side {
         Some(s) if s == me => {
