@@ -1,6 +1,55 @@
 use std::fmt::{self, Display, Formatter};
 
-use crate::{Event, GameEngine, Nation, Offensive, Phase, Side};
+use crate::{Event, GameEngine, Input, Nation, Offensive, Output, Phase, Player, Side};
+
+pub struct Robot<'a> {
+    side: Side,
+    depth: u32,
+    engine: &'a GameEngine,
+    next_move: Move,
+}
+
+impl<'a> Robot<'a> {
+    pub fn new(side: Side, depth: u32, engine: &'a GameEngine) -> Self {
+        Robot {
+            side,
+            depth,
+            engine,
+            next_move: Move::Pass,
+        }
+    }
+}
+
+impl<'a> Player for Robot<'a> {
+    fn output(&mut self, message: &Output) {
+        match message {
+            Output::ChooseInitiative => {
+                let best_move = best_move(self.side, self.engine, self.depth);
+                if let Some(m) = best_move {
+                    self.next_move = m;
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn input(&mut self) -> Input {
+        match self.next_move {
+            Move::BetForInitiative(_, pr) => Input::Number(pr as u8),
+            Move::EventsDrawn(_) => panic!("Cannot input events"),
+            Move::ResourcesCollected => panic!("Cannot input resources"),
+            Move::ImproveTechnology(_, tech, pr) => Input::Select(tech.category, pr),
+            Move::Pass => Input::Pass,
+            Move::NextTurn => panic!("Cannot input NextTurn"),
+            Move::Offensive(from, to, pr) => Input::Offensive(from, to, pr),
+            Move::Reinforce(nation, pr) => Input::Reinforce(nation, pr),
+        }
+    }
+
+    fn out(&self) -> Vec<Output> {
+        vec![]
+    }
+}
 
 #[derive(Debug, Clone)]
 pub enum Move {
@@ -440,5 +489,22 @@ mod minimax_test {
             .build();
         let best_move = best_move(Side::Empires, &engine, 6);
         assert!(best_move.is_some());
+    }
+
+    #[test]
+    fn robot_selects_best_move_when_it_plays_initiative() {
+        let engine = EngineBuilder::new(14)
+            .on_turn(2)
+            .at_phase(Phase::Initiative(Side::Empires))
+            .with_resources(Side::Empires, 5)
+            .build();
+
+        let mut robot = Robot::new(Side::Empires, 6, &engine);
+
+        robot.output(&Output::ChooseInitiative);
+
+        let input = robot.input();
+
+        assert_eq!(Input::Number(2), input);
     }
 }
