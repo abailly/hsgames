@@ -33,6 +33,7 @@ mod robot;
 enum PlayerType {
     Human,
     Robot,
+    Search,
 }
 
 /// Sets types of player for allies and empires and optionally provide a seed
@@ -48,6 +49,9 @@ struct Options {
     /// Initial seed for dice rolling
     #[arg(short, long, default_value_t = 42)]
     seed: u64,
+    /// Optional depth for minimax algorithm
+    #[arg(short, long, default_value_t = 10)]
+    depth: u8,
 }
 
 impl Default for Options {
@@ -56,6 +60,7 @@ impl Default for Options {
             allies: PlayerType::Human,
             empires: PlayerType::Human,
             seed: 42,
+            depth: 10,
         }
     }
 }
