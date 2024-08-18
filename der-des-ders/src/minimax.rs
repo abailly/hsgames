@@ -14,6 +14,7 @@ enum Move {
     Pass,
     NextTurn,
     Offensive(Nation, Nation, u8),
+    Reinforce(Nation, u8),
 }
 
 impl Display for Move {
@@ -28,6 +29,7 @@ impl Display for Move {
             Move::Pass => write!(f, "Pass"),
             Move::NextTurn => write!(f, "NextTurn"),
             Move::Offensive(from, to, pr) => write!(f, "Offensive({:?}, {:?}, {})", from, to, pr),
+            Move::Reinforce(nation, pr) => write!(f, "Reinforce({:?}, {})", nation, pr),
         }
     }
 }
@@ -51,7 +53,7 @@ struct Search {
     allies_initiative: u8,
 
     /// TODO: This should be part of the state
-    offensive_sources: Vec<Nation>,
+    nations_played: Vec<Nation>,
 
     /// The moves that have been played to reach this state
     moved: Option<Move>,
@@ -133,7 +135,7 @@ impl Search {
                 let mut moves = vec![];
                 let resources = self.engine.state.resources_for(&side);
                 let mut sources: Vec<Nation> = self.engine.all_nations_at_war(side);
-                sources.retain(|n| !self.offensive_sources.contains(n));
+                sources.retain(|n| !self.nations_played.contains(n));
 
                 for source in sources.iter() {
                     let mut targets: Vec<&Nation> = self.engine.state.neighbours(source);
@@ -152,10 +154,36 @@ impl Search {
                     moves,
                 }
             }
-            Phase::Reinforcements(_) => SearchIterator {
-                search: self,
-                moves: vec![Move::Pass],
-            },
+            Phase::Reinforcements(side) => {
+                let mut moves = vec![];
+                let resources = self.engine.state.resources_for(&side);
+                let mut nations = self
+                    .engine
+                    .all_nations_at_war(self.side)
+                    .iter()
+                    .filter_map(|n| {
+                        let losses = n.maximum_breakdown() - self.engine.state.breakdown_level(n);
+                        if losses > 0 && !self.nations_played.contains(n) {
+                            Some((*n, losses))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<(Nation, u8)>>();
+
+                for (nation, losses) in nations.iter() {
+                    for pr in 1..=*losses {
+                        if pr <= resources {
+                            moves.push(Move::Reinforce(*nation, pr));
+                        }
+                    }
+                }
+                moves.push(Move::Pass);
+                SearchIterator {
+                    search: self,
+                    moves,
+                }
+            }
             Phase::UBoot => SearchIterator {
                 search: self,
                 moves: vec![Move::Pass],
@@ -207,9 +235,15 @@ impl Search {
                     pr: *pr,
                 };
                 self.engine.resolve_offensive(&offensive);
-                self.offensive_sources.push(*from);
+                self.nations_played.push(*from);
                 self.engine
                     .set_phase(Phase::LaunchOffensives(self.engine.state.initiative));
+            }
+            Move::Reinforce(nation, pr) => {
+                self.nations_played.push(*nation);
+                self.engine.reinforce(*nation, *pr);
+                self.engine
+                    .set_phase(Phase::Reinforcements(self.engine.state.initiative));
             }
             Move::Pass => match self.engine.state.phase {
                 Phase::Initiative(Side::Allies) => {
@@ -226,10 +260,11 @@ impl Search {
                         .set_phase(Phase::ImproveTechnologies(self.engine.state.initiative));
                 }
                 Phase::ImproveTechnologies(side) => {
-                    self.offensive_sources = vec![];
+                    self.nations_played = vec![];
                     self.engine.set_phase(Phase::LaunchOffensives(side));
                 }
                 Phase::LaunchOffensives(side) => {
+                    self.nations_played = vec![];
                     self.engine.set_phase(Phase::Reinforcements(side));
                 }
                 Phase::Reinforcements(side) => match side {
@@ -333,7 +368,7 @@ mod minimax_test {
             side: Side::Allies,
             engine: engine.clone(),
             allies_initiative: 0,
-            offensive_sources: vec![],
+            nations_played: vec![],
             moved: None,
         };
         let value = alphabeta(&mut search, 0, -1.0, 1.0);
@@ -348,7 +383,7 @@ mod minimax_test {
             side: Side::Allies,
             engine: engine.clone(),
             allies_initiative: 0,
-            offensive_sources: vec![],
+            nations_played: vec![],
             moved: None,
         };
         let value = alphabeta(&mut search, 10, -1.0, 1.0);
