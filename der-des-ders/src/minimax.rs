@@ -80,7 +80,7 @@ impl Player for Robot {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Debug, Clone)]
 pub enum Move {
     BetForInitiative(Side, u8),
     EventsDrawn(Vec<Event>),
@@ -244,7 +244,7 @@ impl Search {
                 let resources = self.engine.state.resources_for(&side);
                 let nations = self
                     .engine
-                    .all_nations_at_war(self.side)
+                    .all_nations_at_war(side)
                     .iter()
                     .filter_map(|n| {
                         let losses = n.maximum_breakdown() - self.engine.state.breakdown_level(n);
@@ -361,16 +361,14 @@ impl Search {
                     if self.engine.state.initiative == Side::Allies {
                         self.engine.set_phase(Phase::NewTurn);
                     } else {
-                        self.engine
-                            .set_phase(Phase::ImproveTechnologies(Side::Allies));
+                        self.engine.set_phase(Phase::Blockade);
                     }
                 }
                 Phase::Blockade => {
                     if self.engine.state.initiative == Side::Empires {
                         self.engine.set_phase(Phase::NewTurn);
                     } else {
-                        self.engine
-                            .set_phase(Phase::ImproveTechnologies(Side::Empires));
+                        self.engine.set_phase(Phase::UBoot);
                     }
                 }
                 Phase::NewTurn => panic!("Cannot pass in NewTurn phase"),
