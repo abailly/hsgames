@@ -116,12 +116,6 @@ struct Search {
     /// The side that is maximizing
     me: Side,
 
-    /// The current side we are exploring in this node This is `me` if
-    /// we are maximizing, and the opponent otherwise. We consider
-    /// that we are maximizing for phases which are common to both
-    /// sides.
-    side: Side,
-
     /// The state of the game
     engine: GameEngine,
 
@@ -150,10 +144,7 @@ impl Search {
     }
 
     fn valuation(&self) -> f64 {
-        match self.me {
-            Side::Allies => self.engine.valuation(),
-            Side::Empires => -self.engine.valuation(),
-        }
+        self.engine.valuation()
     }
 
     /// Returns an iterator over "all" the possible moves from the current engine
@@ -398,21 +389,27 @@ impl Iterator for SearchIterator<'_> {
     }
 }
 
-fn alphabeta(search: &mut Search, depth: u8, mut alpha: f64, mut beta: f64) -> f64 {
+fn alphabeta(
+    search: &mut Search,
+    maximizing: bool,
+    depth: u8,
+    mut alpha: f64,
+    mut beta: f64,
+) -> f64 {
     if depth <= 0 || search.game_ends() {
         return search.valuation();
     }
 
-    let maximizing = search
-        .engine
-        .state
-        .side_to_play()
-        .map_or(true, |s| s == search.me);
-
     if maximizing {
         let mut value: f64 = -1.0;
         for mut child in search.iter() {
-            value = value.max(alphabeta(&mut child, depth - 1, alpha, beta));
+            let max = match child.engine.state.side_to_play() {
+                Some(Side::Allies) => true,
+                Some(Side::Empires) => false,
+                None => child.me == Side::Allies,
+            };
+
+            value = value.max(alphabeta(&mut child, max, depth - 1, alpha, beta));
             alpha = alpha.max(value);
             if value >= beta {
                 break;
@@ -422,7 +419,12 @@ fn alphabeta(search: &mut Search, depth: u8, mut alpha: f64, mut beta: f64) -> f
     } else {
         let mut value: f64 = 1.0;
         for mut child in search.iter() {
-            value = value.min(alphabeta(&mut child, depth - 1, alpha, beta));
+            let max = match child.engine.state.side_to_play() {
+                Some(Side::Allies) => true,
+                Some(Side::Empires) => false,
+                None => child.me == Side::Allies,
+            };
+            value = value.min(alphabeta(&mut child, max, depth - 1, alpha, beta));
             beta = beta.min(value);
             if value <= alpha {
                 break;
@@ -432,7 +434,6 @@ fn alphabeta(search: &mut Search, depth: u8, mut alpha: f64, mut beta: f64) -> f
     }
 }
 
-/// TODO: works only for the allies
 pub fn best_move(
     me: Side,
     engine: &GameEngine,
@@ -441,24 +442,31 @@ pub fn best_move(
     available_tech: Vec<TechnologyType>,
 ) -> Option<Move> {
     let side = engine.state.side_to_play();
+    let mut search = Search {
+        me,
+        engine: engine.clone(),
+        allies_initiative: 0,
+        nations_played,
+        moved: None,
+        available_tech,
+    };
     match side {
         Some(s) if s == me => {
             println!("({:?}) searching for side: {:?} ", engine.state.phase, me);
-            let mut search = Search {
-                me,
-                side: me,
-                engine: engine.clone(),
-                allies_initiative: 0,
-                nations_played,
-                moved: None,
-                available_tech,
-            };
-            let mut best_value = -1.0;
+            let mut best_value = if s == Side::Allies { -1.0 } else { 1.0 };
             let mut best_move = None;
             for mut child in search.iter() {
-                let value = alphabeta(&mut child, depth, -1.0, 1.0);
+                let max = match child.engine.state.side_to_play() {
+                    Some(Side::Allies) => true,
+                    Some(Side::Empires) => false,
+                    None => child.me == Side::Allies,
+                };
+                let value = alphabeta(&mut child, max, depth, -1.0, 1.0);
                 println!(" {:?} = {}", child.moved, value);
-                if value > best_value {
+                if s == Side::Allies && value > best_value {
+                    best_value = value;
+                    best_move = child.moved;
+                } else if s == Side::Empires && value < best_value {
                     best_value = value;
                     best_move = child.moved;
                 }
@@ -481,14 +489,13 @@ mod minimax_test {
         let engine = GameEngine::new(42);
         let mut search = Search {
             me: Side::Allies,
-            side: Side::Allies,
             engine: engine.clone(),
             allies_initiative: 0,
             nations_played: vec![],
             available_tech: vec![],
             moved: None,
         };
-        let value = alphabeta(&mut search, 0, -1.0, 1.0);
+        let value = alphabeta(&mut search, true, 0, -1.0, 1.0);
         assert!((value - engine.valuation()).abs() < f64::EPSILON);
     }
 
@@ -497,14 +504,13 @@ mod minimax_test {
         let engine = GameEngine::new(42);
         let mut search = Search {
             me: Side::Allies,
-            side: Side::Allies,
             engine: engine.clone(),
             allies_initiative: 0,
             nations_played: vec![],
             available_tech: vec![],
             moved: None,
         };
-        let value = alphabeta(&mut search, 10, -1.0, 1.0);
+        let value = alphabeta(&mut search, true, 10, -1.0, 1.0);
         assert!(value != engine.valuation());
     }
 
@@ -537,6 +543,17 @@ mod minimax_test {
             .build();
         let best_move = best_move(Side::Empires, &engine, 6, vec![], vec![]);
         assert!(best_move.is_some());
+    }
+
+    #[test]
+    fn does_not_select_pass_as_best_move_on_turn_1() {
+        let engine = EngineBuilder::new(42)
+            .at_phase(Phase::ImproveTechnologies(Side::Allies))
+            .with_resources(Side::Allies, 10)
+            .with_resources(Side::Empires, 10)
+            .build();
+        let best_move = best_move(Side::Allies, &engine, 8, vec![], vec![]);
+        assert!(best_move.unwrap() != Move::Pass);
     }
 
     #[test]
