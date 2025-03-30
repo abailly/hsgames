@@ -62,7 +62,26 @@ DecEq CombatPhase where
       decEq (ApplyLosses side combat) (ApplyLosses side' combat') | (Yes prf) | (Yes x) = rewrite x in rewrite prf in Yes Refl
       decEq (ApplyLosses side combat) (ApplyLosses side' combat') | (Yes prf) | (No contra) = No $ contra . combatLossesInjective
     decEq (ApplyLosses side combat) (ApplyLosses side' combat') | (No contra) = No $ contra . sideLossesInjective
-  decEq x x' = No believe_me -- AI! complete the proof to remove believe_me
+  decEq NoCombat (AssignTacticalSupport _ _) = No $ \case Refl impossible
+  decEq NoCombat (AssignStrategicSupport _ _) = No $ \case Refl impossible
+  decEq NoCombat (Resolve _) = No $ \case Refl impossible
+  decEq NoCombat (ApplyLosses _ _) = No $ \case Refl impossible
+  decEq (AssignTacticalSupport _ _) NoCombat = No $ \case Refl impossible
+  decEq (AssignTacticalSupport _ _) (AssignStrategicSupport _ _) = No $ \case Refl impossible
+  decEq (AssignTacticalSupport _ _) (Resolve _) = No $ \case Refl impossible
+  decEq (AssignTacticalSupport _ _) (ApplyLosses _ _) = No $ \case Refl impossible
+  decEq (AssignStrategicSupport _ _) NoCombat = No $ \case Refl impossible
+  decEq (AssignStrategicSupport _ _) (AssignTacticalSupport _ _) = No $ \case Refl impossible
+  decEq (AssignStrategicSupport _ _) (Resolve _) = No $ \case Refl impossible
+  decEq (AssignStrategicSupport _ _) (ApplyLosses _ _) = No $ \case Refl impossible
+  decEq (Resolve _) NoCombat = No $ \case Refl impossible
+  decEq (Resolve _) (AssignTacticalSupport _ _) = No $ \case Refl impossible
+  decEq (Resolve _) (AssignStrategicSupport _ _) = No $ \case Refl impossible
+  decEq (Resolve _) (ApplyLosses _ _) = No $ \case Refl impossible
+  decEq (ApplyLosses _ _) NoCombat = No $ \case Refl impossible
+  decEq (ApplyLosses _ _) (AssignTacticalSupport _ _) = No $ \case Refl impossible
+  decEq (ApplyLosses _ _) (AssignStrategicSupport _ _) = No $ \case Refl impossible
+  decEq (ApplyLosses _ _) (Resolve _) = No $ \case Refl impossible
 
 public export
 data GameSegment : Type where
