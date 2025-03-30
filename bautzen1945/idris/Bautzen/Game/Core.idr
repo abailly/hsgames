@@ -104,7 +104,27 @@ DecEq GameSegment where
      No contra => No $ \ c => contra (combatInjective c)
   decEq GameEnd GameEnd  = Yes Refl
    -- TODO: Not sure how to prove all those negative cases
-  decEq x x' = No believe_me
+  -- Handle all the negative cases with different constructors
+  decEq Setup Supply = No $ \case Refl impossible
+  decEq Setup Move = No $ \case Refl impossible
+  decEq Setup (Combat _) = No $ \case Refl impossible
+  decEq Setup GameEnd = No $ \case Refl impossible
+  decEq Supply Setup = No $ \case Refl impossible
+  decEq Supply Move = No $ \case Refl impossible
+  decEq Supply (Combat _) = No $ \case Refl impossible
+  decEq Supply GameEnd = No $ \case Refl impossible
+  decEq Move Setup = No $ \case Refl impossible
+  decEq Move Supply = No $ \case Refl impossible
+  decEq Move (Combat _) = No $ \case Refl impossible
+  decEq Move GameEnd = No $ \case Refl impossible
+  decEq (Combat _) Setup = No $ \case Refl impossible
+  decEq (Combat _) Supply = No $ \case Refl impossible
+  decEq (Combat _) Move = No $ \case Refl impossible
+  decEq (Combat _) GameEnd = No $ \case Refl impossible
+  decEq GameEnd Setup = No $ \case Refl impossible
+  decEq GameEnd Supply = No $ \case Refl impossible
+  decEq GameEnd Move = No $ \case Refl impossible
+  decEq GameEnd (Combat _) = No $ \case Refl impossible
 
 export
 Eq GameSegment where
