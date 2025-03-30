@@ -62,7 +62,7 @@ DecEq CombatPhase where
       decEq (ApplyLosses side combat) (ApplyLosses side' combat') | (Yes prf) | (Yes x) = rewrite x in rewrite prf in Yes Refl
       decEq (ApplyLosses side combat) (ApplyLosses side' combat') | (Yes prf) | (No contra) = No $ contra . combatLossesInjective
     decEq (ApplyLosses side combat) (ApplyLosses side' combat') | (No contra) = No $ contra . sideLossesInjective
-  decEq x x' = No believe_me
+  decEq x x' = No believe_me -- AI! complete the proof to remove believe_me
 
 public export
 data GameSegment : Type where
