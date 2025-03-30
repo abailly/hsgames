@@ -37,7 +37,7 @@ initialise games (line :: lines) =
                        Left err => Left (show err)
                        Right event =>
                           initialise (Games.apply games (GamesResEvent event)) lines
-        Left err => Left ("Failed to parse line: " ++ line ++ "(" ++ show err ++ ")")
+        Left err => Left ("Failed to parse line: '" ++ line ++ "' (error: " ++ show err ++ ")")
 
 export
 Store FileStore where

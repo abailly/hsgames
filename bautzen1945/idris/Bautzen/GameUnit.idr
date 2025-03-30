@@ -176,7 +176,7 @@ record GameUnit where
   currentMP : Nat
   steps : Nat
   hits : Fin steps
-  combat : Vect steps (Factors unitType)
+  combatValue : Vect steps (Factors unitType)
 
 public export
 Show GameUnit where
@@ -254,7 +254,7 @@ defenseCapacity (MkGameUnit _ AntiTank _ _ _ _ _ _ _ _) = 1
 defenseCapacity (MkGameUnit _ HQ _ _ _ _ _ _ hits combat) =
   case index hits combat of
     (MkArty Z distance) => 0
-    (MkArty (S k) distance) => divNatNZ (S k) 2 SIsNonZero
+    (MkArty (S k) distance) => divNatNZ (S k) 2 ItIsSucc
 defenseCapacity (MkGameUnit _ SupplyColumn _ _ _ _ _ _ _ _) = 0
 
 ||| Is the unit a supporting unit?

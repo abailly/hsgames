@@ -21,7 +21,7 @@ testStore = do
   res <- read store
   case res of
      Left err => do
-      print $ "Error reading event store: " ++ err
+      print $ "Error reading event store: " ++ err ++ ", events:  " ++ show events
       exitFailure
 
      Right actual =>
