@@ -20,22 +20,22 @@ data CombatPhase : Type where
   Resolve : (combat : CombatState) -> CombatPhase
   ApplyLosses : (side : Side) -> (combat : CombatState) -> CombatPhase
 
-sideTacSupportInjective : (AssignTacticalSupport side combat = AssignTacticalSupport side' combat') -> (side = side')
+sideTacSupportInjective : (AssignTacticalSupport side' combat = AssignTacticalSupport side'' combat') -> (side' = side'')
 sideTacSupportInjective Refl = Refl
 
-combatTacSupportInjective : (AssignTacticalSupport side combat = AssignTacticalSupport side' combat') -> (combat = combat')
+combatTacSupportInjective : (AssignTacticalSupport side' combat = AssignTacticalSupport side'' combat') -> (combat = combat')
 combatTacSupportInjective Refl = Refl
 
-sideStratSupportInjective : (AssignStrategicSupport side combat = AssignStrategicSupport side' combat') -> (side = side')
+sideStratSupportInjective : (AssignStrategicSupport side' combat = AssignStrategicSupport side'' combat') -> (side' = side'')
 sideStratSupportInjective Refl = Refl
 
-combatStratSupportInjective : (AssignStrategicSupport side combat = AssignStrategicSupport side' combat') -> (combat = combat')
+combatStratSupportInjective : (AssignStrategicSupport side' combat = AssignStrategicSupport side'' combat') -> (combat = combat')
 combatStratSupportInjective Refl = Refl
 
-sideLossesInjective : (ApplyLosses side combat = ApplyLosses side' combat') -> (side = side')
+sideLossesInjective : (ApplyLosses side' combat = ApplyLosses side'' combat') -> (side' = side'')
 sideLossesInjective Refl = Refl
 
-combatLossesInjective : (ApplyLosses side combat = ApplyLosses side' combat') -> (combat = combat')
+combatLossesInjective : (ApplyLosses side' combat = ApplyLosses side'' combat') -> (combat = combat')
 combatLossesInjective Refl = Refl
 
 combatResolveInjective : (Resolve combat = Resolve combat') -> (combat = combat')
@@ -103,7 +103,6 @@ DecEq GameSegment where
      Yes prf => Yes $ cong Combat prf
      No contra => No $ \ c => contra (combatInjective c)
   decEq GameEnd GameEnd  = Yes Refl
-   -- TODO: Not sure how to prove all those negative cases
   -- Handle all the negative cases with different constructors
   decEq Setup Supply = No $ \case Refl impossible
   decEq Setup Move = No $ \case Refl impossible
@@ -254,9 +253,9 @@ data Command : (segment : GameSegment) -> Type where
   MoveTo : (unitName : String) -> (to : Pos) -> Command Move
   AttackWith : (unitNames : List String) -> (target : Pos) -> Command (Combat NoCombat)
   NextSegment : Command segment
-  TacticalSupport : (unitNames : List String) -> Command (Combat $ AssignTacticalSupport side combatState)
+  TacticalSupport : (unitNames : List String) -> Command (Combat $ AssignTacticalSupport side' combatState)
   ResolveCombat : (combatState : CombatState) -> Command (Combat $ Resolve combatState)
-  LoseStep : (unitName : String) -> Command (Combat $ ApplyLosses side combatState)
+  LoseStep : (unitName : String) -> Command (Combat $ ApplyLosses side' combatState)
 
 public export
 Show (Command segment) where

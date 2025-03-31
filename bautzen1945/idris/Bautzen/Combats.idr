@@ -28,6 +28,7 @@ Eq Losses where
   (/>) a d == (/>) a' d' =
    a == a' && d == d'
 
+export
 infix 1 />
 
 public export

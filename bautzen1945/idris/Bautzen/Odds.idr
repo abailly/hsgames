@@ -116,7 +116,10 @@ odds (MkRawOdds attackFactor Z) = maxBound -- by convention, should not happen
 odds (MkRawOdds attackFactor (S def)) with (attackFactor `divMod` def)
   odds (MkRawOdds (r + (q * (S def))) (S def)) | (MkDivMod q r _) = fromNat q
 
+export
 infixl 6 >>>
+
+export
 infixl 6 <<<
 
 ||| Shift odds by a given number of steps "up".

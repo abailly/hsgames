@@ -66,8 +66,8 @@ support attackSupport defenseSupport baseOdds@(MkRawOdds atk def) = baseOdds <+>
 resolve : (odds : Odds) -> (modifiedDiceRoll : Fin 8) -> Losses
 resolve odds dice = dice `index` (toFin odds `index` CombatTable)
 
-findUnit : String -> { positions : List (GameUnit, Pos) } -> Maybe (GameUnit, Pos)
-findUnit n {positions} = find (\ (u, p) => fullName u == n) positions
+findUnit : String -> (positions : List (GameUnit, Pos) ) -> Maybe (GameUnit, Pos)
+findUnit n = find (\ (u, p) => fullName u == n)
 
 findUnits : List String -> (positions : List (GameUnit, Pos)) -> Either GameError (List (GameUnit, Pos))
 findUnits names positions =
@@ -76,7 +76,7 @@ findUnits names positions =
        (errs, _) => Left $ NoSuchUnits errs
   where
     units : List (Either String (GameUnit, Pos))
-    units = map (\ n => case findUnit n {positions} of
+    units = map (\ n => case findUnit n positions of
                              Nothing => Left n
                              Just up => Right up) names
 
@@ -122,11 +122,12 @@ attackWith side units gameMap unitNames target = do
   -- section 8.1
   attackers' <- checkAttackersAreAdjacentToTarget attackers target
   defenders <- validateDefenders side units gameMap target
-  pure $ CombatEngaged attackers defenders target
+  pure $ CombatEngaged attackers' defenders target
 
 -- TODO units cannot be part of an attack twice
 
 -- Support
+
 
 checkSupportingUnits : (units : List (GameUnit, Pos))
                      -> Either GameError (List (GameUnit, Pos))
@@ -166,6 +167,8 @@ validateSupport (MkEngagedUnits base _ _) supporters =
   checkSupportingUnits supporters >>=
   checkSupportInRange base >>=
   checkChainOfCommand base
+
+
 
 validateSupportUnits : (currentSide : Side) -> (supportedSide : Side)
                      -> (state : CombatState)
@@ -340,7 +343,10 @@ namespace CombatTest
   --   supportWith Axis Axis ((GameUnit.g20pz, hex 1 1) :: CombatTest.positions) TestMap [ "HQ/20Pz" ] CombatTest.combatState = Left (NotInSupportRange [ GameUnit.g20pz ])
   -- fail_support_if_attacker_hq_not_in_support_range = Refl
 
-  -- fail_support_if_hq_cannot_command_unit :
+  test1: findUnits ["HQ/20Pz"] ((GameUnit.g20pz, hex 1 1) :: CombatTest.positions) = Right [ (GameUnit.g20pz, hex 1 1) ]
+  test1 = Refl
+
+    -- fail_support_if_hq_cannot_command_unit :
   --   supportWith Axis Axis ((GameUnit.gBrgPzG, hex 3 3) :: CombatTest.positions) TestMap [ "HQ/BrgPzG" ] CombatTest.combatState = Left (NotInChainOfCommand [ GameUnit.gBrgPzG ])
   -- fail_support_if_hq_cannot_command_unit = Refl
 

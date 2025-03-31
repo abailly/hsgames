@@ -37,7 +37,10 @@ southOf (MkPos (Hex col x)) row = x <= row
 westOf : Pos -> Fin 23 -> Bool
 westOf (MkPos (Hex x row)) col = x <= col
 
+export
 infix 8 `southOf`
+
+export
 infix 8 `westOf`
 
 public

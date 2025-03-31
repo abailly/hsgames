@@ -171,7 +171,7 @@ Show (Query a) where
   show GetCurrentSegment = "GetCurrentSegment"
 
 export
-query : (game : Game) -> (qry : Query result) -> result
+query : (game : Game) -> (qry : Query output) -> output
 query (MkGame (MkGameState _ side _ units) gameMap) (SupplyPath unitName) =
   case find (sameName unitName) units of
     Nothing => Left (UnitDoesNotExist unitName)
@@ -193,7 +193,7 @@ public export
 data ActionResult : Type where
   ResEvent : AnyEvent -> ActionResult
   ResError : GameError -> ActionResult
-  ResQuery : ToJSON result => result -> ActionResult
+  ResQuery : ToJSON output => output -> ActionResult
 
 export
 Show ActionResult where
