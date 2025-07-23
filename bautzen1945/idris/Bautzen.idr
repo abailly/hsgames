@@ -6,6 +6,9 @@ import Bautzen.Server
 import Bautzen.Client
 import System
 
+help : String
+help = "help"
+
 partial
 main : IO ()
 main = do
@@ -20,3 +23,5 @@ main = do
       Right () <- client options
         | Left err => putStrLn err
       pure ()
+    Right options@(MkOptions _ _ HelpMode _ _) => do
+      putStrLn help
