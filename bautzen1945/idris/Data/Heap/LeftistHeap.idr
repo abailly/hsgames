@@ -55,8 +55,6 @@ namespace RawTree
   insert x Empty = Node x 1 Empty Empty
   insert x node  = mergeTree (Node x 1 Empty Empty) node
 
-
-
 ||| A `LeftistBinTree` is a binary tree decorated with `rank` informations.
 |||
 ||| This is a `Nat`-indexed data structure that forms the basis for a proper
