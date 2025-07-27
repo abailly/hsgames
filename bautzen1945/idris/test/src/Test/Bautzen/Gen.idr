@@ -53,8 +53,25 @@ export
 genFileName : Gen String
 genFileName = pack <$> list (constant 1 20) printableAscii
 
+export
+genTerrain : Gen Terrain
+genTerrain =
+  choice [genSimpleTerrain, genCompositeTerrain]
+  where
+    genSimpleTerrain : Gen Terrain
+    genSimpleTerrain = element [Clear, Wood, Rough, RoughWood, Town]
+
+    genCompositeTerrain : Gen Terrain
+    genCompositeTerrain = choice [ Hill <$> genSimpleTerrain
+                                 , Village <$> genSimpleTerrain
+                                 , SupplySource <$> someSide <*> genSimpleTerrain
+                                 ]
+
 partial
 export
 genMap : Gen Map
 genMap =
-  pure $ MkMap  [ (p, Clear) | c <- [ 0 .. 22 ], r <- [ 0 .. 12 ], let Right p = makePos c r] []
+  MkMap <$> sequence [ (p,) <$> genTerrain | c <- [ 0 .. 22 ]
+                                           , r <- [ 0 .. 12 ]
+                                           , let Right p = makePos c r]
+        <*> pure []

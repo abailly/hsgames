@@ -510,11 +510,26 @@ parseBaseTerrain = withString "BaseTerrain" $ \ s =>
       other => fail $ "Unknown base terrain: " ++ s
 
 parseExtension : Value v obj => Parser v (Terrain -> Terrain)
-parseExtension = withString "Extension" $ \ s =>
-   case s of
-      "Hill" => pure Hill
-      "Village" => pure Village
-      other => fail $ "Unknown extension terrain: " ++ s
+parseExtension = hillOrVillage <|> supplySource
+  where
+    hillOrVillage : Parser v (Terrain -> Terrain)
+    hillOrVillage = withString "Extension" $ \ s =>
+      case s of
+         "Hill" => pure Hill
+         "Village" => pure Village
+         other => fail $ "Unknown extension terrain: " ++ s
+
+    supplyTag : Parser v ()
+    supplyTag = withString "Supply tag" $ \ s =>
+      case s of
+        "Supply" => pure ()
+        other => fail $ "unexpected tag instead of 'Supply': " ++ s
+
+    supplySource : Parser v (Terrain -> Terrain)
+    supplySource = withArray "Supply Source" $ \ a =>
+      case a of
+        [ t, s ] => SupplySource <$> (supplyTag t >> fromJSON s)
+        _ => fail $ "invalid array for supply source"
 
 parseTerrainList : Value v obj => List v -> Either (List JSONPathElement, String) Terrain
 parseTerrainList a =
