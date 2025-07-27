@@ -132,6 +132,10 @@ record CurrentGameSegment where
   gameSegment : GameSegment
 
 export
+Show CurrentGameSegment where
+  show (MkCurrentGameSegment t s g) = "CurrentGameSegment " ++ show t ++ " " ++ show s ++ " " ++ show g
+
+export
 makeCurrentSegment : Game -> CurrentGameSegment
 makeCurrentSegment (MkGame (MkGameState turn side segment _) _) = MkCurrentGameSegment turn side segment
 
@@ -187,7 +191,12 @@ query game GetCurrentSegment = makeCurrentSegment game
 public export
 data PlayerAction : (seg : GameSegment) -> Type where
   Cmd : (cmd : Command seg) -> PlayerAction seg
-  Qry : ToJSON res => (qry : Query res) -> PlayerAction seg
+  Qry : Show res => ToJSON res => (qry : Query res) -> PlayerAction seg
+
+export
+Show (PlayerAction seg) where
+  show (Cmd cmd) = "Cmd " ++ show cmd
+  show (Qry qry) = "Qry " ++ show qry
 
 public export
 data ActionResult : Type where

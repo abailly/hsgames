@@ -4,6 +4,7 @@ module Test.Bautzen.Gen
 import public Bautzen.GameUnit
 import public Bautzen.Games
 import public Bautzen.Id
+import public Bautzen.REPL.JSON
 import public Bautzen.Terrain
 
 import Hedgehog
@@ -51,3 +52,9 @@ genCost = choice [
 export
 genFileName : Gen String
 genFileName = pack <$> list (constant 1 20) printableAscii
+
+partial
+export
+genMap : Gen Map
+genMap =
+  pure $ MkMap  [ (p, Clear) | c <- [ 0 .. 22 ], r <- [ 0 .. 12 ], let Right p = makePos c r] []

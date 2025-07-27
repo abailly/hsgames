@@ -26,9 +26,9 @@ data Terrain : Type where
   Wood : Terrain
   Rough : Terrain
   RoughWood : Terrain
+  Town : Terrain
   Hill : (base : Terrain) -> Terrain
   Village : (base : Terrain) -> Terrain
-  Town : Terrain
   SupplySource : (side : Side) -> (base : Terrain) -> Terrain
 
 public export
@@ -209,7 +209,7 @@ record Map where
 public export
 Eq Map where
   MkMap hexes edges == MkMap hexes' edges'  =
-    hexes == hexes' && edges == edges'
+    sortBy (compare `on` fst) hexes == sortBy (compare `on` fst) hexes' && edges == edges'
 
 public export
 tabulate : List (Pos, a) -> Vect 13 (Vect 23 (Maybe a))
@@ -229,10 +229,10 @@ Show Map where
     "Map hexes= " ++ unlines terrain ++ "\n   edges=" ++ unlines connections
     where
       terrain : List String
-      terrain = toList $ map show (tabulate hexes)
+      terrain = map show hexes
 
       connections : List String
-      connections = toList $ map show (tabulate edges)
+      connections = map show edges
 
 ||| Retrieve the `Terrain`s in a position
 public export

@@ -37,10 +37,19 @@ data GameCommand : Type where
   StartGame : (newGameId : Id) -> GameCommand
 
   ||| Game-specific action
-  Action : { gameSegment : GameSegment} -> (gameId : Id) -> PlayerAction gameSegment -> GameCommand
+  Action : { gameSegment : GameSegment} -> (gameId : Id) -> Show (PlayerAction gameSegment) => PlayerAction gameSegment -> GameCommand
 
   ||| Given player leaves game
   Bye : (gameId : Id) ->  GameCommand
+
+export
+Show GameCommand where
+  show (NewGame newGameId) = "NewGame " ++ show newGameId
+  show ListGames = "ListGames"
+  show (JoinGame gameId side) = "JoinGames " ++ show gameId ++ " " ++ show side
+  show (StartGame newGameId) = "StartGame " ++ show newGameId
+  show (Action gameId x) = "Action " ++ show gameId ++ " " ++ show x
+  show (Bye gameId) = "Bye " ++ show gameId
 
 public  export
 data PlayerType =
@@ -205,6 +214,11 @@ record GamesList where
   constructor MkGamesList
   games : List SingleGame
 
+partial
+export
+Show GamesList where
+  show (MkGamesList l) = show l
+
 ToJSON GamesList where
   toJSON (MkGamesList gs) = object [ ( "tag", string "GamesList") , ("games", toJSON gs) ]
 
@@ -225,7 +239,7 @@ makeGameCommand games (JObject [ ("tag", JString "Action"), ("gameId", JString g
   case lookup gid games of
     Nothing => Left $ "Unknown gameId: " ++ show gid
     Just (MkSingleGame _ _ _ game _) =>
-       makePlayerAction game action >>= Right . Action gid
+       Action gid <$> makePlayerAction game action
 makeGameCommand games (JObject [ ("tag", JString "Bye"), ("gameId", JString gameId) ]) = do
   gid <- makeId gameId
   pure $ Bye gid
@@ -252,6 +266,21 @@ data GamesError =
   | InvalidSegment GameSegment GameSegment Id Id
 
 export
+Show GamesError where
+  show (UnknownGame gameId) =
+    "UnknownGame " ++ show gameId
+  show (GameAlreadyExists gameId) =
+    "GameAlreadyExists " ++ show gameId
+  show (GameIncomplete gameId) =
+    "GameIncomplete " ++ show gameId
+  show (UnknownPlayer playerKey) =
+    "UnknownPlayer " ++ show playerKey
+  show (SideTaken side playerKey) =
+    "SideTaken " ++ show side ++ " " ++ show playerKey
+  show (InvalidSegment actual expected playerKey gameId ) =
+    "InvalidSegment " ++ show actual ++ "  " ++ show expected ++ " " ++ show  playerKey ++ " " ++ show gameId
+
+export
 ToJSON GamesError where
   toJSON (UnknownGame gameId) =
     object [ ("tag", string "UnknownGame"), ("gameId", toJSON gameId) ]
@@ -269,14 +298,21 @@ ToJSON GamesError where
 public export
 data GamesResult : Type where
    GamesResEvent : (event : GamesEvent) -> GamesResult
-   GamesResQuery : ToJSON res => res -> GamesResult
-   GamesResError  : GamesError -> GamesResult
+   GamesResQuery : Show res => ToJSON res => res -> GamesResult
+   GamesResError : GamesError -> GamesResult
 
 export
 ToJSON GamesResult where
    toJSON (GamesResEvent event) = object [ ("tag", string "GamesResEvent"), ("event", toJSON event) ]
    toJSON (GamesResQuery result) = object [ ("tag", string "GamesResQuery"), ("result", toJSON result) ]
    toJSON (GamesResError error) = object [ ("tag", string "GamesResError"), ("error", toJSON error) ]
+
+export
+partial
+Show GamesResult where
+   show (GamesResEvent event) = "Event " ++ show event
+   show (GamesResQuery x) = "Query " ++ show (show { ty = JSON} $ toJSON x)
+   show (GamesResError x) = "Error " ++ show x
 
 actAction : {gameSegment: GameSegment} -> PlayerAction gameSegment -> SingleGame -> Id -> Id -> (games : Games) -> GamesResult
 actAction {gameSegment} action single@(MkSingleGame xs axisPlayer alliesPlayer theGame _) playerKey gameId games =

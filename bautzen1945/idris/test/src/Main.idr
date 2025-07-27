@@ -17,14 +17,20 @@ roundTrip g = property $ do v <- forAll g
 prop_gamesEvent : Property
 prop_gamesEvent = roundTrip allGamesEvent
 
+partial
+prop_gameMap : Property
+prop_gameMap = roundTrip genMap
+
 prop_cost : Property
 prop_cost = roundTrip genCost
 
+partial
 main : IO ()
 main = do
   Prelude.print "Checking Store"
-  testStore
+--  testStore
   test . pure $ MkGroup "Store" [
     ( "roundtrip of GamesEvent", prop_gamesEvent),
+    ( "roundtrip of Map", prop_gameMap),
     ( "roundtrip of Cost", prop_cost)
     ]

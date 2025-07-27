@@ -199,7 +199,7 @@ FromJSON GameUnit where
     steps <- (field obj "steps")
     hits <- parseFin steps =<< (field obj "hits")
     combat <- explicitParseField (parseFactors steps unitType) obj "combat"
-    pure $ MkGameUnit  nation unitType name parent size move mp steps hits combat
+    pure $ MkGameUnit nation unitType name parent size move mp steps hits combat
 
 public export
 ToJSON (P.Loc c r) where
@@ -494,17 +494,86 @@ ToJSON Terrain where
   toJSON Wood = string "Wood"
   toJSON Rough = string "Rough"
   toJSON RoughWood = string "RoughWood"
+  toJSON Town = string "Town"
   toJSON (Hill base) = array [(string "Hill"),  (toJSON base)]
   toJSON (Village base) = array [(string "Village") , (toJSON base) ]
-  toJSON Town = string "Town"
   toJSON (SupplySource side base) = array [toJSON ( "Supply" ,side), (toJSON base) ]
+
+parseBaseTerrain : Value v obj => Parser v Terrain
+parseBaseTerrain = withString "BaseTerrain" $ \ s =>
+   case s of
+      "Clear" => pure Clear
+      "Wood" => pure Wood
+      "Rough" => pure Rough
+      "RoughWood" => pure RoughWood
+      "Town" => pure Town
+      other => fail $ "Unknown base terrain: " ++ s
+
+parseExtension : Value v obj => Parser v (Terrain -> Terrain)
+parseExtension = withString "Extension" $ \ s =>
+   case s of
+      "Hill" => pure Hill
+      "Village" => pure Village
+      other => fail $ "Unknown extension terrain: " ++ s
+
+parseTerrainList : Value v obj => List v -> Either (List JSONPathElement, String) Terrain
+parseTerrainList a =
+    case a of
+      [x] => parseBaseTerrain x
+      (x :: xs) => do
+         b <- parseExtension x
+         t <- parseTerrainList xs
+         pure $ b t
+      [] => fail "Unexpected empty terrain list"
+
+parseCompositeTerrain : Value v obj => v -> Either (List JSONPathElement, String) Terrain
+parseCompositeTerrain =
+  withArray "Composite Terrain" parseTerrainList
+
+partial
+export
+FromJSON Terrain where
+  fromJSON = parseBaseTerrain <|> parseCompositeTerrain
 
 export
 ToJSON Connection where
   toJSON Plain = string "Plain"
+  toJSON Lake = string "Lake"
   toJSON (Road base) = array [ (string "Road") , (toJSON base)]
   toJSON (River base) = array [ (string "River"),  (toJSON base) ]
-  toJSON Lake = string "Lake"
+
+parseBaseConnection : Value v obj => Parser v Connection
+parseBaseConnection = withString "Base Connection" $ \ s =>
+   case s of
+      "Plain" => pure Plain
+      "Lake" => pure Lake
+      _ => fail $ "Unknown connection type " ++ s
+
+parseExtensionConnection : Value v obj => Parser v (Connection -> Connection)
+parseExtensionConnection = withString "Extension Connection" $ \ s =>
+   case s of
+      "Road" => pure Road
+      "River" => pure River
+      other => fail $ "Unknown extension connection: " ++ s
+
+
+parseConnectionList : Value v obj => List v -> Either (List JSONPathElement, String) Connection
+parseConnectionList a =
+    case a of
+      [x] => parseBaseConnection x
+      (x :: xs) => do
+         b <- parseExtensionConnection x
+         t <- parseConnectionList xs
+         pure $ b t
+      [] => fail "Unexpected empty connection list"
+
+parseCompositeConnection : Value v obj => v -> Either (List JSONPathElement, String) Connection
+parseCompositeConnection =
+  withArray "Composite Connection" parseConnectionList
+
+export
+FromJSON Connection where
+  fromJSON =  parseBaseConnection <|> parseCompositeConnection
 
 export
 ToJSON Map where
@@ -512,6 +581,24 @@ ToJSON Map where
                                      , ("hexes", toJSON (tabulate hexes))
                                      , ("edges", toJSON edges)
                                      ]
+
+enumerate : {n : Nat} -> ((i : Fin n) -> a -> b -> b) -> b -> Vect n a -> b
+enumerate {n} f acc v =
+  foldr (go v f) acc (Data.Fin.List.allFins n)
+    where
+      go : Vect n a -> ((i : Fin n) -> a -> b -> b) -> Fin n -> b -> b
+      go v f i acc =
+        let a = index i v
+        in f i a acc
+
+parseMapHexes : Vect 13 (Vect 23 Terrain) -> List (Pos, Terrain)
+parseMapHexes v = enumerate (\ r => \ v' => \xs =>
+                            enumerate (\ c => \ t => \xs' => (hex c r, t) :: xs' ) xs v') [] v
+
+export
+FromJSON Map where
+  fromJSON = withObject "Map" $ \ o => do
+     MkMap <$> (parseMapHexes <$> field o "hexes") <*> field o "edges"
 
 export
 ToJSON CurrentGameSegment where
@@ -590,11 +677,12 @@ toStrings (JString str) = pure [str]
 toStrings (JArray xs) = step xs
 toStrings x = Left $ "Expected a string or a list of strings, got "++ show x
 
+export
 makePos : (col : Int) -> (row : Int) -> Either String Pos
 makePos col row with (integerToNat (cast col), integerToNat (cast row))
   makePos col row | (c , r) with (natToFin c 23, natToFin r 13)
     makePos col row | (c , r)  | (Just c', Just r') = Right $ hex c' r'
-    makePos col row | (c , r)  | _              = Left $ "position should be between (0,0) and (22, 12): " ++ show col ++ ", " ++ show row
+    makePos col row | (c , r)  | _                  = Left $ "position should be between (0,0) and (22, 12): " ++ show col ++ ", " ++ show row
 
 makeMoveCommand : (unitName : String) -> (col : Int) -> (row : Int) -> Either String (Command Move)
 makeMoveCommand unitName col row = MoveTo unitName <$> makePos col row

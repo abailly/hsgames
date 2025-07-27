@@ -51,7 +51,6 @@ mkLogger Quiet _ = pure ()
 mkLogger (Verbose name) msg =
   putStrLn  $ "[" ++ name ++ "] " ++ msg
 
-
 export
 recvAll : Socket -> ByteLength -> IO (Either String String)
 recvAll socket len = go "" len

@@ -60,7 +60,8 @@ mkGamesHandler s = do
     handleCommand' : Id -> (games : Games) -> String -> (Either String GamesResult, Games)
     handleCommand' clientId games input =
       case parseCommand games input of
-        Left err => (Left err, games)
+        Left err =>
+          (Left err, games)
         Right act =>
           let (res, g) = interpret clientId act games
           in (Right res, g)
@@ -71,15 +72,15 @@ mkGamesHandler s = do
          g <- readIORef refGames
          let (res, g') = handleCommand' clientId g msg
          writeIORef refGames g'
-         pure $ case res of
-           (Left err) =>
-             MsgError err
-           (Right (GamesResEvent event)) =>
-             MsgEvent (show {ty = JSON} $ toJSON event) event.id
-           (Right (GamesResQuery r)) =>
-             MsgQuery (show {ty = JSON} $ toJSON r)
-           (Right (GamesResError x)) =>
-             MsgError $ show {ty = JSON} $ toJSON x
+         case res of
+           (Left err) => do
+             pure $ MsgError err
+           (Right (GamesResEvent event)) => do
+             pure $ MsgEvent (show {ty = JSON} $ toJSON event) event.id
+           (Right (GamesResQuery r)) => do
+             pure $ MsgQuery (show {ty = JSON} $ toJSON r)
+           (Right (GamesResError x)) => do
+             pure $ MsgError $ show {ty = JSON} $ toJSON x
 
 handleClient : Logger -> Socket -> SocketAddress -> Id -> GameHandler -> IO (ThreadID, ThreadID)
 handleClient log socket addr clientId hdlr =
@@ -153,6 +154,7 @@ commandLoop : Logger ->
               IO ()
 commandLoop log cin cout clients gamesOutput clientId gamesState = do
    msg <- channelGet cin
+   log $ "[" ++ client ++ "] command loop handling " ++ msg
    case msg of
      -- Poison pill
      "STOP" => do

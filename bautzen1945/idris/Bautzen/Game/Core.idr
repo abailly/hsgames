@@ -421,7 +421,16 @@ data QueryError : Type where
   NoSupplyPathFor : (unitName: String) -> (pos : Pos) -> QueryError
   UnitDoesNotExist : (unitName: String) -> QueryError
 
+export
+Show QueryError where
+  show (NoSupplyPathFor unitName pos) = "NoSupplyPathFor " ++ show unitName ++ " " ++ show pos
+  show (UnitDoesNotExist unitName) = "UnitDoesNotExist " ++ show unitName
+
 public export
 record AllPositions where
   constructor MkAllPositions
   positions : List (GameUnit, Pos)
+
+export
+Show AllPositions where
+  show (MkAllPositions p) = show p
