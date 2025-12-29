@@ -1,0 +1,38 @@
+# Rust build artifacts
+target/
+**/*.rs.bk
+*.pdb
+
+# IMPORTANT: Don't ignore the pre-built package
+!pacific-war.tar.gz
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Git
+.git/
+.gitignore
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+*.md
+docs/
+
+# Tests
+tests/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+
+# Misc
+.DS_Store
+*.log

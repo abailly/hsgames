@@ -68,6 +68,8 @@ pub struct Battle {
     pub battle_data: NewBattle,
     pub current_date: NaiveDate,
     pub phase: Phase,
+    #[serde(default)]  // Backward compatibility with existing serialized battles
+    pub version: i32,   // For optimistic locking
 }
 
 impl Battle {
@@ -77,6 +79,7 @@ impl Battle {
             battle_data: new_battle.clone(),
             current_date: new_battle.start_date.date.clone(),
             phase: Phase::OperationContactPhase(ContactPhase::new()),
+            version: 0,  // New battles start at version 0
         }
     }
 
@@ -707,6 +710,7 @@ pub mod core_test {
             battle_data: coral_sea(),
             current_date: NaiveDate::from_ymd_opt(1942, 5, 1).unwrap(),
             phase: Phase::OperationContactPhase(ContactPhase::new()),
+            version: 0,
         }
     }
 
@@ -837,6 +841,7 @@ pub mod core_test {
             battle_data: coral_sea(),
             current_date: NaiveDate::from_ymd_opt(1942, 5, 1).unwrap(),
             phase: Phase::OperationContactPhase(contact_phase),
+            version: 0,
         };
 
         battle.contact_movement(&NavalMovement);
@@ -862,6 +867,7 @@ pub mod core_test {
             battle_data: coral_sea(),
             current_date: NaiveDate::from_ymd_opt(1942, 5, 1).unwrap(),
             phase: Phase::OperationContactPhase(contact_phase),
+            version: 0,
         };
 
         battle.next();
@@ -900,6 +906,7 @@ pub mod core_test {
             },
             current_date: NaiveDate::from_ymd_opt(1942, 5, 1).unwrap(),
             phase: Phase::OperationContactPhase(contact_phase),
+            version: 0,
         };
 
         battle.next();
@@ -929,6 +936,7 @@ pub mod core_test {
             battle_data: coral_sea(),
             current_date: NaiveDate::from_ymd_opt(1942, 5, 1).unwrap(),
             phase: Phase::ReactionContactPhase(contact_phase),
+            version: 0,
         };
 
         battle.next();
@@ -950,6 +958,7 @@ pub mod core_test {
                 phase: DayAdjustment,
                 ..BattleCycle::intercept(id.as_u128())
             }),
+            version: 0,
         };
 
         battle.next();

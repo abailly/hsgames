@@ -10,10 +10,8 @@ use rocket::Rocket;
 use rocket::State;
 use rocket_dyn_templates::context;
 use rocket_dyn_templates::Template;
-use std::collections::HashMap;
 use std::convert::From;
 use std::sync::Arc;
-use std::sync::Mutex;
 use uuid::Uuid;
 
 mod util;
@@ -21,6 +19,9 @@ use util::*;
 
 mod core;
 use core::*;
+
+mod persistence;
+use persistence::{BattleRepository, CachedRepository, PostgresRepository};
 
 #[macro_use]
 extern crate rocket;
@@ -31,15 +32,19 @@ fn index() -> Template {
 }
 
 #[post("/battle", data = "<form>")]
-fn create_battle(battles: &State<Battles>, form: Form<NewBattle>) -> Redirect {
+async fn create_battle(
+    service: &State<BattleService>,
+    form: Form<NewBattle>
+) -> Result<Redirect, Status> {
     let new_battle = form.into_inner();
     let uuid = Uuid::new_v4();
-    battles
-        .battles
-        .lock()
-        .unwrap()
-        .insert(uuid, Battle::new(uuid, &new_battle));
-    Redirect::to(uri!(battle(id = UuidForm::from(uuid))))
+    let battle = Battle::new(uuid, &new_battle);
+
+    service.repository.create(&battle)
+        .await
+        .map_err(|_| Status::InternalServerError)?;
+
+    Ok(Redirect::to(uri!(battle(id = UuidForm::from(uuid)))))
 }
 
 #[rocket::async_trait]
@@ -55,32 +60,37 @@ impl<'v> FromParam<'v> for UuidForm {
 
 /// Renders a battle with given id
 #[get("/battle/<id>")]
-fn battle(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
-    let battles_map = battles.battles.lock().unwrap();
-    let battle = battles_map.get(&id.uuid);
-    match battle {
-        None => Err(Status::NotFound),
-        Some(battle) => contact_phase(battle),
-    }
+async fn battle(service: &State<BattleService>, id: UuidForm) -> Result<Template, Status> {
+    let battle = service.repository.get(id.uuid)
+        .await
+        .map_err(|_| Status::NotFound)?;
+
+    contact_phase(&battle)
 }
 
 /// Update movement for contact phase
 #[post("/battle/<id>/contact/<movement>")]
-fn contact_movement(
-    battles: &State<Battles>,
+async fn contact_movement(
+    service: &State<BattleService>,
     movement: MovementType,
     id: UuidForm,
 ) -> Result<Template, Status> {
-    let mut battles_map = battles.battles.lock().unwrap();
-    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+    let mut battle = service.repository.get(id.uuid)
+        .await
+        .map_err(|_| Status::NotFound)?;
+
     match &mut battle.phase {
-        Phase::OperationContactPhase(_) => {
+        Phase::OperationContactPhase(_) | Phase::ReactionContactPhase(_) => {
             battle.contact_movement(&movement);
-            Ok(contact_phase(battle)?)
-        }
-        Phase::ReactionContactPhase(_) => {
-            battle.contact_movement(&movement);
-            Ok(contact_phase(battle)?)
+
+            service.repository.update(&battle)
+                .await
+                .map_err(|e| match e {
+                    persistence::PersistenceError::ConcurrentModification(_) => Status::Conflict,
+                    _ => Status::InternalServerError,
+                })?;
+
+            contact_phase(&battle)
         }
         _ => Err(Status::BadRequest),
     }
@@ -279,15 +289,25 @@ fn render_battle_cycle_phase(battle: &Battle, cycle: &BattleCycle, phase: &str) 
 
 /// Update current phase
 #[get("/battle/<id>/next")]
-fn battle_next(battles: &State<Battles>, id: UuidForm) -> Result<Template, Status> {
-    let mut battles_map = battles.battles.lock().unwrap();
-    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+async fn battle_next(service: &State<BattleService>, id: UuidForm) -> Result<Template, Status> {
+    let mut battle = service.repository.get(id.uuid)
+        .await
+        .map_err(|_| Status::NotFound)?;
+
     battle.next();
-    contact_phase(battle)
+
+    service.repository.update(&battle)
+        .await
+        .map_err(|e| match e {
+            persistence::PersistenceError::ConcurrentModification(_) => Status::Conflict,
+            _ => Status::InternalServerError,
+        })?;
+
+    contact_phase(&battle)
 }
 
-struct Battles {
-    battles: Arc<Mutex<HashMap<Uuid, Battle>>>,
+struct BattleService {
+    repository: Arc<dyn persistence::BattleRepository>,
 }
 
 impl FromFormField<'_> for Lighting {
@@ -311,13 +331,15 @@ struct SetLightingForm<'r> {
 }
 
 #[post("/battle/<id>/set_lighting", data = "<form>")]
-fn set_lighting(
-    battles: &State<Battles>,
+async fn set_lighting<'r>(
+    service: &State<BattleService>,
     id: UuidForm,
-    form: Form<SetLightingForm>,
+    form: Form<SetLightingForm<'r>>,
 ) -> Result<Redirect, Status> {
-    let mut battles_map = battles.battles.lock().unwrap();
-    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+    let mut battle = service.repository.get(id.uuid)
+        .await
+        .map_err(|_| Status::NotFound)?;
+
     match &mut battle.phase {
         Phase::BattleCyclePhase(phase) => {
             let inner = form.into_inner();
@@ -340,8 +362,14 @@ fn set_lighting(
                 }
             }
             battle.next();
-            // FIXME: would rather a return a template directly here but borrow checker
-            // prevents this because we are borrowing `battle` mutably
+
+            service.repository.update(&battle)
+                .await
+                .map_err(|e| match e {
+                    persistence::PersistenceError::ConcurrentModification(_) => Status::Conflict,
+                    _ => Status::InternalServerError,
+                })?;
+
             Ok(Redirect::to(uri!(battle(id))))
         }
         _ => Err(Status::BadRequest),
@@ -349,15 +377,23 @@ fn set_lighting(
 }
 
 #[post("/battle/<id>/advantage_determination")]
-fn advantage_determination(battles: &State<Battles>, id: UuidForm) -> Result<Redirect, Status> {
-    let mut battles_map = battles.battles.lock().unwrap();
-    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+async fn advantage_determination(service: &State<BattleService>, id: UuidForm) -> Result<Redirect, Status> {
+    let mut battle = service.repository.get(id.uuid)
+        .await
+        .map_err(|_| Status::NotFound)?;
+
     match &mut battle.phase {
         Phase::BattleCyclePhase(_) => {
             battle.determine_advantage();
             battle.next();
-            // FIXME: would rather a return a template directly here but borrow checker
-            // prevents this because we are borrowing `battle` mutably
+
+            service.repository.update(&battle)
+                .await
+                .map_err(|e| match e {
+                    persistence::PersistenceError::ConcurrentModification(_) => Status::Conflict,
+                    _ => Status::InternalServerError,
+                })?;
+
             Ok(Redirect::to(uri!(battle(id))))
         }
         _ => Err(Status::BadRequest),
@@ -386,16 +422,26 @@ impl FromFormField<'_> for MovementType {
 
 /// Update movement for battle phase
 #[post("/battle/<id>/movement", data = "<form>")]
-fn movement(
-    battles: &State<Battles>,
+async fn movement(
+    service: &State<BattleService>,
     id: UuidForm,
     form: Form<MovementForm>,
 ) -> Result<Redirect, Status> {
-    let mut battles_map = battles.battles.lock().unwrap();
-    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+    let mut battle = service.repository.get(id.uuid)
+        .await
+        .map_err(|_| Status::NotFound)?;
+
     match &mut battle.phase {
         Phase::BattleCyclePhase(cycle) => {
             cycle.movement(&form.into_inner().movement);
+
+            service.repository.update(&battle)
+                .await
+                .map_err(|e| match e {
+                    persistence::PersistenceError::ConcurrentModification(_) => Status::Conflict,
+                    _ => Status::InternalServerError,
+                })?;
+
             Ok(Redirect::to(uri!(battle(id))))
         }
         _ => Err(Status::BadRequest),
@@ -435,13 +481,15 @@ impl FromFormField<'_> for Detection {
 }
 
 #[post("/battle/<id>/naval_combat_determination", data = "<form>")]
-fn naval_combat_determination(
-    battles: &State<Battles>,
+async fn naval_combat_determination(
+    service: &State<BattleService>,
     id: UuidForm,
     form: Form<CombatDeterminationForm>,
 ) -> Result<Redirect, Status> {
-    let mut battles_map = battles.battles.lock().unwrap();
-    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+    let mut battle = service.repository.get(id.uuid)
+        .await
+        .map_err(|_| Status::NotFound)?;
+
     match &mut battle.phase {
         Phase::BattleCyclePhase(battle_cycle) => {
             let form = form.into_inner();
@@ -450,8 +498,14 @@ fn naval_combat_determination(
                 &form.advantage.unwrap_or(Detection::Undetected),
                 &form.disadvantage.unwrap_or(Detection::Undetected),
             );
-            // FIXME: would rather a return a template directly here but borrow checker
-            // prevents this because we are borrowing `battle` mutably
+
+            service.repository.update(&battle)
+                .await
+                .map_err(|e| match e {
+                    persistence::PersistenceError::ConcurrentModification(_) => Status::Conflict,
+                    _ => Status::InternalServerError,
+                })?;
+
             Ok(Redirect::to(uri!(battle(id))))
         }
         _ => Err(Status::BadRequest),
@@ -459,14 +513,22 @@ fn naval_combat_determination(
 }
 
 #[post("/battle/<id>/next_round")]
-fn next_naval_combat_round(battles: &State<Battles>, id: UuidForm) -> Result<Redirect, Status> {
-    let mut battles_map = battles.battles.lock().unwrap();
-    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+async fn next_naval_combat_round(service: &State<BattleService>, id: UuidForm) -> Result<Redirect, Status> {
+    let mut battle = service.repository.get(id.uuid)
+        .await
+        .map_err(|_| Status::NotFound)?;
+
     match &mut battle.phase {
         Phase::BattleCyclePhase(battle_cycle) => {
             battle_cycle.next_round();
-            // FIXME: would rather a return a template directly here but borrow checker
-            // prevents this because we are borrowing `battle` mutably
+
+            service.repository.update(&battle)
+                .await
+                .map_err(|e| match e {
+                    persistence::PersistenceError::ConcurrentModification(_) => Status::Conflict,
+                    _ => Status::InternalServerError,
+                })?;
+
             Ok(Redirect::to(uri!(battle(id))))
         }
         _ => Err(Status::BadRequest),
@@ -496,19 +558,27 @@ impl FromFormField<'_> for CombatDistance {
 }
 
 #[post("/battle/<id>/bid_distance", data = "<form>")]
-fn bid_distance(
-    battles: &State<Battles>,
+async fn bid_distance(
+    service: &State<BattleService>,
     id: UuidForm,
     form: Form<BidDistanceForm>,
 ) -> Result<Redirect, Status> {
-    let mut battles_map = battles.battles.lock().unwrap();
-    let battle = battles_map.get_mut(&id.uuid).ok_or(Status::NotFound)?;
+    let mut battle = service.repository.get(id.uuid)
+        .await
+        .map_err(|_| Status::NotFound)?;
+
     match &mut battle.phase {
         Phase::BattleCyclePhase(battle_cycle) => {
             let form = form.into_inner();
             battle_cycle.bid_distance(&form.advantage_bid, &form.disadvantage_bid);
-            // FIXME: would rather a return a template directly here but borrow checker
-            // prevents this because we are borrowing `battle` mutably
+
+            service.repository.update(&battle)
+                .await
+                .map_err(|e| match e {
+                    persistence::PersistenceError::ConcurrentModification(_) => Status::Conflict,
+                    _ => Status::InternalServerError,
+                })?;
+
             Ok(Redirect::to(uri!(battle(id))))
         }
         _ => Err(Status::BadRequest),
@@ -516,13 +586,28 @@ fn bid_distance(
 }
 
 #[launch]
-fn rocket() -> _ {
-    rocket_with_state(Arc::new(Mutex::new(HashMap::new())))
+async fn rocket() -> _ {
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://localhost/pacific_war".to_string());
+
+    let postgres_repo = PostgresRepository::new(&database_url)
+        .await
+        .expect("Failed to connect to database");
+
+    postgres_repo.run_migrations()
+        .await
+        .expect("Failed to run migrations");
+
+    let cached_repo = CachedRepository::new(postgres_repo);
+
+    rocket_with_state(Arc::new(cached_repo))
 }
 
-fn rocket_with_state(battles: Arc<Mutex<HashMap<Uuid, Battle>>>) -> Rocket<Build> {
+fn rocket_with_state(
+    repository: Arc<dyn persistence::BattleRepository>
+) -> Rocket<Build> {
     rocket::build()
-        .manage(Battles { battles })
+        .manage(BattleService { repository })
         .attach(Template::fairing())
         .mount(
             "/",
@@ -562,37 +647,54 @@ mod test {
     use core_test::{coral_sea, coral_sea_battle};
     use rocket::http::ContentType;
     use rocket::http::Status;
-    use rocket::local::blocking::Client;
+    use rocket::local::asynchronous::Client;
+    use persistence::InMemoryRepository;
 
-    #[test]
-    fn can_serve_css_file() {
-        let client = Client::tracked(rocket()).expect("valid rocket instance");
-        let response = client.get("/public/pacific.css").dispatch();
+    fn test_rocket() -> Rocket<Build> {
+        let repo = InMemoryRepository::new();
+        let cached = CachedRepository::new(repo);
+        let repository: Arc<dyn persistence::BattleRepository> = Arc::new(cached);
+        rocket_with_state(repository)
+    }
+
+    async fn test_rocket_with_battle(id: Uuid, battle: Battle) -> Rocket<Build> {
+        let repo = InMemoryRepository::new();
+        repo.create(&battle).await.unwrap();
+        let cached = CachedRepository::new(repo);
+        let repository: Arc<dyn persistence::BattleRepository> = Arc::new(cached);
+        rocket_with_state(repository)
+    }
+
+    #[rocket::async_test]
+    async fn can_serve_css_file() {
+        let client = Client::tracked(test_rocket()).await.expect("valid rocket instance");
+        let response = client.get("/public/pacific.css").dispatch().await;
         assert_eq!(response.status(), Status::Ok);
     }
 
-    #[test]
-    fn post_battle_redirects_to_new_battle_with_uuid() {
-        let client = Client::tracked(rocket()).expect("valid rocket instance");
+    #[rocket::async_test]
+    async fn post_battle_redirects_to_new_battle_with_uuid() {
+        let client = Client::tracked(test_rocket()).await.expect("valid rocket instance");
         let battle = coral_sea();
         let response = client
             .post("/battle")
             .header(ContentType::Form)
             .body(battle.to_form())
-            .dispatch();
+            .dispatch()
+            .await;
         assert_eq!(response.status(), Status::SeeOther);
     }
 
-    #[test]
-    fn get_existing_battle_returns_template() {
+    #[rocket::async_test]
+    async fn get_existing_battle_returns_template() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
-        battles_map.insert(id, coral_sea_battle(id));
-        let battles = Arc::new(Mutex::new(battles_map));
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
-        let response = client.get(format!("/battle/{}", id)).dispatch();
+        let battle = coral_sea_battle(id);
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
+        let response = client.get(format!("/battle/{}", id)).dispatch().await;
         assert_eq!(response.status(), Status::Ok);
-        let response_string = response.into_string().unwrap();
+        let response_string = response.into_string().await.unwrap();
         assert!(response_string.contains("Coral Sea"));
         assert!(response_string.contains("1942-05-01"));
         assert!(response_string.contains("Intercept"));
@@ -606,18 +708,19 @@ mod test {
         assert!(response_string.contains("Next"));
     }
 
-    #[test]
-    fn choosing_ground_movement_at_contact_phase_removes_it_from_available_movements() {
+    #[rocket::async_test]
+    async fn choosing_ground_movement_at_contact_phase_removes_it_from_available_movements() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
-        battles_map.insert(id, coral_sea_battle(id));
-        let battles = Arc::new(Mutex::new(battles_map));
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let battle = coral_sea_battle(id);
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response = client
             .post(format!("/battle/{}/contact/GroundMovement", id))
-            .dispatch();
+            .dispatch()
+            .await;
         assert_eq!(response.status(), Status::Ok);
-        let response_string = response.into_string().unwrap();
+        let response_string = response.into_string().await.unwrap();
         assert!(response_string.contains("Coral Sea"));
         assert!(response_string.contains("1942-05-01"));
         assert!(response_string.contains("21"));
@@ -628,16 +731,16 @@ mod test {
         assert!(response_string.contains("Next"));
     }
 
-    #[test]
-    fn choosing_next_at_operation_contact_phase_moves_to_reaction_contact_phase() {
+    #[rocket::async_test]
+    async fn choosing_next_at_operation_contact_phase_moves_to_reaction_contact_phase() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
-        battles_map.insert(id, coral_sea_battle(id));
-        let battles = Arc::new(Mutex::new(battles_map));
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
-        let response = client.get(format!("/battle/{}/next", id)).dispatch();
+        let battle = coral_sea_battle(id);
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
+        let response = client.get(format!("/battle/{}/next", id)).dispatch().await;
         assert_eq!(response.status(), Status::Ok);
-        let response_string = response.into_string().unwrap();
+        let response_string = response.into_string().await.unwrap();
         assert!(response_string.contains("Reaction Contact Phase"));
         assert!(response_string.contains("GroundMovement"));
         assert!(response_string.contains("AirMovement"));
@@ -645,236 +748,238 @@ mod test {
         assert!(response_string.contains("Next"));
     }
 
-    #[test]
-    fn can_choose_lighting_condition_when_battle_cycle_starts() {
+    #[rocket::async_test]
+    async fn can_choose_lighting_condition_when_battle_cycle_starts() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
 
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response = client
             .post(format!("/battle/{}/set_lighting", id))
             .header(ContentType::Form)
             .body("lighting=Night&set_lighting=choose")
-            .dispatch();
+            .dispatch()
+            .await;
         assert_eq!(response.status(), Status::SeeOther);
     }
 
-    #[test]
-    fn advance_lighting_condition() {
+    #[rocket::async_test]
+    async fn advance_lighting_condition() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
 
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response = client
             .post(format!("/battle/{}/set_lighting", id))
             .header(ContentType::Form)
             .body("set_lighting=advance")
-            .dispatch();
+            .dispatch()
+            .await;
         assert_eq!(response.status(), Status::SeeOther);
     }
 
-    #[test]
-    fn can_advance_lighting_condition_2_steps_only_once() {
+    #[rocket::async_test]
+    async fn can_advance_lighting_condition_2_steps_only_once() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         let mut battle_cycle = BattleCycle::intercept(id.as_u128());
         battle_cycle.count = 3;
         battle_cycle.lighting_condition = Some(Lighting::DayPM);
         battle.phase = Phase::BattleCyclePhase(battle_cycle);
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
 
-        let client =
-            Client::tracked(rocket_with_state(battles.clone())).expect("valid rocket instance");
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response = client
             .post(format!("/battle/{}/set_lighting", id))
             .header(ContentType::Form)
             .body("set_lighting=operation_advance")
-            .dispatch();
+            .dispatch()
+            .await;
         assert_eq!(response.status(), Status::SeeOther);
-        if let Phase::BattleCyclePhase(cycle) = &battles.lock().unwrap().get(&id).unwrap().phase {
+
+        // Get the updated battle from repository
+        let service = client.rocket().state::<BattleService>().unwrap();
+        let updated_battle = service.repository.get(id).await.unwrap();
+        if let Phase::BattleCyclePhase(cycle) = &updated_battle.phase {
             assert_eq!(cycle.lighting_condition, Some(Lighting::Night));
         };
     }
 
-    #[test]
-    fn reaction_player_can_choose_lighting_condition_at_first_cycle_given_intelligence_is_ambush() {
+    #[rocket::async_test]
+    async fn reaction_player_can_choose_lighting_condition_at_first_cycle_given_intelligence_is_ambush() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.battle_data.intelligence_condition = Intelligence::Ambush;
         battle.phase =
             Phase::BattleCyclePhase(BattleCycle::new(Intelligence::Ambush, id.as_u128()));
 
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
-
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response_string = client
             .get(format!("/battle/{}", id))
             .dispatch()
+            .await
             .into_string()
+            .await
             .unwrap();
         assert!(response_string.contains("Reaction player choose lighting"));
     }
 
-    #[test]
-    fn operation_player_can_choose_lighting_condition_at_first_cycle_given_intelligence_is_intercept(
+    #[rocket::async_test]
+    async fn operation_player_can_choose_lighting_condition_at_first_cycle_given_intelligence_is_intercept(
     ) {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.battle_data.intelligence_condition = Intelligence::Intercept;
         battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
 
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
-
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response_string = client
             .get(format!("/battle/{}", id))
             .dispatch()
+            .await
             .into_string()
+            .await
             .unwrap();
         assert!(response_string.contains("Operation player choose lighting"));
     }
 
-    #[test]
-    fn operation_player_can_advance_lighting_by_2_slots_after_first_cycle_given_intelligence_is_surprise(
+    #[rocket::async_test]
+    async fn operation_player_can_advance_lighting_by_2_slots_after_first_cycle_given_intelligence_is_surprise(
     ) {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.battle_data.intelligence_condition = Intelligence::Surprise;
         let mut battle_cycle = BattleCycle::new(Intelligence::Surprise, id.as_u128());
         battle_cycle.count = 3;
         battle.phase = Phase::BattleCyclePhase(battle_cycle);
 
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
-
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response_string = client
             .get(format!("/battle/{}", id))
             .dispatch()
+            .await
             .into_string()
+            .await
             .unwrap();
         assert!(response_string.contains("Advance lighting 2 steps"));
     }
 
-    #[test]
-    fn reaction_player_cannot_choose_lighting_condition_after_first_cycle_even_when_intelligence_is_ambush(
+    #[rocket::async_test]
+    async fn reaction_player_cannot_choose_lighting_condition_after_first_cycle_even_when_intelligence_is_ambush(
     ) {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.battle_data.intelligence_condition = Intelligence::Ambush;
         let mut cycle = BattleCycle::intercept(id.as_u128());
         cycle.count = 2;
         battle.phase = Phase::BattleCyclePhase(cycle);
 
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
-
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response_string = client
             .get(format!("/battle/{}", id))
             .dispatch()
+            .await
             .into_string()
+            .await
             .unwrap();
         assert!(response_string.contains("Advance lighting"));
     }
 
-    #[test]
-    fn determine_advantage() {
+    #[rocket::async_test]
+    async fn determine_advantage() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
 
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response = client
             .post(format!("/battle/{}/advantage_determination", id))
-            .dispatch();
+            .dispatch()
+            .await;
         assert_eq!(response.status(), Status::SeeOther);
     }
 
-    #[test]
-    fn select_naval_movement_at_movement_segment() {
+    #[rocket::async_test]
+    async fn select_naval_movement_at_movement_segment() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
 
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response = client
             .post(format!("/battle/{}/movement", id))
             .header(ContentType::Form)
             .body("movement=NavalMovement")
-            .dispatch();
+            .dispatch()
+            .await;
         assert_eq!(response.status(), Status::SeeOther);
     }
 
-    #[test]
-    fn determine_combat_status_at_start_of_naval_combat_phase() {
+    #[rocket::async_test]
+    async fn determine_combat_status_at_start_of_naval_combat_phase() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
 
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response = client
             .post(format!("/battle/{}/naval_combat_determination", id))
             .header(ContentType::Form)
             .body("advantage=Detected&disadvantage=Detected&hex_type=Coastal")
-            .dispatch();
+            .dispatch()
+            .await;
         assert_eq!(response.status(), Status::SeeOther);
     }
 
-    #[test]
-    fn move_to_next_combat_round() {
+    #[rocket::async_test]
+    async fn move_to_next_combat_round() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
 
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
-        let response = client.post(format!("/battle/{}/next_round", id)).dispatch();
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
+        let response = client.post(format!("/battle/{}/next_round", id)).dispatch().await;
         assert_eq!(response.status(), Status::SeeOther);
     }
 
-    #[test]
-    fn can_bid_combat_distance() {
+    #[rocket::async_test]
+    async fn can_bid_combat_distance() {
         let id = Uuid::new_v4();
-        let mut battles_map = HashMap::new();
         let mut battle = coral_sea_battle(id);
         battle.phase = Phase::BattleCyclePhase(BattleCycle::intercept(id.as_u128()));
-        battles_map.insert(id, battle);
-        let battles = Arc::new(Mutex::new(battles_map));
 
-        let client = Client::tracked(rocket_with_state(battles)).expect("valid rocket instance");
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
         let response = client
             .post(format!("/battle/{}/bid_distance", id))
             .header(ContentType::Form)
             .body("advantage_bid=Short&disadvantage_bid=Long")
-            .dispatch();
+            .dispatch()
+            .await;
         assert_eq!(response.status(), Status::SeeOther);
     }
 }
