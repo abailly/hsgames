@@ -2,7 +2,7 @@
 # Packages pacific war application for deployment to remote host
 
 PKG="pacific-war"                                    # cargo package name
-TARGET="x86_64-unknown-linux-gnu"            # remote target
+TARGET="${ARCH:-x86_64}-unknown-linux-gnu"            # remote target
 ASSETS=("Rocket.toml" "static" "templates")  # list of assets to bundle
 BUILD_DIR="target/${TARGET}/release"         # cargo build directory
 

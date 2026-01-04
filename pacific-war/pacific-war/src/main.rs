@@ -65,7 +65,7 @@ async fn battle(service: &State<BattleService>, id: UuidForm) -> Result<Template
         .await
         .map_err(|_| Status::NotFound)?;
 
-    contact_phase(&battle)
+    render_phase(&battle)
 }
 
 /// Update movement for contact phase
@@ -90,18 +90,76 @@ async fn contact_movement(
                     _ => Status::InternalServerError,
                 })?;
 
-            contact_phase(&battle)
+            render_phase(&battle)
         }
         _ => Err(Status::BadRequest),
     }
 }
 
-fn contact_phase(battle: &Battle) -> Result<Template, Status> {
+fn render_phase(battle: &Battle) -> Result<Template, Status> {
     match &battle.phase {
+        Phase::StrategicPhase(phase_type) => Ok(render_strategic_phase(battle, phase_type)),
         Phase::OperationContactPhase(phase) => Ok(render_contact_phase(battle, phase)),
+        Phase::ReactionActivationPhase(activation) => Ok(render_reaction_activation(battle, activation)),
         Phase::ReactionContactPhase(phase) => Ok(render_contact_phase(battle, phase)),
         Phase::BattleCyclePhase(phase) => Ok(render_battle_cycle(battle, phase)),
     }
+}
+
+fn render_strategic_phase(battle: &Battle, phase_type: &StrategicPhaseType) -> Template {
+    let phase_index = match phase_type {
+        StrategicPhaseType::Weather => 1,
+        StrategicPhaseType::StrategicIntelligence => 2,
+        StrategicPhaseType::StrategicBombing => 3,
+        StrategicPhaseType::JapaneseEscort => 4,
+        StrategicPhaseType::AlliedSubmarinePriority => 5,
+        StrategicPhaseType::MerchantShippingAttrition => 6,
+        StrategicPhaseType::CommandPoint => 7,
+        StrategicPhaseType::IsolationPenalty => 8,
+        StrategicPhaseType::StrategicTransport => 9,
+        StrategicPhaseType::Reinforcement => 10,
+        StrategicPhaseType::NavalRepair => 11,
+        StrategicPhaseType::Replacement => 12,
+        StrategicPhaseType::Engineering => 13,
+        StrategicPhaseType::SubmarinePatrol => 14,
+        StrategicPhaseType::OperationPlayerDetermination => 15,
+        StrategicPhaseType::OperationPlayerActivation => 16,
+        StrategicPhaseType::OperationalIntelligence => 17,
+    };
+
+    Template::render(
+        "strategic_phase",
+        context! {
+            battle_id: &battle.id,
+            operation_player: &battle.battle_data.operation_player,
+            intelligence_condition: &battle.battle_data.intelligence_condition,
+            battle_name: &battle.battle_data.battle_name,
+            start_date: &battle.battle_data.start_date.date,
+            duration: &battle.battle_data.duration,
+            current_date: &battle.current_date,
+            phase_name: format!("{}", phase_type),
+            phase_index: phase_index,
+            parent: "battle",
+        },
+    )
+}
+
+fn render_reaction_activation(battle: &Battle, activation: &ReactionActivation) -> Template {
+    Template::render(
+        "reaction_activation",
+        context! {
+            battle_id: &battle.id,
+            operation_player: &battle.battle_data.operation_player,
+            intelligence_condition: &battle.battle_data.intelligence_condition,
+            battle_name: &battle.battle_data.battle_name,
+            start_date: &battle.battle_data.start_date.date,
+            duration: &battle.battle_data.duration,
+            current_date: &battle.current_date,
+            phase_name: format!("{}", &battle.phase),
+            activation: activation,
+            parent: "battle",
+        },
+    )
 }
 
 fn render_contact_phase(battle: &Battle, phase: &ContactPhase) -> Template {
@@ -303,7 +361,7 @@ async fn battle_next(service: &State<BattleService>, id: UuidForm) -> Result<Tem
             _ => Status::InternalServerError,
         })?;
 
-    contact_phase(&battle)
+    render_phase(&battle)
 }
 
 struct BattleService {
@@ -709,6 +767,56 @@ mod test {
     }
 
     #[rocket::async_test]
+    async fn new_battle_starts_at_weather_phase() {
+        let id = Uuid::new_v4();
+        let battle = Battle::new(id, &coral_sea());
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
+        let response = client.get(format!("/battle/{}", id)).dispatch().await;
+        assert_eq!(response.status(), Status::Ok);
+        let response_string = response.into_string().await.unwrap();
+        assert!(response_string.contains("Weather Phase"));
+        assert!(response_string.contains("Strategic Phase 1 of 17"));
+        assert!(response_string.contains("Next"));
+    }
+
+    #[rocket::async_test]
+    async fn clicking_next_progresses_through_strategic_phases() {
+        let id = Uuid::new_v4();
+        let battle = Battle::new(id, &coral_sea());
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
+
+        // Click next to move from Weather to Strategic Intelligence
+        let response = client.get(format!("/battle/{}/next", id)).dispatch().await;
+        assert_eq!(response.status(), Status::Ok);
+        let response_string = response.into_string().await.unwrap();
+        assert!(response_string.contains("Strategic Intelligence Phase"));
+        assert!(response_string.contains("Strategic Phase 2 of 17"));
+    }
+
+    #[rocket::async_test]
+    async fn last_strategic_phase_transitions_to_operation_contact_phase() {
+        let id = Uuid::new_v4();
+        let mut battle = Battle::new(id, &coral_sea());
+        // Set to last strategic phase
+        battle.phase = Phase::StrategicPhase(StrategicPhaseType::OperationalIntelligence);
+
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
+
+        // Click next to move from OperationalIntelligence to OperationContactPhase
+        let response = client.get(format!("/battle/{}/next", id)).dispatch().await;
+        assert_eq!(response.status(), Status::Ok);
+        let response_string = response.into_string().await.unwrap();
+        assert!(response_string.contains("Operation Contact Phase"));
+        assert!(response_string.contains("GroundMovement"));
+    }
+
+    #[rocket::async_test]
     async fn choosing_ground_movement_at_contact_phase_removes_it_from_available_movements() {
         let id = Uuid::new_v4();
         let battle = coral_sea_battle(id);
@@ -732,9 +840,26 @@ mod test {
     }
 
     #[rocket::async_test]
-    async fn choosing_next_at_operation_contact_phase_moves_to_reaction_contact_phase() {
+    async fn choosing_next_at_operation_contact_phase_moves_to_reaction_activation_phase() {
         let id = Uuid::new_v4();
         let battle = coral_sea_battle(id);
+        let client = Client::tracked(test_rocket_with_battle(id, battle).await)
+            .await
+            .expect("valid rocket instance");
+        let response = client.get(format!("/battle/{}/next", id)).dispatch().await;
+        assert_eq!(response.status(), Status::Ok);
+        let response_string = response.into_string().await.unwrap();
+        assert!(response_string.contains("Reaction Player Activation Phase"));
+        assert!(response_string.contains("Next"));
+    }
+
+    #[rocket::async_test]
+    async fn choosing_next_at_reaction_activation_phase_moves_to_reaction_contact_phase() {
+        let id = Uuid::new_v4();
+        let mut battle = coral_sea_battle(id);
+        battle.phase = Phase::ReactionActivationPhase(ReactionActivation {
+            max_naval_movement_count: 3,
+        });
         let client = Client::tracked(test_rocket_with_battle(id, battle).await)
             .await
             .expect("valid rocket instance");

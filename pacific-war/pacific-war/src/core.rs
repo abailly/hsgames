@@ -78,7 +78,7 @@ impl Battle {
             id,
             battle_data: new_battle.clone(),
             current_date: new_battle.start_date.date.clone(),
-            phase: Phase::OperationContactPhase(ContactPhase::new()),
+            phase: Phase::StrategicPhase(StrategicPhaseType::Weather),
             version: 0,  // New battles start at version 0
         }
     }
@@ -100,20 +100,31 @@ impl Battle {
 
     pub fn next(&mut self) {
         match &mut self.phase {
-            Phase::OperationContactPhase(phase) => match self.battle_data.intelligence_condition {
-                Intelligence::Ambush | Intelligence::AmbushCV => {
-                    self.phase = Phase::ReactionContactPhase(ContactPhase {
-                        max_naval_movement_count: phase.naval_movement_count * 2,
-                        ..ContactPhase::new()
-                    });
+            Phase::StrategicPhase(phase_type) => {
+                if let Some(next_phase) = phase_type.next() {
+                    self.phase = Phase::StrategicPhase(next_phase);
+                } else {
+                    // Transition from OperationalIntelligence to OperationContactPhase
+                    self.phase = Phase::OperationContactPhase(ContactPhase::new());
                 }
-                _ => {
-                    self.phase = Phase::ReactionContactPhase(ContactPhase {
-                        max_naval_movement_count: phase.naval_movement_count,
-                        ..ContactPhase::new()
-                    });
-                }
-            },
+            }
+            Phase::OperationContactPhase(phase) => {
+                // Transition to Reaction Player Activation Phase
+                let max_naval = match self.battle_data.intelligence_condition {
+                    Intelligence::Ambush | Intelligence::AmbushCV => phase.naval_movement_count * 2,
+                    _ => phase.naval_movement_count,
+                };
+                self.phase = Phase::ReactionActivationPhase(ReactionActivation {
+                    max_naval_movement_count: max_naval,
+                });
+            }
+            Phase::ReactionActivationPhase(activation) => {
+                // Transition to Reaction Contact Phase
+                self.phase = Phase::ReactionContactPhase(ContactPhase {
+                    max_naval_movement_count: activation.max_naval_movement_count,
+                    ..ContactPhase::new()
+                });
+            }
             Phase::ReactionContactPhase(_) => {
                 self.phase = Phase::BattleCyclePhase(BattleCycle::new(
                     self.battle_data.intelligence_condition.clone(),
@@ -140,17 +151,119 @@ impl Battle {
     }
 }
 
+/// Strategic phases from section 5.1 of the rules
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub enum StrategicPhaseType {
+    /// A. Weather Phase (Strategic scenarios only; OPTIONAL)
+    Weather,
+    /// B. Strategic Intelligence Phase
+    StrategicIntelligence,
+    /// C. Strategic Bombing Phase (Strategic scenarios only)
+    StrategicBombing,
+    /// D. Japanese Escort Phase (Strategic scenarios only)
+    JapaneseEscort,
+    /// E. Allied Submarine Priority Phase (Strategic scenarios only)
+    AlliedSubmarinePriority,
+    /// F. Merchant Shipping Attrition Phase (Strategic scenarios only)
+    MerchantShippingAttrition,
+    /// G. Command Point Phase
+    CommandPoint,
+    /// H. Isolation Penalty Phase
+    IsolationPenalty,
+    /// I. Strategic Transport Phase
+    StrategicTransport,
+    /// J. Reinforcement Phase
+    Reinforcement,
+    /// K. Naval Repair Phase
+    NavalRepair,
+    /// L. Replacement Phase
+    Replacement,
+    /// M. Engineering Phase
+    Engineering,
+    /// N. Submarine Patrol Phase
+    SubmarinePatrol,
+    /// O. Operation Player Determination Phase
+    OperationPlayerDetermination,
+    /// P. Operation Player Activation Phase
+    OperationPlayerActivation,
+    /// Q. Operational Intelligence Phase
+    OperationalIntelligence,
+}
+
+impl StrategicPhaseType {
+    pub fn next(&self) -> Option<StrategicPhaseType> {
+        match self {
+            StrategicPhaseType::Weather => Some(StrategicPhaseType::StrategicIntelligence),
+            StrategicPhaseType::StrategicIntelligence => Some(StrategicPhaseType::StrategicBombing),
+            StrategicPhaseType::StrategicBombing => Some(StrategicPhaseType::JapaneseEscort),
+            StrategicPhaseType::JapaneseEscort => Some(StrategicPhaseType::AlliedSubmarinePriority),
+            StrategicPhaseType::AlliedSubmarinePriority => Some(StrategicPhaseType::MerchantShippingAttrition),
+            StrategicPhaseType::MerchantShippingAttrition => Some(StrategicPhaseType::CommandPoint),
+            StrategicPhaseType::CommandPoint => Some(StrategicPhaseType::IsolationPenalty),
+            StrategicPhaseType::IsolationPenalty => Some(StrategicPhaseType::StrategicTransport),
+            StrategicPhaseType::StrategicTransport => Some(StrategicPhaseType::Reinforcement),
+            StrategicPhaseType::Reinforcement => Some(StrategicPhaseType::NavalRepair),
+            StrategicPhaseType::NavalRepair => Some(StrategicPhaseType::Replacement),
+            StrategicPhaseType::Replacement => Some(StrategicPhaseType::Engineering),
+            StrategicPhaseType::Engineering => Some(StrategicPhaseType::SubmarinePatrol),
+            StrategicPhaseType::SubmarinePatrol => Some(StrategicPhaseType::OperationPlayerDetermination),
+            StrategicPhaseType::OperationPlayerDetermination => Some(StrategicPhaseType::OperationPlayerActivation),
+            StrategicPhaseType::OperationPlayerActivation => Some(StrategicPhaseType::OperationalIntelligence),
+            StrategicPhaseType::OperationalIntelligence => None, // Transitions to OperationContactPhase
+        }
+    }
+}
+
+impl Display for StrategicPhaseType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            StrategicPhaseType::Weather => write!(f, "Weather Phase"),
+            StrategicPhaseType::StrategicIntelligence => write!(f, "Strategic Intelligence Phase"),
+            StrategicPhaseType::StrategicBombing => write!(f, "Strategic Bombing Phase"),
+            StrategicPhaseType::JapaneseEscort => write!(f, "Japanese Escort Phase"),
+            StrategicPhaseType::AlliedSubmarinePriority => write!(f, "Allied Submarine Priority Phase"),
+            StrategicPhaseType::MerchantShippingAttrition => write!(f, "Merchant Shipping Attrition Phase"),
+            StrategicPhaseType::CommandPoint => write!(f, "Command Point Phase"),
+            StrategicPhaseType::IsolationPenalty => write!(f, "Isolation Penalty Phase"),
+            StrategicPhaseType::StrategicTransport => write!(f, "Strategic Transport Phase"),
+            StrategicPhaseType::Reinforcement => write!(f, "Reinforcement Phase"),
+            StrategicPhaseType::NavalRepair => write!(f, "Naval Repair Phase"),
+            StrategicPhaseType::Replacement => write!(f, "Replacement Phase"),
+            StrategicPhaseType::Engineering => write!(f, "Engineering Phase"),
+            StrategicPhaseType::SubmarinePatrol => write!(f, "Submarine Patrol Phase"),
+            StrategicPhaseType::OperationPlayerDetermination => write!(f, "Operation Player Determination Phase"),
+            StrategicPhaseType::OperationPlayerActivation => write!(f, "Operation Player Activation Phase"),
+            StrategicPhaseType::OperationalIntelligence => write!(f, "Operational Intelligence Phase"),
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
+pub struct ReactionActivation {
+    /// Maximum naval movement count for reaction player (from operation player's contact phase)
+    pub max_naval_movement_count: u8,
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 pub enum Phase {
+    /// Strategic phases (5.1 A-Q)
+    StrategicPhase(StrategicPhaseType),
+    /// R. Operation Player Contact Phase
     OperationContactPhase(ContactPhase),
+    /// S. Reaction Player Activation Phase
+    ReactionActivationPhase(ReactionActivation),
+    /// T. Reaction Player Contact Phase
     ReactionContactPhase(ContactPhase),
+    /// 5.2 Battle Cycle
     BattleCyclePhase(BattleCycle),
 }
 
 impl Display for Phase {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
+            Phase::StrategicPhase(phase_type) => write!(f, "{}", phase_type),
             Phase::OperationContactPhase(_) => write!(f, "Operation Contact Phase"),
+            Phase::ReactionActivationPhase(_) => write!(f, "Reaction Player Activation Phase"),
             Phase::ReactionContactPhase(_) => write!(f, "Reaction Contact Phase"),
             Phase::BattleCyclePhase(_) => write!(f, "Battle Cycle"),
         }
@@ -870,7 +983,8 @@ pub mod core_test {
             version: 0,
         };
 
-        battle.next();
+        battle.next(); // Moves to ReactionActivationPhase
+        battle.next(); // Moves to ReactionContactPhase
 
         assert_eq!(
             3,
@@ -909,7 +1023,8 @@ pub mod core_test {
             version: 0,
         };
 
-        battle.next();
+        battle.next(); // Moves to ReactionActivationPhase
+        battle.next(); // Moves to ReactionContactPhase
 
         assert_eq!(
             6,

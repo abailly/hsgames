@@ -1,0 +1,18 @@
+{{#*inline "page"}}
+<div class="reaction-activation">
+  <h2>{{phase_name}}</h2>
+  <p>The Reaction player spends Command Points to Activate combat units.</p>
+
+  <form>
+    <div>
+      <label for="max_naval_movement">Max Naval Movement</label>
+      <input type="text" readonly id="max_naval_movement" value="{{activation.max_naval_movement_count}}" />
+    </div>
+  </form>
+
+  <form action="/battle/{{battle_id}}/next">
+    <button class="next" type="submit">Next</button>
+  </form>
+</div>
+{{/inline}}
+{{> (lookup this "parent")}}

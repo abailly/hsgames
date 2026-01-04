@@ -213,6 +213,36 @@ DATABASE_URL=postgres://localhost/pacific_war_test cargo test
 **WASM Tests:**
 Browser-based tests in `tests/web.rs` using `wasm-bindgen-test`.
 
+**Playwright Random Walk Tests:**
+TypeScript-based browser automation tests in `e2e-playwright/`:
+- Deterministic random walks through game UI using seeded PRNG
+- State machine generation in DOT/JSON formats
+- Multiple iteration modes: 20, 50, or 100 walks
+- Full browser automation (clicks, forms) vs HTTP-only testing
+
+```bash
+# Setup
+cd e2e-playwright
+npm install
+npx playwright install chromium
+
+# Run tests (server must be running)
+npm run test:deterministic  # Quick deterministic test
+npm run test:20            # 20 iterations (3 min timeout)
+npm run test:50            # 50 iterations (5 min timeout)
+npm run test:100           # 100 iterations (10 min timeout)
+
+# Or with custom timeout (in seconds)
+TIMEOUT=300 npm test -- --grep "50 iterations"
+
+# Generate diagrams from output
+dot -Tpng output/state-machine-20.dot -o output/state-machine-20.png
+```
+
+See `e2e-playwright/README.md` and `e2e-playwright/QUICKSTART.md` for details.
+
+Also see `pacific-war/tests/random_walk_test.rs` for Rust HTTP-based random walk tests.
+
 ## Development Patterns
 
 **Adding New Battle Phases:**

@@ -1,0 +1,11 @@
+{{#*inline "page"}}
+<div class="strategic-phase">
+  <h2>{{phase_name}}</h2>
+  <p class="phase-description">Strategic Phase {{phase_index}} of 17</p>
+
+  <form action="/battle/{{battle_id}}/next">
+    <button class="next" type="submit">Next</button>
+  </form>
+</div>
+{{/inline}}
+{{> (lookup this "parent")}}
